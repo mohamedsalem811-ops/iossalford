@@ -1,0 +1,186 @@
+import UIKit
+import SwiftUI
+
+/// 100% Native iOS PDF Engine using UIGraphicsPDFRenderer & UIPrintInteractionController (AirPrint)
+enum NativePDFGenerator {
+
+    static func generateGiftReceiptPDF(
+        template: ReceiptTemplate,
+        showRealPrices: Bool,
+        receiptNo: String,
+        dateStr: String,
+        timeStr: String,
+        customer: String,
+        items: [ReceiptLineItem]
+    ) -> URL? {
+        let pageWidth: CGFloat = 595.2 // A4 width in pt
+        let pageHeight: CGFloat = max(841.8, 620.0 + CGFloat(items.count) * 48.0)
+        let pageRect = CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight)
+
+        let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
+        let data = renderer.pdfData { context in
+            context.beginPage()
+            let cg = context.cgContext
+
+            // White background
+            UIColor.white.setFill()
+            cg.fill(pageRect)
+
+            var curY: CGFloat = 40
+
+            if template == .salfordRoyal {
+                // Royal Obsidian & Violet Header Banner matching SALFORD logo scheme
+                let bannerRect = CGRect(x: 0, y: 0, width: pageWidth, height: 145)
+                let colors = [
+                    UIColor(red: 43/255, green: 25/255, blue: 84/255, alpha: 1).cgColor,
+                    UIColor(red: 11/255, green: 11/255, blue: 24/255, alpha: 1).cgColor,
+                    UIColor(red: 5/255, green: 5/255, blue: 10/255, alpha: 1).cgColor
+                ] as CFArray
+                if let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(), colors: colors, locations: [0, 0.6, 1]) {
+                    cg.saveGState()
+                    cg.addRect(bannerRect)
+                    cg.clip()
+                    cg.drawLinearGradient(grad, start: CGPoint(x: pageWidth, y: 0), end: CGPoint(x: 0, y: 145), options: [])
+                    cg.restoreGState()
+                }
+                UIColor(red: 200/255, green: 216/255, blue: 240/255, alpha: 1).setFill()
+                cg.fill(CGRect(x: 0, y: 145, width: pageWidth, height: 3))
+
+                drawCenteredText("SJ", y: 22, font: .systemFont(ofSize: 44, weight: .black), color: .white, pageWidth: pageWidth)
+                drawCenteredText("SALFORD", y: 74, font: .systemFont(ofSize: 22, weight: .bold), color: .white, pageWidth: pageWidth)
+                drawCenteredText("jewelry", y: 100, font: .systemFont(ofSize: 11, weight: .regular), color: UIColor(red: 200/255, green: 216/255, blue: 240/255, alpha: 1), pageWidth: pageWidth)
+                drawCenteredText("✦ FINE JEWELRY & LUXURY CREATIONS • TRIPOLI, LIBYA ✦", y: 120, font: .systemFont(ofSize: 9.5, weight: .medium), color: UIColor(red: 200/255, green: 216/255, blue: 240/255, alpha: 1), pageWidth: pageWidth)
+                curY = 175
+            } else if template == .salfordWhite {
+                drawCenteredText("SJ", y: 36, font: .systemFont(ofSize: 42, weight: .black), color: .black, pageWidth: pageWidth)
+                drawCenteredText("SALFORD", y: 86, font: .systemFont(ofSize: 21, weight: .bold), color: .black, pageWidth: pageWidth)
+                drawCenteredText("jewelry", y: 110, font: .systemFont(ofSize: 11, weight: .regular), color: .darkGray, pageWidth: pageWidth)
+                drawCenteredText("SALFORD JEWELRY — LIBYA", y: 132, font: .systemFont(ofSize: 11, weight: .bold), color: .black, pageWidth: pageWidth)
+                curY = 168
+            } else {
+                // Swarovski London (Covent Garden) — 100% verbatim match to Invoice swarovski.pdf
+                drawCenteredText("SWAROVSKI", y: 50, font: .boldSystemFont(ofSize: 15), color: .black, pageWidth: pageWidth)
+                drawCenteredText("London – Covent Garden", y: 70, font: .systemFont(ofSize: 11.5), color: .black, pageWidth: pageWidth)
+                drawCenteredText("20–21 James Street, Covent Garden", y: 86, font: .systemFont(ofSize: 11.5), color: .black, pageWidth: pageWidth)
+                drawCenteredText("London, WC2E 8NS", y: 102, font: .systemFont(ofSize: 11.5), color: .black, pageWidth: pageWidth)
+                drawCenteredText("Tel: +44 20 7946 0000", y: 118, font: .systemFont(ofSize: 11.5), color: .black, pageWidth: pageWidth)
+                curY = 156
+            }
+
+            let docTitle = showRealPrices ? "OFFICIAL INVOICE / RECEIPT" : "GIFT RECEIPT"
+            drawCenteredText(docTitle, y: curY, font: .boldSystemFont(ofSize: 13), color: .black, pageWidth: pageWidth)
+            curY += 34
+
+            let storeName = (template == .swarovskiLondon) ? "Swarovski London" : "SALFORD Jewelry — Libya"
+            let meta: [(String, String)] = [
+                ("Date:", dateStr),
+                ("Time:", timeStr),
+                ("Receipt No:", receiptNo),
+                ("Store:", storeName)
+            ]
+            for (k, v) in meta {
+                drawLeftText(k, x: 96, y: curY, font: .systemFont(ofSize: 11.5), color: .black)
+                drawLeftText(v, x: 210, y: curY, font: .systemFont(ofSize: 11.5), color: .black)
+                curY += 20
+            }
+
+            curY += 10
+            let tx: CGFloat = 96
+            let tw: CGFloat = pageWidth - 192
+            let col1: CGFloat = tw * 0.65
+            let col2: CGFloat = tw * 0.15
+            let col3: CGFloat = tw * 0.20
+            let rh: CGFloat = 22
+
+            // Table Header
+            let hdrRect = CGRect(x: tx, y: curY, width: tw, height: rh)
+            (template == .salfordRoyal ? UIColor(red: 11/255, green: 11/255, blue: 24/255, alpha: 1) : UIColor(white: 0.93, alpha: 1)).setFill()
+            cg.fill(hdrRect)
+            UIColor.gray.setStroke()
+            cg.stroke(CGRect(x: tx, y: curY, width: col1, height: rh))
+            cg.stroke(CGRect(x: tx + col1, y: curY, width: col2, height: rh))
+            cg.stroke(CGRect(x: tx + col1 + col2, y: curY, width: col3, height: rh))
+
+            let hdrTextCol: UIColor = (template == .salfordRoyal) ? .white : .black
+            drawLeftText("Item", x: tx + 8, y: curY + 4, font: .boldSystemFont(ofSize: 11), color: hdrTextCol)
+            drawLeftText("Qty", x: tx + col1 + 8, y: curY + 4, font: .boldSystemFont(ofSize: 11), color: hdrTextCol)
+            drawLeftText("Price", x: tx + col1 + col2 + 8, y: curY + 4, font: .boldSystemFont(ofSize: 11), color: hdrTextCol)
+            curY += rh
+
+            for item in items {
+                let priceText = (showRealPrices && item.price > 0) ? String(format: "%.2f", item.price * Double(item.qty)) : "XXX"
+                UIColor.gray.setStroke()
+                cg.stroke(CGRect(x: tx, y: curY, width: col1, height: rh))
+                cg.stroke(CGRect(x: tx + col1, y: curY, width: col2, height: rh))
+                cg.stroke(CGRect(x: tx + col1 + col2, y: curY, width: col3, height: rh))
+
+                drawLeftText(item.fullTitle, x: tx + 8, y: curY + 4, font: .systemFont(ofSize: 11), color: .black)
+                drawLeftText("\(item.qty)", x: tx + col1 + 14, y: curY + 4, font: .systemFont(ofSize: 11), color: .black)
+                drawLeftText(priceText, x: tx + col1 + col2 + 12, y: curY + 4, font: .systemFont(ofSize: 11), color: .black)
+                curY += rh
+
+                cg.stroke(CGRect(x: tx, y: curY, width: col1, height: rh))
+                cg.stroke(CGRect(x: tx + col1, y: curY, width: col2, height: rh))
+                cg.stroke(CGRect(x: tx + col1 + col2, y: curY, width: col3, height: rh))
+                drawLeftText("Item Code: \(item.code)", x: tx + 8, y: curY + 4, font: .systemFont(ofSize: 10.5), color: .darkGray)
+                curY += rh
+            }
+
+            curY += 14
+            UIColor.black.setStroke()
+            cg.setLineWidth(1.2)
+            cg.move(to: CGPoint(x: tx, y: curY))
+            cg.addLine(to: CGPoint(x: tx + tw, y: curY))
+            cg.strokePath()
+
+            let grandTotal = items.reduce(0.0) { $0 + ($1.price * Double($1.qty)) }
+            let totalStr = (showRealPrices && grandTotal > 0) ? String(format: "%.2f LYD", grandTotal) : "XXX"
+            drawLeftText("Total", x: tx + 8, y: curY + 8, font: .boldSystemFont(ofSize: 12), color: .black)
+            drawLeftText(totalStr, x: tx + tw - 65, y: curY + 8, font: .boldSystemFont(ofSize: 12), color: .black)
+
+            curY += 44
+            drawLeftText("Customer: \(customer)", x: 48, y: curY, font: .boldSystemFont(ofSize: 11.5), color: .black)
+
+            curY += 26
+            drawLeftText("This is a gift receipt. Original receipt is required for returns or exchanges.", x: 48, y: curY, font: .systemFont(ofSize: 10), color: .gray)
+            drawLeftText("Returns are subject to store policy.", x: 48, y: curY + 15, font: .systemFont(ofSize: 10), color: .gray)
+
+            curY += 56
+            if template == .swarovskiLondon {
+                drawCenteredText("Thank you for shopping with Swarovski.", y: curY, font: .systemFont(ofSize: 11.5), color: .black, pageWidth: pageWidth)
+                drawCenteredText("www.swarovski.com", y: curY + 16, font: .systemFont(ofSize: 11.5), color: .black, pageWidth: pageWidth)
+            } else {
+                drawCenteredText("Thank you for shopping with SALFORD Jewelry.", y: curY, font: .systemFont(ofSize: 11.5), color: .black, pageWidth: pageWidth)
+                drawCenteredText("✦ SALFORD HIGH JEWELRY ✦", y: curY + 18, font: .boldSystemFont(ofSize: 10.5), color: .darkGray, pageWidth: pageWidth)
+            }
+        }
+
+        let safeNo = receiptNo.replacingOccurrences(of: "/", with: "-")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("SALFORD-Receipt-\(safeNo).pdf")
+        try? data.write(to: url, options: .atomic)
+        return url
+    }
+
+    static func printPDF(url: URL, jobName: String) {
+        guard UIPrintInteractionController.canPrint(url) else { return }
+        let printInfo = UIPrintInfo(dictionary: nil)
+        printInfo.jobName = jobName
+        printInfo.outputType = .general
+        let controller = UIPrintInteractionController.shared
+        controller.printInfo = printInfo
+        controller.printingItem = url
+        controller.present(animated: true, completionHandler: nil)
+    }
+
+    private static func drawCenteredText(_ text: String, y: CGFloat, font: UIFont, color: UIColor, pageWidth: CGFloat) {
+        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
+        let size = (text as NSString).size(withAttributes: attrs)
+        let rect = CGRect(x: (pageWidth - size.width) / 2.0, y: y, width: size.width, height: size.height + 4)
+        (text as NSString).draw(in: rect, withAttributes: attrs)
+    }
+
+    private static func drawLeftText(_ text: String, x: CGFloat, y: CGFloat, font: UIFont, color: UIColor) {
+        let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
+        (text as NSString).draw(at: CGPoint(x: x, y: y), withAttributes: attrs)
+    }
+}

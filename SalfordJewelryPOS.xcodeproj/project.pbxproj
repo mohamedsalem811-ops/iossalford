@@ -1,0 +1,292 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000012345678900000001 /* SalfordJewelryPOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000012345678900000001 /* SalfordJewelryPOSApp.swift */; };
+		A10000022345678900000001 /* SalfordTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000022345678900000001 /* SalfordTheme.swift */; };
+		A10000032345678900000001 /* POSModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000032345678900000001 /* POSModels.swift */; };
+		A10000042345678900000001 /* POSDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000042345678900000001 /* POSDataStore.swift */; };
+		A10000052345678900000001 /* NativePDFGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000052345678900000001 /* NativePDFGenerator.swift */; };
+		A10000062345678900000001 /* PinLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000062345678900000001 /* PinLoginView.swift */; };
+		A10000072345678900000001 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000072345678900000001 /* MainTabView.swift */; };
+		A10000082345678900000001 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000082345678900000001 /* DashboardView.swift */; };
+		A10000092345678900000001 /* SalePOSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000092345678900000001 /* SalePOSView.swift */; };
+		A10000102345678900000001 /* GiftReceiptStudioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000102345678900000001 /* GiftReceiptStudioView.swift */; };
+		A10000112345678900000001 /* ProductsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000112345678900000001 /* ProductsView.swift */; };
+		A10000122345678900000001 /* ManagementViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000122345678900000001 /* ManagementViews.swift */; };
+		A10000132345678900000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000132345678900000001 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A00000012345678900000001 /* SalfordJewelryPOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SalfordJewelryPOS.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000012345678900000001 /* SalfordJewelryPOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SalfordJewelryPOSApp.swift; sourceTree = "<group>"; };
+		A20000022345678900000001 /* SalfordTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme/SalfordTheme.swift; sourceTree = "<group>"; };
+		A20000032345678900000001 /* POSModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/POSModels.swift; sourceTree = "<group>"; };
+		A20000042345678900000001 /* POSDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store/POSDataStore.swift; sourceTree = "<group>"; };
+		A20000052345678900000001 /* NativePDFGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/NativePDFGenerator.swift; sourceTree = "<group>"; };
+		A20000062345678900000001 /* PinLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/PinLoginView.swift; sourceTree = "<group>"; };
+		A20000072345678900000001 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/MainTabView.swift; sourceTree = "<group>"; };
+		A20000082345678900000001 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DashboardView.swift; sourceTree = "<group>"; };
+		A20000092345678900000001 /* SalePOSView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SalePOSView.swift; sourceTree = "<group>"; };
+		A20000102345678900000001 /* GiftReceiptStudioView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/GiftReceiptStudioView.swift; sourceTree = "<group>"; };
+		A20000112345678900000001 /* ProductsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ProductsView.swift; sourceTree = "<group>"; };
+		A20000122345678900000001 /* ManagementViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ManagementViews.swift; sourceTree = "<group>"; };
+		A20000132345678900000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A20000142345678900000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A30000012345678900000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A40000012345678900000001 = {
+			isa = PBXGroup;
+			children = (
+				A40000022345678900000001 /* SalfordJewelryPOS */,
+				A40000032345678900000001 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A40000022345678900000001 /* SalfordJewelryPOS */ = {
+			isa = PBXGroup;
+			children = (
+				A20000012345678900000001 /* SalfordJewelryPOSApp.swift */,
+				A20000022345678900000001 /* SalfordTheme.swift */,
+				A20000032345678900000001 /* POSModels.swift */,
+				A20000042345678900000001 /* POSDataStore.swift */,
+				A20000052345678900000001 /* NativePDFGenerator.swift */,
+				A20000062345678900000001 /* PinLoginView.swift */,
+				A20000072345678900000001 /* MainTabView.swift */,
+				A20000082345678900000001 /* DashboardView.swift */,
+				A20000092345678900000001 /* SalePOSView.swift */,
+				A20000102345678900000001 /* GiftReceiptStudioView.swift */,
+				A20000112345678900000001 /* ProductsView.swift */,
+				A20000122345678900000001 /* ManagementViews.swift */,
+				A20000132345678900000001 /* Assets.xcassets */,
+				A20000142345678900000001 /* Info.plist */,
+			);
+			path = SalfordJewelryPOS;
+			sourceTree = "<group>";
+		};
+		A40000032345678900000001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A00000012345678900000001 /* SalfordJewelryPOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000012345678900000001 /* SalfordJewelryPOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A80000022345678900000001 /* Build configuration list for PBXNativeTarget "SalfordJewelryPOS" */;
+			buildPhases = (
+				A60000012345678900000001 /* Sources */,
+				A30000012345678900000001 /* Frameworks */,
+				A70000012345678900000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SalfordJewelryPOS;
+			productName = SalfordJewelryPOS;
+			productReference = A00000012345678900000001 /* SalfordJewelryPOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A90000012345678900000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1520;
+				LastUpgradeCheck = 1520;
+				TargetAttributes = {
+					A50000012345678900000001 = {
+						CreatedOnToolsVersion = 15.2;
+					};
+				};
+			};
+			buildConfigurationList = A80000012345678900000001 /* Build configuration list for PBXProject "SalfordJewelryPOS" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = ar;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				ar,
+				en,
+				Base,
+			);
+			mainGroup = A40000012345678900000001;
+			productRefGroup = A40000032345678900000001 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A50000012345678900000001 /* SalfordJewelryPOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A70000012345678900000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000132345678900000001 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A60000012345678900000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10000012345678900000001 /* SalfordJewelryPOSApp.swift in Sources */,
+				A10000022345678900000001 /* SalfordTheme.swift in Sources */,
+				A10000032345678900000001 /* POSModels.swift in Sources */,
+				A10000042345678900000001 /* POSDataStore.swift in Sources */,
+				A10000052345678900000001 /* NativePDFGenerator.swift in Sources */,
+				A10000062345678900000001 /* PinLoginView.swift in Sources */,
+				A10000072345678900000001 /* MainTabView.swift in Sources */,
+				A10000082345678900000001 /* DashboardView.swift in Sources */,
+				A10000092345678900000001 /* SalePOSView.swift in Sources */,
+				A10000102345678900000001 /* GiftReceiptStudioView.swift in Sources */,
+				A10000112345678900000001 /* ProductsView.swift in Sources */,
+				A10000122345678900000001 /* ManagementViews.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		AA0000012345678900000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AA0000022345678900000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		AA0000032345678900000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SalfordJewelryPOS/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 6.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.salfordjewelry.pos;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA0000042345678900000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SalfordJewelryPOS/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 6.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.salfordjewelry.pos;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A80000012345678900000001 /* Build configuration list for PBXProject "SalfordJewelryPOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000012345678900000001 /* Debug */,
+				AA0000022345678900000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A80000022345678900000001 /* Build configuration list for PBXNativeTarget "SalfordJewelryPOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000032345678900000001 /* Debug */,
+				AA0000042345678900000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = A90000012345678900000001 /* Project object */;
+}

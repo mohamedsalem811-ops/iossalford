@@ -1,0 +1,24 @@
+workflows:
+  salford-native-ios:
+    name: SALFORD Jewelry POS Native SwiftUI iOS Build
+    max_build_duration: 30
+    instance_type: mac_mini_m2
+    environment:
+      xcode: latest
+    scripts:
+      - name: Build Native SwiftUI App
+        script: |
+          xcodebuild build \
+            -project SalfordJewelryPOS.xcodeproj \
+            -scheme SalfordJewelryPOS \
+            -sdk iphoneos \
+            -configuration Release \
+            -derivedDataPath build \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/SalfordJewelryPOS.app Payload/
+          zip -r SalfordJewelryPOS.ipa Payload
+    artifacts:
+      - SalfordJewelryPOS.ipa
