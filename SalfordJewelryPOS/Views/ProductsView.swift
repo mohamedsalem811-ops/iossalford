@@ -151,10 +151,8 @@ struct ProductsView: View {
                                         }
                                     }
                                     Button {
-                                        store.openReceiptStudio(
-                                            saleId: prod.id,
-                                            items: [ReceiptLineItem(name: prod.name, color: prod.color ?? "", code: prod.sku, qty: 1, price: prod.sellPrice)],
-                                            customer: "Salford Libya"
+                                        store.openNewDraftReceipt(
+                                            items: [ReceiptLineItem(name: prod.name, color: prod.color ?? "", code: prod.sku, qty: 1, price: prod.sellPrice)]
                                         )
                                     } label: {
                                         Label("إصدار فاتورة هدية", systemImage: "gift.fill")

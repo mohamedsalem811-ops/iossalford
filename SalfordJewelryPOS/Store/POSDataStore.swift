@@ -21,7 +21,11 @@ final class POSDataStore: ObservableObject {
     // Active Gift Receipt Studio payload
     @Published var showGiftReceiptStudio: Bool = false
     @Published var activeReceiptItems: [ReceiptLineItem] = []
-    @Published var activeReceiptNo: String = "GR-2026-001"
+    @Published var activeReceiptNo: String = ""
+    /// The saved receipt being shown in the studio; nil = a new draft that has no number yet.
+    @Published var activeReceiptId: Int? = nil
+    @Published var receipts: [IssuedReceipt] = []
+    private var receiptCounter: Int = 0
     @Published var activeReceiptCustomer: String = "Salford Libya"
     @Published var activeReceiptDate: String = ""
     @Published var activeReceiptTime: String = ""
@@ -152,6 +156,9 @@ final class POSDataStore: ObservableObject {
         self.returns = state.returns
         self.expenses = state.expenses
         self.closings = state.closings
+        self.receipts = state.receipts
+        // Never hand out a number that already exists, even if the counter was lost.
+        self.receiptCounter = max(state.receiptCounter, state.receipts.count)
     }
 
     /// Loads the database. Demo data is only created on a true first launch (no database file at all).
@@ -257,7 +264,9 @@ final class POSDataStore: ObservableObject {
             sales: sales,
             returns: returns,
             expenses: expenses,
-            closings: closings
+            closings: closings,
+            receipts: receipts,
+            receiptCounter: receiptCounter
         )
         do {
             let data = try JSONEncoder().encode(state)
@@ -547,9 +556,9 @@ final class POSDataStore: ObservableObject {
         sales.insert(rec, at: 0)
         saveToDisk()
 
-        // Automatically open Gift Receipt Studio for this sale
-        openReceiptStudio(
-            saleId: newId,
+        // Save the receipt for this sale and open it in the studio
+        issueSaleReceipt(
+            saleIds: [newId],
             items: [
                 ReceiptLineItem(
                     name: current.name,
@@ -559,7 +568,7 @@ final class POSDataStore: ObservableObject {
                     price: actualPrice
                 )
             ],
-            customer: customerName.isEmpty ? "Salford Libya" : customerName
+            customer: customerName
         )
         return nil
     }
@@ -584,7 +593,7 @@ final class POSDataStore: ObservableObject {
         let timestamp = nowTimestamp()
         let monthYear = currentMonthYear()
         let lineNote = note.isEmpty ? "سلة مبيعات موحدة" : "\(note) (سلة موحدة)"
-        let firstSaleId = nextSaleId()
+        var soldIds: [Int] = []
         var receiptLines: [ReceiptLineItem] = []
 
         for item in cart {
@@ -607,6 +616,7 @@ final class POSDataStore: ObservableObject {
                 monthYear: monthYear
             )
             sales.insert(rec, at: 0)
+            soldIds.append(rec.id)
             receiptLines.append(
                 ReceiptLineItem(
                     name: current.name,
@@ -621,11 +631,7 @@ final class POSDataStore: ObservableObject {
         cart.removeAll()
         saveToDisk()
 
-        openReceiptStudio(
-            saleId: firstSaleId,
-            items: receiptLines,
-            customer: customerName.isEmpty ? "Salford Libya" : customerName
-        )
+        issueSaleReceipt(saleIds: soldIds, items: receiptLines, customer: customerName)
         return []
     }
 
@@ -648,24 +654,133 @@ final class POSDataStore: ObservableObject {
         return newId
     }
 
-    func openReceiptStudio(saleId: Int, items: [ReceiptLineItem], customer: String) {
-        let now = Date()
+    // MARK: - Receipts
+
+    static let defaultReceiptCustomer = "Salford Libya"
+
+    private func receiptDateTime(_ date: Date = Date()) -> (date: String, time: String) {
         let dfDate = DateFormatter()
         dfDate.locale = Locale(identifier: "en_GB")
         dfDate.dateFormat = "dd/MM/yyyy"
         let dfTime = DateFormatter()
         dfTime.locale = Locale(identifier: "en_GB")
         dfTime.dateFormat = "HH:mm"
-        let year = Calendar.current.component(.year, from: now)
+        return (dfDate.string(from: date), dfTime.string(from: date))
+    }
 
-        self.activeReceiptDate = dfDate.string(from: now)
-        self.activeReceiptTime = dfTime.string(from: now)
-        self.activeReceiptNo = String(format: "GR-%d-%03d", year, saleId)
-        self.activeReceiptCustomer = customer.isEmpty ? "Salford Libya" : customer
-        self.activeReceiptItems = items.isEmpty ? [
-            ReceiptLineItem(name: "خاتم سوليتير ألماس ملكي", color: "ذهبي أبيض", code: "RNG-SFD01", qty: 1, price: 1250)
-        ] : items
-        self.showGiftReceiptStudio = true
+    /// Next receipt number, e.g. GR-2026-0007. Numbers only go up and are never reused.
+    private func takeNextReceiptNo() -> String {
+        receiptCounter += 1
+        let year = Calendar(identifier: .gregorian).component(.year, from: Date())
+        var no = String(format: "GR-%d-%04d", year, receiptCounter)
+        while receipts.contains(where: { $0.receiptNo == no }) {
+            receiptCounter += 1
+            no = String(format: "GR-%d-%04d", year, receiptCounter)
+        }
+        return no
+    }
+
+    private func loadIntoStudio(_ r: IssuedReceipt) {
+        activeReceiptId = r.id
+        activeReceiptNo = r.receiptNo
+        activeReceiptDate = r.date
+        activeReceiptTime = r.time
+        activeReceiptCustomer = r.customer
+        activeReceiptItems = r.items
+        activeReceiptTemplate = r.template
+        showRealPricesInReceipt = r.showRealPrices
+    }
+
+    /// Called right after a sale: the receipt is saved immediately with its own number.
+    private func issueSaleReceipt(saleIds: [Int], items: [ReceiptLineItem], customer: String) {
+        let dt = receiptDateTime()
+        let r = IssuedReceipt(
+            id: (receipts.map(\.id).max() ?? 0) + 1,
+            receiptNo: takeNextReceiptNo(),
+            date: dt.date,
+            time: dt.time,
+            customer: customer.isEmpty ? Self.defaultReceiptCustomer : customer,
+            items: items,
+            template: activeReceiptTemplate,
+            showRealPrices: showRealPricesInReceipt,
+            saleIds: saleIds,
+            createdAt: nowTimestamp(),
+            updatedAt: nil
+        )
+        receipts.insert(r, at: 0)
+        saveToDisk()
+        loadIntoStudio(r)
+        showGiftReceiptStudio = true
+    }
+
+    /// Opens a saved receipt for viewing / reprinting.
+    func openReceipt(_ r: IssuedReceipt) {
+        loadIntoStudio(r)
+        showGiftReceiptStudio = true
+    }
+
+    /// Opens the receipt of a sale. Sales made before receipts were saved get one created now.
+    func openReceiptForSale(_ sale: SaleRecord) {
+        if let existing = receipts.first(where: { $0.saleIds.contains(sale.id) }) {
+            openReceipt(existing)
+            return
+        }
+        issueSaleReceipt(
+            saleIds: [sale.id],
+            items: [ReceiptLineItem(name: sale.productName, color: sale.color ?? "", code: sale.sku ?? "", qty: sale.quantity, price: sale.actualPrice)],
+            customer: sale.customerName ?? ""
+        )
+    }
+
+    /// Starts a new, unsaved receipt (e.g. a gift receipt for a piece). It gets a number
+    /// only when it is saved, printed or shared — never a made-up or reused one.
+    func openNewDraftReceipt(items: [ReceiptLineItem], customer: String = "", present: Bool = true) {
+        let dt = receiptDateTime()
+        activeReceiptId = nil
+        activeReceiptNo = ""
+        activeReceiptDate = dt.date
+        activeReceiptTime = dt.time
+        activeReceiptCustomer = customer.isEmpty ? Self.defaultReceiptCustomer : customer
+        activeReceiptItems = items
+        if present { showGiftReceiptStudio = true }
+    }
+
+    /// Saves what is in the studio: a draft becomes a new numbered receipt, an existing one is updated.
+    /// Returns the receipt number, or nil if there is nothing to save.
+    @discardableResult
+    func commitActiveReceipt() -> String? {
+        let items = activeReceiptItems.filter { !$0.name.trimmingCharacters(in: .whitespaces).isEmpty }
+        guard !items.isEmpty else { return nil }
+        let customer = activeReceiptCustomer.trimmingCharacters(in: .whitespaces)
+
+        if let id = activeReceiptId, let idx = receipts.firstIndex(where: { $0.id == id }) {
+            receipts[idx].customer = customer.isEmpty ? Self.defaultReceiptCustomer : customer
+            receipts[idx].items = items
+            receipts[idx].template = activeReceiptTemplate
+            receipts[idx].showRealPrices = showRealPricesInReceipt
+            receipts[idx].updatedAt = nowTimestamp()
+            saveToDisk()
+            loadIntoStudio(receipts[idx])
+            return receipts[idx].receiptNo
+        }
+
+        let r = IssuedReceipt(
+            id: (receipts.map(\.id).max() ?? 0) + 1,
+            receiptNo: takeNextReceiptNo(),
+            date: activeReceiptDate.isEmpty ? receiptDateTime().date : activeReceiptDate,
+            time: activeReceiptTime.isEmpty ? receiptDateTime().time : activeReceiptTime,
+            customer: customer.isEmpty ? Self.defaultReceiptCustomer : customer,
+            items: items,
+            template: activeReceiptTemplate,
+            showRealPrices: showRealPricesInReceipt,
+            saleIds: [],
+            createdAt: nowTimestamp(),
+            updatedAt: nil
+        )
+        receipts.insert(r, at: 0)
+        saveToDisk()
+        loadIntoStudio(r)
+        return r.receiptNo
     }
 
     /// Deletes a sale (e.g. entered by mistake). Its returns are deleted with it, and only the pieces

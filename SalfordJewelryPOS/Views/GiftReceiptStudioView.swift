@@ -4,7 +4,9 @@ struct GiftReceiptStudioView: View {
     @EnvironmentObject var store: POSDataStore
     var isModalSheet: Bool = false
     @Environment(\.dismiss) private var dismiss
-    @State private var generatedPDFURL: URL? = nil
+    @State private var shareURL: URL? = nil
+    @State private var errorMessage: String? = nil
+    @State private var savedMessage: String = ""
 
     var body: some View {
         ScrollView {
@@ -35,11 +37,18 @@ struct GiftReceiptStudioView: View {
                     .tint(SalfordTheme.emeraldSuccess)
 
                     HStack(spacing: 10) {
-                        TextField("رقم الفاتورة", text: $store.activeReceiptNo)
-                            .padding(9)
-                            .background(SalfordTheme.bgElevated)
-                            .foregroundColor(.white)
-                            .cornerRadius(9)
+                        // The number is assigned by the app and can't be typed, so it is always unique.
+                        HStack(spacing: 6) {
+                            Image(systemName: "number")
+                                .foregroundColor(SalfordTheme.silverAccent)
+                            Text(store.activeReceiptNo.isEmpty ? "رقم جديد عند الحفظ" : store.activeReceiptNo)
+                                .font(.system(size: 12.5, weight: .bold, design: .monospaced))
+                                .foregroundColor(store.activeReceiptNo.isEmpty ? SalfordTheme.textMuted : .white)
+                        }
+                        .padding(9)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(SalfordTheme.bgElevated)
+                        .cornerRadius(9)
 
                         TextField("اسم الزبون", text: $store.activeReceiptCustomer)
                             .padding(9)
@@ -48,52 +57,57 @@ struct GiftReceiptStudioView: View {
                             .cornerRadius(9)
                     }
 
+                    if store.activeReceiptItems.isEmpty {
+                        Text("لا توجد قطع في الفاتورة — أضف سطراً أدناه")
+                            .font(.system(size: 12))
+                            .foregroundColor(SalfordTheme.textMuted)
+                    }
+
                     // Line Items Editor
                     ForEach($store.activeReceiptItems) { $item in
-                        VStack(spacing: 8) {
-                            HStack(spacing: 8) {
-                                TextField("اسم القطعة", text: $item.name)
-                                    .font(.system(size: 12))
-                                    .padding(8)
-                                    .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-
-                                TextField("اللون", text: $item.color)
-                                    .font(.system(size: 12))
-                                    .frame(width: 85)
-                                    .padding(8)
-                                    .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-
-                                TextField("الكود", text: $item.code)
-                                    .font(.system(size: 12))
-                                    .frame(width: 90)
-                                    .padding(8)
-                                    .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                            }
+                        ReceiptLineEditorRow(item: $item) {
+                            store.activeReceiptItems.removeAll { $0.id == item.id }
                         }
                     }
 
-                    Button {
-                        store.activeReceiptItems.append(
-                            ReceiptLineItem(name: "قطعة مجوهرات إضافية", color: "فضي", code: "SFD-NEW", qty: 1, price: 500)
-                        )
-                    } label: {
-                        Label("إضافة سطر منتج للفاتورة", systemImage: "plus.circle")
+                    HStack {
+                        Button {
+                            store.activeReceiptItems.append(
+                                ReceiptLineItem(name: "", color: "", code: "", qty: 1, price: 0)
+                            )
+                        } label: {
+                            Label("إضافة سطر منتج للفاتورة", systemImage: "plus.circle")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(SalfordTheme.silverAccent)
+                        }
+                        Spacer()
+                        Button {
+                            if let no = store.commitActiveReceipt() {
+                                savedMessage = "✅ تم حفظ الفاتورة \(no)"
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                            } else {
+                                errorMessage = "أضف قطعة واحدة على الأقل باسم واضح قبل الحفظ"
+                            }
+                        } label: {
+                            Label("حفظ الفاتورة", systemImage: "tray.and.arrow.down.fill")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(SalfordTheme.emeraldSuccess)
+                        }
+                    }
+
+                    if !savedMessage.isEmpty {
+                        Text(savedMessage)
                             .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(SalfordTheme.silverAccent)
+                            .foregroundColor(SalfordTheme.emeraldSuccess)
                     }
                 }
                 .salfordCard()
 
-                // Action Buttons: Native PDF Export, ShareLink & AirPrint
+                // Action Buttons: Native PDF Export, Share & AirPrint.
+                // The receipt is saved (and numbered) before any PDF leaves the app.
                 HStack(spacing: 10) {
                     Button {
-                        if let url = buildPDF() {
+                        if let url = saveAndBuildPDF() {
                             NativePDFGenerator.printPDF(url: url, jobName: "SALFORD Receipt \(store.activeReceiptNo)")
                         }
                     } label: {
@@ -106,16 +120,16 @@ struct GiftReceiptStudioView: View {
                             .cornerRadius(11)
                     }
 
-                    if let pdfURL = generatedPDFURL ?? buildPDF() {
-                        ShareLink(item: pdfURL, preview: SharePreview("فاتورة SALFORD \(store.activeReceiptNo)")) {
-                            Label("تصدير ومشاركة PDF", systemImage: "square.and.arrow.up.fill")
-                                .font(.system(size: 13, weight: .heavy))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(SalfordTheme.silverGradient)
-                                .foregroundColor(SalfordTheme.bgPrimary)
-                                .cornerRadius(11)
-                        }
+                    Button {
+                        shareURL = saveAndBuildPDF()
+                    } label: {
+                        Label("تصدير ومشاركة PDF", systemImage: "square.and.arrow.up.fill")
+                            .font(.system(size: 13, weight: .heavy))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(SalfordTheme.silverGradient)
+                            .foregroundColor(SalfordTheme.bgPrimary)
+                            .cornerRadius(11)
                     }
                 }
 
@@ -264,14 +278,42 @@ struct GiftReceiptStudioView: View {
                 }
             }
         }
-        .onAppear {
-            if store.activeReceiptItems.isEmpty {
-                store.openReceiptStudio(saleId: 1, items: [], customer: "Salford Libya")
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    store.openNewDraftReceipt(items: [], present: isModalSheet)
+                    savedMessage = ""
+                } label: {
+                    Label("فاتورة جديدة", systemImage: "doc.badge.plus")
+                }
+                .foregroundColor(SalfordTheme.silverLight)
             }
+        }
+        .onAppear {
+            // Nothing loaded yet (first visit to the tab): start an empty draft — never fake items.
+            if store.activeReceiptDate.isEmpty {
+                store.openNewDraftReceipt(items: [], present: false)
+            }
+        }
+        .sheet(isPresented: Binding(get: { shareURL != nil }, set: { if !$0 { shareURL = nil } })) {
+            if let url = shareURL {
+                ActivityShareSheet(items: [url])
+            }
+        }
+        .alert("تنبيه", isPresented: Binding(get: { errorMessage != nil }, set: { if !$0 { errorMessage = nil } })) {
+            Button("حسناً", role: .cancel) {}
+        } message: {
+            Text(errorMessage ?? "")
         }
     }
 
-    private func buildPDF() -> URL? {
+    /// Saves the receipt first (a draft gets its number now), then renders the PDF.
+    private func saveAndBuildPDF() -> URL? {
+        guard store.commitActiveReceipt() != nil else {
+            errorMessage = "أضف قطعة واحدة على الأقل باسم واضح قبل الطباعة أو المشاركة"
+            return nil
+        }
+        savedMessage = "✅ تم حفظ الفاتورة \(store.activeReceiptNo)"
         let url = NativePDFGenerator.generateGiftReceiptPDF(
             template: store.activeReceiptTemplate,
             showRealPrices: store.showRealPricesInReceipt,
@@ -283,4 +325,85 @@ struct GiftReceiptStudioView: View {
         )
         return url
     }
+}
+
+/// Edits one receipt line: name, colour, code, quantity and price.
+struct ReceiptLineEditorRow: View {
+    @Binding var item: ReceiptLineItem
+    var onDelete: () -> Void
+    @State private var priceText: String = ""
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                TextField("اسم القطعة", text: $item.name)
+                    .font(.system(size: 12))
+                    .padding(8)
+                    .background(SalfordTheme.bgElevated)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+
+                TextField("اللون", text: $item.color)
+                    .font(.system(size: 12))
+                    .frame(width: 85)
+                    .padding(8)
+                    .background(SalfordTheme.bgElevated)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+
+                TextField("الكود", text: $item.code)
+                    .font(.system(size: 12))
+                    .frame(width: 90)
+                    .padding(8)
+                    .background(SalfordTheme.bgElevated)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+            }
+            HStack(spacing: 8) {
+                Stepper("الكمية: \(item.qty)", value: $item.qty, in: 1...99)
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(.white)
+
+                TextField("السعر", text: $priceText)
+                    .numericInput($priceText, .decimal)
+                    .font(.system(size: 12))
+                    .frame(width: 90)
+                    .padding(8)
+                    .background(SalfordTheme.bgElevated)
+                    .foregroundColor(.white)
+                    .cornerRadius(8)
+                    .onChange(of: priceText) { newValue in
+                        item.price = NumberInput.decimal(newValue) ?? 0
+                    }
+
+                Button(role: .destructive) {
+                    onDelete()
+                } label: {
+                    Image(systemName: "trash.fill")
+                        .font(.system(size: 12))
+                        .padding(7)
+                        .background(SalfordTheme.dangerRed.opacity(0.18))
+                        .foregroundColor(SalfordTheme.dangerRed)
+                        .cornerRadius(8)
+                }
+            }
+        }
+        .padding(8)
+        .background(SalfordTheme.bgPrimary.opacity(0.4))
+        .cornerRadius(10)
+        .onAppear {
+            priceText = item.price > 0 ? NumberInput.editable(item.price) : ""
+        }
+    }
+}
+
+/// System share sheet (Files, WhatsApp, Mail…) for a file that is created on demand.
+struct ActivityShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }

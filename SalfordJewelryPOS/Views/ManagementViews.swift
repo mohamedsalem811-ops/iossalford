@@ -50,6 +50,18 @@ struct MoreManagementHubView: View {
                     }
 
                     NavigationLink {
+                        ReceiptsHistoryView()
+                    } label: {
+                        ManagementRowCard(
+                            title: "سجل الفواتير",
+                            subtitle: "البحث عن أي فاتورة صادرة وإعادة طباعتها أو مشاركتها",
+                            badgeText: "\(store.receipts.count) فاتورة",
+                            icon: "doc.text.magnifyingglass",
+                            accent: SalfordTheme.goldLight
+                        )
+                    }
+
+                    NavigationLink {
                         CustomersManagementView()
                     } label: {
                         ManagementRowCard(
@@ -142,6 +154,82 @@ struct MoreManagementHubView: View {
         }
         .background(SalfordTheme.bgPrimary)
         .navigationTitle("لوحة الإدارة")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Every issued receipt, newest first, searchable; tap to reopen and reprint.
+struct ReceiptsHistoryView: View {
+    @EnvironmentObject var store: POSDataStore
+    @State private var search: String = ""
+
+    private var filtered: [IssuedReceipt] {
+        guard !search.isEmpty else { return store.receipts }
+        let q = NumberInput.latinDigits(search)
+        return store.receipts.filter { r in
+            r.receiptNo.localizedCaseInsensitiveContains(q)
+                || r.customer.localizedCaseInsensitiveContains(q)
+                || r.items.contains { $0.name.localizedCaseInsensitiveContains(q) || $0.code.localizedCaseInsensitiveContains(q) }
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: 10) {
+                TextField("ابحث برقم الفاتورة أو اسم الزبون أو القطعة", text: $search)
+                    .padding(10)
+                    .background(SalfordTheme.bgElevated)
+                    .foregroundColor(.white)
+                    .cornerRadius(10)
+
+                if filtered.isEmpty {
+                    Text(store.receipts.isEmpty ? "لم تصدر أي فاتورة بعد" : "لا توجد نتائج")
+                        .font(.system(size: 13))
+                        .foregroundColor(SalfordTheme.textMuted)
+                        .padding(.top, 30)
+                }
+
+                ForEach(filtered) { r in
+                    Button {
+                        store.openReceipt(r)
+                    } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            HStack {
+                                Text(r.receiptNo)
+                                    .font(.system(size: 13.5, weight: .heavy, design: .monospaced))
+                                    .foregroundColor(.white)
+                                Spacer()
+                                Text(String(format: "%.0f د.ل", r.total))
+                                    .font(.system(size: 13.5, weight: .heavy))
+                                    .foregroundColor(SalfordTheme.silverLight)
+                            }
+                            Text("\(r.customer) • \(r.date) \(r.time) • \(r.items.count) سطر")
+                                .font(.system(size: 11.5))
+                                .foregroundColor(SalfordTheme.textMuted)
+                            Text(r.items.map(\.fullTitle).joined(separator: "، "))
+                                .font(.system(size: 11.5))
+                                .foregroundColor(SalfordTheme.silverAccent)
+                                .lineLimit(2)
+                            HStack(spacing: 6) {
+                                Text(r.saleIds.isEmpty ? "فاتورة هدية يدوية" : "بيعة " + r.saleIds.map { "#\($0)" }.joined(separator: " "))
+                                Text("•")
+                                Text(r.showRealPrices ? "بالأسعار" : "بدون أسعار")
+                                Text("•")
+                                Text(r.template.title)
+                            }
+                            .font(.system(size: 10.5))
+                            .foregroundColor(SalfordTheme.goldLight)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .salfordCard()
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(14)
+        }
+        .background(SalfordTheme.bgPrimary)
+        .navigationTitle("سجل الفواتير")
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -247,11 +335,7 @@ struct SalesHistoryView: View {
                             }
                             Spacer()
                             Button {
-                                store.openReceiptStudio(
-                                    saleId: sale.id,
-                                    items: [ReceiptLineItem(name: sale.productName, color: sale.color ?? "", code: sale.sku ?? "SFD", qty: sale.quantity, price: sale.actualPrice)],
-                                    customer: sale.customerName ?? "Salford Libya"
-                                )
+                                store.openReceiptForSale(sale)
                             } label: {
                                 Label("فاتورة", systemImage: "printer.fill")
                                     .font(.system(size: 11.5, weight: .bold))

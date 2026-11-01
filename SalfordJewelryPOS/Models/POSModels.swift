@@ -166,11 +166,33 @@ struct POSDatabaseState: Codable {
     var returns: [ReturnRecord]
     var expenses: [ExpenseRecord]
     var closings: [QuarterlyClosing]
+    var receipts: [IssuedReceipt] = []
+    /// Last receipt number handed out; receipt numbers are never reused.
+    var receiptCounter: Int = 0
+}
+
+/// A receipt that was issued (saved), so it can be found and reprinted later.
+struct IssuedReceipt: Identifiable, Codable, Equatable {
+    var id: Int
+    var receiptNo: String
+    var date: String   // dd/MM/yyyy
+    var time: String   // HH:mm
+    var customer: String
+    var items: [ReceiptLineItem]
+    var template: ReceiptTemplate
+    var showRealPrices: Bool
+    /// Sales this receipt was issued for (empty for a gift receipt made by hand).
+    var saleIds: [Int]
+    var createdAt: String
+    var updatedAt: String?
+
+    var total: Double { items.reduce(0) { $0 + $1.price * Double($1.qty) } }
 }
 
 extension POSDatabaseState {
     enum CodingKeys: String, CodingKey {
         case pin, exchangeRate, products, customers, sets, sales, returns, expenses, closings
+        case receipts, receiptCounter
     }
 
     static let defaultExchangeRate = 7.0
@@ -196,6 +218,8 @@ extension POSDatabaseState {
         returns = try c.decodeIfPresent([ReturnRecord].self, forKey: .returns) ?? []
         expenses = try c.decodeIfPresent([ExpenseRecord].self, forKey: .expenses) ?? []
         closings = try c.decodeIfPresent([QuarterlyClosing].self, forKey: .closings) ?? []
+        receipts = try c.decodeIfPresent([IssuedReceipt].self, forKey: .receipts) ?? []
+        receiptCounter = try c.decodeIfPresent(Int.self, forKey: .receiptCounter) ?? 0
     }
 }
 

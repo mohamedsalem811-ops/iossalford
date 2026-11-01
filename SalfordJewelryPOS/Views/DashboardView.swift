@@ -132,7 +132,7 @@ struct DashboardView: View {
                     }
 
                     Button {
-                        store.openReceiptStudio(saleId: store.sales.first?.id ?? 1, items: [], customer: "Salford Libya")
+                        store.openNewDraftReceipt(items: [])
                     } label: {
                         Label("إصدار فاتورة هدية", systemImage: "gift.fill")
                             .font(.system(size: 13, weight: .bold))
@@ -251,19 +251,7 @@ struct DashboardView: View {
                                     .foregroundColor(SalfordTheme.emeraldSuccess)
                             }
                             Button {
-                                store.openReceiptStudio(
-                                    saleId: sale.id,
-                                    items: [
-                                        ReceiptLineItem(
-                                            name: sale.productName,
-                                            color: sale.color ?? "",
-                                            code: sale.sku ?? "SFD-\(sale.productId)",
-                                            qty: sale.quantity,
-                                            price: sale.actualPrice
-                                        )
-                                    ],
-                                    customer: sale.customerName ?? "Salford Libya"
-                                )
+                                store.openReceiptForSale(sale)
                             } label: {
                                 Image(systemName: "printer.fill")
                                     .font(.system(size: 13))
