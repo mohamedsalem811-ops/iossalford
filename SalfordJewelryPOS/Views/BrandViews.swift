@@ -370,7 +370,7 @@ struct BrandBadgeView: View {
                     .minimumScaleFactor(0.5)
                     .padding(.horizontal, size * 0.08)
             } else {
-                initialsColor.gradient
+                Circle().fill(initialsColor.gradient)
                 Text(initials)
                     .font(.system(size: size * 0.38, weight: .bold))
                     .foregroundColor(.white)
