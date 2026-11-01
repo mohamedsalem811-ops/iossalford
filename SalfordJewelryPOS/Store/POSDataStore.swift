@@ -573,6 +573,34 @@ final class POSDataStore: ObservableObject {
         return nil
     }
 
+    /// Changes the quantity of a cart line, checking stock across the whole cart.
+    /// Bundle lines can't change quantity (the bundle discount is fixed); remove the bundle instead.
+    func setCartQuantity(_ itemId: UUID, to quantity: Int) -> SaleProblem? {
+        guard let idx = cart.firstIndex(where: { $0.id == itemId }) else { return nil }
+        let item = cart[idx]
+        guard item.bundleGroup == nil else { return nil }
+        guard quantity > 0 else { return .invalidQuantity(name: item.product.name) }
+        guard let current = products.first(where: { $0.id == item.product.id }) else {
+            return .productMissing(name: item.product.name)
+        }
+        let others = cartQuantity(for: current.id) - item.quantity
+        guard others + quantity <= current.stock else {
+            return .notEnoughStock(name: current.name, requested: others + quantity, available: current.stock)
+        }
+        cart[idx].quantity = quantity
+        return nil
+    }
+
+    /// Changes the unit price the customer pays for a cart line (e.g. a negotiated price).
+    func setCartUnitPrice(_ itemId: UUID, to price: Double) {
+        guard let idx = cart.firstIndex(where: { $0.id == itemId }), cart[idx].bundleGroup == nil, price >= 0 else { return }
+        cart[idx].unitPrice = Money.round(price)
+    }
+
+    var cartTotal: Double { Money.round(cart.reduce(0) { $0 + $1.subtotal }) }
+    var cartPieces: Int { cart.reduce(0) { $0 + $1.quantity } }
+    var cartProfit: Double { Money.round(cart.reduce(0) { $0 + $1.profit }) }
+
     /// Checks every cart line against the CURRENT stock (stock may have changed since items were added,
     /// e.g. by a direct sale). Lines for the same product are added together.
     func cartProblems() -> [SaleProblem] {
