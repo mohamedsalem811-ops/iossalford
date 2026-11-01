@@ -1,13 +1,16 @@
 import SwiftUI
 import LocalAuthentication
-import CoreImage.CIFilterBuiltins
 
 struct PinLoginView: View {
     @EnvironmentObject var store: POSDataStore
     @State private var pinInput: String = ""
     @State private var errorMessage: String = ""
-    @State private var showQRModal: Bool = false
+    @State private var lockedUntil: Date? = PinVault.lockedUntil
     @FocusState private var isPinFieldFocused: Bool
+
+    private let lockTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+
+    private var isLockedOut: Bool { lockedUntil != nil }
 
     var body: some View {
         ZStack {
@@ -61,15 +64,16 @@ struct PinLoginView: View {
                                 RoundedRectangle(cornerRadius: 14)
                                     .stroke(SalfordTheme.silverAccent.opacity(0.45), lineWidth: 1.4)
                             )
+                            .disabled(isLockedOut)
                             .onChange(of: pinInput) { newVal in
-                                let filtered = newVal.filter { $0.isNumber }
-                                if filtered.count > 8 {
-                                    pinInput = String(filtered.prefix(8))
-                                } else if filtered != newVal {
+                                let filtered = String(PinVault.normalize(newVal).prefix(PinVault.pinLength))
+                                if filtered != newVal {
+                                    // onChange fires again with the cleaned value; handle it there.
                                     pinInput = filtered
+                                    return
                                 }
-                                errorMessage = ""
-                                if pinInput.count == 8 {
+                                if !pinInput.isEmpty && !isLockedOut { errorMessage = "" }
+                                if pinInput.count == PinVault.pinLength {
                                     attemptLogin()
                                 }
                             }
@@ -106,35 +110,10 @@ struct PinLoginView: View {
                             .background(SalfordTheme.silverGradient)
                             .foregroundColor(SalfordTheme.bgPrimary)
                             .cornerRadius(12)
+                            .opacity(isLockedOut ? 0.4 : 1)
                         }
+                        .disabled(isLockedOut)
 
-                        // Quick Demo Fill & Clear Row
-                        HStack(spacing: 10) {
-                            Button {
-                                pinInput = store.pin
-                                attemptLogin()
-                            } label: {
-                                Label("تعبئة سريعة (\(store.pin))", systemImage: "bolt.fill")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 9)
-                                    .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(SalfordTheme.silverLight)
-                                    .cornerRadius(10)
-                            }
-
-                            Button {
-                                showQRModal = true
-                            } label: {
-                                Label("باركود اليوم QR", systemImage: "qrcode")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 9)
-                                    .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(SalfordTheme.silverAccent)
-                                    .cornerRadius(10)
-                            }
-                        }
                     }
                     .padding(18)
                     .background(SalfordTheme.bgCard)
@@ -150,99 +129,58 @@ struct PinLoginView: View {
             }
         }
         .onAppear {
+            refreshLockState()
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                 isPinFieldFocused = true
             }
         }
-        .sheet(isPresented: $showQRModal) {
-            DailyQRLoginSheet(pin: store.pin) {
-                showQRModal = false
-                let _ = store.verifyPin(store.pin)
-            }
-            .presentationDetents([.medium])
+        .onReceive(lockTimer) { _ in
+            if isLockedOut { refreshLockState() }
+        }
+    }
+
+    private func refreshLockState() {
+        lockedUntil = PinVault.lockedUntil
+        if let until = lockedUntil {
+            let secs = max(1, Int(until.timeIntervalSinceNow.rounded(.up)))
+            errorMessage = "🔒 محاولات خاطئة كثيرة — حاول مرة أخرى بعد \(secs) ثانية"
+        } else if errorMessage.hasPrefix("🔒") {
+            errorMessage = ""
         }
     }
 
     private func attemptLogin() {
-        if !store.verifyPin(pinInput) {
-            UINotificationFeedbackGenerator().notificationOccurred(.error)
-            errorMessage = "❌ الرمز غير صحيح! الرمز الافتراضي: \(store.pin)"
-            pinInput = ""
-        } else {
+        guard !isLockedOut else { return }
+        switch store.verifyPin(pinInput) {
+        case .success:
             UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            errorMessage = ""
+        case .wrong(let left):
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            errorMessage = left > 0
+                ? "❌ الرمز غير صحيح — تبقّى \(left) محاولات قبل الإيقاف المؤقت"
+                : "❌ الرمز غير صحيح"
+        case .lockedOut:
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            refreshLockState()
         }
+        pinInput = ""
     }
 
     private func authenticateWithFaceID() {
         let context = LAContext()
+        context.localizedFallbackTitle = "استخدم الرمز الرقمي"
         var error: NSError?
-        if context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) {
-            context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "فتح نظام SALFORD Jewelry POS") { success, _ in
-                DispatchQueue.main.async {
-                    if success {
-                        let _ = store.verifyPin(store.pin)
-                    }
-                }
-            }
-        } else {
+        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
             errorMessage = "Face ID غير مفعل على هذا الجهاز — استخدم الرمز الرقمي"
+            return
         }
-    }
-}
-
-struct DailyQRLoginSheet: View {
-    let pin: String
-    let onInstantUnlock: () -> Void
-
-    var body: some View {
-        ZStack {
-            SalfordTheme.bgPrimary.ignoresSafeArea()
-            VStack(spacing: 16) {
-                Text("باركود الدخول اليومي السريع")
-                    .font(.system(size: 17, weight: .heavy))
-                    .foregroundColor(SalfordTheme.silverLight)
-
-                if let qrImage = generateQRCode(from: "SALFORD-POS-LOGIN:\(pin)") {
-                    Image(uiImage: qrImage)
-                        .interpolation(.none)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 180, height: 180)
-                        .padding(14)
-                        .background(Color.white)
-                        .cornerRadius(16)
-                }
-
-                Text("امسح الباركود أو اضغط الزر أدناه للدخول المباشر")
-                    .font(.system(size: 12))
-                    .foregroundColor(SalfordTheme.textMuted)
-
-                Button {
-                    onInstantUnlock()
-                } label: {
-                    Label("دخول فوري بالباركود اليومي", systemImage: "checkmark.seal.fill")
-                        .font(.system(size: 14, weight: .bold))
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 12)
-                        .background(SalfordTheme.silverGradient)
-                        .foregroundColor(SalfordTheme.bgPrimary)
-                        .cornerRadius(12)
+        context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: "فتح نظام SALFORD Jewelry POS") { success, _ in
+            DispatchQueue.main.async {
+                if success {
+                    store.unlockWithBiometrics()
                 }
             }
-            .padding()
         }
-    }
-
-    private func generateQRCode(from string: String) -> UIImage? {
-        let context = CIContext()
-        let filter = CIFilter.qrCodeGenerator()
-        filter.message = Data(string.utf8)
-        if let outputImage = filter.outputImage {
-            let scaled = outputImage.transformed(by: CGAffineTransform(scaleX: 8, y: 8))
-            if let cgimg = context.createCGImage(scaled, from: scaled.extent) {
-                return UIImage(cgImage: cgimg)
-            }
-        }
-        return nil
     }
 }

@@ -12,6 +12,7 @@
 		A10000032345678900000001 /* POSModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000032345678900000001 /* POSModels.swift */; };
 		A10000042345678900000001 /* POSDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000042345678900000001 /* POSDataStore.swift */; };
 		A10000052345678900000001 /* NativePDFGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000052345678900000001 /* NativePDFGenerator.swift */; };
+		A10000142345678900000001 /* PinVault.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000152345678900000001 /* PinVault.swift */; };
 		A10000062345678900000001 /* PinLoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000062345678900000001 /* PinLoginView.swift */; };
 		A10000072345678900000001 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000072345678900000001 /* MainTabView.swift */; };
 		A10000082345678900000001 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000082345678900000001 /* DashboardView.swift */; };
@@ -29,6 +30,7 @@
 		A20000032345678900000001 /* POSModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models/POSModels.swift; sourceTree = "<group>"; };
 		A20000042345678900000001 /* POSDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store/POSDataStore.swift; sourceTree = "<group>"; };
 		A20000052345678900000001 /* NativePDFGenerator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/NativePDFGenerator.swift; sourceTree = "<group>"; };
+		A20000152345678900000001 /* PinVault.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/PinVault.swift; sourceTree = "<group>"; };
 		A20000062345678900000001 /* PinLoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/PinLoginView.swift; sourceTree = "<group>"; };
 		A20000072345678900000001 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/MainTabView.swift; sourceTree = "<group>"; };
 		A20000082345678900000001 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DashboardView.swift; sourceTree = "<group>"; };
@@ -67,6 +69,7 @@
 				A20000032345678900000001 /* POSModels.swift */,
 				A20000042345678900000001 /* POSDataStore.swift */,
 				A20000052345678900000001 /* NativePDFGenerator.swift */,
+				A20000152345678900000001 /* PinVault.swift */,
 				A20000062345678900000001 /* PinLoginView.swift */,
 				A20000072345678900000001 /* MainTabView.swift */,
 				A20000082345678900000001 /* DashboardView.swift */,
@@ -163,6 +166,7 @@
 				A10000032345678900000001 /* POSModels.swift in Sources */,
 				A10000042345678900000001 /* POSDataStore.swift in Sources */,
 				A10000052345678900000001 /* NativePDFGenerator.swift in Sources */,
+				A10000142345678900000001 /* PinVault.swift in Sources */,
 				A10000062345678900000001 /* PinLoginView.swift in Sources */,
 				A10000072345678900000001 /* MainTabView.swift in Sources */,
 				A10000082345678900000001 /* DashboardView.swift in Sources */,

@@ -4,6 +4,7 @@ import UIKit
 @main
 struct SalfordJewelryPOSApp: App {
     @StateObject private var store = POSDataStore()
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         Self.configureNativeBarsAppearance()
@@ -69,6 +70,21 @@ struct SalfordJewelryPOSApp: App {
                     PinLoginView()
                         .environmentObject(store)
                         .transition(.opacity)
+                }
+            }
+            .overlay {
+                // Hide sales/profit figures from the app switcher snapshot.
+                if scenePhase != .active && store.isAuthenticated {
+                    ZStack {
+                        SalfordTheme.bgGradient.ignoresSafeArea()
+                        SalfordMonogramLogoView(size: 84, showWordmark: true)
+                    }
+                }
+            }
+            .onChange(of: scenePhase) { phase in
+                // Require the PIN / Face ID again whenever the app leaves the screen.
+                if phase == .background {
+                    store.lock()
                 }
             }
             .environment(\.layoutDirection, .rightToLeft)

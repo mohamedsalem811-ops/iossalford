@@ -3,6 +3,8 @@ import SwiftUI
 struct MainTabView: View {
     @EnvironmentObject var store: POSDataStore
     @State private var selectedTab: Int = 0
+    @State private var showDefaultPinWarning: Bool = false
+    @State private var showPinSettings: Bool = false
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -52,6 +54,26 @@ struct MainTabView: View {
             NavigationStack {
                 GiftReceiptStudioView(isModalSheet: true)
             }
+        }
+        .onAppear {
+            showDefaultPinWarning = store.isUsingDefaultPin
+        }
+        .alert("غيّر رمز الدخول الافتراضي", isPresented: $showDefaultPinWarning) {
+            Button("تغيير الآن") { showPinSettings = true }
+            Button("لاحقاً", role: .cancel) {}
+        } message: {
+            Text("التطبيق ما زال يستخدم الرمز الافتراضي المعروف. أي شخص يعرفه يمكنه فتح بيانات المبيعات والأرباح.")
+        }
+        .sheet(isPresented: $showPinSettings) {
+            NavigationStack {
+                SettingsAndBackupView()
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("إغلاق") { showPinSettings = false }
+                        }
+                    }
+            }
+            .environmentObject(store)
         }
     }
 }

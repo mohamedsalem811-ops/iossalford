@@ -149,7 +149,9 @@ struct ReceiptLineItem: Identifiable, Codable, Equatable {
 }
 
 struct POSDatabaseState: Codable {
-    var pin: String
+    /// Legacy only: older versions stored the PIN here in plain text. It is read once to migrate
+    /// into the Keychain (see PinVault) and is never written again.
+    var pin: String?
     var exchangeRate: Double
     var products: [Product]
     var customers: [Customer]
@@ -165,12 +167,11 @@ extension POSDatabaseState {
         case pin, exchangeRate, products, customers, sets, sales, returns, expenses, closings
     }
 
-    static let defaultPin = "01020304"
     static let defaultExchangeRate = 7.0
 
     static var empty: POSDatabaseState {
         POSDatabaseState(
-            pin: defaultPin,
+            pin: nil,
             exchangeRate: defaultExchangeRate,
             products: [], customers: [], sets: [], sales: [], returns: [], expenses: [], closings: []
         )
@@ -180,7 +181,7 @@ extension POSDatabaseState {
     /// falls back to its default instead of making the whole database unreadable.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
-        pin = try c.decodeIfPresent(String.self, forKey: .pin) ?? Self.defaultPin
+        pin = try c.decodeIfPresent(String.self, forKey: .pin)
         exchangeRate = try c.decodeIfPresent(Double.self, forKey: .exchangeRate) ?? Self.defaultExchangeRate
         products = try c.decodeIfPresent([Product].self, forKey: .products) ?? []
         customers = try c.decodeIfPresent([Customer].self, forKey: .customers) ?? []

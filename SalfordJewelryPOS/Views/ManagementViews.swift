@@ -766,7 +766,11 @@ struct QuarterlyClosingView: View {
 struct SettingsAndBackupView: View {
     @EnvironmentObject var store: POSDataStore
     @State private var rateText: String = ""
+    @State private var currentPin: String = ""
     @State private var newPin: String = ""
+    @State private var confirmPin: String = ""
+    @State private var pinStatusMsg: String = ""
+    @State private var pinStatusIsError: Bool = false
     @State private var showFileImporter: Bool = false
     @State private var statusMsg: String = ""
     @State private var backupURL: URL? = nil
@@ -801,28 +805,36 @@ struct SettingsAndBackupView: View {
                         .cornerRadius(10)
                     }
 
-                    HStack {
-                        TextField("رمز الدخول الجديد من 8 أرقام", text: $newPin)
-                            .keyboardType(.numberPad)
-                            .padding(10)
-                            .background(SalfordTheme.bgElevated)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("تغيير رمز الدخول")
+                            .font(.system(size: 12.5, weight: .bold))
+                            .foregroundColor(SalfordTheme.silverLight)
+
+                        if store.isUsingDefaultPin {
+                            Label("أنت تستخدم الرمز الافتراضي — غيّره الآن لحماية بيانات المحل", systemImage: "exclamationmark.triangle.fill")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(SalfordTheme.warningAmber)
+                        }
+
+                        pinField("الرمز الحالي", text: $currentPin)
+                        pinField("الرمز الجديد (8 أرقام)", text: $newPin)
+                        pinField("تأكيد الرمز الجديد", text: $confirmPin)
+
                         Button("تحديث الرمز") {
-                            if newPin.count == 8 {
-                                store.pin = newPin
-                                store.saveToDisk()
-                                statusMsg = "تم تحديث رمز الدخول بنجاح"
-                            } else {
-                                statusMsg = "يرجى إدخال 8 أرقام للرمز"
-                            }
+                            updatePin()
                         }
                         .font(.system(size: 12.5, weight: .bold))
-                        .padding(.horizontal, 14)
+                        .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background(SalfordTheme.silverGradient)
                         .foregroundColor(SalfordTheme.bgPrimary)
                         .cornerRadius(10)
+
+                        if !pinStatusMsg.isEmpty {
+                            Text(pinStatusMsg)
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(pinStatusIsError ? SalfordTheme.dangerRed : SalfordTheme.emeraldSuccess)
+                        }
                     }
                 }
                 .salfordCard()
@@ -875,7 +887,6 @@ struct SettingsAndBackupView: View {
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             rateText = String(format: "%.2f", store.exchangeRate)
-            newPin = store.pin
             backupURL = store.exportBackupJSON()
         }
         .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.json]) { result in
@@ -887,6 +898,49 @@ struct SettingsAndBackupView: View {
                     statusMsg = "تعذر قراءة ملف النسخة الاحتياطية"
                 }
             }
+        }
+    }
+
+    private func pinField(_ title: String, text: Binding<String>) -> some View {
+        SecureField(title, text: text)
+            .keyboardType(.numberPad)
+            .padding(10)
+            .background(SalfordTheme.bgElevated)
+            .foregroundColor(.white)
+            .cornerRadius(10)
+            .onChange(of: text.wrappedValue) { newVal in
+                let cleaned = String(PinVault.normalize(newVal).prefix(PinVault.pinLength))
+                if cleaned != newVal { text.wrappedValue = cleaned }
+            }
+    }
+
+    private func updatePin() {
+        defer {
+            currentPin = ""
+            newPin = ""
+            confirmPin = ""
+        }
+        guard newPin == confirmPin else {
+            pinStatusIsError = true
+            pinStatusMsg = "الرمز الجديد وتأكيده غير متطابقين"
+            return
+        }
+        switch store.changePin(current: currentPin, new: newPin) {
+        case .success:
+            pinStatusIsError = false
+            pinStatusMsg = "✅ تم تحديث رمز الدخول بنجاح"
+        case .wrongCurrentPin:
+            pinStatusIsError = true
+            pinStatusMsg = "الرمز الحالي غير صحيح"
+        case .invalidNewPin:
+            pinStatusIsError = true
+            pinStatusMsg = "يرجى إدخال 8 أرقام للرمز الجديد"
+        case .sameAsDefault:
+            pinStatusIsError = true
+            pinStatusMsg = "لا يمكن استخدام الرمز الافتراضي — اختر رمزاً آخر"
+        case .keychainError:
+            pinStatusIsError = true
+            pinStatusMsg = "تعذر حفظ الرمز في سلسلة المفاتيح الآمنة — حاول مرة أخرى"
         }
     }
 }

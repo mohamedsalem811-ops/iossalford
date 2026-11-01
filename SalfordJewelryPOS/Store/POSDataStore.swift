@@ -5,7 +5,6 @@ import os
 @MainActor
 final class POSDataStore: ObservableObject {
     @Published var isAuthenticated: Bool = false
-    @Published var pin: String = "01020304"
     @Published var exchangeRate: Double = 7.00
 
     @Published var products: [Product] = []
@@ -59,16 +58,65 @@ final class POSDataStore: ObservableObject {
 
     init() {
         loadFromDisk()
+        // Fresh install (no legacy PIN found in any database): install the default PIN.
+        PinVault.bootstrap(legacyPin: nil)
     }
 
-    func verifyPin(_ input: String) -> Bool {
-        if input == pin {
-            withAnimation(.easeInOut(duration: 0.25)) {
-                isAuthenticated = true
-            }
-            return true
+    // MARK: - Login / PIN
+
+    enum PinCheckResult: Equatable {
+        case success
+        case wrong(attemptsLeftBeforeLock: Int)
+        case lockedOut(until: Date)
+    }
+
+    func verifyPin(_ input: String) -> PinCheckResult {
+        if let until = PinVault.lockedUntil {
+            return .lockedOut(until: until)
         }
-        return false
+        guard PinVault.verify(input) else {
+            PinVault.recordFailure()
+            if let until = PinVault.lockedUntil {
+                return .lockedOut(until: until)
+            }
+            return .wrong(attemptsLeftBeforeLock: max(0, PinVault.freeAttempts - PinVault.failedAttempts))
+        }
+        PinVault.recordSuccess()
+        unlock()
+        return .success
+    }
+
+    /// Called only after LocalAuthentication confirmed the device owner (Face ID / Touch ID).
+    func unlockWithBiometrics() {
+        PinVault.recordSuccess()
+        unlock()
+    }
+
+    private func unlock() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            isAuthenticated = true
+        }
+    }
+
+    func lock() {
+        isAuthenticated = false
+        showGiftReceiptStudio = false
+    }
+
+    var isUsingDefaultPin: Bool { PinVault.isUsingDefaultPin }
+
+    enum PinChangeResult: Equatable {
+        case success, wrongCurrentPin, invalidNewPin, sameAsDefault, keychainError
+    }
+
+    func changePin(current: String, new newPin: String) -> PinChangeResult {
+        guard PinVault.verify(current) else { return .wrongCurrentPin }
+        let normalized = PinVault.normalize(newPin)
+        guard PinVault.isValidFormat(normalized) else { return .invalidNewPin }
+        guard normalized != PinVault.defaultPin else { return .sameAsDefault }
+        guard PinVault.store(pin: normalized) else { return .keychainError }
+        objectWillChange.send() // refresh the "default PIN" warnings
+        return .success
     }
 
     func currentMonthYear() -> String {
@@ -93,7 +141,9 @@ final class POSDataStore: ObservableObject {
     }
 
     private func apply(_ state: POSDatabaseState) {
-        self.pin = state.pin
+        // Older databases carried the PIN in plain text: move it into the Keychain once.
+        // If a PIN is already configured this is a no-op, so importing a backup never changes the PIN.
+        PinVault.bootstrap(legacyPin: state.pin)
         self.exchangeRate = state.exchangeRate
         self.products = state.products
         self.customers = state.customers
@@ -125,6 +175,10 @@ final class POSDataStore: ObservableObject {
         do {
             let state = try decodeState(from: dbFileURL)
             apply(state)
+            if state.pin != nil {
+                // Rewrite immediately so the plain-text PIN disappears from the file.
+                saveToDisk()
+            }
             refreshLastGoodCopy()
         } catch {
             Self.log.error("Failed to load database: \(error.localizedDescription, privacy: .public)")
@@ -195,7 +249,7 @@ final class POSDataStore: ObservableObject {
             return false
         }
         let state = POSDatabaseState(
-            pin: pin,
+            pin: nil,
             exchangeRate: exchangeRate,
             products: products,
             customers: customers,
@@ -259,7 +313,6 @@ final class POSDataStore: ObservableObject {
         let now = nowTimestamp()
         let curMY = currentMonthYear()
 
-        self.pin = "01020304"
         self.exchangeRate = 7.00
         self.customers = [
             Customer(id: 1, name: "سارة المهدي", phone: "0912345678", area: "طرابلس — حي الأندلس", notes: "عميلة مميزة — تفضل الذهب الأبيض والألماس", createdAt: now),

@@ -299,7 +299,7 @@ struct DashboardView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
                     withAnimation {
-                        store.isAuthenticated = false
+                        store.lock()
                     }
                 } label: {
                     Image(systemName: "lock.fill")
