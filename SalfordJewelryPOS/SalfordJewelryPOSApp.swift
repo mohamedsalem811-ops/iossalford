@@ -55,8 +55,13 @@ struct SalfordJewelryPOSApp: App {
         UITabBar.appearance().scrollEdgeAppearance = tabAppearance
         UITabBar.appearance().tintColor = goldLight
 
-        UIScrollView.appearance().bounces = false
-        UIView.appearance().semanticContentAttribute = .forceRightToLeft
+        // Right-to-left only for the bars and controls the app itself draws. The app's screens get
+        // RTL from the SwiftUI environment below; system screens (share sheet, camera, print,
+        // Face ID) keep the phone's own direction instead of being flipped.
+        // Normal iOS scroll bounce is kept (it used to be switched off for every scroll view).
+        UINavigationBar.appearance().semanticContentAttribute = .forceRightToLeft
+        UITabBar.appearance().semanticContentAttribute = .forceRightToLeft
+        UISegmentedControl.appearance().semanticContentAttribute = .forceRightToLeft
     }
 
     var body: some Scene {

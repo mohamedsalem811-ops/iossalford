@@ -54,6 +54,7 @@ struct MainTabView: View {
             NavigationStack {
                 GiftReceiptStudioView(isModalSheet: true)
             }
+            .environment(\.layoutDirection, .rightToLeft)
         }
         .onAppear {
             showDefaultPinWarning = store.isUsingDefaultPin
@@ -74,6 +75,7 @@ struct MainTabView: View {
                     }
             }
             .environmentObject(store)
+            .environment(\.layoutDirection, .rightToLeft)
         }
     }
 }
