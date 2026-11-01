@@ -25,6 +25,7 @@ final class POSDataStore: ObservableObject {
     /// The saved receipt being shown in the studio; nil = a new draft that has no number yet.
     @Published var activeReceiptId: Int? = nil
     @Published var receipts: [IssuedReceipt] = []
+    @Published var payments: [CustomerPayment] = []
     private var receiptCounter: Int = 0
     @Published var activeReceiptCustomer: String = "Salford Libya"
     @Published var activeReceiptDate: String = ""
@@ -186,6 +187,7 @@ final class POSDataStore: ObservableObject {
         self.expenses = state.expenses
         self.closings = state.closings
         self.receipts = state.receipts
+        self.payments = state.payments
         // Never hand out a number that already exists, even if the counter was lost.
         self.receiptCounter = max(state.receiptCounter, state.receipts.count)
         imagesNeedSaving = migrateLegacyImages() || imagesNeedSaving
@@ -335,7 +337,8 @@ final class POSDataStore: ObservableObject {
             expenses: expenses,
             closings: closings,
             receipts: receipts,
-            receiptCounter: receiptCounter
+            receiptCounter: receiptCounter,
+            payments: payments
         )
         do {
             let data = try JSONEncoder().encode(state)
@@ -378,7 +381,8 @@ final class POSDataStore: ObservableObject {
             expenses: expenses,
             closings: closings,
             receipts: receipts,
-            receiptCounter: receiptCounter
+            receiptCounter: receiptCounter,
+            payments: payments
         )
         do {
             let data = try JSONEncoder().encode(state)
@@ -525,9 +529,12 @@ final class POSDataStore: ObservableObject {
         case productMissing(name: String)
         case notEnoughStock(name: String, requested: Int, available: Int)
         case invalidQuantity(name: String)
+        case creditNeedsCustomer
 
         var message: String {
             switch self {
+            case .creditNeedsCustomer:
+                return "البيع الآجل يحتاج اسم الزبون أو رقم هاتفه لتسجيل الدين عليه"
             case .emptyCart:
                 return "السلة فارغة"
             case .productMissing(let name):
@@ -655,6 +662,9 @@ final class POSDataStore: ObservableObject {
         note: String
     ) -> SaleProblem? {
         guard quantity > 0 else { return .invalidQuantity(name: product.name) }
+        if Self.isCredit(paymentMethod), !hasCustomerIdentity(name: customerName, phone: customerPhone) {
+            return .creditNeedsCustomer
+        }
         guard let idx = products.firstIndex(where: { $0.id == product.id }) else {
             return .productMissing(name: product.name)
         }
@@ -711,6 +721,9 @@ final class POSDataStore: ObservableObject {
         customerArea: String,
         note: String
     ) -> [SaleProblem] {
+        if Self.isCredit(paymentMethod), !hasCustomerIdentity(name: customerName, phone: customerPhone) {
+            return [.creditNeedsCustomer]
+        }
         let problems = cartProblems()
         guard problems.isEmpty else { return problems }
 
@@ -1125,6 +1138,86 @@ final class POSDataStore: ObservableObject {
 
     func deleteCustomer(id: Int) {
         customers.removeAll { $0.id == id }
+        saveToDisk()
+    }
+
+    // MARK: - Credit sales (آجل) and payments
+
+    static let creditMethod = "آجل"
+
+    static func isCredit(_ method: String) -> Bool { method == creditMethod }
+
+    private func hasCustomerIdentity(name: String, phone: String) -> Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || Self.phoneKey(phone) != nil
+    }
+
+    /// Credit sales of a customer, newest first.
+    func creditSales(for customerId: Int) -> [SaleRecord] {
+        sales.filter { $0.customerId == customerId && Self.isCredit($0.paymentMethod) }
+    }
+
+    func payments(for customerId: Int) -> [CustomerPayment] {
+        payments.filter { $0.customerId == customerId }
+    }
+
+    /// What the customer still owes: credit sales, minus refunds on returns of those sales,
+    /// minus payments received.
+    func balance(for customerId: Int) -> Double {
+        let credit = creditSales(for: customerId)
+        let creditIds = Set(credit.map(\.id))
+        let owed = credit.reduce(0) { $0 + $1.totalSell }
+        let returned = returns.filter { $0.saleId.map(creditIds.contains) ?? false }.reduce(0) { $0 + $1.refundAmount }
+        let paid = payments(for: customerId).reduce(0) { $0 + $1.amount }
+        let value = owed - returned - paid
+        return abs(value) < 0.005 ? 0 : value
+    }
+
+    struct Debtor: Identifiable {
+        let customer: Customer
+        let balance: Double
+        var id: Int { customer.id }
+    }
+
+    /// Customers who owe money, largest balance first.
+    var debtors: [Debtor] {
+        customers.map { Debtor(customer: $0, balance: balance(for: $0.id)) }
+            .filter { $0.balance > 0 }
+            .sorted { $0.balance > $1.balance }
+    }
+
+    var totalOutstanding: Double { debtors.reduce(0) { $0 + $1.balance } }
+
+    /// Credit sales recorded without a customer (older versions allowed it): cannot be collected per customer.
+    var unassignedCreditTotal: Double {
+        sales.filter { Self.isCredit($0.paymentMethod) && $0.customerId == nil }.reduce(0) { $0 + $1.totalSell }
+    }
+
+    /// Records money received from a customer. Returns an error message, or nil on success.
+    func recordPayment(customerId: Int, amount: Double, method: String, note: String) -> String? {
+        guard customers.contains(where: { $0.id == customerId }) else { return "الزبون غير موجود" }
+        guard amount > 0 else { return "يرجى إدخال مبلغ الدفعة" }
+        let owed = balance(for: customerId)
+        guard amount <= owed + 0.005 else {
+            return String(format: "المبلغ أكبر من المستحق على الزبون (%.0f د.ل)", owed)
+        }
+        payments.insert(
+            CustomerPayment(
+                id: (payments.map(\.id).max() ?? 0) + 1,
+                customerId: customerId,
+                amount: amount,
+                method: method,
+                note: note.isEmpty ? nil : note,
+                paymentDate: nowTimestamp(),
+                monthYear: currentMonthYear()
+            ),
+            at: 0
+        )
+        saveToDisk()
+        return nil
+    }
+
+    func deletePayment(_ payment: CustomerPayment) {
+        payments.removeAll { $0.id == payment.id }
         saveToDisk()
     }
 

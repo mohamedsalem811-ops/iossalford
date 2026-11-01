@@ -178,8 +178,20 @@ struct POSDatabaseState: Codable {
     var expenses: [ExpenseRecord]
     var closings: [QuarterlyClosing]
     var receipts: [IssuedReceipt] = []
+    var payments: [CustomerPayment] = []
     /// Last receipt number handed out; receipt numbers are never reused.
     var receiptCounter: Int = 0
+}
+
+/// Money a customer paid toward what they owe from credit (آجل) sales.
+struct CustomerPayment: Identifiable, Codable, Equatable {
+    var id: Int
+    var customerId: Int
+    var amount: Double
+    var method: String
+    var note: String?
+    var paymentDate: String
+    var monthYear: String
 }
 
 /// A receipt that was issued (saved), so it can be found and reprinted later.
@@ -203,7 +215,7 @@ struct IssuedReceipt: Identifiable, Codable, Equatable {
 extension POSDatabaseState {
     enum CodingKeys: String, CodingKey {
         case pin, exchangeRate, products, customers, sets, sales, returns, expenses, closings
-        case receipts, receiptCounter
+        case receipts, receiptCounter, payments
     }
 
     static let defaultExchangeRate = 7.0
@@ -231,6 +243,7 @@ extension POSDatabaseState {
         closings = try c.decodeIfPresent([QuarterlyClosing].self, forKey: .closings) ?? []
         receipts = try c.decodeIfPresent([IssuedReceipt].self, forKey: .receipts) ?? []
         receiptCounter = try c.decodeIfPresent(Int.self, forKey: .receiptCounter) ?? 0
+        payments = try c.decodeIfPresent([CustomerPayment].self, forKey: .payments) ?? []
     }
 }
 

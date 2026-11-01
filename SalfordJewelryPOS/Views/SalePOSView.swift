@@ -298,6 +298,13 @@ struct SalePOSView: View {
                     }
                     .pickerStyle(.segmented)
 
+                    if POSDataStore.isCredit(paymentMethod) {
+                        Label("بيع آجل: يُسجل المبلغ ديناً على الزبون — أدخل اسمه أو رقم هاتفه. التحصيل من الإدارة ← الديون والتحصيل.",
+                              systemImage: "creditcard.trianglebadge.exclamationmark")
+                            .font(.system(size: 11.5, weight: .bold))
+                            .foregroundColor(SalfordTheme.warningAmber)
+                    }
+
                     TextField("اسم الزبون (اختياري — يظهر في الفاتورة)", text: $customerName)
                         .padding(10)
                         .background(SalfordTheme.bgElevated)
