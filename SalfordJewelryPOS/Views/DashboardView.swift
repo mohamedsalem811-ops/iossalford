@@ -49,6 +49,7 @@ struct DashboardView: View {
                 quickActions
                 dailyChart
                 categoryBreakdown
+                brandBreakdown
                 recentSales
                 stockValueCard(rate: rate)
             }
@@ -368,6 +369,49 @@ struct DashboardView: View {
                         GeometryReader { geo in
                             Capsule()
                                 .fill(SalfordTheme.gold.opacity(0.7))
+                                .frame(width: max(6, geo.size.width * CGFloat(item.total / maxTotal)))
+                        }
+                        .frame(height: 6)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            .padding(SalfordSpacing.l)
+            .salfordCard()
+        }
+    }
+
+    // MARK: Brands
+
+    @ViewBuilder private var brandBreakdown: some View {
+        let totals: [CategoryTotal] = {
+            var map: [String: Double] = [:]
+            for s in monthSales {
+                // Brand at sale time; older sales fall back to the piece's current brand.
+                let b = s.brand ?? store.products.first(where: { $0.id == s.productId })?.brand ?? POSDataStore.noBrandLabel
+                map[b, default: 0] += s.totalSell
+            }
+            return map.map { CategoryTotal(category: $0.key, total: $0.value) }.sorted { $0.total > $1.total }
+        }()
+        // Only worth showing when at least one sale this month has a brand.
+        if totals.contains(where: { $0.category != POSDataStore.noBrandLabel }) {
+            let maxTotal = max(totals.map(\.total).max() ?? 1, 0.001)
+            VStack(alignment: .leading, spacing: SalfordSpacing.m) {
+                SalfordSectionTitle(title: "المبيعات حسب الماركة", icon: "seal.fill")
+                ForEach(totals) { item in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(item.category)
+                                .font(.system(.subheadline, weight: .semibold))
+                                .foregroundColor(SalfordTheme.textPrimary)
+                            Spacer()
+                            Text(Money.lyd(item.total))
+                                .font(.system(.subheadline, weight: .bold))
+                                .foregroundColor(SalfordTheme.textPrimary)
+                        }
+                        GeometryReader { geo in
+                            Capsule()
+                                .fill(SalfordTheme.silverAccent.opacity(0.7))
                                 .frame(width: max(6, geo.size.width * CGFloat(item.total / maxTotal)))
                         }
                         .frame(height: 6)

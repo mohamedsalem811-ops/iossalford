@@ -6,6 +6,7 @@ struct ProductsView: View {
     @EnvironmentObject var store: POSDataStore
     @State private var searchText: String = ""
     @State private var selectedCategory: String = "الكل"
+    @State private var selectedBrand: String = "الكل"
     @State private var sort: SortOrder = .name
     @State private var onlyAttention: Bool = false
     @State private var showAddSheet: Bool = false
@@ -25,7 +26,10 @@ struct ProductsView: View {
         let q = NumberInput.latinDigits(searchText).trimmingCharacters(in: .whitespaces)
         let list = store.products.filter { prod in
             (selectedCategory == "الكل" || prod.category == selectedCategory)
-                && (q.isEmpty || prod.name.localizedCaseInsensitiveContains(q) || prod.sku.localizedCaseInsensitiveContains(q))
+                && (selectedBrand == "الكل"
+                    || (selectedBrand == POSDataStore.noBrandLabel ? prod.brand == nil : prod.brand == selectedBrand))
+                && (q.isEmpty || prod.name.localizedCaseInsensitiveContains(q) || prod.sku.localizedCaseInsensitiveContains(q)
+                    || (prod.brand ?? "").localizedCaseInsensitiveContains(q))
                 && (!onlyAttention || prod.isLowStock || prod.isOutOfStock)
         }
         switch sort {
@@ -57,7 +61,7 @@ struct ProductsView: View {
                         }
                         Button {
                             store.openNewDraftReceipt(
-                                items: [ReceiptLineItem(name: prod.name, color: prod.color ?? "", code: prod.sku, qty: 1, price: prod.sellPrice)]
+                                items: [ReceiptLineItem(name: prod.name, color: prod.color ?? "", code: prod.sku, qty: 1, price: prod.sellPrice, brand: prod.brand)]
                             )
                         } label: {
                             Label("فاتورة هدية", systemImage: "gift")
@@ -86,7 +90,7 @@ struct ProductsView: View {
                         Button { store.adjustStock(productId: prod.id, by: 1) } label: { Label("+1 مخزون", systemImage: "plus") }
                         Button {
                             store.openNewDraftReceipt(
-                                items: [ReceiptLineItem(name: prod.name, color: prod.color ?? "", code: prod.sku, qty: 1, price: prod.sellPrice)]
+                                items: [ReceiptLineItem(name: prod.name, color: prod.color ?? "", code: prod.sku, qty: 1, price: prod.sellPrice, brand: prod.brand)]
                             )
                         } label: { Label("إصدار فاتورة هدية", systemImage: "gift") }
                         Button(role: .destructive) { productToDelete = prod } label: { Label("حذف القطعة", systemImage: "trash") }
@@ -94,6 +98,9 @@ struct ProductsView: View {
                 }
             } header: {
                 VStack(alignment: .leading, spacing: SalfordSpacing.s) {
+                    if !store.brandsInUse.isEmpty {
+                        BrandChips(brands: store.brandsInUse, selected: $selectedBrand)
+                    }
                     categoryChips
                     Text(summaryText)
                         .font(.system(.footnote))
@@ -119,7 +126,7 @@ struct ProductsView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(SalfordTheme.bgPrimary)
-        .searchable(text: $searchText, prompt: "اسم القطعة أو الكود")
+        .searchable(text: $searchText, prompt: "اسم القطعة أو الكود أو الماركة")
         .navigationTitle("المنتجات")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -229,6 +236,9 @@ struct ProductRow: View {
             .accessibilityLabel(product.hasImage ? "عرض صورة القطعة" : "إضافة صورة")
 
             VStack(alignment: .leading, spacing: 4) {
+                if let brand = product.brand {
+                    BrandTag(name: brand)
+                }
                 Text(product.name)
                     .font(.system(.subheadline, weight: .bold))
                     .foregroundColor(SalfordTheme.textPrimary)
@@ -405,6 +415,7 @@ struct ProductFormSheet: View {
     @State private var name: String = ""
     @State private var sku: String = ""
     @State private var category: String = "خواتم"
+    @State private var brand: String = ""
     @State private var color: String = ""
     @State private var costPrice: String = ""
     @State private var sellPrice: String = ""
@@ -436,6 +447,7 @@ struct ProductFormSheet: View {
                     if triedToSave && nameMissing {
                         fieldError("اسم القطعة مطلوب")
                     }
+                    BrandField(brand: $brand)
                     Picker("الفئة", selection: $category) {
                         ForEach(POSDataStore.categories, id: \.self) { Text($0).tag($0) }
                     }
@@ -633,6 +645,7 @@ struct ProductFormSheet: View {
         name = p.name
         sku = p.sku
         category = POSDataStore.categories.contains(p.category) ? p.category : "أخرى"
+        brand = p.brand ?? ""
         color = p.color ?? ""
         costPrice = NumberInput.editable(p.costPrice)
         sellPrice = NumberInput.editable(p.sellPrice)
@@ -695,7 +708,8 @@ struct ProductFormSheet: View {
             costRate: costRate,
             costUSD: costUSD,
             createdAt: product?.createdAt ?? store.nowTimestamp(),
-            imageFile: imageFile
+            imageFile: imageFile,
+            brand: brand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : brand
         )
         if let error = store.saveProduct(newProd) {
             formError = error

@@ -14,6 +14,8 @@ struct MoreManagementHubView: View {
                         badgeColor: SalfordTheme.dangerRed, icon: "creditcard.fill", color: .red)
                 hubLink(CustomersManagementView(), title: "الزبائن", subtitle: "بيانات الزبائن ومشترياتهم",
                         badge: "\(store.customers.count)", icon: "person.2.fill", color: .green)
+                hubLink(BrandsManagementView(), title: "الماركات", subtitle: "قائمة الماركات التي تعمل بها",
+                        badge: "\(store.brands.count)", icon: "seal.fill", color: .yellow)
                 hubLink(SetsManagementView(), title: "الأطقم", subtitle: "أطقم بقطع محددة وخصم خاص",
                         badge: "\(store.sets.count)", icon: "sparkles", color: .orange)
             }

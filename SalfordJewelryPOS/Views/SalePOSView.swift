@@ -7,6 +7,7 @@ struct SalePOSView: View {
 
     @State private var search: String = ""
     @State private var category: String = "الكل"
+    @State private var brand: String = "الكل"
     @State private var showCheckout: Bool = false
     @State private var alertMessage: String? = nil
 
@@ -14,7 +15,9 @@ struct SalePOSView: View {
         let q = NumberInput.latinDigits(search).trimmingCharacters(in: .whitespaces)
         return store.products.filter { p in
             (category == "الكل" || p.category == category)
-                && (q.isEmpty || p.name.localizedCaseInsensitiveContains(q) || p.sku.localizedCaseInsensitiveContains(q))
+                && (brand == "الكل" || (brand == POSDataStore.noBrandLabel ? p.brand == nil : p.brand == brand))
+                && (q.isEmpty || p.name.localizedCaseInsensitiveContains(q) || p.sku.localizedCaseInsensitiveContains(q)
+                    || (p.brand ?? "").localizedCaseInsensitiveContains(q))
         }
         // Pieces in stock first, then by name.
         .sorted { ($0.isOutOfStock ? 1 : 0, $0.name) < ($1.isOutOfStock ? 1 : 0, $1.name) }
@@ -29,6 +32,9 @@ struct SalePOSView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: SalfordSpacing.l) {
+                if !store.brandsInUse.isEmpty {
+                    BrandChips(brands: store.brandsInUse, selected: $brand)
+                }
                 categoryChips
 
                 if !sellableSets.isEmpty && search.isEmpty {
@@ -57,7 +63,7 @@ struct SalePOSView: View {
         .background(SalfordTheme.bgPrimary)
         .navigationTitle("البيع")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $search, prompt: "اسم القطعة أو الكود")
+        .searchable(text: $search, prompt: "اسم القطعة أو الكود أو الماركة")
         .safeAreaInset(edge: .bottom) {
             if !store.cart.isEmpty {
                 cartBar
@@ -230,6 +236,9 @@ struct ProductSaleCard: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
 
+                if let brand = product.brand {
+                    BrandTag(name: brand)
+                }
                 Text(product.name)
                     .font(.system(.subheadline, weight: .semibold))
                     .foregroundColor(SalfordTheme.textPrimary)

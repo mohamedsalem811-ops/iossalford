@@ -20,6 +20,8 @@ struct Product: Identifiable, Codable, Equatable {
 
     /// File name of the product photo in Documents/ProductImages.
     var imageFile: String? = nil
+    /// Brand typed by the shop (e.g. "Pandora"); nil = no brand / own pieces.
+    var brand: String? = nil
 
     var hasImage: Bool { imageFile != nil || !(imageBase64 ?? "").isEmpty }
 
@@ -79,6 +81,8 @@ struct SaleRecord: Identifiable, Codable, Equatable {
     var note: String?
     var saleDate: String
     var monthYear: String
+    /// Brand of the piece at the time of sale (for "sales by brand").
+    var brand: String? = nil
 }
 
 struct CartItem: Identifiable, Equatable {
@@ -175,10 +179,14 @@ struct ReceiptLineItem: Identifiable, Codable, Equatable {
     var code: String
     var qty: Int
     var price: Double
+    var brand: String? = nil
 
+    /// "Pandora — Moments Bracelet (Silver)"; brand and colour only when present.
     var fullTitle: String {
         let trimmedColor = color.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmedColor.isEmpty ? name : "\(name) (\(trimmedColor))"
+        let base = trimmedColor.isEmpty ? name : "\(name) (\(trimmedColor))"
+        guard let b = brand?.trimmingCharacters(in: .whitespacesAndNewlines), !b.isEmpty else { return base }
+        return "\(b) — \(base)"
     }
 }
 
@@ -198,6 +206,8 @@ struct POSDatabaseState: Codable {
     var payments: [CustomerPayment] = []
     /// Last receipt number handed out; receipt numbers are never reused.
     var receiptCounter: Int = 0
+    /// Brands the shop works with (typed by the user). nil in files from older versions.
+    var brands: [String]? = nil
 }
 
 /// Money a customer paid toward what they owe from credit (آجل) sales.
@@ -232,7 +242,7 @@ struct IssuedReceipt: Identifiable, Codable, Equatable {
 extension POSDatabaseState {
     enum CodingKeys: String, CodingKey {
         case pin, exchangeRate, products, customers, sets, sales, returns, expenses, closings
-        case receipts, receiptCounter, payments
+        case receipts, receiptCounter, payments, brands
     }
 
     static let defaultExchangeRate = 7.0
@@ -261,6 +271,7 @@ extension POSDatabaseState {
         receipts = try c.decodeIfPresent([IssuedReceipt].self, forKey: .receipts) ?? []
         receiptCounter = try c.decodeIfPresent(Int.self, forKey: .receiptCounter) ?? 0
         payments = try c.decodeIfPresent([CustomerPayment].self, forKey: .payments) ?? []
+        brands = try c.decodeIfPresent([String].self, forKey: .brands)
     }
 }
 

@@ -26,6 +26,8 @@ final class POSDataStore: ObservableObject {
     @Published var activeReceiptId: Int? = nil
     @Published var receipts: [IssuedReceipt] = []
     @Published var payments: [CustomerPayment] = []
+    /// Brands the shop works with, alphabetical.
+    @Published var brands: [String] = []
     private var receiptCounter: Int = 0
     @Published var activeReceiptCustomer: String = "Salford Libya"
     @Published var activeReceiptDate: String = ""
@@ -188,6 +190,12 @@ final class POSDataStore: ObservableObject {
         self.closings = state.closings
         self.receipts = state.receipts
         self.payments = state.payments
+        // Older files have no brand list: start with the shop's main brands.
+        var list = state.brands ?? Self.defaultBrands
+        for b in state.products.compactMap(\.brand) where !list.contains(where: { $0.caseInsensitiveCompare(b) == .orderedSame }) {
+            list.append(b)
+        }
+        self.brands = list.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
         // Never hand out a number that already exists, even if the counter was lost.
         self.receiptCounter = max(state.receiptCounter, state.receipts.count)
         imagesNeedSaving = migrateLegacyImages() || imagesNeedSaving
@@ -338,7 +346,8 @@ final class POSDataStore: ObservableObject {
             closings: closings,
             receipts: receipts,
             payments: payments,
-            receiptCounter: receiptCounter
+            receiptCounter: receiptCounter,
+            brands: brands
         )
         do {
             let data = try JSONEncoder().encode(state)
@@ -382,7 +391,8 @@ final class POSDataStore: ObservableObject {
             closings: closings,
             receipts: receipts,
             payments: payments,
-            receiptCounter: receiptCounter
+            receiptCounter: receiptCounter,
+            brands: brands
         )
         do {
             let data = try JSONEncoder().encode(state)
@@ -480,7 +490,14 @@ final class POSDataStore: ObservableObject {
 
     /// Saves a product. Returns an error message (and saves nothing) if the code belongs to another piece.
     @discardableResult
-    func saveProduct(_ prod: Product) -> String? {
+    func saveProduct(_ input: Product) -> String? {
+        var prod = input
+        // Use the brand's existing spelling and remember new brands for next time.
+        prod.brand = canonicalBrand(prod.brand)
+        if let b = prod.brand, !brands.contains(b) {
+            brands.append(b)
+            brands.sort { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        }
         let typedSku = prod.sku.trimmingCharacters(in: .whitespaces).uppercased()
         if !typedSku.isEmpty, skuInUse(typedSku, excludingProductId: prod.id) {
             let other = products.first { $0.sku.uppercased() == typedSku && $0.id != prod.id }
@@ -676,7 +693,8 @@ final class POSDataStore: ObservableObject {
             setId: setId,
             note: note,
             saleDate: timestamp,
-            monthYear: monthYear
+            monthYear: monthYear,
+            brand: product.brand
         )
     }
 
@@ -738,7 +756,8 @@ final class POSDataStore: ObservableObject {
                     color: current.color ?? "",
                     code: current.sku,
                     qty: quantity,
-                    price: actualPrice
+                    price: actualPrice,
+                    brand: current.brand
                 )
             ],
             customer: customerName
@@ -800,7 +819,8 @@ final class POSDataStore: ObservableObject {
                     color: current.color ?? "",
                     code: current.sku,
                     qty: item.quantity,
-                    price: item.unitPrice
+                    price: item.unitPrice,
+                    brand: current.brand
                 )
             )
         }
@@ -964,7 +984,7 @@ final class POSDataStore: ObservableObject {
         }
         issueSaleReceipt(
             saleIds: [sale.id],
-            items: [ReceiptLineItem(name: sale.productName, color: sale.color ?? "", code: sale.sku ?? "", qty: sale.quantity, price: sale.actualPrice)],
+            items: [ReceiptLineItem(name: sale.productName, color: sale.color ?? "", code: sale.sku ?? "", qty: sale.quantity, price: sale.actualPrice, brand: sale.brand)],
             customer: sale.customerName ?? ""
         )
     }
@@ -1257,6 +1277,60 @@ final class POSDataStore: ObservableObject {
     func deletePayment(_ payment: CustomerPayment) {
         payments.removeAll { $0.id == payment.id }
         saveToDisk()
+    }
+
+    // MARK: - Brands
+
+    static let defaultBrands = ["Swarovski", "Tiffany & Co.", "Pandora"]
+    static let noBrandLabel = "بدون ماركة"
+
+    /// Trims the typed name and reuses the existing spelling ("pandora" -> "Pandora"). nil if empty.
+    func canonicalBrand(_ raw: String?) -> String? {
+        guard let t = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty else { return nil }
+        return brands.first { $0.caseInsensitiveCompare(t) == .orderedSame } ?? t
+    }
+
+    /// Adds a brand to the list (no duplicates, kept alphabetical). Returns its canonical name.
+    @discardableResult
+    func addBrand(_ raw: String) -> String? {
+        guard let name = canonicalBrand(raw) else { return nil }
+        if !brands.contains(name) {
+            brands.append(name)
+            brands.sort { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+            saveToDisk()
+        }
+        return name
+    }
+
+    /// Renames a brand everywhere it is used on products. Returns an error message or nil.
+    func renameBrand(_ old: String, to raw: String) -> String? {
+        let new = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !new.isEmpty else { return "اكتب اسم الماركة" }
+        if new.caseInsensitiveCompare(old) != .orderedSame,
+           brands.contains(where: { $0.caseInsensitiveCompare(new) == .orderedSame }) {
+            return "الماركة «\(new)» موجودة بالفعل"
+        }
+        brands = brands.map { $0 == old ? new : $0 }
+            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        for i in products.indices where products[i].brand == old { products[i].brand = new }
+        saveToDisk()
+        return nil
+    }
+
+    /// Removes a brand from the list; pieces that had it become "no brand". Past sales keep their name.
+    func deleteBrand(_ name: String) {
+        brands.removeAll { $0 == name }
+        for i in products.indices where products[i].brand == name { products[i].brand = nil }
+        saveToDisk()
+    }
+
+    func productCount(forBrand name: String) -> Int {
+        products.filter { $0.brand == name }.count
+    }
+
+    /// Brands that currently have pieces, alphabetical (for filter buttons).
+    var brandsInUse: [String] {
+        brands.filter { b in products.contains { $0.brand == b } }
     }
 
     // MARK: - Sets (bundles)

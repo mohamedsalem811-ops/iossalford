@@ -454,6 +454,12 @@ struct ReceiptLineEditorRow: View {
                 }
                 .accessibilityLabel("حذف القطعة من الفاتورة")
             }
+            TextField("الماركة (اختياري)", text: Binding(
+                get: { item.brand ?? "" },
+                set: { item.brand = $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }
+            ))
+            .autocorrectionDisabled()
+            .salfordField()
             HStack(spacing: SalfordSpacing.s) {
                 TextField("اللون", text: $item.color)
                     .salfordField()
