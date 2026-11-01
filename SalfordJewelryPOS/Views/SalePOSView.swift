@@ -163,6 +163,51 @@ struct SalePOSView: View {
                 }
                 .salfordCard()
 
+                // Bundles: add a whole set to the cart at its bundle price
+                let sellableSets = store.sets.filter { !$0.items.isEmpty }
+                if !sellableSets.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Image(systemName: "sparkles")
+                                .foregroundColor(SalfordTheme.goldLight)
+                            Text("بيع طقم كامل")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(SalfordTheme.silverLight)
+                            Spacer()
+                        }
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 10) {
+                                ForEach(sellableSets) { jset in
+                                    let available = store.availableBundles(jset)
+                                    Button {
+                                        addSet(jset)
+                                    } label: {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(jset.name)
+                                                .font(.system(size: 12.5, weight: .bold))
+                                                .foregroundColor(.white)
+                                                .lineLimit(1)
+                                            Text(String(format: "%.0f د.ل بدلاً من %.0f", store.bundlePrice(of: jset), store.listPrice(of: jset)))
+                                                .font(.system(size: 11, weight: .bold))
+                                                .foregroundColor(SalfordTheme.emeraldSuccess)
+                                            Text(available > 0 ? "متاح: \(available)" : "غير متوفر")
+                                                .font(.system(size: 10.5))
+                                                .foregroundColor(available > 0 ? SalfordTheme.textMuted : SalfordTheme.dangerRed)
+                                        }
+                                        .padding(10)
+                                        .frame(width: 170, alignment: .leading)
+                                        .background(SalfordTheme.royalNavyMid)
+                                        .cornerRadius(11)
+                                        .opacity(available > 0 ? 1 : 0.5)
+                                    }
+                                    .disabled(available == 0)
+                                }
+                            }
+                        }
+                    }
+                    .salfordCard()
+                }
+
                 // Unified Multi-Item Shopping Cart Section
                 if !store.cart.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
@@ -186,9 +231,14 @@ struct SalePOSView: View {
                                     Text(item.product.name)
                                         .font(.system(size: 13, weight: .bold))
                                         .foregroundColor(.white)
-                                    Text("\(item.product.sku) • \(item.quantity) × \(Int(item.unitPrice)) د.ل")
+                                    Text("\(item.product.sku) • \(item.quantity) × \(NumberInput.editable((item.unitPrice * 100).rounded() / 100)) د.ل")
                                         .font(.system(size: 11))
                                         .foregroundColor(SalfordTheme.textMuted)
+                                    if let setName = item.setName {
+                                        Label("ضمن طقم: \(setName)", systemImage: "sparkles")
+                                            .font(.system(size: 10.5, weight: .bold))
+                                            .foregroundColor(SalfordTheme.goldLight)
+                                    }
                                     if let warning = stockWarning(for: item) {
                                         Label(warning, systemImage: "exclamationmark.triangle.fill")
                                             .font(.system(size: 11, weight: .bold))
@@ -200,7 +250,8 @@ struct SalePOSView: View {
                                     .font(.system(size: 13, weight: .bold))
                                     .foregroundColor(SalfordTheme.silverLight)
                                 Button {
-                                    store.cart.removeAll { $0.id == item.id }
+                                    // Removing a piece of a bundle removes the whole bundle.
+                                    store.removeFromCart(item)
                                 } label: {
                                     Image(systemName: "trash.fill")
                                         .foregroundColor(SalfordTheme.dangerRed)
@@ -347,6 +398,14 @@ struct SalePOSView: View {
         alertMessage = ([title] + problems.map { "• " + $0.message }).joined(separator: "\n")
         showAlert = true
         UINotificationFeedbackGenerator().notificationOccurred(.error)
+    }
+
+    private func addSet(_ jset: JewelrySet) {
+        if let problem = store.addSetToCart(jset) {
+            showProblems([problem], title: "لم تتم إضافة الطقم:")
+            return
+        }
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     private func addToCart() {

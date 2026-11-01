@@ -86,6 +86,10 @@ struct CartItem: Identifiable, Equatable {
     var product: Product
     var quantity: Int
     var unitPrice: Double
+    /// Set when this line is part of a bundle sold together; all lines of one bundle share `bundleGroup`.
+    var setId: Int? = nil
+    var setName: String? = nil
+    var bundleGroup: UUID? = nil
 
     var subtotal: Double { Double(quantity) * unitPrice }
     var totalCost: Double { Double(quantity) * product.costPrice }

@@ -556,7 +556,7 @@ final class POSDataStore: ObservableObject {
         guard alreadyInCart + quantity <= current.stock else {
             return .notEnoughStock(name: current.name, requested: alreadyInCart + quantity, available: current.stock)
         }
-        if let idx = cart.firstIndex(where: { $0.product.id == current.id && $0.unitPrice == unitPrice }) {
+        if let idx = cart.firstIndex(where: { $0.product.id == current.id && $0.unitPrice == unitPrice && $0.bundleGroup == nil }) {
             cart[idx].quantity += quantity
             cart[idx].product = current
         } else {
@@ -604,7 +604,8 @@ final class POSDataStore: ObservableObject {
         customerName: String,
         note: String?,
         timestamp: String,
-        monthYear: String
+        monthYear: String,
+        setId: Int? = nil
     ) -> SaleRecord {
         let totalSell = unitPrice * Double(quantity)
         let totalCost = product.costPrice * Double(quantity)
@@ -629,7 +630,7 @@ final class POSDataStore: ObservableObject {
             paymentMethod: paymentMethod,
             customerId: customerId,
             customerName: customerName.isEmpty ? nil : customerName,
-            setId: nil,
+            setId: setId,
             note: note,
             saleDate: timestamp,
             monthYear: monthYear
@@ -736,9 +737,10 @@ final class POSDataStore: ObservableObject {
                 paymentMethod: paymentMethod,
                 customerId: custId,
                 customerName: customerName,
-                note: lineNote,
+                note: item.setName.map { "\(lineNote) — طقم: \($0)" } ?? lineNote,
                 timestamp: timestamp,
-                monthYear: monthYear
+                monthYear: monthYear,
+                setId: item.setId
             )
             sales.insert(rec, at: 0)
             soldIds.append(rec.id)
@@ -1126,21 +1128,102 @@ final class POSDataStore: ObservableObject {
         saveToDisk()
     }
 
-    // MARK: - Sets Management
-    func addSet(name: String, description: String, discount: Double, items: [SetItem]) {
-        let newId = (sets.map(\.id).max() ?? 0) + 1
-        sets.insert(
-            JewelrySet(
-                id: newId,
-                name: name,
-                description: description.isEmpty ? nil : description,
-                discount: discount,
-                items: items,
-                createdAt: nowTimestamp()
-            ),
-            at: 0
-        )
+    // MARK: - Sets (bundles)
+
+    /// Sum of the current sell prices of the bundle's pieces.
+    func listPrice(of set: JewelrySet) -> Double {
+        set.items.reduce(0) { total, item in
+            total + (products.first { $0.id == item.productId }?.sellPrice ?? 0) * Double(item.quantity)
+        }
+    }
+
+    /// What the customer pays for the bundle.
+    func bundlePrice(of set: JewelrySet) -> Double {
+        max(0, listPrice(of: set) - set.discount)
+    }
+
+    /// How many complete bundles can still be sold with the current stock (minus what is in the cart).
+    func availableBundles(_ set: JewelrySet) -> Int {
+        guard !set.items.isEmpty else { return 0 }
+        var result = Int.max
+        for item in set.items where item.quantity > 0 {
+            guard let p = products.first(where: { $0.id == item.productId }) else { return 0 }
+            let free = p.stock - cartQuantity(for: p.id)
+            result = min(result, max(0, free) / item.quantity)
+        }
+        return result == Int.max ? 0 : result
+    }
+
+    /// Adds one complete bundle to the cart. The discount is spread over the pieces in proportion
+    /// to their prices, so every sale line (and the receipt) carries the real price paid.
+    func addSetToCart(_ set: JewelrySet) -> SaleProblem? {
+        let lines = set.items.filter { $0.quantity > 0 }
+        guard !lines.isEmpty else { return .emptyCart }
+        var pieces: [(Product, Int)] = []
+        for item in lines {
+            guard let p = products.first(where: { $0.id == item.productId }) else {
+                return .productMissing(name: "قطعة من طقم «\(set.name)»")
+            }
+            let requested = cartQuantity(for: p.id) + item.quantity
+            guard requested <= p.stock else {
+                return .notEnoughStock(name: p.name, requested: requested, available: p.stock)
+            }
+            pieces.append((p, item.quantity))
+        }
+        let list = pieces.reduce(0.0) { $0 + $1.0.sellPrice * Double($1.1) }
+        let discount = min(max(0, set.discount), list)
+        let group = UUID()
+        for (p, qty) in pieces {
+            let lineList = p.sellPrice * Double(qty)
+            let share = list > 0 ? discount * (lineList / list) : 0
+            let unit = (lineList - share) / Double(qty)
+            cart.append(CartItem(product: p, quantity: qty, unitPrice: unit, setId: set.id, setName: set.name, bundleGroup: group))
+        }
+        return nil
+    }
+
+    /// Removes a cart line; a line that belongs to a bundle removes the whole bundle
+    /// (selling part of a bundle at the bundle discount would be wrong).
+    func removeFromCart(_ item: CartItem) {
+        if let group = item.bundleGroup {
+            cart.removeAll { $0.bundleGroup == group }
+        } else {
+            cart.removeAll { $0.id == item.id }
+        }
+    }
+
+    /// Creates or updates a bundle. Returns an error message, or nil on success.
+    @discardableResult
+    func saveSet(id: Int? = nil, name: String, description: String, discount: Double, items: [SetItem]) -> String? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "يرجى إدخال اسم الطقم" }
+        let cleanItems = items.filter { $0.quantity > 0 }
+        guard !cleanItems.isEmpty else { return "اختر قطعة واحدة على الأقل للطقم" }
+        let draft = JewelrySet(id: id ?? 0, name: trimmed, description: nil, discount: discount, items: cleanItems, createdAt: "")
+        let list = listPrice(of: draft)
+        guard discount >= 0, discount < list else {
+            return String(format: "الخصم يجب أن يكون أقل من مجموع أسعار القطع (%.0f د.ل)", list)
+        }
+        if let id, let idx = sets.firstIndex(where: { $0.id == id }) {
+            sets[idx].name = trimmed
+            sets[idx].description = description.isEmpty ? nil : description
+            sets[idx].discount = discount
+            sets[idx].items = cleanItems
+        } else {
+            sets.insert(
+                JewelrySet(
+                    id: (sets.map(\.id).max() ?? 0) + 1,
+                    name: trimmed,
+                    description: description.isEmpty ? nil : description,
+                    discount: discount,
+                    items: cleanItems,
+                    createdAt: nowTimestamp()
+                ),
+                at: 0
+            )
+        }
         saveToDisk()
+        return nil
     }
 
     func deleteSet(id: Int) {
