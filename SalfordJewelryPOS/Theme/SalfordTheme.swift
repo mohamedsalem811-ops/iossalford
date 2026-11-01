@@ -2,38 +2,56 @@ import SwiftUI
 import UIKit
 
 enum SalfordTheme {
-    // Core Brand Palette (SALFORD Monogram Scheme)
+    /// A color that follows the iPhone's Light / Dark setting.
+    static func adaptive(light: UIColor, dark: UIColor) -> Color {
+        Color(UIColor { $0.userInterfaceStyle == .dark ? dark : light })
+    }
+
+    private static func rgb(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat, _ a: CGFloat = 1) -> UIColor {
+        UIColor(red: r / 255, green: g / 255, blue: b / 255, alpha: a)
+    }
+
+    // Core Brand Palette (SALFORD Monogram Scheme). Fixed brand colors, same in both modes.
     static let midnight       = Color(red: 7/255.0, green: 7/255.0, blue: 15/255.0)
-    static let navy           = Color(red: 11/255.0, green: 21/255.0, blue: 48/255.0)
-    static let royalNavy      = Color(red: 18/255.0, green: 36/255.0, blue: 82/255.0)
+    static let navy           = adaptive(light: rgb(226, 232, 244), dark: rgb(11, 21, 48))
+    static let royalNavy      = adaptive(light: rgb(205, 215, 235), dark: rgb(18, 36, 82))
     static let violet         = Color(red: 43/255.0, green: 25/255.0, blue: 84/255.0)
-    static let crystal        = Color(red: 200/255.0, green: 216/255.0, blue: 240/255.0)
-    static let ice            = Color(red: 232/255.0, green: 240/255.0, blue: 255/255.0)
-    static let gold           = Color(red: 184/255.0, green: 150/255.0, blue: 90/255.0)
-    static let goldLight      = Color(red: 212/255.0, green: 175/255.0, blue: 122/255.0)
+    static let crystal        = adaptive(light: rgb(52, 74, 122), dark: rgb(200, 216, 240))
+    static let ice            = adaptive(light: rgb(18, 36, 82), dark: rgb(232, 240, 255))
+    static let gold           = adaptive(light: rgb(138, 104, 46), dark: rgb(184, 150, 90))
+    static let goldLight      = adaptive(light: rgb(150, 112, 50), dark: rgb(212, 175, 122))
     static let goldDark       = Color(red: 138/255.0, green: 110/255.0, blue: 62/255.0)
     static let blueGlow       = Color(red: 106/255.0, green: 163/255.0, blue: 255/255.0)
     static let emerald        = Color(red: 29/255.0, green: 184/255.0, blue: 122/255.0)
     static let crimson        = Color(red: 224/255.0, green: 59/255.0, blue: 90/255.0)
-    static let muted          = Color(red: 140/255.0, green: 158/255.0, blue: 192/255.0)
-    static let cardBg         = Color(red: 13/255.0, green: 25/255.0, blue: 56/255.0).opacity(0.92)
-    static let border         = Color(red: 200/255.0, green: 216/255.0, blue: 240/255.0).opacity(0.16)
+    static let muted          = adaptive(light: rgb(88, 100, 126), dark: rgb(140, 158, 192))
+    static let cardBg         = adaptive(light: rgb(255, 255, 255), dark: rgb(13, 25, 56, 0.92))
+    static let border         = adaptive(light: rgb(18, 36, 82, 0.14), dark: rgb(200, 216, 240, 0.16))
 
-    // Semantic UI Tokens used across all Views
-    static let bgPrimary      = midnight
-    static let bgSecondary    = navy
+    // Semantic UI Tokens used across all Views (all adapt to Light / Dark)
+    static let bgPrimary      = adaptive(light: rgb(246, 245, 241), dark: rgb(7, 7, 15))
+    static let bgSecondary    = adaptive(light: rgb(236, 236, 232), dark: rgb(11, 21, 48))
     static let bgCard         = cardBg
-    static let bgElevated     = Color(red: 20/255.0, green: 39/255.0, blue: 88/255.0)
+    static let bgElevated     = adaptive(light: rgb(240, 241, 245), dark: rgb(20, 39, 88))
     static let royalNavyTop   = royalNavy
-    static let royalNavyMid   = Color(red: 25/255.0, green: 48/255.0, blue: 106/255.0)
+    static let royalNavyMid   = adaptive(light: rgb(227, 233, 245), dark: rgb(25, 48, 106))
     static let silverLight    = ice
     static let silverAccent   = crystal
     static let textMuted      = muted
     static let borderSubtle   = border
-    static let emeraldSuccess = Color(red: 52/255.0, green: 211/255.0, blue: 153/255.0)
-    static let dangerRed      = Color(red: 239/255.0, green: 68/255.0, blue: 68/255.0)
-    static let warningAmber   = Color(red: 245/255.0, green: 158/255.0, blue: 11/255.0)
-    static let infoBlue       = Color(red: 96/255.0, green: 165/255.0, blue: 250/255.0)
+    static let emeraldSuccess = adaptive(light: rgb(4, 135, 86), dark: rgb(52, 211, 153))
+    static let dangerRed      = adaptive(light: rgb(200, 30, 30), dark: rgb(239, 68, 68))
+    static let warningAmber   = adaptive(light: rgb(176, 98, 0), dark: rgb(245, 158, 11))
+    static let infoBlue       = adaptive(light: rgb(30, 100, 200), dark: rgb(96, 165, 250))
+
+    /// Main text color: near-white in Dark, deep navy in Light.
+    static let textPrimary    = adaptive(light: rgb(14, 22, 44), dark: rgb(255, 255, 255))
+    /// Text/icons drawn on top of the primary (silver / navy) buttons.
+    static let onPrimary      = adaptive(light: rgb(255, 255, 255), dark: rgb(7, 7, 15))
+    /// Text on the colored success / warning buttons.
+    static let onColored      = adaptive(light: rgb(255, 255, 255), dark: rgb(0, 0, 0))
+    /// Background of text fields.
+    static let fieldBg        = adaptive(light: rgb(240, 241, 245), dark: rgb(20, 39, 88))
 
     static let bgGradient = LinearGradient(
         colors: [royalNavyTop, bgSecondary, bgPrimary],
@@ -41,14 +59,18 @@ enum SalfordTheme {
         endPoint: .bottom
     )
 
+    /// Primary button fill: silver in Dark, royal navy in Light (text uses `onPrimary`).
     static let silverGradient = LinearGradient(
-        colors: [silverLight, silverAccent],
+        colors: [
+            adaptive(light: rgb(24, 46, 100), dark: rgb(232, 240, 255)),
+            adaptive(light: rgb(14, 28, 66), dark: rgb(200, 216, 240))
+        ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
 
     static func formatLYD(_ val: Double) -> String {
-        String(format: "%.2f د.ل", val)
+        Money.lyd(val)
     }
 
     static func formatUSD(_ val: Double) -> String {
@@ -67,7 +89,7 @@ struct SalfordMonogramLogoView: View {
     }
 
     var body: some View {
-        let primary = darkText ? Color(red: 9/255.0, green: 10/255.0, blue: 20/255.0) : Color.white
+        let primary = darkText ? Color(red: 9/255.0, green: 10/255.0, blue: 20/255.0) : SalfordTheme.textPrimary
         let secondary = darkText ? Color(red: 30/255.0, green: 40/255.0, blue: 65/255.0) : SalfordTheme.ice
         let subColor = darkText ? Color.gray : SalfordTheme.crystal
 
@@ -165,7 +187,7 @@ struct KPIStatCard: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Image(systemName: icon)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.system(.callout, weight: .bold))
                     .foregroundColor(accentColor)
                 Spacer()
                 Circle()
@@ -173,20 +195,20 @@ struct KPIStatCard: View {
                     .frame(width: 8, height: 8)
             }
             Text(value)
-                .font(.system(size: 17, weight: .heavy))
+                .font(.system(.headline, weight: .heavy))
                 .foregroundColor(accentColor)
                 .lineLimit(1)
                 .minimumScaleFactor(0.75)
 
             if let sub = subtitle, !sub.isEmpty {
                 Text(sub)
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(.caption, weight: .bold))
                     .foregroundColor(SalfordTheme.goldLight)
                     .lineLimit(1)
             }
 
             Text(title)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(.caption, weight: .medium))
                 .foregroundColor(SalfordTheme.textMuted)
                 .lineLimit(1)
         }
@@ -227,8 +249,8 @@ enum ProductImageHelper {
         return UIImage(data: data)
     }
 
-    /// Resizes UIImage to maxDimension (720px) and encodes as compressed JPEG Base64 string
-    static func encodeToBase64(_ image: UIImage, maxDimension: CGFloat = 720, quality: CGFloat = 0.78) -> String? {
+    /// Resizes to maxDimension (720px) and compresses as JPEG.
+    static func jpegData(_ image: UIImage, maxDimension: CGFloat = 720, quality: CGFloat = 0.78) -> Data? {
         let size = image.size
         guard size.width > 0 && size.height > 0 else { return nil }
         let ratio = min(maxDimension / size.width, maxDimension / size.height, 1.0)
@@ -240,21 +262,84 @@ enum ProductImageHelper {
         let resized = renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
-        guard let jpegData = resized.jpegData(compressionQuality: quality) else { return nil }
-        return jpegData.base64EncodedString()
+        return resized.jpegData(compressionQuality: quality)
+    }
+
+    // MARK: Photo files (Documents/ProductImages)
+
+    private static let cache = NSCache<NSString, UIImage>()
+
+    static var folderURL: URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return docs.appendingPathComponent("ProductImages", isDirectory: true)
+    }
+
+    static func fileURL(_ name: String) -> URL {
+        folderURL.appendingPathComponent(name)
+    }
+
+    /// Writes photo data to a new encrypted file and returns its name.
+    static func storeImageData(_ data: Data, prefix: String = "") -> String? {
+        do {
+            try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
+            let name = prefix + UUID().uuidString + ".jpg"
+            try data.write(to: fileURL(name), options: [.atomic, .completeFileProtection])
+            return name
+        } catch {
+            return nil
+        }
+    }
+
+    /// Resizes, compresses and stores a picked photo. Returns the new file name.
+    static func storeImage(_ image: UIImage, prefix: String = "") -> String? {
+        guard let data = jpegData(image) else { return nil }
+        return storeImageData(data, prefix: prefix)
+    }
+
+    static func image(named name: String?) -> UIImage? {
+        guard let name, !name.isEmpty else { return nil }
+        if let cached = cache.object(forKey: name as NSString) { return cached }
+        guard let data = try? Data(contentsOf: fileURL(name)), let img = UIImage(data: data) else { return nil }
+        cache.setObject(img, forKey: name as NSString)
+        return img
+    }
+
+    /// The product's photo, from its file (or from legacy Base64 data if not migrated yet).
+    static func image(for product: Product) -> UIImage? {
+        image(named: product.imageFile) ?? image(from: product.imageBase64)
+    }
+
+    static func deleteImage(named name: String?) {
+        guard let name, !name.isEmpty else { return }
+        cache.removeObject(forKey: name as NSString)
+        try? FileManager.default.removeItem(at: fileURL(name))
+    }
+
+    /// Removes photo files that no product refers to any more (e.g. a photo picked and then cancelled).
+    /// Only looks at this system's photos: scarves photos start with "scarf-", jewelry photos
+    /// have no prefix, so cleaning one system never deletes the other system's photos.
+    static func removeUnusedImages(keeping used: Set<String>, prefix: String = "") {
+        guard let files = try? FileManager.default.contentsOfDirectory(atPath: folderURL.path) else { return }
+        let otherPrefixes = BusinessLine.allCases.map(\.imagePrefix).filter { !$0.isEmpty && $0 != prefix }
+        let mine = files.filter { f in
+            prefix.isEmpty ? !otherPrefixes.contains(where: { f.hasPrefix($0) }) : f.hasPrefix(prefix)
+        }
+        for f in mine where !used.contains(f) {
+            deleteImage(named: f)
+        }
     }
 }
 
 /// Reusable Thumbnail View that clearly displays a Product's captured/uploaded photo or a luxury fallback icon
 struct SalfordProductThumbnailView: View {
-    let imageBase64: String?
+    let image: UIImage?
     var size: CGFloat = 72
     var cornerRadius: CGFloat = 14
     var showZoomBadge: Bool = false
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            if let uiImg = ProductImageHelper.image(from: imageBase64) {
+            if let uiImg = image {
                 Image(uiImage: uiImg)
                     .resizable()
                     .scaledToFill()
@@ -267,8 +352,8 @@ struct SalfordProductThumbnailView: View {
 
                 if showZoomBadge {
                     Image(systemName: "magnifyingglass.circle.fill")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(.white)
+                        .font(.system(.callout, weight: .bold))
+                        .foregroundColor(SalfordTheme.textPrimary)
                         .background(Circle().fill(Color.black.opacity(0.6)))
                         .padding(4)
                 }
@@ -283,7 +368,7 @@ struct SalfordProductThumbnailView: View {
                                 .foregroundColor(SalfordTheme.silverLight.opacity(0.85))
                             if size >= 64 {
                                 Text("بدون صورة")
-                                    .font(.system(size: 8.5, weight: .bold))
+                                    .font(.system(.caption2, weight: .bold))
                                     .foregroundColor(SalfordTheme.textMuted)
                             }
                         }
@@ -340,5 +425,153 @@ struct NativeImagePickerSheet: UIViewControllerRepresentable {
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
             parent.dismiss()
         }
+    }
+}
+
+extension View {
+    /// Asks before deleting. Set `item` to show the dialog; `perform` runs only on confirm.
+    func confirmDelete<Item>(
+        _ item: Binding<Item?>,
+        title: @escaping (Item) -> String,
+        message: @escaping (Item) -> String,
+        confirmLabel: String = "حذف نهائي",
+        perform: @escaping (Item) -> Void
+    ) -> some View {
+        confirmationDialog(
+            item.wrappedValue.map(title) ?? "",
+            isPresented: Binding(get: { item.wrappedValue != nil }, set: { if !$0 { item.wrappedValue = nil } }),
+            titleVisibility: .visible,
+            presenting: item.wrappedValue
+        ) { value in
+            Button(confirmLabel, role: .destructive) {
+                perform(value)
+                item.wrappedValue = nil
+            }
+            Button("إلغاء", role: .cancel) { item.wrappedValue = nil }
+        } message: { value in
+            Text(message(value))
+        }
+    }
+}
+
+// MARK: - Design system building blocks (used by the redesigned screens)
+
+enum SalfordSpacing {
+    static let xs: CGFloat = 4
+    static let s: CGFloat = 8
+    static let m: CGFloat = 12
+    static let l: CGFloat = 16
+    static let xl: CGFloat = 24
+    /// Minimum height of anything tappable (Apple's 44pt guideline).
+    static let touch: CGFloat = 44
+}
+
+extension View {
+    /// Standard text field look: filled, rounded, readable in Light and Dark.
+    func salfordField() -> some View {
+        self
+            .font(.body)
+            .padding(.horizontal, SalfordSpacing.m)
+            .frame(minHeight: SalfordSpacing.touch)
+            .background(SalfordTheme.fieldBg)
+            .foregroundColor(SalfordTheme.textPrimary)
+            .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}
+
+/// One button style for the whole app. Text scales with the phone's text size.
+struct SalfordButtonStyle: ButtonStyle {
+    enum Kind { case primary, secondary, success, warning, destructive }
+    var kind: Kind = .primary
+    var fullWidth: Bool = true
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(.subheadline, weight: .bold))
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, SalfordSpacing.l)
+            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: SalfordSpacing.touch)
+            .background(background)
+            .foregroundColor(foreground)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(kind == .secondary ? SalfordTheme.borderSubtle : .clear, lineWidth: 1)
+            )
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+    }
+
+    @ViewBuilder private var background: some View {
+        switch kind {
+        case .primary: SalfordTheme.silverGradient
+        case .secondary: SalfordTheme.royalNavyMid
+        case .success: SalfordTheme.emeraldSuccess
+        case .warning: SalfordTheme.warningAmber
+        case .destructive: SalfordTheme.dangerRed.opacity(0.15)
+        }
+    }
+
+    private var foreground: Color {
+        switch kind {
+        case .primary: return SalfordTheme.onPrimary
+        case .secondary: return SalfordTheme.textPrimary
+        case .success, .warning: return SalfordTheme.onColored
+        case .destructive: return SalfordTheme.dangerRed
+        }
+    }
+}
+
+extension ButtonStyle where Self == SalfordButtonStyle {
+    static var salfordPrimary: SalfordButtonStyle { SalfordButtonStyle(kind: .primary) }
+    static var salfordSecondary: SalfordButtonStyle { SalfordButtonStyle(kind: .secondary) }
+    static var salfordSuccess: SalfordButtonStyle { SalfordButtonStyle(kind: .success) }
+}
+
+/// Section heading with an optional icon, used at the top of cards.
+struct SalfordSectionTitle: View {
+    let title: String
+    var icon: String? = nil
+    var color: Color = SalfordTheme.silverLight
+
+    var body: some View {
+        HStack(spacing: SalfordSpacing.s) {
+            if let icon {
+                Image(systemName: icon)
+                    .foregroundColor(SalfordTheme.goldLight)
+            }
+            Text(title)
+                .font(.system(.headline, weight: .bold))
+                .foregroundColor(color)
+            Spacer(minLength: 0)
+        }
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// Friendly placeholder for empty lists.
+struct SalfordEmptyState: View {
+    let icon: String
+    let title: String
+    var message: String? = nil
+
+    var body: some View {
+        VStack(spacing: SalfordSpacing.s) {
+            Image(systemName: icon)
+                .font(.system(.largeTitle))
+                .foregroundColor(SalfordTheme.textMuted)
+            Text(title)
+                .font(.system(.headline))
+                .foregroundColor(SalfordTheme.textPrimary)
+            if let message {
+                Text(message)
+                    .font(.system(.subheadline))
+                    .foregroundColor(SalfordTheme.textMuted)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, SalfordSpacing.xl)
     }
 }
