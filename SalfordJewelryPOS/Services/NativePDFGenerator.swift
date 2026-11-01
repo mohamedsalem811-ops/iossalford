@@ -108,7 +108,7 @@ enum NativePDFGenerator {
             curY += rh
 
             for item in items {
-                let priceText = (showRealPrices && item.price > 0) ? String(format: "%.2f", item.price * Double(item.qty)) : "XXX"
+                let priceText = (showRealPrices && item.price > 0) ? Money.plain(item.price * Double(item.qty)) : "XXX"
                 UIColor.gray.setStroke()
                 cg.stroke(CGRect(x: tx, y: curY, width: col1, height: rh))
                 cg.stroke(CGRect(x: tx + col1, y: curY, width: col2, height: rh))
@@ -134,7 +134,7 @@ enum NativePDFGenerator {
             cg.strokePath()
 
             let grandTotal = items.reduce(0.0) { $0 + ($1.price * Double($1.qty)) }
-            let totalStr = (showRealPrices && grandTotal > 0) ? String(format: "%.2f LYD", grandTotal) : "XXX"
+            let totalStr = (showRealPrices && grandTotal > 0) ? Money.plain(grandTotal) + " LYD" : "XXX"
             drawLeftText("Total", x: tx + 8, y: curY + 8, font: .boldSystemFont(ofSize: 12), color: .black)
             drawLeftText(totalStr, x: tx + tw - 65, y: curY + 8, font: .boldSystemFont(ofSize: 12), color: .black)
 

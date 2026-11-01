@@ -67,7 +67,7 @@ struct MoreManagementHubView: View {
                         ManagementRowCard(
                             title: "الديون والتحصيل (آجل)",
                             subtitle: "من عليه دين، وتسجيل الدفعات المستلمة من الزبائن",
-                            badgeText: String(format: "%.0f د.ل", store.totalOutstanding),
+                            badgeText: Money.lyd(store.totalOutstanding),
                             icon: "creditcard.and.123",
                             accent: SalfordTheme.dangerRed
                         )
@@ -155,7 +155,7 @@ struct MoreManagementHubView: View {
                         ManagementRowCard(
                             title: "الإعدادات والنسخ الاحتياطي",
                             subtitle: "تعديل سعر الصرف ورمز الدخول وحفظ البيانات",
-                            badgeText: String(format: "%.2f د.ل", store.exchangeRate),
+                            badgeText: Money.lyd(store.exchangeRate),
                             icon: "gearshape.2.fill",
                             accent: SalfordTheme.silverAccent
                         )
@@ -181,14 +181,14 @@ struct DebtsView: View {
                     Text("إجمالي الديون المستحقة")
                         .font(.system(size: 12.5, weight: .bold))
                         .foregroundColor(SalfordTheme.textMuted)
-                    Text(String(format: "%.0f د.ل", store.totalOutstanding))
+                    Text(Money.lyd(store.totalOutstanding))
                         .font(.system(size: 26, weight: .heavy))
                         .foregroundColor(store.totalOutstanding > 0 ? SalfordTheme.dangerRed : SalfordTheme.emeraldSuccess)
                     Text("\(store.debtors.count) زبون عليه دين")
                         .font(.system(size: 11.5))
                         .foregroundColor(SalfordTheme.textMuted)
                     if store.unassignedCreditTotal > 0 {
-                        Label(String(format: "%.0f د.ل مبيعات آجلة قديمة بدون اسم زبون — لا يمكن تحصيلها من هنا", store.unassignedCreditTotal),
+                        Label(String(format: "%@ د.ل مبيعات آجلة قديمة بدون اسم زبون — لا يمكن تحصيلها من هنا", Money.plain(store.unassignedCreditTotal)),
                               systemImage: "exclamationmark.triangle.fill")
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(SalfordTheme.warningAmber)
@@ -218,7 +218,7 @@ struct DebtsView: View {
                                     .foregroundColor(SalfordTheme.textMuted)
                             }
                             Spacer()
-                            Text(String(format: "%.0f د.ل", entry.balance))
+                            Text(Money.lyd(entry.balance))
                                 .font(.system(size: 15, weight: .heavy))
                                 .foregroundColor(SalfordTheme.dangerRed)
                             Image(systemName: "chevron.left")
@@ -262,7 +262,7 @@ struct CustomerAccountView: View {
                     Text(customer?.name ?? "زبون")
                         .font(.system(size: 16, weight: .heavy))
                         .foregroundColor(.white)
-                    Text(String(format: "المتبقي عليه: %.0f د.ل", owed))
+                    Text(String(format: "المتبقي عليه: %@ د.ل", Money.plain(owed)))
                         .font(.system(size: 14, weight: .heavy))
                         .foregroundColor(owed > 0 ? SalfordTheme.dangerRed : SalfordTheme.emeraldSuccess)
 
@@ -323,7 +323,7 @@ struct CustomerAccountView: View {
                                     .foregroundColor(SalfordTheme.textMuted)
                             }
                             Spacer()
-                            Text(String(format: "+%.0f", sale.totalSell))
+                            Text(String(format: "+%@", Money.plain(sale.totalSell)))
                                 .font(.system(size: 12.5, weight: .bold))
                                 .foregroundColor(SalfordTheme.dangerRed)
                         }
@@ -353,7 +353,7 @@ struct CustomerAccountView: View {
                                     .foregroundColor(SalfordTheme.textMuted)
                             }
                             Spacer()
-                            Text(String(format: "−%.0f", p.amount))
+                            Text(String(format: "−%@", Money.plain(p.amount)))
                                 .font(.system(size: 12.5, weight: .bold))
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                             Button {
@@ -375,7 +375,7 @@ struct CustomerAccountView: View {
         .navigationBarTitleDisplayMode(.inline)
         .confirmDelete(
             $paymentToDelete,
-            title: { String(format: "إلغاء دفعة %.0f د.ل؟", $0.amount) },
+            title: { String(format: "إلغاء دفعة %@ د.ل؟", Money.plain($0.amount)) },
             message: { _ in "استخدم هذا فقط لدفعة سُجلت بالخطأ. سيعود المبلغ إلى رصيد الزبون المستحق." },
             confirmLabel: "إلغاء الدفعة",
             perform: { store.deletePayment($0) }
@@ -392,7 +392,7 @@ struct CustomerAccountView: View {
             message = error
             messageIsError = true
         } else {
-            message = String(format: "✅ تم تسجيل دفعة %.0f د.ل", amount)
+            message = String(format: "✅ تم تسجيل دفعة %@ د.ل", Money.plain(amount))
             messageIsError = false
             amountText = ""
             note = ""
@@ -442,7 +442,7 @@ struct ReceiptsHistoryView: View {
                                     .font(.system(size: 13.5, weight: .heavy, design: .monospaced))
                                     .foregroundColor(.white)
                                 Spacer()
-                                Text(String(format: "%.0f د.ل", r.total))
+                                Text(Money.lyd(r.total))
                                     .font(.system(size: 13.5, weight: .heavy))
                                     .foregroundColor(SalfordTheme.silverLight)
                             }
@@ -547,7 +547,7 @@ struct SalesHistoryView: View {
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                             Spacer()
-                            Text(String(format: "%.0f د.ل", sale.totalSell))
+                            Text(Money.lyd(sale.totalSell))
                                 .font(.system(size: 14, weight: .heavy))
                                 .foregroundColor(SalfordTheme.silverLight)
                         }
@@ -569,7 +569,7 @@ struct SalesHistoryView: View {
 
                         HStack {
                             HStack(spacing: 8) {
-                                Text(String(format: "الربح: %.0f د.ل", sale.profit))
+                                Text(String(format: "الربح: %@ د.ل", Money.plain(sale.profit)))
                                     .font(.system(size: 11.5, weight: .bold))
                                     .foregroundColor(SalfordTheme.emeraldSuccess)
                                 Text(String(format: "المعادل: %.1f دولار", sale.totalSellUSD))
@@ -708,7 +708,7 @@ struct CustomersManagementView: View {
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                             Spacer()
-                            Text(String(format: "%.0f د.ل • %d مشتريات", totalSpent, custSales.count))
+                            Text(String(format: "%@ د.ل • %d مشتريات", Money.plain(totalSpent), custSales.count))
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                         }
@@ -720,7 +720,7 @@ struct CustomersManagementView: View {
                             Spacer()
                             if owed > 0 {
                                 // A customer who still owes money can't be deleted (the debt would disappear).
-                                Text(String(format: "عليه %.0f د.ل", owed))
+                                Text(String(format: "عليه %@ د.ل", Money.plain(owed)))
                                     .font(.system(size: 11.5, weight: .heavy))
                                     .foregroundColor(SalfordTheme.dangerRed)
                             } else {
@@ -828,7 +828,7 @@ struct SetsManagementView: View {
                                 Text(prod.name)
                                     .font(.system(size: 12.5, weight: qty > 0 ? .bold : .regular))
                                     .foregroundColor(qty > 0 ? .white : SalfordTheme.silverLight)
-                                Text(String(format: "%@ • %.0f د.ل • المتوفر %d", prod.sku, prod.sellPrice, prod.stock))
+                                Text(String(format: "%@ • %@ د.ل • المتوفر %d", prod.sku, Money.plain(prod.sellPrice), prod.stock))
                                     .font(.system(size: 10.5))
                                     .foregroundColor(SalfordTheme.textMuted)
                             }
@@ -853,8 +853,7 @@ struct SetsManagementView: View {
 
                     let list = store.listPrice(of: draftSet)
                     if list > 0 {
-                        Text(String(format: "مجموع الأسعار %.0f د.ل − الخصم %.0f = سعر الطقم %.0f د.ل",
-                                    list, draftSet.discount, store.bundlePrice(of: draftSet)))
+                        Text(String(format: "مجموع الأسعار %@ د.ل − الخصم %@ = سعر الطقم %@ د.ل", Money.plain(list), Money.plain(draftSet.discount), Money.plain(store.bundlePrice(of: draftSet))))
                             .font(.system(size: 12, weight: .bold))
                             .foregroundColor(SalfordTheme.emeraldSuccess)
                     }
@@ -901,7 +900,7 @@ struct SetsManagementView: View {
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                             Spacer()
-                            Text(String(format: "%.0f د.ل", store.bundlePrice(of: jset)))
+                            Text(Money.lyd(store.bundlePrice(of: jset)))
                                 .font(.system(size: 13, weight: .heavy))
                                 .foregroundColor(SalfordTheme.silverLight)
                             Button {
@@ -925,8 +924,7 @@ struct SetsManagementView: View {
                         }.joined(separator: " + "))
                             .font(.system(size: 12))
                             .foregroundColor(SalfordTheme.silverAccent)
-                        Text(String(format: "بدلاً من %.0f د.ل • خصم %.0f د.ل • متاح للبيع: %d طقم",
-                                    store.listPrice(of: jset), jset.discount, store.availableBundles(jset)))
+                        Text(String(format: "بدلاً من %@ د.ل • خصم %@ د.ل • متاح للبيع: %d طقم", Money.plain(store.listPrice(of: jset)), Money.plain(jset.discount), store.availableBundles(jset)))
                             .font(.system(size: 11))
                             .foregroundColor(SalfordTheme.textMuted)
                         if jset.items.isEmpty {
@@ -1042,16 +1040,16 @@ struct MonthlyComparisonChartView: View {
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                             Spacer()
-                            Text(String(format: "المبيعات: %.0f \(unitLabel)", item.sales))
+                            Text(String(format: "المبيعات: %@ \(unitLabel)", Money.plain(item.sales)))
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverLight)
                         }
                         HStack {
-                            Text(String(format: "إجمالي الربح: %.0f \(unitLabel)", item.profit))
+                            Text(String(format: "إجمالي الربح: %@ \(unitLabel)", Money.plain(item.profit)))
                                 .font(.system(size: 12))
                                 .foregroundColor(SalfordTheme.goldLight)
                             Spacer()
-                            Text(String(format: "صافي الربح: %.0f \(unitLabel)", item.netProfit))
+                            Text(String(format: "صافي الربح: %@ \(unitLabel)", Money.plain(item.netProfit)))
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                         }
@@ -1126,7 +1124,7 @@ struct ExpensesAndReturnsView: View {
                                 .foregroundColor(SalfordTheme.textMuted)
                         }
                         Spacer()
-                        Text(String(format: "%.0f د.ل", exp.amount))
+                        Text(Money.lyd(exp.amount))
                             .font(.system(size: 13, weight: .bold))
                             .foregroundColor(SalfordTheme.dangerRed)
                         Button(role: .destructive) {
@@ -1146,7 +1144,7 @@ struct ExpensesAndReturnsView: View {
         .navigationTitle("المصاريف والمرتجعات")
         .confirmDelete(
             $expenseToDelete,
-            title: { String(format: "حذف مصروف «%@» (%.0f د.ل)؟", $0.description, $0.amount) },
+            title: { String(format: "حذف مصروف «%@» (%@ د.ل)؟", $0.description, Money.plain($0.amount)) },
             message: { _ in "سيتغير صافي الربح للشهر الذي سُجل فيه المصروف وأي إقفال ربع سنوي يعاد إصداره." },
             perform: { store.deleteExpense(id: $0.id) }
         )
@@ -1230,7 +1228,7 @@ struct ReturnEntryCard: View {
                     Picker("البيعة", selection: $selectedSaleId) {
                         Text("اختر البيعة…").tag(0)
                         ForEach(returnableSales) { sale in
-                            Text("#\(sale.id) \(sale.productName) • \(sale.customerName ?? "بدون اسم") • \(String(sale.saleDate.prefix(10))) • \(sale.quantity)×\(Int(sale.actualPrice))")
+                            Text("#\(sale.id) \(sale.productName) • \(sale.customerName ?? "بدون اسم") • \(String(sale.saleDate.prefix(10))) • \(sale.quantity)×\(Money.plain(sale.actualPrice))")
                                 .tag(sale.id)
                         }
                     }
@@ -1242,7 +1240,7 @@ struct ReturnEntryCard: View {
                 }
 
                 if let sale = selectedSale {
-                    Text(String(format: "دفع الزبون %.0f د.ل للقطعة • المتبقي للإرجاع: %d", sale.actualPrice, store.returnableQuantity(for: sale)))
+                    Text(String(format: "دفع الزبون %@ د.ل للقطعة • المتبقي للإرجاع: %d", Money.plain(sale.actualPrice), store.returnableQuantity(for: sale)))
                         .font(.system(size: 11.5))
                         .foregroundColor(SalfordTheme.silverAccent)
                 }
@@ -1402,7 +1400,7 @@ struct ReturnsHistoryList: View {
                             }
                         }
                         Spacer()
-                        Text(String(format: "-%.0f د.ل", ret.refundAmount))
+                        Text(String(format: "-%@ د.ل", Money.plain(ret.refundAmount)))
                             .font(.system(size: 13, weight: .bold))
                             .foregroundColor(SalfordTheme.warningAmber)
                         Button {
@@ -1491,7 +1489,7 @@ struct QuarterlyClosingView: View {
                         Divider().background(SalfordTheme.borderSubtle)
                         closingRow("صافي الربح", sum.netProfit, bold: true,
                                    color: sum.netProfit >= 0 ? SalfordTheme.emeraldSuccess : SalfordTheme.dangerRed)
-                        Text("\(sum.transactions) عملية بيع • \(sum.itemsSold) قطعة مباعة • مبالغ مستردة \(String(format: "%.0f", sum.refunds)) د.ل")
+                        Text("\(sum.transactions) عملية بيع • \(sum.itemsSold) قطعة مباعة • مبالغ مستردة \(Money.lyd(sum.refunds))")
                             .font(.system(size: 11))
                             .foregroundColor(SalfordTheme.textMuted)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1537,11 +1535,11 @@ struct QuarterlyClosingView: View {
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.white)
                             Spacer()
-                            Text(String(format: "الصافي: %.0f د.ل", cls.totalProfit))
+                            Text(String(format: "الصافي: %@ د.ل", Money.plain(cls.totalProfit)))
                                 .font(.system(size: 13, weight: .heavy))
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                         }
-                        Text(String(format: "المبيعات: %.0f د.ل • المرتجعات: %.0f د.ل • المصاريف: %.0f د.ل • القطع المباعة: %d", cls.totalSales, cls.totalRefunds, cls.totalExpenses, cls.itemsSold))
+                        Text(String(format: "المبيعات: %@ د.ل • المرتجعات: %@ د.ل • المصاريف: %@ د.ل • القطع المباعة: %d", Money.plain(cls.totalSales), Money.plain(cls.totalRefunds), Money.plain(cls.totalExpenses), cls.itemsSold))
                             .font(.system(size: 11.5))
                             .foregroundColor(SalfordTheme.textMuted)
                         if cls.periodKey == nil {
@@ -1608,7 +1606,7 @@ struct QuarterlyClosingView: View {
                 .font(.system(size: 12, weight: bold ? .bold : .regular))
                 .foregroundColor(SalfordTheme.silverLight)
             Spacer()
-            Text(String(format: "%.0f د.ل", value))
+            Text(Money.lyd(value))
                 .font(.system(size: 12.5, weight: bold ? .heavy : .semibold))
                 .foregroundColor(color)
         }

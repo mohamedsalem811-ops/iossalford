@@ -221,7 +221,7 @@ struct GiftReceiptStudioView: View {
                                     Text("Qty: \(item.qty)")
                                         .font(.system(size: 11))
                                         .foregroundColor(.black)
-                                    Text(store.showRealPricesInReceipt ? String(format: "%.0f LYD", item.price * Double(item.qty)) : "XXX")
+                                    Text(store.showRealPricesInReceipt ? String(format: "%@ LYD", Money.plain(item.price * Double(item.qty))) : "XXX")
                                         .font(.system(size: 11, weight: .bold))
                                         .foregroundColor(.black)
                                         .frame(width: 65, alignment: .trailing)
@@ -240,7 +240,7 @@ struct GiftReceiptStudioView: View {
                                 .foregroundColor(.black)
                             Spacer()
                             let grandTotal = store.activeReceiptItems.reduce(0.0) { $0 + ($1.price * Double($1.qty)) }
-                            Text(store.showRealPricesInReceipt ? String(format: "%.2f LYD", grandTotal) : "XXX")
+                            Text(store.showRealPricesInReceipt ? String(format: "%@ LYD", Money.plain(grandTotal)) : "XXX")
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundColor(.black)
                         }

@@ -82,28 +82,28 @@ struct DashboardView: View {
                 LazyVGrid(columns: columns, spacing: 10) {
                     KPIStatCard(
                         title: "إجمالي المبيعات",
-                        value: String(format: "%.0f د.ل", revenue),
+                        value: Money.lyd(revenue),
                         subtitle: String(format: "%.1f دولار • %d عملية", revenue / rate, monthSales.count),
                         icon: "banknote.fill",
                         accentColor: SalfordTheme.silverAccent
                     )
                     KPIStatCard(
                         title: "إجمالي الربح",
-                        value: String(format: "%.0f د.ل", grossProfit),
+                        value: Money.lyd(grossProfit),
                         subtitle: String(format: "%.1f دولار • الهامش %d بالمئة", grossProfit / rate, marginPct),
                         icon: "chart.line.uptrend.xyaxis",
                         accentColor: SalfordTheme.emeraldSuccess
                     )
                     KPIStatCard(
                         title: "إجمالي المصاريف",
-                        value: String(format: "%.0f د.ل", totalExpenses),
+                        value: Money.lyd(totalExpenses),
                         subtitle: "\(monthExpenses.count) بند مصروفات",
                         icon: "arrow.down.right.circle.fill",
                         accentColor: SalfordTheme.dangerRed
                     )
                     KPIStatCard(
                         title: "صافي الربح",
-                        value: String(format: "%.0f د.ل", netProfit),
+                        value: Money.lyd(netProfit),
                         subtitle: String(format: "%.1f دولار صافي", netProfit / rate),
                         icon: "crown.fill",
                         accentColor: netProfit >= 0 ? SalfordTheme.emeraldSuccess : SalfordTheme.dangerRed
@@ -121,7 +121,7 @@ struct DashboardView: View {
                     )
                     KPIStatCard(
                         title: "قيمة المخزون بالتكلفة",
-                        value: String(format: "%.0f د.ل", stockCostValue),
+                        value: Money.lyd(stockCostValue),
                         subtitle: String(format: "%.0f دولار بسعر الصرف", stockCostValue / rate),
                         icon: "shield.lefthalf.filled",
                         accentColor: SalfordTheme.silverLight
@@ -222,7 +222,7 @@ struct DashboardView: View {
                                 .font(.system(size: 13, weight: .semibold))
                                 .foregroundColor(.white)
                             Spacer()
-                            Text(String(format: "%.0f د.ل", item.total))
+                            Text(Money.lyd(item.total))
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverLight)
                         }
@@ -254,10 +254,10 @@ struct DashboardView: View {
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 3) {
-                                Text(String(format: "%.0f د.ل", sale.totalSell))
+                                Text(Money.lyd(sale.totalSell))
                                     .font(.system(size: 13, weight: .heavy))
                                     .foregroundColor(SalfordTheme.silverLight)
-                                Text(String(format: "الربح %.0f د.ل", sale.profit))
+                                Text(String(format: "الربح %@ د.ل", Money.plain(sale.profit)))
                                     .font(.system(size: 10.5, weight: .bold))
                                     .foregroundColor(SalfordTheme.emeraldSuccess)
                             }

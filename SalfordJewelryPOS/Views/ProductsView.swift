@@ -114,11 +114,11 @@ struct ProductsView: View {
                                     .foregroundColor(SalfordTheme.textMuted)
 
                                 HStack(spacing: 10) {
-                                    Text(String(format: "التكلفة: %.0f د.ل", prod.costPrice))
+                                    Text(String(format: "التكلفة: %@ د.ل", Money.plain(prod.costPrice)))
                                         .font(.system(size: 11.5, weight: .semibold))
                                         .foregroundColor(SalfordTheme.silverAccent)
 
-                                    Text(String(format: "البيع: %.0f د.ل", prod.sellPrice))
+                                    Text(String(format: "البيع: %@ د.ل", Money.plain(prod.sellPrice)))
                                         .font(.system(size: 12, weight: .bold))
                                         .foregroundColor(SalfordTheme.emeraldSuccess)
 
@@ -295,7 +295,7 @@ struct ProductPhotoLightboxSheet: View {
                                 Text("سعر التكلفة")
                                     .font(.system(size: 11.5))
                                     .foregroundColor(SalfordTheme.textMuted)
-                                Text(String(format: "%.0f د.ل", product.costPrice))
+                                Text(Money.lyd(product.costPrice))
                                     .font(.system(size: 15, weight: .bold))
                                     .foregroundColor(SalfordTheme.silverLight)
                             }
@@ -304,7 +304,7 @@ struct ProductPhotoLightboxSheet: View {
                                 Text("سعر البيع")
                                     .font(.system(size: 11.5))
                                     .foregroundColor(SalfordTheme.textMuted)
-                                Text(String(format: "%.0f د.ل", product.sellPrice))
+                                Text(Money.lyd(product.sellPrice))
                                     .font(.system(size: 15, weight: .heavy))
                                     .foregroundColor(SalfordTheme.emeraldSuccess)
                             }
@@ -712,8 +712,8 @@ struct ProductFormSheet: View {
             sku: sku.trimmingCharacters(in: .whitespacesAndNewlines),
             name: trimmedName.isEmpty ? "قطعة سالفورد" : trimmedName,
             category: category,
-            costPrice: cost,
-            sellPrice: sell,
+            costPrice: Money.round(cost),
+            sellPrice: Money.round(sell),
             stock: stk,
             lowStockAlert: alertLevel,
             size: trimmedSize.isEmpty ? nil : trimmedSize,

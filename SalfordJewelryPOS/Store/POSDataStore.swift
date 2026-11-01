@@ -554,7 +554,8 @@ final class POSDataStore: ObservableObject {
 
     /// Adds to the cart only if the stock covers what is already in the cart plus this quantity.
     /// The same piece at the same price is merged into one line.
-    func addToCart(product: Product, quantity: Int, unitPrice: Double) -> SaleProblem? {
+    func addToCart(product: Product, quantity: Int, unitPrice rawUnitPrice: Double) -> SaleProblem? {
+        let unitPrice = Money.round(rawUnitPrice)
         guard quantity > 0 else { return .invalidQuantity(name: product.name) }
         guard let current = products.first(where: { $0.id == product.id }) else {
             return .productMissing(name: product.name)
@@ -614,9 +615,9 @@ final class POSDataStore: ObservableObject {
         monthYear: String,
         setId: Int? = nil
     ) -> SaleRecord {
-        let totalSell = unitPrice * Double(quantity)
-        let totalCost = product.costPrice * Double(quantity)
-        let profit = totalSell - totalCost
+        let totalSell = Money.round(unitPrice * Double(quantity))
+        let totalCost = Money.round(product.costPrice * Double(quantity))
+        let profit = Money.round(totalSell - totalCost)
         return SaleRecord(
             id: id,
             productId: product.id,
@@ -653,7 +654,7 @@ final class POSDataStore: ObservableObject {
     func recordSingleSale(
         product: Product,
         quantity: Int,
-        actualPrice: Double,
+        actualPrice rawActualPrice: Double,
         saleRate: Double,
         paymentMethod: String,
         customerName: String,
@@ -661,6 +662,7 @@ final class POSDataStore: ObservableObject {
         customerArea: String,
         note: String
     ) -> SaleProblem? {
+        let actualPrice = Money.round(rawActualPrice)
         guard quantity > 0 else { return .invalidQuantity(name: product.name) }
         if Self.isCredit(paymentMethod), !hasCustomerIdentity(name: customerName, phone: customerPhone) {
             return .creditNeedsCustomer
@@ -998,7 +1000,7 @@ final class POSDataStore: ObservableObject {
     func addExpense(description: String, amount: Double, monthYear: String) {
         let newId = (expenses.map(\.id).max() ?? 0) + 1
         expenses.insert(
-            ExpenseRecord(id: newId, description: description, amount: amount, monthYear: monthYear, expenseDate: nowTimestamp()),
+            ExpenseRecord(id: newId, description: description, amount: Money.round(amount), monthYear: monthYear, expenseDate: nowTimestamp()),
             at: 0
         )
         saveToDisk()
@@ -1030,11 +1032,11 @@ final class POSDataStore: ObservableObject {
                 ? "كل قطع هذه البيعة مُرتجعة بالفعل"
                 : "يمكن إرجاع \(returnable) قطعة فقط من هذه البيعة"
         }
-        let maxRefund = sale.actualPrice * Double(quantity)
-        let refund = refundAmount ?? maxRefund
+        let maxRefund = Money.round(sale.actualPrice * Double(quantity))
+        let refund = Money.round(refundAmount ?? maxRefund)
         guard refund >= 0 else { return "مبلغ الاسترداد غير صحيح" }
         guard refund <= maxRefund + 0.001 else {
-            return String(format: "لا يمكن أن يتجاوز الاسترداد ما دفعه الزبون (%.0f د.ل)", maxRefund)
+            return String(format: "لا يمكن أن يتجاوز الاسترداد ما دفعه الزبون (%@ د.ل)", Money.plain(maxRefund))
         }
 
         if let pIdx = products.firstIndex(where: { $0.id == sale.productId }) {
@@ -1047,7 +1049,7 @@ final class POSDataStore: ObservableObject {
                 productName: sale.productName,
                 quantity: quantity,
                 refundAmount: refund,
-                costAmount: sale.costPrice * Double(quantity),
+                costAmount: Money.round(sale.costPrice * Double(quantity)),
                 saleId: sale.id,
                 reason: reason.isEmpty ? nil : reason,
                 returnDate: nowTimestamp(),
@@ -1075,8 +1077,8 @@ final class POSDataStore: ObservableObject {
                 productId: current.id,
                 productName: current.name,
                 quantity: quantity,
-                refundAmount: refundAmount,
-                costAmount: current.costPrice * Double(quantity),
+                refundAmount: Money.round(refundAmount),
+                costAmount: Money.round(current.costPrice * Double(quantity)),
                 saleId: nil,
                 reason: reason.isEmpty ? "مرتجع بدون فاتورة" : reason,
                 returnDate: nowTimestamp(),
@@ -1168,8 +1170,8 @@ final class POSDataStore: ObservableObject {
         let owed = credit.reduce(0) { $0 + $1.totalSell }
         let returned = returns.filter { $0.saleId.map(creditIds.contains) ?? false }.reduce(0) { $0 + $1.refundAmount }
         let paid = payments(for: customerId).reduce(0) { $0 + $1.amount }
-        let value = owed - returned - paid
-        return abs(value) < 0.005 ? 0 : value
+        let value = Money.round(owed - returned - paid)
+        return abs(value) < 0.0005 ? 0 : value
     }
 
     struct Debtor: Identifiable {
@@ -1193,12 +1195,13 @@ final class POSDataStore: ObservableObject {
     }
 
     /// Records money received from a customer. Returns an error message, or nil on success.
-    func recordPayment(customerId: Int, amount: Double, method: String, note: String) -> String? {
+    func recordPayment(customerId: Int, amount rawAmount: Double, method: String, note: String) -> String? {
+        let amount = Money.round(rawAmount)
         guard customers.contains(where: { $0.id == customerId }) else { return "الزبون غير موجود" }
         guard amount > 0 else { return "يرجى إدخال مبلغ الدفعة" }
         let owed = balance(for: customerId)
-        guard amount <= owed + 0.005 else {
-            return String(format: "المبلغ أكبر من المستحق على الزبون (%.0f د.ل)", owed)
+        guard amount <= owed + 0.0005 else {
+            return String(format: "المبلغ أكبر من المستحق على الزبون (%@ د.ل)", Money.plain(owed))
         }
         payments.insert(
             CustomerPayment(
@@ -1263,13 +1266,15 @@ final class POSDataStore: ObservableObject {
             }
             pieces.append((p, item.quantity))
         }
-        let list = pieces.reduce(0.0) { $0 + $1.0.sellPrice * Double($1.1) }
+        let lineLists = pieces.map { $0.0.sellPrice * Double($0.1) }
+        let list = lineLists.reduce(0, +)
         let discount = min(max(0, set.discount), list)
+        // Line totals rounded to the dirham that add up to exactly the bundle price.
+        let lineTotals = Money.split(list - discount, weights: lineLists)
         let group = UUID()
-        for (p, qty) in pieces {
-            let lineList = p.sellPrice * Double(qty)
-            let share = list > 0 ? discount * (lineList / list) : 0
-            let unit = (lineList - share) / Double(qty)
+        for (i, (p, qty)) in pieces.enumerated() {
+            // Unit price to the dirham; a line of several pieces may differ by a fraction of a dirham.
+            let unit = Money.round(lineTotals[i] / Double(qty))
             cart.append(CartItem(product: p, quantity: qty, unitPrice: unit, setId: set.id, setName: set.name, bundleGroup: group))
         }
         return nil
@@ -1287,7 +1292,8 @@ final class POSDataStore: ObservableObject {
 
     /// Creates or updates a bundle. Returns an error message, or nil on success.
     @discardableResult
-    func saveSet(id: Int? = nil, name: String, description: String, discount: Double, items: [SetItem]) -> String? {
+    func saveSet(id: Int? = nil, name: String, description: String, discount rawDiscount: Double, items: [SetItem]) -> String? {
+        let discount = Money.round(rawDiscount)
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "يرجى إدخال اسم الطقم" }
         let cleanItems = items.filter { $0.quantity > 0 }
@@ -1295,7 +1301,7 @@ final class POSDataStore: ObservableObject {
         let draft = JewelrySet(id: id ?? 0, name: trimmed, description: nil, discount: discount, items: cleanItems, createdAt: "")
         let list = listPrice(of: draft)
         guard discount >= 0, discount < list else {
-            return String(format: "الخصم يجب أن يكون أقل من مجموع أسعار القطع (%.0f د.ل)", list)
+            return String(format: "الخصم يجب أن يكون أقل من مجموع أسعار القطع (%@ د.ل)", Money.plain(list))
         }
         if let id, let idx = sets.firstIndex(where: { $0.id == id }) {
             sets[idx].name = trimmed

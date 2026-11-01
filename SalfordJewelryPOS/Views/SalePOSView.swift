@@ -38,7 +38,7 @@ struct SalePOSView: View {
 
                     Picker("اختر المنتج", selection: $selectedProductId) {
                         ForEach(store.products) { product in
-                            Text("\(product.name) (\(product.stock) متوفر) - \(Int(product.sellPrice)) د.ل")
+                            Text("\(product.name) (\(product.stock) متوفر) - \(Money.lyd(product.sellPrice))")
                                 .tag(product.id)
                         }
                     }
@@ -108,7 +108,7 @@ struct SalePOSView: View {
 
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("الإجمالي: \(String(format: "%.0f د.ل", totalSell))")
+                                Text("الإجمالي: \(Money.lyd(totalSell))")
                                     .font(.system(size: 13, weight: .heavy))
                                     .foregroundColor(.white)
                                 Text(String(format: "المعادل بالدولار: %.2f دولار", rate > 0 ? totalSell / rate : 0))
@@ -117,7 +117,7 @@ struct SalePOSView: View {
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
-                                Text(String(format: "الربح: %.0f د.ل", profit))
+                                Text(String(format: "الربح: %@ د.ل", Money.plain(profit)))
                                     .font(.system(size: 13, weight: .heavy))
                                     .foregroundColor(profit >= 0 ? SalfordTheme.emeraldSuccess : SalfordTheme.dangerRed)
                                 Text(String(format: "ربح الدولار: %.2f دولار", profitUSD))
@@ -187,7 +187,7 @@ struct SalePOSView: View {
                                                 .font(.system(size: 12.5, weight: .bold))
                                                 .foregroundColor(.white)
                                                 .lineLimit(1)
-                                            Text(String(format: "%.0f د.ل بدلاً من %.0f", store.bundlePrice(of: jset), store.listPrice(of: jset)))
+                                            Text(String(format: "%@ د.ل بدلاً من %@", Money.plain(store.bundlePrice(of: jset)), Money.plain(store.listPrice(of: jset))))
                                                 .font(.system(size: 11, weight: .bold))
                                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                                             Text(available > 0 ? "متاح: \(available)" : "غير متوفر")
@@ -231,7 +231,7 @@ struct SalePOSView: View {
                                     Text(item.product.name)
                                         .font(.system(size: 13, weight: .bold))
                                         .foregroundColor(.white)
-                                    Text("\(item.product.sku) • \(item.quantity) × \(NumberInput.editable((item.unitPrice * 100).rounded() / 100)) د.ل")
+                                    Text("\(item.product.sku) • \(item.quantity) × \(Money.lyd(item.unitPrice))")
                                         .font(.system(size: 11))
                                         .foregroundColor(SalfordTheme.textMuted)
                                     if let setName = item.setName {
@@ -246,7 +246,7 @@ struct SalePOSView: View {
                                     }
                                 }
                                 Spacer()
-                                Text(String(format: "%.0f د.ل", item.subtotal))
+                                Text(Money.lyd(item.subtotal))
                                     .font(.system(size: 13, weight: .bold))
                                     .foregroundColor(SalfordTheme.silverLight)
                                 Button {
@@ -267,7 +267,7 @@ struct SalePOSView: View {
                         } label: {
                             HStack {
                                 Image(systemName: "printer.fill")
-                                Text("اعتماد السلة وإصدار فاتورة موحدة (\(Int(cartTotal)) د.ل)")
+                                Text("اعتماد السلة وإصدار فاتورة موحدة (\(Money.lyd(cartTotal)))")
                                     .font(.system(size: 13.5, weight: .heavy))
                             }
                             .frame(maxWidth: .infinity)

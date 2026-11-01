@@ -48,7 +48,7 @@ enum SalfordTheme {
     )
 
     static func formatLYD(_ val: Double) -> String {
-        String(format: "%.2f د.ل", val)
+        Money.lyd(val)
     }
 
     static func formatUSD(_ val: Double) -> String {

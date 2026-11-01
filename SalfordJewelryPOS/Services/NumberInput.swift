@@ -103,3 +103,50 @@ extension View {
         modifier(NumericInputModifier(text: text, kind: kind))
     }
 }
+
+/// Libyan dinar amounts. 1 LYD = 1000 dirhams, so money is kept to 3 decimals.
+///
+/// Storage keeps Double (no risky data migration), but every amount the app calculates is
+/// rounded to the dirham before it is saved, and every amount on screen shows its dirhams
+/// instead of being cut to whole dinars.
+enum Money {
+    /// Rounds to the nearest dirham (3 decimals).
+    static func round(_ value: Double) -> Double {
+        (value * 1000).rounded() / 1000
+    }
+
+    private static let formatter: NumberFormatter = {
+        let f = NumberFormatter()
+        f.locale = Locale(identifier: "en_US")   // digits 0-9, "," thousands, "." decimals
+        f.numberStyle = .decimal
+        f.minimumFractionDigits = 0
+        f.maximumFractionDigits = 3
+        f.roundingMode = .halfUp
+        return f
+    }()
+
+    /// "1,250", "12.5", "1,083.333" — dirhams are shown only when there are any.
+    static func plain(_ value: Double) -> String {
+        let v = round(value)
+        return formatter.string(from: NSNumber(value: v == 0 ? 0 : v)) ?? NumberInput.editable(v)
+    }
+
+    /// "1,250 د.ل"
+    static func lyd(_ value: Double) -> String {
+        plain(value) + " د.ل"
+    }
+
+    /// Splits a total into `parts` amounts proportional to `weights`, each rounded to the dirham,
+    /// with any rounding difference put on the last part so they add up to exactly `total`.
+    static func split(_ total: Double, weights: [Double]) -> [Double] {
+        let sum = weights.reduce(0, +)
+        guard !weights.isEmpty else { return [] }
+        guard sum > 0 else {
+            return weights.indices.map { $0 == weights.count - 1 ? round(total) : 0 }
+        }
+        var parts = weights.map { round(total * $0 / sum) }
+        let diff = round(total - parts.reduce(0, +))
+        parts[parts.count - 1] = round(parts[parts.count - 1] + diff)
+        return parts
+    }
+}
