@@ -221,7 +221,19 @@ final class POSDataStore: ObservableObject {
             list.append(b)
         }
         self.brands = list.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
-        self.brandImages = state.brandImages ?? [:]
+        // Keep only photos whose file exists on this phone (a restored backup may point to files
+        // from another phone), then turn photos embedded in a backup back into files.
+        var images = (state.brandImages ?? [:]).filter {
+            FileManager.default.fileExists(atPath: ProductImageHelper.fileURL($0.value).path)
+        }
+        for (brand, b64) in state.brandImagesEmbedded ?? [:] {
+            if let data = Data(base64Encoded: b64, options: .ignoreUnknownCharacters),
+               let file = ProductImageHelper.storeImageData(data, prefix: line.imagePrefix + "brand-") {
+                images[brand] = file
+                imagesNeedSaving = true
+            }
+        }
+        self.brandImages = images
         // Never hand out a number that already exists, even if the counter was lost.
         self.receiptCounter = max(state.receiptCounter, state.receipts.count)
         imagesNeedSaving = migrateLegacyImages() || imagesNeedSaving
@@ -426,7 +438,10 @@ final class POSDataStore: ObservableObject {
             payments: payments,
             receiptCounter: receiptCounter,
             brands: brands,
-            brandImages: brandImages
+            brandImages: nil,
+            brandImagesEmbedded: brandImages.compactMapValues { file in
+                (try? Data(contentsOf: ProductImageHelper.fileURL(file)))?.base64EncodedString()
+            }
         )
         do {
             let data = try JSONEncoder().encode(state)
