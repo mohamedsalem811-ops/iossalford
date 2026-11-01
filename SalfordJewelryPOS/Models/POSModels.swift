@@ -235,8 +235,11 @@ struct POSDatabaseState: Codable {
     var closings: [QuarterlyClosing]
     var receipts: [IssuedReceipt] = []
     var payments: [CustomerPayment] = []
-    /// Last receipt number handed out; receipt numbers are never reused.
+    /// Last receipt number handed out in `receiptCounterYear`; numbers are never reused within a year.
     var receiptCounter: Int = 0
+    /// The year `receiptCounter` belongs to. Numbering starts again from 0001 each new year.
+    /// nil in files from older versions.
+    var receiptCounterYear: Int? = nil
     /// Brands the shop works with (typed by the user). nil in files from older versions.
     var brands: [String]? = nil
     /// Photo chosen by the shop for a brand: brand name -> photo file.
@@ -281,7 +284,7 @@ struct IssuedReceipt: Identifiable, Codable, Equatable {
 extension POSDatabaseState {
     enum CodingKeys: String, CodingKey {
         case pin, exchangeRate, products, customers, sets, sales, returns, expenses, closings
-        case receipts, receiptCounter, payments, brands, brandImages, brandImagesEmbedded, idCounters, system
+        case receipts, receiptCounter, receiptCounterYear, payments, brands, brandImages, brandImagesEmbedded, idCounters, system
     }
 
     static let defaultExchangeRate = 7.0
@@ -309,6 +312,7 @@ extension POSDatabaseState {
         closings = try c.decodeIfPresent([QuarterlyClosing].self, forKey: .closings) ?? []
         receipts = try c.decodeIfPresent([IssuedReceipt].self, forKey: .receipts) ?? []
         receiptCounter = try c.decodeIfPresent(Int.self, forKey: .receiptCounter) ?? 0
+        receiptCounterYear = try c.decodeIfPresent(Int.self, forKey: .receiptCounterYear)
         payments = try c.decodeIfPresent([CustomerPayment].self, forKey: .payments) ?? []
         brands = try c.decodeIfPresent([String].self, forKey: .brands)
         brandImages = try c.decodeIfPresent([String: String].self, forKey: .brandImages)

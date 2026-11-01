@@ -5,6 +5,13 @@ struct ExpensesAndReturnsView: View {
     @State private var expenseToDelete: ExpenseRecord? = nil
     @State private var expDesc: String = ""
     @State private var expAmount: String = ""
+    /// "yyyy-MM" the expense counts toward; defaults to this month.
+    @State private var expMonth: String = ExpenseMonth.recent().first?.key ?? ""
+
+    private var expMonthClosed: Bool {
+        guard let period = ExpenseMonth.period(of: expMonth) else { return false }
+        return store.existingClosing(for: period) != nil
+    }
 
     var body: some View {
         ScrollView {
@@ -19,9 +26,27 @@ struct ExpensesAndReturnsView: View {
                     TextField("القيمة بالدينار الليبي", text: $expAmount)
                         .numericInput($expAmount, .decimal)
                         .salfordField()
+                    HStack {
+                        Text("يُحسب على شهر")
+                            .font(.system(.footnote, weight: .semibold))
+                            .foregroundColor(SalfordTheme.textMuted)
+                        Spacer()
+                        Picker("شهر المصروف", selection: $expMonth) {
+                            ForEach(ExpenseMonth.recent()) { m in
+                                Text(m.title).tag(m.key)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .tint(SalfordTheme.goldLight)
+                    }
+                    if expMonthClosed {
+                        Label("هذا الشهر ضمن ربع سنة تم إقفاله؛ أعد إصدار الإقفال بعد الإضافة ليظهر المصروف فيه.", systemImage: "exclamationmark.triangle.fill")
+                            .font(.system(.caption))
+                            .foregroundColor(SalfordTheme.warningAmber)
+                    }
                     Button {
                         if let amt = NumberInput.decimal(expAmount), amt > 0, !expDesc.isEmpty {
-                            store.addExpense(description: expDesc, amount: amt, monthYear: store.currentMonthYear())
+                            store.addExpense(description: expDesc, amount: amt, monthYear: expMonth.isEmpty ? store.currentMonthYear() : expMonth)
                             expDesc = ""
                             expAmount = ""
                         }
@@ -43,7 +68,7 @@ struct ExpensesAndReturnsView: View {
                             Text(exp.description)
                                 .font(.system(.subheadline, weight: .bold))
                                 .foregroundColor(SalfordTheme.textPrimary)
-                            Text(exp.expenseDate)
+                            Text("\(ExpenseMonth.title(of: exp.monthYear)) • سُجل \(exp.expenseDate)")
                                 .font(.system(.caption))
                                 .foregroundColor(SalfordTheme.textMuted)
                         }
@@ -342,5 +367,45 @@ struct ReturnsHistoryList: View {
                 Text(errorMessage ?? "")
             }
         }
+    }
+}
+
+/// Months an expense can be booked to, with Arabic month names and Latin digits only.
+enum ExpenseMonth {
+    static let names = ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو",
+                        "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"]
+
+    struct Option: Identifiable {
+        let key: String
+        let title: String
+        var id: String { key }
+    }
+
+    /// This month first, then the 11 before it.
+    static func recent(_ now: Date = Date()) -> [Option] {
+        let cal = Calendar(identifier: .gregorian)
+        let comps = cal.dateComponents([.year, .month], from: now)
+        var year = comps.year ?? 2026
+        var month = comps.month ?? 1
+        var result: [Option] = []
+        for _ in 0..<12 {
+            let key = String(format: "%04d-%02d", year, month)
+            result.append(Option(key: key, title: title(of: key)))
+            month -= 1
+            if month == 0 { month = 12; year -= 1 }
+        }
+        return result
+    }
+
+    static func title(of key: String) -> String {
+        let parts = key.split(separator: "-")
+        guard parts.count == 2, let y = Int(parts[0]), let m = Int(parts[1]), (1...12).contains(m) else { return key }
+        return "\(names[m - 1]) \(y)"
+    }
+
+    static func period(of key: String) -> QuarterPeriod? {
+        let parts = key.split(separator: "-")
+        guard parts.count == 2, let y = Int(parts[0]), let m = Int(parts[1]), (1...12).contains(m) else { return nil }
+        return QuarterPeriod(year: y, quarter: (m - 1) / 3 + 1)
     }
 }

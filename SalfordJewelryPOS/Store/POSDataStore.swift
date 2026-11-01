@@ -31,6 +31,7 @@ final class POSDataStore: ObservableObject {
     /// Brand name -> photo file chosen by the shop.
     @Published var brandImages: [String: String] = [:]
     private var receiptCounter: Int = 0
+    private var receiptCounterYear: Int = POSDataStore.currentYear()
     /// Highest id ever handed out per record type (see nextId).
     private var idCounters: [String: Int] = [:]
     @Published var activeReceiptCustomer: String = "Salford Libya"
@@ -158,6 +159,10 @@ final class POSDataStore: ObservableObject {
         return .success
     }
 
+    nonisolated static func currentYear() -> Int {
+        Calendar(identifier: .gregorian).component(.year, from: Date())
+    }
+
     func currentMonthYear() -> String {
         let df = DateFormatter()
         df.locale = Locale(identifier: "en_US_POSIX")
@@ -236,8 +241,22 @@ final class POSDataStore: ObservableObject {
             }
         }
         self.brandImages = images
-        // Never hand out a number that already exists, even if the counter was lost.
-        self.receiptCounter = max(state.receiptCounter, state.receipts.count)
+        // Receipt numbers restart every year. Never hand out a number that already exists,
+        // even if the counter was lost.
+        let year = Self.currentYear()
+        let thisYearPrefix = "\(line.receiptPrefix)-\(year)-"
+        let thisYear = state.receipts.filter { $0.receiptNo.hasPrefix(thisYearPrefix) }
+        let highestThisYear = thisYear
+            .compactMap { Int($0.receiptNo.dropFirst(thisYearPrefix.count)) }
+            .max() ?? 0
+        if let savedYear = state.receiptCounterYear {
+            self.receiptCounterYear = savedYear
+            self.receiptCounter = savedYear == year ? max(state.receiptCounter, highestThisYear) : state.receiptCounter
+        } else {
+            // Older files kept one counter for all years: keep it if receipts were issued this year.
+            self.receiptCounterYear = year
+            self.receiptCounter = thisYear.isEmpty ? 0 : max(state.receiptCounter, state.receipts.count, highestThisYear)
+        }
         self.idCounters = state.idCounters ?? [:]
         imagesNeedSaving = migrateLegacyImages() || imagesNeedSaving
     }
@@ -394,6 +413,7 @@ final class POSDataStore: ObservableObject {
             receipts: receipts,
             payments: payments,
             receiptCounter: receiptCounter,
+            receiptCounterYear: receiptCounterYear,
             brands: brands,
             brandImages: brandImages,
             idCounters: idCounters,
@@ -442,6 +462,7 @@ final class POSDataStore: ObservableObject {
             receipts: receipts,
             payments: payments,
             receiptCounter: receiptCounter,
+            receiptCounterYear: receiptCounterYear,
             brands: brands,
             brandImages: nil,
             brandImagesEmbedded: brandImages.compactMapValues { file in
@@ -1063,10 +1084,14 @@ final class POSDataStore: ObservableObject {
         return (dfDate.string(from: date), dfTime.string(from: date))
     }
 
-    /// Next receipt number, e.g. GR-2026-0007. Numbers only go up and are never reused.
+    /// Next receipt number, e.g. GR-2026-0007. Starts again at 0001 each January; never reused.
     private func takeNextReceiptNo() -> String {
+        let year = Self.currentYear()
+        if receiptCounterYear != year {
+            receiptCounterYear = year
+            receiptCounter = 0
+        }
         receiptCounter += 1
-        let year = Calendar(identifier: .gregorian).component(.year, from: Date())
         var no = String(format: "%@-%d-%04d", line.receiptPrefix, year, receiptCounter)
         while receipts.contains(where: { $0.receiptNo == no }) {
             receiptCounter += 1
@@ -1664,7 +1689,7 @@ final class POSDataStore: ObservableObject {
             }
             let requested = cartQuantity(for: p.id) + item.quantity
             guard requested <= p.stock else {
-                return .notEnoughStock(name: p.name, requested: requested, available: p.stock)
+                return .notEnoughStock(name: displayName(for: p), requested: requested, available: p.stock)
             }
             pieces.append((p, item.quantity))
         }

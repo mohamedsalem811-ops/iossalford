@@ -26,7 +26,7 @@ struct SetsManagementView: View {
     private var pickerProducts: [Product] {
         let chosen = store.products.filter { (pieceQuantities[$0.id] ?? 0) > 0 }
         let others = store.products.filter { (pieceQuantities[$0.id] ?? 0) == 0 }
-            .filter { pieceSearch.isEmpty || $0.name.localizedCaseInsensitiveContains(pieceSearch) || $0.sku.localizedCaseInsensitiveContains(pieceSearch) }
+            .filter { pieceSearch.isEmpty || store.displayName(for: $0).localizedCaseInsensitiveContains(pieceSearch) || $0.sku.localizedCaseInsensitiveContains(pieceSearch) }
         return chosen + others.prefix(12)
     }
 
@@ -34,7 +34,7 @@ struct SetsManagementView: View {
         ScrollView {
             VStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text(editingSetId == nil ? "إنشاء طقم مجوهرات جديد" : "تعديل الطقم")
+                    Text(editingSetId == nil ? (store.line == .scarves ? "إنشاء طقم أوشحة جديد" : "إنشاء طقم مجوهرات جديد") : "تعديل الطقم")
                         .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.silverLight)
 
@@ -55,7 +55,7 @@ struct SetsManagementView: View {
                         let qty = pieceQuantities[prod.id] ?? 0
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(prod.name)
+                                Text(store.displayName(for: prod))
                                     .font(.system(.footnote, weight: qty > 0 ? .bold : .regular))
                                     .foregroundColor(qty > 0 ? .white : SalfordTheme.silverLight)
                                 Text(String(format: "%@ • %@ د.ل • المتوفر %d", prod.sku, Money.plain(prod.sellPrice), prod.stock))
@@ -141,7 +141,7 @@ struct SetsManagementView: View {
                             }
                         }
                         Text(jset.items.map { item -> String in
-                            let name = store.products.first { $0.id == item.productId }?.name ?? "قطعة محذوفة"
+                            let name = store.products.first { $0.id == item.productId }.map { store.displayName(for: $0) } ?? "قطعة محذوفة"
                             return item.quantity > 1 ? "\(name) ×\(item.quantity)" : name
                         }.joined(separator: " + "))
                             .font(.system(.footnote))
