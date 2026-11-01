@@ -8,6 +8,18 @@ struct CustomersManagementView: View {
     @State private var area: String = ""
     @State private var notes: String = ""
     @State private var formMessage: String = ""
+    @State private var search: String = ""
+
+    private var filteredCustomers: [Customer] {
+        let q = NumberInput.latinDigits(search).trimmingCharacters(in: .whitespaces)
+        guard !q.isEmpty else { return store.customers }
+        let digits = NumberInput.sanitize(q, kind: .integer)
+        return store.customers.filter { c in
+            c.name.localizedCaseInsensitiveContains(q)
+                || (c.area ?? "").localizedCaseInsensitiveContains(q)
+                || (digits.count >= 3 && (c.phone.map { NumberInput.sanitize($0, kind: .integer).contains(digits) } ?? false))
+        }
+    }
 
     var body: some View {
         ScrollView {
@@ -19,31 +31,19 @@ struct CustomersManagementView: View {
                         .foregroundColor(SalfordTheme.silverLight)
 
                     TextField("اسم الزبون الثلاثي", text: $name)
-                        .padding(10)
-                        .background(SalfordTheme.bgElevated)
-                        .foregroundColor(SalfordTheme.textPrimary)
-                        .cornerRadius(10)
+                        .salfordField()
 
                     HStack(spacing: 10) {
                         TextField("رقم الهاتف", text: $phone)
                             .numericInput($phone, .phone)
-                            .padding(10)
-                            .background(SalfordTheme.bgElevated)
-                            .foregroundColor(SalfordTheme.textPrimary)
-                            .cornerRadius(10)
+                            .salfordField()
 
                         TextField("المدينة أو المنطقة", text: $area)
-                            .padding(10)
-                            .background(SalfordTheme.bgElevated)
-                            .foregroundColor(SalfordTheme.textPrimary)
-                            .cornerRadius(10)
+                            .salfordField()
                     }
 
                     TextField("ملاحظات وتفضيلات الزبون", text: $notes)
-                        .padding(10)
-                        .background(SalfordTheme.bgElevated)
-                        .foregroundColor(SalfordTheme.textPrimary)
-                        .cornerRadius(10)
+                        .salfordField()
 
                     Button {
                         if let error = store.addOrUpdateCustomer(name: name, phone: phone, area: area, notes: notes) {
@@ -57,13 +57,8 @@ struct CustomersManagementView: View {
                         notes = ""
                     } label: {
                         Label("حفظ بيانات الزبون", systemImage: "person.badge.plus")
-                            .font(.system(.subheadline, weight: .bold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 11)
-                            .background(SalfordTheme.silverGradient)
-                            .foregroundColor(SalfordTheme.onPrimary)
-                            .cornerRadius(10)
                     }
+                    .buttonStyle(.salfordPrimary)
 
                     if !formMessage.isEmpty {
                         Text(formMessage)
@@ -74,7 +69,10 @@ struct CustomersManagementView: View {
                 .salfordCard()
 
                 // Customers List
-                ForEach(store.customers) { cust in
+                if !store.customers.isEmpty && filteredCustomers.isEmpty {
+                    SalfordEmptyState(icon: "magnifyingglass", title: "لا يوجد زبون بهذا الاسم أو الرقم")
+                }
+                ForEach(filteredCustomers) { cust in
                     let custSales = store.sales.filter { $0.customerId == cust.id }
                     let totalSpent = custSales.reduce(0.0) { $0 + $1.totalSell }
                     VStack(alignment: .leading, spacing: 6) {
@@ -120,7 +118,8 @@ struct CustomersManagementView: View {
             .padding(14)
         }
         .background(SalfordTheme.bgPrimary)
-        .navigationTitle("قاعدة بيانات الزبائن")
+        .navigationTitle("الزبائن")
+        .searchable(text: $search, prompt: "الاسم أو الهاتف أو المنطقة")
         .confirmDelete(
             $customerToDelete,
             title: { "حذف الزبون «\($0.name)»؟" },

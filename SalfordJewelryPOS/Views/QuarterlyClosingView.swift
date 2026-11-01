@@ -35,10 +35,10 @@ struct QuarterlyClosingView: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(SalfordTheme.bgElevated)
-                    .cornerRadius(10)
+                    .padding(.horizontal, 8)
+                    .frame(maxWidth: .infinity, minHeight: SalfordSpacing.touch, alignment: .leading)
+                    .background(SalfordTheme.fieldBg)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
                     Text("الأشهر المشمولة: " + selectedPeriod.monthKeys.joined(separator: " • "))
                         .font(.system(.caption))
@@ -64,10 +64,7 @@ struct QuarterlyClosingView: View {
                     .cornerRadius(10)
 
                     TextField("ملاحظات الجرد والإقفال", text: $closingNotes)
-                        .padding(10)
-                        .background(SalfordTheme.bgElevated)
-                        .foregroundColor(SalfordTheme.textPrimary)
-                        .cornerRadius(10)
+                        .salfordField()
 
                     Button {
                         if store.existingClosing(for: selectedPeriod) != nil {
@@ -77,13 +74,8 @@ struct QuarterlyClosingView: View {
                         }
                     } label: {
                         Label("اعتماد وحفظ إقفال \(selectedPeriod.title)", systemImage: "checkmark.seal.fill")
-                            .font(.system(.subheadline, weight: .bold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 11)
-                            .background(SalfordTheme.emeraldSuccess)
-                            .foregroundColor(SalfordTheme.onColored)
-                            .cornerRadius(10)
                     }
+                    .buttonStyle(.salfordSuccess)
 
                     if !statusMsg.isEmpty {
                         Text(statusMsg)

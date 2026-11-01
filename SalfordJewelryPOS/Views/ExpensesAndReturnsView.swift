@@ -15,16 +15,10 @@ struct ExpensesAndReturnsView: View {
                         .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.silverLight)
                     TextField("بيان المصروف مثل تغليف أو إعلانات", text: $expDesc)
-                        .padding(10)
-                        .background(SalfordTheme.bgElevated)
-                        .foregroundColor(SalfordTheme.textPrimary)
-                        .cornerRadius(10)
+                        .salfordField()
                     TextField("القيمة بالدينار الليبي", text: $expAmount)
                         .numericInput($expAmount, .decimal)
-                        .padding(10)
-                        .background(SalfordTheme.bgElevated)
-                        .foregroundColor(SalfordTheme.textPrimary)
-                        .cornerRadius(10)
+                        .salfordField()
                     Button {
                         if let amt = NumberInput.decimal(expAmount), amt > 0, !expDesc.isEmpty {
                             store.addExpense(description: expDesc, amount: amt, monthYear: store.currentMonthYear())
@@ -33,13 +27,8 @@ struct ExpensesAndReturnsView: View {
                         }
                     } label: {
                         Text("إضافة المصروف")
-                            .font(.system(.subheadline, weight: .bold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 11)
-                            .background(SalfordTheme.silverGradient)
-                            .foregroundColor(SalfordTheme.onPrimary)
-                            .cornerRadius(10)
                     }
+                    .buttonStyle(.salfordPrimary)
                 }
                 .salfordCard()
 
@@ -150,10 +139,7 @@ struct ReturnEntryCard: View {
 
             if mode == .fromSale {
                 TextField("ابحث باسم القطعة أو الزبون أو رقم البيعة", text: $saleSearch)
-                    .padding(10)
-                    .background(SalfordTheme.bgElevated)
-                    .foregroundColor(SalfordTheme.textPrimary)
-                    .cornerRadius(10)
+                    .salfordField()
 
                 if returnableSales.isEmpty {
                     Text("لا توجد مبيعات قابلة للإرجاع تطابق البحث")
@@ -168,10 +154,10 @@ struct ReturnEntryCard: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    .padding(8)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(SalfordTheme.bgElevated)
-                    .cornerRadius(10)
+                    .padding(.horizontal, 8)
+                    .frame(maxWidth: .infinity, minHeight: SalfordSpacing.touch, alignment: .leading)
+                    .background(SalfordTheme.fieldBg)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 }
 
                 if let sale = selectedSale {
@@ -187,10 +173,10 @@ struct ReturnEntryCard: View {
                     }
                 }
                 .pickerStyle(.menu)
-                .padding(8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(SalfordTheme.bgElevated)
-                .cornerRadius(10)
+                .padding(.horizontal, 8)
+                .frame(maxWidth: .infinity, minHeight: SalfordSpacing.touch, alignment: .leading)
+                .background(SalfordTheme.fieldBg)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
 
                 Text("استخدم هذا فقط لقطع بيعت قبل استخدام التطبيق. أدخل المبلغ الذي أُعيد للزبون فعلاً.")
                     .font(.system(.caption))
@@ -207,29 +193,18 @@ struct ReturnEntryCard: View {
                     .foregroundColor(SalfordTheme.textMuted)
                 TextField("0", text: $refundText)
                     .numericInput($refundText, .decimal)
-                    .padding(10)
-                    .background(SalfordTheme.bgElevated)
-                    .foregroundColor(SalfordTheme.textPrimary)
-                    .cornerRadius(10)
+                    .salfordField()
             }
 
             TextField("سبب الإرجاع أو الاستبدال", text: $reason)
-                .padding(10)
-                .background(SalfordTheme.bgElevated)
-                .foregroundColor(SalfordTheme.textPrimary)
-                .cornerRadius(10)
+                .salfordField()
 
             Button {
                 submit()
             } label: {
                 Text("تأكيد المرتجع وإضافة للمخزن")
-                    .font(.system(.subheadline, weight: .bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-                    .background(SalfordTheme.warningAmber)
-                    .foregroundColor(SalfordTheme.onColored)
-                    .cornerRadius(10)
             }
+            .buttonStyle(SalfordButtonStyle(kind: .warning))
 
             if !message.isEmpty {
                 Text(message)

@@ -3,17 +3,40 @@ import SwiftUI
 struct SalesHistoryView: View {
     @EnvironmentObject var store: POSDataStore
     @State private var saleToDelete: SaleRecord? = nil
+    @State private var search: String = ""
+    @State private var payment: String = "الكل"
+
+    private var filteredSales: [SaleRecord] {
+        let q = NumberInput.latinDigits(search).trimmingCharacters(in: .whitespaces)
+        return store.sales.filter { s in
+            (payment == "الكل" || s.paymentMethod == payment)
+                && (q.isEmpty
+                    || s.productName.localizedCaseInsensitiveContains(q)
+                    || (s.customerName ?? "").localizedCaseInsensitiveContains(q)
+                    || (s.sku ?? "").localizedCaseInsensitiveContains(q)
+                    || "\(s.id)" == q.replacingOccurrences(of: "#", with: ""))
+        }
+    }
 
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 10) {
-                if store.sales.isEmpty {
-                    Text("لا توجد عمليات بيع مسجلة حتى الآن")
-                        .font(.system(.subheadline))
-                        .foregroundColor(SalfordTheme.textMuted)
-                        .padding(.top, 40)
+                Picker("طريقة الدفع", selection: $payment) {
+                    ForEach(["الكل", "كاش", "بطاقة", "تحويل", "آجل"], id: \.self) { Text($0).tag($0) }
                 }
-                ForEach(store.sales) { sale in
+                .pickerStyle(.segmented)
+
+                if store.sales.isEmpty {
+                    SalfordEmptyState(icon: "cart", title: "لا توجد مبيعات بعد", message: "تظهر هنا كل عملية بيع مع فاتورتها.")
+                } else if filteredSales.isEmpty {
+                    SalfordEmptyState(icon: "magnifyingglass", title: "لا توجد نتائج", message: "ابحث بالقطعة أو الزبون أو رقم البيعة.")
+                } else {
+                    Text("\(filteredSales.count) عملية • \(Money.lyd(filteredSales.reduce(0) { $0 + $1.totalSell }))")
+                        .font(.system(.footnote, weight: .semibold))
+                        .foregroundColor(SalfordTheme.textMuted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                ForEach(filteredSales) { sale in
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("#\(sale.id) \(sale.productName)")
@@ -81,6 +104,7 @@ struct SalesHistoryView: View {
         }
         .background(SalfordTheme.bgPrimary)
         .navigationTitle("سجل المبيعات")
+        .searchable(text: $search, prompt: "القطعة أو الزبون أو رقم البيعة")
         .confirmationDialog(
             "حذف البيعة #\(saleToDelete?.id ?? 0)؟",
             isPresented: Binding(get: { saleToDelete != nil }, set: { if !$0 { saleToDelete = nil } }),

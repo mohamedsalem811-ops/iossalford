@@ -100,10 +100,7 @@ struct CustomerAccountView: View {
                         HStack(spacing: 8) {
                             TextField("مبلغ الدفعة", text: $amountText)
                                 .numericInput($amountText, .decimal)
-                                .padding(10)
-                                .background(SalfordTheme.bgElevated)
-                                .foregroundColor(SalfordTheme.textPrimary)
-                                .cornerRadius(10)
+                                .salfordField()
                             Button("كامل المبلغ") { amountText = NumberInput.editable(owed) }
                                 .font(.system(.footnote, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverAccent)
@@ -113,21 +110,13 @@ struct CustomerAccountView: View {
                         }
                         .pickerStyle(.segmented)
                         TextField("ملاحظة (اختياري)", text: $note)
-                            .padding(10)
-                            .background(SalfordTheme.bgElevated)
-                            .foregroundColor(SalfordTheme.textPrimary)
-                            .cornerRadius(10)
+                            .salfordField()
                         Button {
                             submit()
                         } label: {
                             Label("تسجيل الدفعة", systemImage: "banknote.fill")
-                                .font(.system(.subheadline, weight: .bold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 11)
-                                .background(SalfordTheme.emeraldSuccess)
-                                .foregroundColor(SalfordTheme.onColored)
-                                .cornerRadius(10)
                         }
+                        .buttonStyle(.salfordSuccess)
                     }
                     if !message.isEmpty {
                         Text(message)

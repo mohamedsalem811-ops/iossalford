@@ -24,10 +24,7 @@ struct SettingsAndBackupView: View {
                     HStack {
                         TextField("سعر الصرف بالدينار", text: $rateText)
                             .numericInput($rateText, .decimal)
-                            .padding(10)
-                            .background(SalfordTheme.bgElevated)
-                            .foregroundColor(SalfordTheme.textPrimary)
-                            .cornerRadius(10)
+                            .salfordField()
                         Button("حفظ السعر") {
                             if let r = NumberInput.decimal(rateText), r > 0 {
                                 store.exchangeRate = r
@@ -35,12 +32,7 @@ struct SettingsAndBackupView: View {
                                 statusMsg = "تم تحديث سعر الصرف بنجاح"
                             }
                         }
-                        .font(.system(.footnote, weight: .bold))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .background(SalfordTheme.emeraldSuccess)
-                        .foregroundColor(SalfordTheme.onColored)
-                        .cornerRadius(10)
+                        .buttonStyle(SalfordButtonStyle(kind: .success, fullWidth: false))
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
@@ -61,12 +53,7 @@ struct SettingsAndBackupView: View {
                         Button("تحديث الرمز") {
                             updatePin()
                         }
-                        .font(.system(.footnote, weight: .bold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(SalfordTheme.silverGradient)
-                        .foregroundColor(SalfordTheme.onPrimary)
-                        .cornerRadius(10)
+                        .buttonStyle(.salfordPrimary)
 
                         if !pinStatusMsg.isEmpty {
                             Text(pinStatusMsg)
@@ -85,13 +72,8 @@ struct SettingsAndBackupView: View {
                     if let backupURL {
                         ShareLink(item: backupURL, preview: SharePreview(backupURL.lastPathComponent)) {
                             Label("تصدير نسخة احتياطية كاملة إلى الملفات", systemImage: "externaldrive.fill.badge.checkmark")
-                                .font(.system(.subheadline, weight: .bold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(SalfordTheme.royalNavyMid)
-                                .foregroundColor(SalfordTheme.textPrimary)
-                                .cornerRadius(11)
                         }
+                        .buttonStyle(.salfordSecondary)
                     } else {
                         Text("تعذر تجهيز ملف النسخة الاحتياطية — تحقق من مساحة التخزين")
                             .font(.system(.footnote, weight: .bold))
@@ -102,13 +84,8 @@ struct SettingsAndBackupView: View {
                         showFileImporter = true
                     } label: {
                         Label("استيراد نسخة احتياطية محفوظة", systemImage: "square.and.arrow.down.fill")
-                            .font(.system(.subheadline, weight: .bold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(SalfordTheme.bgElevated)
-                            .foregroundColor(SalfordTheme.silverLight)
-                            .cornerRadius(11)
                     }
+                    .buttonStyle(.salfordSecondary)
 
                     if !statusMsg.isEmpty {
                         Text(statusMsg)
@@ -142,10 +119,7 @@ struct SettingsAndBackupView: View {
     private func pinField(_ title: String, text: Binding<String>) -> some View {
         SecureField(title, text: text)
             .keyboardType(.numberPad)
-            .padding(10)
-            .background(SalfordTheme.bgElevated)
-            .foregroundColor(SalfordTheme.textPrimary)
-            .cornerRadius(10)
+            .salfordField()
             .onChange(of: text.wrappedValue) { newVal in
                 let cleaned = String(PinVault.normalize(newVal).prefix(PinVault.pinLength))
                 if cleaned != newVal { text.wrappedValue = cleaned }

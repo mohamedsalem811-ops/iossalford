@@ -39,26 +39,17 @@ struct SetsManagementView: View {
                         .foregroundColor(SalfordTheme.silverLight)
 
                     TextField("اسم الطقم الملكي", text: $setName)
-                        .padding(10)
-                        .background(SalfordTheme.bgElevated)
-                        .foregroundColor(SalfordTheme.textPrimary)
-                        .cornerRadius(10)
+                        .salfordField()
 
                     TextField("وصف ومكونات الطقم", text: $setDesc)
-                        .padding(10)
-                        .background(SalfordTheme.bgElevated)
-                        .foregroundColor(SalfordTheme.textPrimary)
-                        .cornerRadius(10)
+                        .salfordField()
 
                     Text("قطع الطقم")
                         .font(.system(.footnote, weight: .bold))
                         .foregroundColor(SalfordTheme.goldLight)
 
                     TextField("ابحث عن قطعة لإضافتها", text: $pieceSearch)
-                        .padding(9)
-                        .background(SalfordTheme.bgElevated)
-                        .foregroundColor(SalfordTheme.textPrimary)
-                        .cornerRadius(9)
+                        .salfordField()
 
                     ForEach(pickerProducts) { prod in
                         let qty = pieceQuantities[prod.id] ?? 0
@@ -85,10 +76,7 @@ struct SetsManagementView: View {
 
                     TextField("قيمة الخصم الخاص للطقم بالدينار", text: $setDiscount)
                         .numericInput($setDiscount, .decimal)
-                        .padding(10)
-                        .background(SalfordTheme.bgElevated)
-                        .foregroundColor(SalfordTheme.textPrimary)
-                        .cornerRadius(10)
+                        .salfordField()
 
                     let list = store.listPrice(of: draftSet)
                     if list > 0 {
@@ -108,13 +96,8 @@ struct SetsManagementView: View {
                             }
                         } label: {
                             Label(editingSetId == nil ? "إضافة الطقم للقائمة" : "حفظ التعديلات", systemImage: "checkmark.circle.fill")
-                                .font(.system(.subheadline, weight: .bold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 11)
-                                .background(SalfordTheme.silverGradient)
-                                .foregroundColor(SalfordTheme.onPrimary)
-                                .cornerRadius(10)
                         }
+                        .buttonStyle(.salfordPrimary)
                         if editingSetId != nil {
                             Button("إلغاء") { resetForm() }
                                 .font(.system(.subheadline, weight: .bold))

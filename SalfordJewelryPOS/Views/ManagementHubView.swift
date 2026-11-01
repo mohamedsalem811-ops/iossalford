@@ -1,207 +1,82 @@
 import SwiftUI
 
+/// Management tab: everything that isn't selling, grouped the way a shop owner thinks about it.
 struct MoreManagementHubView: View {
     @EnvironmentObject var store: POSDataStore
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                // Header Summary Banner
-                HStack(spacing: 12) {
-                    ZStack {
-                        Circle()
-                            .fill(SalfordTheme.royalNavyMid)
-                            .frame(width: 48, height: 48)
-                        Image(systemName: "crown.fill")
-                            .font(.system(.title3))
-                            .foregroundColor(SalfordTheme.goldLight)
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("مركز الإدارة والتقارير المالية")
-                            .font(.system(.callout, weight: .heavy))
-                            .foregroundColor(SalfordTheme.textPrimary)
-                        Text("إدارة المبيعات والزبائن والأطقم والمقارنات الشهرية")
-                            .font(.system(.footnote))
-                            .foregroundColor(SalfordTheme.textMuted)
-                    }
-                    Spacer()
-                }
-                .salfordCard(borderColor: SalfordTheme.gold.opacity(0.35))
-
-                // Section 1: Sales, Customers & Sets
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("المبيعات والزبائن والأطقم")
-                        .font(.system(.subheadline, weight: .bold))
-                        .foregroundColor(SalfordTheme.goldLight)
-                        .padding(.horizontal, 4)
-
-                    NavigationLink {
-                        SalesHistoryView()
-                    } label: {
-                        ManagementRowCard(
-                            title: "سجل المبيعات الكامل",
-                            subtitle: "مراجعة كافة العمليات وإصدار الفواتير أو الإلغاء",
-                            badgeText: "\(store.sales.count) عملية",
-                            icon: "list.bullet.rectangle.portrait.fill",
-                            accent: SalfordTheme.silverLight
-                        )
-                    }
-
-                    NavigationLink {
-                        DebtsView()
-                    } label: {
-                        ManagementRowCard(
-                            title: "الديون والتحصيل (آجل)",
-                            subtitle: "من عليه دين، وتسجيل الدفعات المستلمة من الزبائن",
-                            badgeText: Money.lyd(store.totalOutstanding),
-                            icon: "creditcard.and.123",
-                            accent: SalfordTheme.dangerRed
-                        )
-                    }
-
-                    NavigationLink {
-                        CustomersManagementView()
-                    } label: {
-                        ManagementRowCard(
-                            title: "قاعدة بيانات الزبائن",
-                            subtitle: "إضافة الزبائن ومراجعة إجمالي مشتريات كل زبون",
-                            badgeText: "\(store.customers.count) زبون",
-                            icon: "person.2.fill",
-                            accent: SalfordTheme.emeraldSuccess
-                        )
-                    }
-
-                    NavigationLink {
-                        SetsManagementView()
-                    } label: {
-                        ManagementRowCard(
-                            title: "الأطقم الملكية والعروض",
-                            subtitle: "تجهيز الأطقم الكاملة بخصم خاص للعملاء",
-                            badgeText: "\(store.sets.count) أطقم",
-                            icon: "gift.fill",
-                            accent: SalfordTheme.goldLight
-                        )
-                    }
-                }
-
-                // Section 2: Financial Reports & Comparisons
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("التقارير المالية والمقارنات")
-                        .font(.system(.subheadline, weight: .bold))
-                        .foregroundColor(SalfordTheme.goldLight)
-                        .padding(.horizontal, 4)
-
-                    NavigationLink {
-                        MonthlyComparisonChartView()
-                    } label: {
-                        ManagementRowCard(
-                            title: "مقارنة الأشهر والرسوم البيانية",
-                            subtitle: "تحليل المبيعات وصافي الأرباح بالدينار والدولار",
-                            badgeText: "تحليل ذكي",
-                            icon: "chart.xyaxis.line",
-                            accent: SalfordTheme.infoBlue
-                        )
-                    }
-
-                    NavigationLink {
-                        ExpensesAndReturnsView()
-                    } label: {
-                        ManagementRowCard(
-                            title: "المصاريف والمرتجعات",
-                            subtitle: "تسجيل المصاريف التشغيلية وإرجاع القطع للمخزن",
-                            badgeText: "\(store.expenses.count) مصروف",
-                            icon: "arrow.left.arrow.right.circle.fill",
-                            accent: SalfordTheme.warningAmber
-                        )
-                    }
-
-                    NavigationLink {
-                        QuarterlyClosingView()
-                    } label: {
-                        ManagementRowCard(
-                            title: "الإقفال الربع سنوي",
-                            subtitle: "جرد وأرشفة نتائج كل ثلاثة أشهر بشكل مستقل",
-                            badgeText: "\(store.closings.count) إقفال",
-                            icon: "checkmark.shield.fill",
-                            accent: SalfordTheme.emeraldSuccess
-                        )
-                    }
-                }
-
-                // Section 3: Settings & Backup
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("إعدادات النظام والأمان")
-                        .font(.system(.subheadline, weight: .bold))
-                        .foregroundColor(SalfordTheme.goldLight)
-                        .padding(.horizontal, 4)
-
-                    NavigationLink {
-                        SettingsAndBackupView()
-                    } label: {
-                        ManagementRowCard(
-                            title: "الإعدادات والنسخ الاحتياطي",
-                            subtitle: "تعديل سعر الصرف ورمز الدخول وحفظ البيانات",
-                            badgeText: Money.lyd(store.exchangeRate),
-                            icon: "gearshape.2.fill",
-                            accent: SalfordTheme.silverAccent
-                        )
-                    }
-                }
+        List {
+            Section("المبيعات والزبائن") {
+                hubLink(SalesHistoryView(), title: "سجل المبيعات", subtitle: "كل العمليات، الفاتورة، والحذف عند الخطأ",
+                        badge: "\(store.sales.count)", icon: "list.bullet.rectangle.portrait.fill", color: .blue)
+                hubLink(DebtsView(), title: "الديون والتحصيل", subtitle: "من عليه دين (آجل) وتسجيل الدفعات",
+                        badge: store.totalOutstanding > 0 ? Money.lyd(store.totalOutstanding) : nil,
+                        badgeColor: SalfordTheme.dangerRed, icon: "creditcard.fill", color: .red)
+                hubLink(CustomersManagementView(), title: "الزبائن", subtitle: "بيانات الزبائن ومشترياتهم",
+                        badge: "\(store.customers.count)", icon: "person.2.fill", color: .green)
+                hubLink(SetsManagementView(), title: "الأطقم", subtitle: "أطقم بقطع محددة وخصم خاص",
+                        badge: "\(store.sets.count)", icon: "sparkles", color: .orange)
             }
-            .padding(14)
+
+            Section("المال والتقارير") {
+                hubLink(ExpensesAndReturnsView(), title: "المصاريف والمرتجعات", subtitle: "مصاريف المحل وإرجاع القطع للمخزن",
+                        badge: nil, icon: "arrow.left.arrow.right", color: .pink)
+                hubLink(MonthlyComparisonChartView(), title: "مقارنة الأشهر", subtitle: "المبيعات وصافي الربح شهراً بشهر",
+                        badge: nil, icon: "chart.xyaxis.line", color: .teal)
+                hubLink(QuarterlyClosingView(), title: "الإقفال الربع سنوي", subtitle: "اعتماد نتائج كل ثلاثة أشهر",
+                        badge: "\(store.closings.count)", icon: "checkmark.seal.fill", color: .indigo)
+            }
+
+            Section("النظام") {
+                hubLink(SettingsAndBackupView(), title: "الإعدادات والنسخ الاحتياطي", subtitle: "سعر الصرف، رمز الدخول، حفظ واستعادة البيانات",
+                        badge: store.isUsingDefaultPin ? "غيّر الرمز" : nil, badgeColor: SalfordTheme.warningAmber,
+                        icon: "gearshape.fill", color: .gray)
+            }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
         .background(SalfordTheme.bgPrimary)
-        .navigationTitle("لوحة الإدارة")
+        .navigationTitle("الإدارة")
         .navigationBarTitleDisplayMode(.inline)
     }
-}
 
-struct ManagementRowCard: View {
-    let title: String
-    let subtitle: String
-    let badgeText: String
-    let icon: String
-    let accent: Color
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(SalfordTheme.royalNavyMid)
-                    .frame(width: 44, height: 44)
+    private func hubLink<Destination: View>(
+        _ destination: Destination,
+        title: String,
+        subtitle: String,
+        badge: String?,
+        badgeColor: Color = SalfordTheme.textMuted,
+        icon: String,
+        color: Color
+    ) -> some View {
+        NavigationLink {
+            destination
+        } label: {
+            HStack(spacing: SalfordSpacing.m) {
                 Image(systemName: icon)
-                    .font(.system(.headline, weight: .bold))
-                    .foregroundColor(accent)
+                    .font(.system(.body, weight: .semibold))
+                    .foregroundColor(.white)
+                    .frame(width: 34, height: 34)
+                    .background(color.gradient)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(.body, weight: .semibold))
+                        .foregroundColor(SalfordTheme.textPrimary)
+                    Text(subtitle)
+                        .font(.system(.caption))
+                        .foregroundColor(SalfordTheme.textMuted)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 4)
+                if let badge {
+                    Text(badge)
+                        .font(.system(.footnote, weight: .bold))
+                        .foregroundColor(badgeColor)
+                }
             }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(.subheadline, weight: .bold))
-                    .foregroundColor(SalfordTheme.textPrimary)
-                    .multilineTextAlignment(.leading)
-                Text(subtitle)
-                    .font(.system(.caption))
-                    .foregroundColor(SalfordTheme.textMuted)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(2)
-            }
-
-            Spacer()
-
-            VStack(alignment: .trailing, spacing: 6) {
-                Text(badgeText)
-                    .font(.system(.caption, weight: .bold))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(accent.opacity(0.16))
-                    .foregroundColor(accent)
-                    .clipShape(Capsule())
-
-                Image(systemName: "chevron.left")
-                    .font(.system(.caption, weight: .bold))
-                    .foregroundColor(SalfordTheme.textMuted)
-            }
+            .padding(.vertical, 4)
         }
-        .salfordCard()
+        .listRowBackground(SalfordTheme.bgCard)
     }
 }

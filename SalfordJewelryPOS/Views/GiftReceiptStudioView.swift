@@ -51,10 +51,7 @@ struct GiftReceiptStudioView: View {
                         .cornerRadius(9)
 
                         TextField("اسم الزبون", text: $store.activeReceiptCustomer)
-                            .padding(9)
-                            .background(SalfordTheme.bgElevated)
-                            .foregroundColor(SalfordTheme.textPrimary)
-                            .cornerRadius(9)
+                            .salfordField()
                     }
 
                     if store.activeReceiptItems.isEmpty {
@@ -114,25 +111,15 @@ struct GiftReceiptStudioView: View {
                         }
                     } label: {
                         Label("طباعة AirPrint", systemImage: "printer.fill")
-                            .font(.system(.subheadline, weight: .bold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(SalfordTheme.royalNavyMid)
-                            .foregroundColor(SalfordTheme.textPrimary)
-                            .cornerRadius(11)
                     }
+                    .buttonStyle(.salfordSecondary)
 
                     Button {
                         shareURL = saveAndBuildPDF()
                     } label: {
                         Label("تصدير ومشاركة PDF", systemImage: "square.and.arrow.up.fill")
-                            .font(.system(.subheadline, weight: .heavy))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(SalfordTheme.silverGradient)
-                            .foregroundColor(SalfordTheme.onPrimary)
-                            .cornerRadius(11)
                     }
+                    .buttonStyle(.salfordPrimary)
                 }
 
                 // Live Interactive Paper Preview matching Invoice swarovski.pdf & SALFORD Royal
@@ -343,26 +330,17 @@ struct ReceiptLineEditorRow: View {
             HStack(spacing: 8) {
                 TextField("اسم القطعة", text: $item.name)
                     .font(.system(.footnote))
-                    .padding(8)
-                    .background(SalfordTheme.bgElevated)
-                    .foregroundColor(SalfordTheme.textPrimary)
-                    .cornerRadius(8)
+                    .salfordField()
 
                 TextField("اللون", text: $item.color)
                     .font(.system(.footnote))
                     .frame(width: 85)
-                    .padding(8)
-                    .background(SalfordTheme.bgElevated)
-                    .foregroundColor(SalfordTheme.textPrimary)
-                    .cornerRadius(8)
+                    .salfordField()
 
                 TextField("الكود", text: $item.code)
                     .font(.system(.footnote))
                     .frame(width: 90)
-                    .padding(8)
-                    .background(SalfordTheme.bgElevated)
-                    .foregroundColor(SalfordTheme.textPrimary)
-                    .cornerRadius(8)
+                    .salfordField()
             }
             HStack(spacing: 8) {
                 Stepper("الكمية: \(item.qty)", value: $item.qty, in: 1...99)
@@ -373,10 +351,7 @@ struct ReceiptLineEditorRow: View {
                     .numericInput($priceText, .decimal)
                     .font(.system(.footnote))
                     .frame(width: 90)
-                    .padding(8)
-                    .background(SalfordTheme.bgElevated)
-                    .foregroundColor(SalfordTheme.textPrimary)
-                    .cornerRadius(8)
+                    .salfordField()
                     .onChange(of: priceText) { newValue in
                         item.price = NumberInput.decimal(newValue) ?? 0
                     }
