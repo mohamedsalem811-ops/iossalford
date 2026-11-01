@@ -63,6 +63,41 @@ struct GiftReceiptStudioView: View {
                                 .foregroundColor(.black)
                         }
                         .padding(.top, 20)
+                    } else if store.activeReceiptTemplate == .scarvesLibya {
+                        VStack(spacing: 4) {
+                            Text("SALFORD")
+                                .font(.system(size: 26, weight: .bold))
+                                .foregroundColor(.black)
+                            Text("L  I  B  Y  A")
+                                .font(.system(size: 10.5, weight: .semibold))
+                                .foregroundColor(.gray)
+                            Text("SCARVES & ACCESSORIES • TRIPOLI, LIBYA")
+                                .font(.system(size: 8.5, weight: .medium))
+                                .foregroundColor(.gray)
+                        }
+                        .padding(.top, 20)
+                    } else if store.activeReceiptTemplate == .scarvesSalford {
+                        VStack(spacing: 4) {
+                            Text("SALFORD")
+                                .font(.system(size: 26, weight: .bold))
+                                .foregroundColor(.white)
+                            Text("scarves")
+                                .font(.system(size: 11))
+                                .kerning(3)
+                                .foregroundColor(Color(red: 240/255, green: 190/255, blue: 208/255))
+                            Text("✦ SILK & CASHMERE SCARVES • TRIPOLI, LIBYA ✦")
+                                .font(.system(size: 8.5, weight: .semibold))
+                                .foregroundColor(Color(red: 240/255, green: 190/255, blue: 208/255))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 18)
+                        .background(
+                            LinearGradient(
+                                colors: [Color(red: 110/255, green: 30/255, blue: 62/255), Color(red: 42/255, green: 12/255, blue: 26/255)],
+                                startPoint: .topTrailing,
+                                endPoint: .bottomLeading
+                            )
+                        )
                     } else {
                         VStack(spacing: 2) {
                             Text("SWAROVSKI")
@@ -95,7 +130,7 @@ struct GiftReceiptStudioView: View {
                             Text("Date: \(store.activeReceiptDate)")
                             Text("Time: \(store.activeReceiptTime)")
                             Text("Receipt No: \(store.activeReceiptNo.isEmpty ? "— (assigned on save)" : store.activeReceiptNo)")
-                            Text("Store: \(store.activeReceiptTemplate == .swarovskiLondon ? "Swarovski London" : "SALFORD Jewelry — Libya")")
+                            Text("Store: \(store.activeReceiptTemplate.storeName)")
                         }
                         .font(.system(size: 11))
                         .foregroundColor(.black)
@@ -242,7 +277,7 @@ struct GiftReceiptStudioView: View {
             SalfordSectionTitle(title: "القالب", icon: "paintpalette.fill")
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: SalfordSpacing.m) {
-                    ForEach(ReceiptTemplate.allCases) { tpl in
+                    ForEach(ReceiptTemplate.available(for: store.line)) { tpl in
                         let selected = store.activeReceiptTemplate == tpl
                         Button {
                             store.activeReceiptTemplate = tpl
@@ -300,6 +335,13 @@ struct GiftReceiptStudioView: View {
             case .swarovskiLondon:
                 Color.white
                 Text("SWAROVSKI").font(.system(.caption2, weight: .bold)).foregroundColor(.black)
+            case .scarvesLibya:
+                Color.white
+                Text("SALFORD Libya").font(.system(.caption, weight: .bold)).foregroundColor(.black)
+            case .scarvesSalford:
+                LinearGradient(colors: [Color(red: 110/255, green: 30/255, blue: 62/255), Color(red: 42/255, green: 12/255, blue: 26/255)],
+                               startPoint: .topTrailing, endPoint: .bottomLeading)
+                Text("SALFORD").font(.system(.caption, weight: .bold)).foregroundColor(.white)
             }
         }
         .frame(height: 54)

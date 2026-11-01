@@ -10,6 +10,8 @@ struct SalePOSView: View {
     @State private var brand: String = "الكل"
     @State private var showCheckout: Bool = false
     @State private var alertMessage: String? = nil
+    /// Scarves: the design whose sizes are being chosen.
+    @State private var pickingDesign: POSDataStore.ScarfDesign? = nil
 
     private var filteredProducts: [Product] {
         let q = NumberInput.latinDigits(search).trimmingCharacters(in: .whitespaces)
@@ -49,9 +51,19 @@ struct SalePOSView: View {
                                       message: "جرّب اسماً آخر أو كود القطعة، أو اختر «الكل».")
                 } else {
                     LazyVGrid(columns: columns, spacing: SalfordSpacing.m) {
-                        ForEach(filteredProducts) { product in
-                            ProductSaleCard(product: product, inCart: store.cartQuantity(for: product.id)) {
-                                add(product)
+                        if store.line == .scarves {
+                            // One card per design; tapping it asks for the size.
+                            ForEach(store.scarfDesigns(from: filteredProducts)) { design in
+                                ScarfSaleCard(design: design) {
+                                    // Show every size of the design, not only the ones matching the filters.
+                                    pickingDesign = store.scarfDesigns().first { $0.id == design.id } ?? design
+                                }
+                            }
+                        } else {
+                            ForEach(filteredProducts) { product in
+                                ProductSaleCard(product: product, inCart: store.cartQuantity(for: product.id)) {
+                                    add(product)
+                                }
                             }
                         }
                     }
@@ -68,6 +80,11 @@ struct SalePOSView: View {
             if !store.cart.isEmpty {
                 cartBar
             }
+        }
+        .sheet(item: $pickingDesign) { design in
+            ScarfSizePickerSheet(design: design)
+                .environmentObject(store)
+                .environment(\.layoutDirection, .rightToLeft)
         }
         .sheet(isPresented: $showCheckout) {
             NavigationStack {
@@ -480,7 +497,7 @@ struct CartLineEditor: View {
         VStack(alignment: .leading, spacing: SalfordSpacing.s) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.product.name)
+                    Text(store.displayName(for: item.product))
                         .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.textPrimary)
                     Text(item.product.sku)

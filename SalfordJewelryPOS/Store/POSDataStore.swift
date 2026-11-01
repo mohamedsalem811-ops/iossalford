@@ -74,6 +74,7 @@ final class POSDataStore: ObservableObject {
 
     init(line: BusinessLine = .jewelry) {
         self.line = line
+        self.activeReceiptTemplate = ReceiptTemplate.available(for: line)[0]
         loadFromDisk()
         // Jewelry: fresh install gets the default PIN (Face ID is the main way in).
         // Scarves: no default — the user creates the scarves code the first time.
@@ -501,7 +502,8 @@ final class POSDataStore: ObservableObject {
 
     /// Next free code for the category, e.g. RNG-0007. Sequential and guaranteed unique.
     func generateSKU(for category: String) -> String {
-        let prefix = Self.skuPrefixes[category] ?? "PRD"
+        // Scarves: SCF-0001…; jewelry: by category (RNG, BRC, …).
+        let prefix = line == .scarves ? "SCF" : (Self.skuPrefixes[category] ?? "PRD")
         let used = products.compactMap { p -> Int? in
             let parts = p.sku.uppercased().split(separator: "-")
             guard parts.count == 2, parts[0] == Substring(prefix) else { return nil }
@@ -540,7 +542,7 @@ final class POSDataStore: ObservableObject {
             }
             let oldPhoto = products[idx].imageFile
             products[idx] = updated
-            if oldPhoto != updated.imageFile {
+            if let oldPhoto, oldPhoto != updated.imageFile, !products.contains(where: { $0.imageFile == oldPhoto }) {
                 ProductImageHelper.deleteImage(named: oldPhoto) // photo was replaced or removed
             }
         } else {
@@ -568,7 +570,10 @@ final class POSDataStore: ObservableObject {
     func deleteProduct(id: Int) {
         let photo = products.first { $0.id == id }?.imageFile
         products.removeAll { $0.id == id }
-        ProductImageHelper.deleteImage(named: photo)
+        // Sizes of one scarf design share a photo: only delete it when nothing uses it any more.
+        if let photo, !products.contains(where: { $0.imageFile == photo }) {
+            ProductImageHelper.deleteImage(named: photo)
+        }
         cart.removeAll { $0.product.id == id }
         saveToDisk()
     }
@@ -614,7 +619,7 @@ final class POSDataStore: ObservableObject {
         }
         let alreadyInCart = cartQuantity(for: current.id)
         guard alreadyInCart + quantity <= current.stock else {
-            return .notEnoughStock(name: current.name, requested: alreadyInCart + quantity, available: current.stock)
+            return .notEnoughStock(name: displayName(for: current), requested: alreadyInCart + quantity, available: current.stock)
         }
         if let idx = cart.firstIndex(where: { $0.product.id == current.id && $0.unitPrice == unitPrice && $0.bundleGroup == nil }) {
             cart[idx].quantity += quantity
@@ -637,7 +642,7 @@ final class POSDataStore: ObservableObject {
         }
         let others = cartQuantity(for: current.id) - item.quantity
         guard others + quantity <= current.stock else {
-            return .notEnoughStock(name: current.name, requested: others + quantity, available: current.stock)
+            return .notEnoughStock(name: displayName(for: current), requested: others + quantity, available: current.stock)
         }
         cart[idx].quantity = quantity
         return nil
@@ -666,12 +671,12 @@ final class POSDataStore: ObservableObject {
                 continue
             }
             if cart.contains(where: { $0.product.id == current.id && $0.quantity <= 0 }) {
-                problems.append(.invalidQuantity(name: current.name))
+                problems.append(.invalidQuantity(name: displayName(for: current)))
                 continue
             }
             let requested = cartQuantity(for: current.id)
             if requested > current.stock {
-                problems.append(.notEnoughStock(name: current.name, requested: requested, available: current.stock))
+                problems.append(.notEnoughStock(name: displayName(for: current), requested: requested, available: current.stock))
             }
         }
         return problems
@@ -701,7 +706,7 @@ final class POSDataStore: ObservableObject {
         return SaleRecord(
             id: id,
             productId: product.id,
-            productName: product.name,
+            productName: displayName(for: product),
             sku: product.sku,
             color: product.color,
             quantity: quantity,
@@ -753,7 +758,7 @@ final class POSDataStore: ObservableObject {
         }
         let current = products[idx]
         guard current.stock >= quantity else {
-            return .notEnoughStock(name: current.name, requested: quantity, available: current.stock)
+            return .notEnoughStock(name: displayName(for: current), requested: quantity, available: current.stock)
         }
 
         products[idx].stock -= quantity
@@ -780,7 +785,7 @@ final class POSDataStore: ObservableObject {
             saleIds: [newId],
             items: [
                 ReceiptLineItem(
-                    name: current.name,
+                    name: displayName(for: current),
                     color: current.color ?? "",
                     code: current.sku,
                     qty: quantity,
@@ -843,7 +848,7 @@ final class POSDataStore: ObservableObject {
             soldIds.append(rec.id)
             receiptLines.append(
                 ReceiptLineItem(
-                    name: current.name,
+                    name: displayName(for: current),
                     color: current.color ?? "",
                     code: current.sku,
                     qty: item.quantity,
@@ -1305,6 +1310,147 @@ final class POSDataStore: ObservableObject {
     func deletePayment(_ payment: CustomerPayment) {
         payments.removeAll { $0.id == payment.id }
         saveToDisk()
+    }
+
+    // MARK: - Scarf designs (one item per size)
+
+    /// Name used on sales and receipts: scarves add the size ("Design — 120×120").
+    func displayName(for product: Product) -> String {
+        guard line == .scarves, let size = product.size, !size.isEmpty else { return product.name }
+        return "\(product.name) — \(size)"
+    }
+
+    /// A scarf design and its sizes, for the scarves screens.
+    struct ScarfDesign: Identifiable {
+        let id: String
+        var sizes: [Product]
+        var first: Product { sizes[0] }
+        var totalStock: Int { sizes.reduce(0) { $0 + $1.stock } }
+        var minPrice: Double { sizes.map(\.sellPrice).min() ?? 0 }
+        var maxPrice: Double { sizes.map(\.sellPrice).max() ?? 0 }
+    }
+
+    static let standardScarfSizes = ["90×90", "120×120", "140×140"]
+
+    /// Groups items by design (items without a design id are a design of their own).
+    func scarfDesigns(from list: [Product]? = nil) -> [ScarfDesign] {
+        var order: [String] = []
+        var groups: [String: [Product]] = [:]
+        for p in list ?? products {
+            let key = p.designId ?? "single-\(p.id)"
+            if groups[key] == nil { order.append(key) }
+            groups[key, default: []].append(p)
+        }
+        return order.map { key in
+            ScarfDesign(id: key, sizes: groups[key]!.sorted { Self.sizeSortKey($0.size) < Self.sizeSortKey($1.size) })
+        }
+    }
+
+    /// Sorts "90×90" before "120×120" (by the first number), unknown sizes last.
+    static func sizeSortKey(_ size: String?) -> Double {
+        let digits = NumberInput.latinDigits(size ?? "").prefix { $0.isNumber || $0 == "." }
+        return Double(digits) ?? .greatestFiniteMagnitude
+    }
+
+    /// Sizes currently used by any design (for the size filter).
+    var scarfSizesInUse: [String] {
+        Array(Set(products.compactMap(\.size))).sorted { Self.sizeSortKey($0) < Self.sizeSortKey($1) }
+    }
+
+    /// One size row of the design form.
+    struct ScarfSizeInput: Identifiable {
+        var id = UUID()
+        var productId: Int? = nil
+        var size: String = ""
+        var price: String = ""
+        var cost: String = ""
+        var stock: String = "1"
+        var lowStockAlert: String = "2"
+    }
+
+    /// Saves a whole design: shared details on every size, and each size's own price/cost/stock.
+    /// Sizes removed from the form are deleted. Returns an error message or nil.
+    func saveScarfDesign(designId existingId: String?, name: String, brand: String, color: String,
+                         category: String, imageFile: String?, sizes: [ScarfSizeInput]) -> String? {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return "يرجى إدخال اسم التصميم" }
+        let rows = sizes.filter { !$0.size.trimmingCharacters(in: .whitespaces).isEmpty }
+        guard !rows.isEmpty else { return "أضف مقاساً واحداً على الأقل" }
+        let sizeNames = rows.map { NumberInput.latinDigits($0.size.trimmingCharacters(in: .whitespaces)).lowercased() }
+        guard Set(sizeNames).count == sizeNames.count else { return "كل مقاس يجب أن يُضاف مرة واحدة فقط" }
+        for r in rows {
+            guard let sell = NumberInput.decimal(r.price), sell > 0 else { return "أدخل سعر البيع للمقاس \(r.size)" }
+            guard NumberInput.decimal(r.cost) != nil else { return "أدخل التكلفة للمقاس \(r.size) (0 إذا كانت غير معروفة)" }
+            guard NumberInput.integer(r.stock) != nil else { return "أدخل الكمية للمقاس \(r.size)" }
+            _ = sell
+        }
+
+        let designId = existingId ?? UUID().uuidString
+        let brandName = canonicalBrand(brand)
+        if let b = brandName, !brands.contains(b) {
+            brands.append(b)
+            brands.sort { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        }
+        let trimmedColor = color.trimmingCharacters(in: .whitespacesAndNewlines)
+        let rate = exchangeRate > 0 ? exchangeRate : 7.0
+        let keptIds = Set(rows.compactMap(\.productId))
+
+        // Sizes removed from the form.
+        for p in products where p.designId == designId && !keptIds.contains(p.id) {
+            deleteProduct(id: p.id)
+        }
+
+        for r in rows {
+            let cost = Money.round(NumberInput.decimal(r.cost) ?? 0)
+            let sell = Money.round(NumberInput.decimal(r.price) ?? 0)
+            let size = NumberInput.latinDigits(r.size.trimmingCharacters(in: .whitespaces))
+            if let pid = r.productId, let idx = products.firstIndex(where: { $0.id == pid }) {
+                let old = products[idx]
+                products[idx].name = trimmedName
+                products[idx].brand = brandName
+                products[idx].color = trimmedColor.isEmpty ? nil : trimmedColor
+                products[idx].category = category
+                products[idx].imageFile = imageFile
+                products[idx].size = size
+                products[idx].sellPrice = sell
+                if abs(old.costPrice - cost) >= 0.0005 {
+                    products[idx].costPrice = cost
+                    products[idx].costRate = rate
+                    products[idx].costUSD = cost / rate
+                }
+                products[idx].stock = NumberInput.integer(r.stock) ?? 0
+                products[idx].lowStockAlert = NumberInput.integer(r.lowStockAlert) ?? 2
+                products[idx].designId = designId
+            } else {
+                let newId = (products.map(\.id).max() ?? 0) + 1
+                products.insert(Product(
+                    id: newId,
+                    sku: generateSKU(for: category),
+                    name: trimmedName,
+                    category: category,
+                    costPrice: cost,
+                    sellPrice: sell,
+                    stock: NumberInput.integer(r.stock) ?? 0,
+                    lowStockAlert: NumberInput.integer(r.lowStockAlert) ?? 2,
+                    size: size,
+                    color: trimmedColor.isEmpty ? nil : trimmedColor,
+                    imageBase64: nil,
+                    costRate: rate,
+                    costUSD: cost / rate,
+                    createdAt: nowTimestamp(),
+                    imageFile: imageFile,
+                    brand: brandName,
+                    designId: designId
+                ), at: 0)
+            }
+        }
+        saveToDisk()
+        return nil
+    }
+
+    /// Deletes every size of a design.
+    func deleteScarfDesign(_ design: ScarfDesign) {
+        for p in design.sizes { deleteProduct(id: p.id) }
     }
 
     // MARK: - Brands

@@ -231,7 +231,7 @@ struct DashboardView: View {
 
     private var stockAlertNames: String {
         let names = stockAlerts.prefix(3).map { p -> String in
-            p.isOutOfStock ? "\(p.name) (نفد)" : "\(p.name) (\(p.stock))"
+            p.isOutOfStock ? "\(store.displayName(for: p)) (نفد)" : "\(store.displayName(for: p)) (\(p.stock))"
         }
         return names.joined(separator: "، ") + (stockAlerts.count > 3 ? "…" : "")
     }

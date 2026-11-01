@@ -22,6 +22,9 @@ struct Product: Identifiable, Codable, Equatable {
     var imageFile: String? = nil
     /// Brand typed by the shop (e.g. "Pandora"); nil = no brand / own pieces.
     var brand: String? = nil
+    /// Scarves: every size of one design is its own item (own price, cost, stock) and they share
+    /// this id. nil for jewelry and for single items.
+    var designId: String? = nil
 
     var hasImage: Bool { imageFile != nil || !(imageBase64 ?? "").isEmpty }
 
@@ -143,14 +146,36 @@ enum ReceiptTemplate: String, CaseIterable, Identifiable, Codable {
     case salfordRoyal = "salford_dark"
     case salfordWhite = "salford_light"
     case swarovskiLondon = "swarovski"
+    case scarvesLibya = "scarves_libya"
+    case scarvesSalford = "scarves_salford"
 
     var id: String { rawValue }
+
+    /// Templates offered in each system: jewelry keeps its three, scarves has its own two.
+    static func available(for line: BusinessLine) -> [ReceiptTemplate] {
+        switch line {
+        case .jewelry: return [.salfordRoyal, .salfordWhite, .swarovskiLondon]
+        case .scarves: return [.scarvesLibya, .scarvesSalford]
+        }
+    }
+
+    /// Store name printed on the receipt.
+    var storeName: String {
+        switch self {
+        case .salfordRoyal, .salfordWhite: return "SALFORD Jewelry — Libya"
+        case .swarovskiLondon: return "Swarovski London"
+        case .scarvesLibya: return "SALFORD Libya"
+        case .scarvesSalford: return "SALFORD Scarves"
+        }
+    }
 
     var title: String {
         switch self {
         case .salfordRoyal: return "✨ SALFORD الملكي (ثيم الشعار)"
         case .salfordWhite: return "🤍 SALFORD الرسمي (أبيض)"
         case .swarovskiLondon: return "🦢 Swarovski London"
+        case .scarvesLibya: return "SALFORD Libya"
+        case .scarvesSalford: return "SALFORD Scarves"
         }
     }
 
@@ -160,6 +185,8 @@ enum ReceiptTemplate: String, CaseIterable, Identifiable, Codable {
         case .salfordRoyal: return "SALFORD الملكي"
         case .salfordWhite: return "SALFORD الرسمي"
         case .swarovskiLondon: return "Swarovski London"
+        case .scarvesLibya: return "SALFORD Libya"
+        case .scarvesSalford: return "SALFORD Scarves"
         }
     }
 
@@ -168,6 +195,8 @@ enum ReceiptTemplate: String, CaseIterable, Identifiable, Codable {
         case .salfordRoyal: return "ترويسة داكنة بشعار SJ"
         case .salfordWhite: return "أبيض كلاسيكي"
         case .swarovskiLondon: return "قالب Covent Garden"
+        case .scarvesLibya: return "أبيض — SALFORD Libya"
+        case .scarvesSalford: return "ترويسة وردية — SALFORD Scarves"
         }
     }
 }

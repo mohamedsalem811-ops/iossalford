@@ -30,9 +30,13 @@ struct MainTabView: View {
             .tag(AppTab.sale)
 
             NavigationStack {
-                ProductsView()
+                if store.line == .scarves {
+                    ScarvesProductsView()
+                } else {
+                    ProductsView()
+                }
             }
-            .tabItem { Label("المنتجات", systemImage: "sparkles") }
+            .tabItem { Label(store.line == .scarves ? "الأوشحة" : "المنتجات", systemImage: store.line.icon) }
             .tag(AppTab.products)
 
             // Saved receipts; new / opened receipts are edited in the receipt sheet.
