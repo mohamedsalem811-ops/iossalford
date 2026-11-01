@@ -47,6 +47,7 @@ struct SalePOSView: View {
                     .background(SalfordTheme.bgElevated)
                     .cornerRadius(10)
                     .onChange(of: selectedProductId) { newId in
+                        quantity = 1
                         if let p = store.products.first(where: { $0.id == newId }) {
                             unitPriceText = String(format: "%.0f", p.sellPrice)
                         }
@@ -59,12 +60,12 @@ struct SalePOSView: View {
                                 Text("الكود: \(prod.sku)")
                                     .font(.system(size: 11.5, weight: .semibold))
                                     .foregroundColor(SalfordTheme.silverAccent)
-                                Text("اللون: \(prod.color ?? "غير محدد") • المتوفر: \(prod.stock)")
+                                Text("اللون: \(prod.color ?? "غير محدد") • المتوفر: \(prod.stock)" + (store.cartQuantity(for: prod.id) > 0 ? " (منها \(store.cartQuantity(for: prod.id)) في السلة)" : ""))
                                     .font(.system(size: 11.5))
                                     .foregroundColor(SalfordTheme.textMuted)
                             }
                             Spacer()
-                            Stepper("الكمية: \(quantity)", value: $quantity, in: 1...max(1, prod.stock))
+                            Stepper("الكمية: \(quantity)", value: $quantity, in: 1...max(1, prod.stock - store.cartQuantity(for: prod.id)))
                                 .font(.system(size: 12.5, weight: .bold))
                                 .foregroundColor(.white)
                         }
@@ -167,7 +168,7 @@ struct SalePOSView: View {
                         HStack {
                             Image(systemName: "bag.fill")
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
-                            Text("سلة البيعة الموحدة (\(store.cart.count) قطع)")
+                            Text("سلة البيعة الموحدة (\(store.cart.reduce(0) { $0 + $1.quantity }) قطع)")
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverLight)
                             Spacer()
@@ -187,6 +188,11 @@ struct SalePOSView: View {
                                     Text("\(item.product.sku) • \(item.quantity) × \(Int(item.unitPrice)) د.ل")
                                         .font(.system(size: 11))
                                         .foregroundColor(SalfordTheme.textMuted)
+                                    if let warning = stockWarning(for: item) {
+                                        Label(warning, systemImage: "exclamationmark.triangle.fill")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundColor(SalfordTheme.dangerRed)
+                                    }
                                 }
                                 Spacer()
                                 Text(String(format: "%.0f د.ل", item.subtotal))
@@ -290,15 +296,29 @@ struct SalePOSView: View {
         }
     }
 
+    /// Shown under a cart line when the current stock no longer covers the cart.
+    private func stockWarning(for item: CartItem) -> String? {
+        guard let current = store.products.first(where: { $0.id == item.product.id }) else {
+            return "القطعة حُذفت من المخزون — احذفها من السلة"
+        }
+        let inCart = store.cartQuantity(for: current.id)
+        return inCart > current.stock ? "المتوفر الآن \(current.stock) فقط — عدّل السلة" : nil
+    }
+
+    private func showProblems(_ problems: [POSDataStore.SaleProblem], title: String) {
+        alertMessage = ([title] + problems.map { "• " + $0.message }).joined(separator: "\n")
+        showAlert = true
+        UINotificationFeedbackGenerator().notificationOccurred(.error)
+    }
+
     private func addToCart() {
         guard let prod = selectedProduct else { return }
         let unitP = Double(unitPriceText) ?? prod.sellPrice
-        if prod.stock < quantity {
-            alertMessage = "الكمية المطلوبة أكبر من المخزون المتوفر (\(prod.stock))"
-            showAlert = true
+        if let problem = store.addToCart(product: prod, quantity: quantity, unitPrice: unitP) {
+            showProblems([problem], title: "لم تتم الإضافة للسلة:")
             return
         }
-        store.cart.append(CartItem(product: prod, quantity: quantity, unitPrice: unitP))
+        quantity = 1
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
@@ -309,14 +329,9 @@ struct SalePOSView: View {
             showAlert = true
             return
         }
-        if prod.stock < quantity {
-            alertMessage = "الكمية المطلوبة غير متوفرة في المخزن"
-            showAlert = true
-            return
-        }
         store.exchangeRate = rate
         let unitP = Double(unitPriceText) ?? prod.sellPrice
-        store.recordSingleSale(
+        if let problem = store.recordSingleSale(
             product: prod,
             quantity: quantity,
             actualPrice: unitP,
@@ -326,7 +341,11 @@ struct SalePOSView: View {
             customerPhone: customerPhone,
             customerArea: customerArea,
             note: saleNote
-        )
+        ) {
+            showProblems([problem], title: "لم تتم البيعة:")
+            return
+        }
+        quantity = 1
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
@@ -337,7 +356,7 @@ struct SalePOSView: View {
             return
         }
         store.exchangeRate = rate
-        store.checkoutCart(
+        let problems = store.checkoutCart(
             saleRate: rate,
             paymentMethod: paymentMethod,
             customerName: customerName,
@@ -345,6 +364,10 @@ struct SalePOSView: View {
             customerArea: customerArea,
             note: saleNote
         )
+        guard problems.isEmpty else {
+            showProblems(problems, title: "لم يتم بيع أي قطعة — السلة محفوظة كما هي. يرجى تعديل:")
+            return
+        }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 }

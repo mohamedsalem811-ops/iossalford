@@ -379,6 +379,130 @@ final class POSDataStore: ObservableObject {
     }
 
     // MARK: - Sales & Multi-Item Cart
+
+    /// Why a sale or cart operation was refused. Nothing is changed when one of these is returned.
+    enum SaleProblem: Equatable {
+        case emptyCart
+        case productMissing(name: String)
+        case notEnoughStock(name: String, requested: Int, available: Int)
+        case invalidQuantity(name: String)
+
+        var message: String {
+            switch self {
+            case .emptyCart:
+                return "السلة فارغة"
+            case .productMissing(let name):
+                return "القطعة «\(name)» لم تعد موجودة في المخزون (ربما حُذفت)"
+            case .notEnoughStock(let name, let requested, let available):
+                return "«\(name)»: المطلوب \(requested) والمتوفر \(available) فقط"
+            case .invalidQuantity(let name):
+                return "«\(name)»: الكمية يجب أن تكون 1 على الأقل"
+            }
+        }
+    }
+
+    /// Total quantity of a product already sitting in the cart.
+    func cartQuantity(for productId: Int) -> Int {
+        cart.filter { $0.product.id == productId }.reduce(0) { $0 + $1.quantity }
+    }
+
+    /// Adds to the cart only if the stock covers what is already in the cart plus this quantity.
+    /// The same piece at the same price is merged into one line.
+    func addToCart(product: Product, quantity: Int, unitPrice: Double) -> SaleProblem? {
+        guard quantity > 0 else { return .invalidQuantity(name: product.name) }
+        guard let current = products.first(where: { $0.id == product.id }) else {
+            return .productMissing(name: product.name)
+        }
+        let alreadyInCart = cartQuantity(for: current.id)
+        guard alreadyInCart + quantity <= current.stock else {
+            return .notEnoughStock(name: current.name, requested: alreadyInCart + quantity, available: current.stock)
+        }
+        if let idx = cart.firstIndex(where: { $0.product.id == current.id && $0.unitPrice == unitPrice }) {
+            cart[idx].quantity += quantity
+            cart[idx].product = current
+        } else {
+            cart.append(CartItem(product: current, quantity: quantity, unitPrice: unitPrice))
+        }
+        return nil
+    }
+
+    /// Checks every cart line against the CURRENT stock (stock may have changed since items were added,
+    /// e.g. by a direct sale). Lines for the same product are added together.
+    func cartProblems() -> [SaleProblem] {
+        guard !cart.isEmpty else { return [.emptyCart] }
+        var problems: [SaleProblem] = []
+        var checked = Set<Int>()
+        for item in cart where !checked.contains(item.product.id) {
+            checked.insert(item.product.id)
+            guard let current = products.first(where: { $0.id == item.product.id }) else {
+                problems.append(.productMissing(name: item.product.name))
+                continue
+            }
+            if cart.contains(where: { $0.product.id == current.id && $0.quantity <= 0 }) {
+                problems.append(.invalidQuantity(name: current.name))
+                continue
+            }
+            let requested = cartQuantity(for: current.id)
+            if requested > current.stock {
+                problems.append(.notEnoughStock(name: current.name, requested: requested, available: current.stock))
+            }
+        }
+        return problems
+    }
+
+    private func nextSaleId() -> Int {
+        (sales.map(\.id).max() ?? 0) + 1
+    }
+
+    private func makeSaleRecord(
+        id: Int,
+        product: Product,
+        quantity: Int,
+        unitPrice: Double,
+        rate: Double,
+        paymentMethod: String,
+        customerId: Int?,
+        customerName: String,
+        note: String?,
+        timestamp: String,
+        monthYear: String
+    ) -> SaleRecord {
+        let totalSell = unitPrice * Double(quantity)
+        let totalCost = product.costPrice * Double(quantity)
+        let profit = totalSell - totalCost
+        return SaleRecord(
+            id: id,
+            productId: product.id,
+            productName: product.name,
+            sku: product.sku,
+            color: product.color,
+            quantity: quantity,
+            costPrice: product.costPrice,
+            sellPrice: product.sellPrice,
+            actualPrice: unitPrice,
+            totalSell: totalSell,
+            totalCost: totalCost,
+            profit: profit,
+            saleRate: rate,
+            totalSellUSD: totalSell / rate,
+            totalCostUSD: totalCost / rate,
+            profitUSD: profit / rate,
+            paymentMethod: paymentMethod,
+            customerId: customerId,
+            customerName: customerName.isEmpty ? nil : customerName,
+            setId: nil,
+            note: note,
+            saleDate: timestamp,
+            monthYear: monthYear
+        )
+    }
+
+    private func effectiveRate(_ saleRate: Double) -> Double {
+        saleRate > 0 ? saleRate : (exchangeRate > 0 ? exchangeRate : 7.0)
+    }
+
+    /// Sells one product immediately. Returns a problem (and changes nothing) if it cannot be sold.
+    @discardableResult
     func recordSingleSale(
         product: Product,
         quantity: Int,
@@ -389,40 +513,30 @@ final class POSDataStore: ObservableObject {
         customerPhone: String,
         customerArea: String,
         note: String
-    ) {
-        guard let idx = products.firstIndex(where: { $0.id == product.id }), products[idx].stock >= quantity else { return }
+    ) -> SaleProblem? {
+        guard quantity > 0 else { return .invalidQuantity(name: product.name) }
+        guard let idx = products.firstIndex(where: { $0.id == product.id }) else {
+            return .productMissing(name: product.name)
+        }
+        let current = products[idx]
+        guard current.stock >= quantity else {
+            return .notEnoughStock(name: current.name, requested: quantity, available: current.stock)
+        }
+
         products[idx].stock -= quantity
-
         let custId = ensureCustomer(name: customerName, phone: customerPhone, area: customerArea)
-        let totalSell = actualPrice * Double(quantity)
-        let totalCost = product.costPrice * Double(quantity)
-        let profit = totalSell - totalCost
-        let rate = saleRate > 0 ? saleRate : (exchangeRate > 0 ? exchangeRate : 7.0)
-
-        let newId = (sales.map(\.id).max() ?? 0) + 1
-        let rec = SaleRecord(
+        let newId = nextSaleId()
+        let rec = makeSaleRecord(
             id: newId,
-            productId: product.id,
-            productName: product.name,
-            sku: product.sku,
-            color: product.color,
+            product: current,
             quantity: quantity,
-            costPrice: product.costPrice,
-            sellPrice: product.sellPrice,
-            actualPrice: actualPrice,
-            totalSell: totalSell,
-            totalCost: totalCost,
-            profit: profit,
-            saleRate: rate,
-            totalSellUSD: totalSell / rate,
-            totalCostUSD: totalCost / rate,
-            profitUSD: profit / rate,
+            unitPrice: actualPrice,
+            rate: effectiveRate(saleRate),
             paymentMethod: paymentMethod,
             customerId: custId,
-            customerName: customerName.isEmpty ? nil : customerName,
-            setId: nil,
+            customerName: customerName,
             note: note.isEmpty ? nil : note,
-            saleDate: nowTimestamp(),
+            timestamp: nowTimestamp(),
             monthYear: currentMonthYear()
         )
         sales.insert(rec, at: 0)
@@ -433,17 +547,22 @@ final class POSDataStore: ObservableObject {
             saleId: newId,
             items: [
                 ReceiptLineItem(
-                    name: product.name,
-                    color: product.color ?? "",
-                    code: product.sku,
+                    name: current.name,
+                    color: current.color ?? "",
+                    code: current.sku,
                     qty: quantity,
                     price: actualPrice
                 )
             ],
             customer: customerName.isEmpty ? "Salford Libya" : customerName
         )
+        return nil
     }
 
+    /// Sells the whole cart, all-or-nothing: if ANY line cannot be sold, nothing is sold,
+    /// stock is untouched and the cart is kept so the cashier can fix it.
+    /// Returns the list of problems (empty on success).
+    @discardableResult
     func checkoutCart(
         saleRate: Double,
         paymentMethod: String,
@@ -451,55 +570,43 @@ final class POSDataStore: ObservableObject {
         customerPhone: String,
         customerArea: String,
         note: String
-    ) {
-        guard !cart.isEmpty else { return }
-        let custId = ensureCustomer(name: customerName, phone: customerPhone, area: customerArea)
-        let rate = saleRate > 0 ? saleRate : (exchangeRate > 0 ? exchangeRate : 7.0)
-        var receiptLines: [ReceiptLineItem] = []
-        var firstSaleId: Int = (sales.map(\.id).max() ?? 0) + 1
+    ) -> [SaleProblem] {
+        let problems = cartProblems()
+        guard problems.isEmpty else { return problems }
 
-        for (i, item) in cart.enumerated() {
-            guard let pIdx = products.firstIndex(where: { $0.id == item.product.id }),
-                  products[pIdx].stock >= item.quantity else { continue }
+        let custId = ensureCustomer(name: customerName, phone: customerPhone, area: customerArea)
+        let rate = effectiveRate(saleRate)
+        let timestamp = nowTimestamp()
+        let monthYear = currentMonthYear()
+        let lineNote = note.isEmpty ? "سلة مبيعات موحدة" : "\(note) (سلة موحدة)"
+        let firstSaleId = nextSaleId()
+        var receiptLines: [ReceiptLineItem] = []
+
+        for item in cart {
+            // Validated above, so the product exists and has enough stock.
+            guard let pIdx = products.firstIndex(where: { $0.id == item.product.id }) else { continue }
+            let current = products[pIdx]
             products[pIdx].stock -= item.quantity
 
-            let newId = (sales.map(\.id).max() ?? 0) + 1
-            if i == 0 { firstSaleId = newId }
-            let totalSell = item.subtotal
-            let totalCost = item.totalCost
-            let profit = item.profit
-
-            let rec = SaleRecord(
-                id: newId,
-                productId: item.product.id,
-                productName: item.product.name,
-                sku: item.product.sku,
-                color: item.product.color,
+            let rec = makeSaleRecord(
+                id: nextSaleId(),
+                product: current,
                 quantity: item.quantity,
-                costPrice: item.product.costPrice,
-                sellPrice: item.product.sellPrice,
-                actualPrice: item.unitPrice,
-                totalSell: totalSell,
-                totalCost: totalCost,
-                profit: profit,
-                saleRate: rate,
-                totalSellUSD: totalSell / rate,
-                totalCostUSD: totalCost / rate,
-                profitUSD: profit / rate,
+                unitPrice: item.unitPrice,
+                rate: rate,
                 paymentMethod: paymentMethod,
                 customerId: custId,
-                customerName: customerName.isEmpty ? nil : customerName,
-                setId: nil,
-                note: note.isEmpty ? "سلة مبيعات موحدة" : "\(note) (سلة موحدة)",
-                saleDate: nowTimestamp(),
-                monthYear: currentMonthYear()
+                customerName: customerName,
+                note: lineNote,
+                timestamp: timestamp,
+                monthYear: monthYear
             )
             sales.insert(rec, at: 0)
             receiptLines.append(
                 ReceiptLineItem(
-                    name: item.product.name,
-                    color: item.product.color ?? "",
-                    code: item.product.sku,
+                    name: current.name,
+                    color: current.color ?? "",
+                    code: current.sku,
                     qty: item.quantity,
                     price: item.unitPrice
                 )
@@ -509,13 +616,12 @@ final class POSDataStore: ObservableObject {
         cart.removeAll()
         saveToDisk()
 
-        if !receiptLines.isEmpty {
-            openReceiptStudio(
-                saleId: firstSaleId,
-                items: receiptLines,
-                customer: customerName.isEmpty ? "Salford Libya" : customerName
-            )
-        }
+        openReceiptStudio(
+            saleId: firstSaleId,
+            items: receiptLines,
+            customer: customerName.isEmpty ? "Salford Libya" : customerName
+        )
+        return []
     }
 
     private func ensureCustomer(name: String, phone: String, area: String) -> Int? {
