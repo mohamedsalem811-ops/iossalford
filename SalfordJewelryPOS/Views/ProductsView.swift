@@ -194,7 +194,7 @@ struct ProductsView: View {
     private var categoryChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: SalfordSpacing.s) {
-                ForEach(["الكل"] + POSDataStore.categories, id: \.self) { cat in
+                ForEach(["الكل"] + store.categories, id: \.self) { cat in
                     let selected = selectedCategory == cat
                     Button {
                         selectedCategory = cat
@@ -449,7 +449,7 @@ struct ProductFormSheet: View {
                     }
                     BrandField(brand: $brand)
                     Picker("الفئة", selection: $category) {
-                        ForEach(POSDataStore.categories, id: \.self) { Text($0).tag($0) }
+                        ForEach(store.categories, id: \.self) { Text($0).tag($0) }
                     }
                     TextField("اللون — ذهبي، فضي، روز جولد", text: $color)
                     TextField("المقاس (اختياري) — مثال: 7 أو M", text: $size)
@@ -540,7 +540,7 @@ struct ProductFormSheet: View {
             }
             .sheet(isPresented: $showCameraPicker) {
                 NativeImagePickerSheet(sourceType: .camera) { pickedImage in
-                    if let file = ProductImageHelper.storeImage(pickedImage) {
+                    if let file = ProductImageHelper.storeImage(pickedImage, prefix: store.line.imagePrefix) {
                         imageFile = file
                         legacyImageBase64 = nil
                     }
@@ -549,7 +549,7 @@ struct ProductFormSheet: View {
             }
             .sheet(isPresented: $showLibraryPicker) {
                 NativeImagePickerSheet(sourceType: .photoLibrary) { pickedImage in
-                    if let file = ProductImageHelper.storeImage(pickedImage) {
+                    if let file = ProductImageHelper.storeImage(pickedImage, prefix: store.line.imagePrefix) {
                         imageFile = file
                         legacyImageBase64 = nil
                     }
@@ -641,10 +641,14 @@ struct ProductFormSheet: View {
     // MARK: Load / save
 
     private func load() {
-        guard let p = product else { return }
+        guard let p = product else {
+            // New piece: first category of this system (jewelry or scarves).
+            category = store.categories.first ?? "أخرى"
+            return
+        }
         name = p.name
         sku = p.sku
-        category = POSDataStore.categories.contains(p.category) ? p.category : "أخرى"
+        category = store.categories.contains(p.category) ? p.category : "أخرى"
         brand = p.brand ?? ""
         color = p.color ?? ""
         costPrice = NumberInput.editable(p.costPrice)

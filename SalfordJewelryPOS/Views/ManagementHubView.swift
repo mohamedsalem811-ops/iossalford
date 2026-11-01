@@ -3,6 +3,7 @@ import SwiftUI
 /// Management tab: everything that isn't selling, grouped the way a shop owner thinks about it.
 struct MoreManagementHubView: View {
     @EnvironmentObject var store: POSDataStore
+    @Environment(\.switchSystem) private var switchSystem
 
     var body: some View {
         List {
@@ -33,12 +34,34 @@ struct MoreManagementHubView: View {
                 hubLink(SettingsAndBackupView(), title: "الإعدادات والنسخ الاحتياطي", subtitle: "سعر الصرف، رمز الدخول، حفظ واستعادة البيانات",
                         badge: store.isUsingDefaultPin ? "غيّر الرمز" : nil, badgeColor: SalfordTheme.warningAmber,
                         icon: "gearshape.fill", color: .gray)
+                Button {
+                    switchSystem()
+                } label: {
+                    HStack(spacing: SalfordSpacing.m) {
+                        Image(systemName: "arrow.left.arrow.right")
+                            .font(.system(.body, weight: .semibold))
+                            .foregroundColor(.white)
+                            .frame(width: 34, height: 34)
+                            .background(store.line.accent.gradient)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(store.line == .jewelry ? "الانتقال إلى نظام الأوشحة" : "الانتقال إلى نظام المجوهرات")
+                                .font(.system(.body, weight: .semibold))
+                                .foregroundColor(SalfordTheme.textPrimary)
+                            Text("يُقفل هذا النظام ويطلب الدخول للنظام الآخر")
+                                .font(.system(.caption))
+                                .foregroundColor(SalfordTheme.textMuted)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .listRowBackground(SalfordTheme.bgCard)
             }
         }
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(SalfordTheme.bgPrimary)
-        .navigationTitle("الإدارة")
+        .navigationTitle("الإدارة — \(store.line.title)")
         .navigationBarTitleDisplayMode(.inline)
     }
 

@@ -5,9 +5,12 @@ import LocalAuthentication
 /// Face ID / Touch ID, and an escalating lockout after wrong attempts.
 struct PinLoginView: View {
     @EnvironmentObject var store: POSDataStore
+    @Environment(\.switchSystem) private var switchSystem
     @State private var pinInput: String = ""
+    /// Creating the scarves code: the first entry, waiting for the confirmation entry.
+    @State private var setupFirstEntry: String? = nil
     @State private var errorMessage: String = ""
-    @State private var lockedUntil: Date? = PinVault.lockedUntil
+    @State private var lockedUntil: Date? = nil
     @State private var shake: CGFloat = 0
     @State private var didAutoPromptBiometrics = false
 
@@ -21,7 +24,17 @@ struct PinLoginView: View {
         return context.biometryType
     }
 
-    private var biometryAvailable: Bool { biometryType != .none }
+    /// Only the jewelry system uses Face ID / Touch ID; scarves always uses its own code.
+    private var biometryAvailable: Bool { store.line.usesBiometrics && biometryType != .none }
+
+    private var isSetup: Bool { store.needsPinSetup }
+
+    private var titleText: String {
+        if isSetup {
+            return setupFirstEntry == nil ? "أنشئ رمز \(store.line.title)" : "أعد إدخال الرمز للتأكيد"
+        }
+        return "أدخل رمز \(store.line.title)"
+    }
 
     private var biometryIcon: String {
         biometryType == .touchID ? "touchid" : "faceid"
@@ -35,16 +48,31 @@ struct PinLoginView: View {
                 VStack(spacing: SalfordSpacing.xl) {
                     Spacer(minLength: SalfordSpacing.l)
 
+                    HStack {
+                        Button {
+                            switchSystem()
+                        } label: {
+                            Label("تغيير النظام", systemImage: "arrow.left.arrow.right")
+                                .font(.system(.subheadline, weight: .semibold))
+                        }
+                        Spacer()
+                        Label(store.line.title, systemImage: store.line.icon)
+                            .font(.system(.subheadline, weight: .bold))
+                            .foregroundColor(store.line.accent)
+                    }
+                    .environment(\.layoutDirection, .rightToLeft)
+
                     SalfordMonogramLogoView(size: 84, showWordmark: true)
                         .accessibilityHidden(true)
 
                     VStack(spacing: SalfordSpacing.s) {
-                        Text("أدخل رمز الدخول")
+                        Text(titleText)
                             .font(.system(.title3, weight: .bold))
                             .foregroundColor(SalfordTheme.textPrimary)
-                        Text("8 أرقام")
+                        Text(isSetup ? "8 أرقام — هذا الرمز خاص بنظام \(store.line.title) فقط" : "8 أرقام")
                             .font(.system(.subheadline))
                             .foregroundColor(SalfordTheme.textMuted)
+                            .multilineTextAlignment(.center)
                     }
 
                     pinDots
@@ -72,7 +100,7 @@ struct PinLoginView: View {
         .onAppear {
             refreshLockState()
             // Offer Face ID / Touch ID straight away, once per appearance of the login screen.
-            if biometryAvailable && !isLockedOut && !didAutoPromptBiometrics {
+            if biometryAvailable && !isSetup && !isLockedOut && !didAutoPromptBiometrics {
                 didAutoPromptBiometrics = true
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { authenticateWithBiometrics() }
             }
@@ -117,7 +145,7 @@ struct PinLoginView: View {
         let size: CGFloat = 76
         switch key {
         case "bio":
-            if biometryAvailable {
+            if biometryAvailable && !isSetup {
                 Button {
                     authenticateWithBiometrics()
                 } label: {
@@ -174,7 +202,7 @@ struct PinLoginView: View {
     // MARK: Login
 
     private func refreshLockState() {
-        lockedUntil = PinVault.lockedUntil
+        lockedUntil = store.pinVault.lockedUntil
         if let until = lockedUntil {
             let secs = max(1, Int(until.timeIntervalSinceNow.rounded(.up)))
             errorMessage = "🔒 محاولات خاطئة كثيرة — حاول مرة أخرى بعد \(secs) ثانية"
@@ -184,6 +212,10 @@ struct PinLoginView: View {
     }
 
     private func attemptLogin() {
+        if isSetup {
+            createPin()
+            return
+        }
         guard !isLockedOut else { return }
         switch store.verifyPin(pinInput) {
         case .success:
@@ -199,6 +231,25 @@ struct PinLoginView: View {
             UINotificationFeedbackGenerator().notificationOccurred(.error)
             withAnimation(.default) { shake += 1 }
             refreshLockState()
+        }
+        pinInput = ""
+    }
+
+    /// First use of a system without a code (scarves): type it, then type it again to confirm.
+    private func createPin() {
+        guard let first = setupFirstEntry else {
+            setupFirstEntry = pinInput
+            pinInput = ""
+            errorMessage = ""
+            return
+        }
+        if let error = store.setupPin(first, confirm: pinInput) {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            withAnimation(.default) { shake += 1 }
+            errorMessage = error
+            setupFirstEntry = nil
+        } else {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
         pinInput = ""
     }

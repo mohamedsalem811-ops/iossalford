@@ -35,7 +35,6 @@ final class POSDataStore: ObservableObject {
     @Published var activeReceiptTemplate: ReceiptTemplate = .salfordRoyal
     @Published var showRealPricesInReceipt: Bool = false
 
-    static let categories = ["خواتم", "أساور", "قلادات", "أقراط", "دبابيس", "ساعات", "أطقم", "أخرى"]
 
     /// Set when loading or saving the database had a problem; shown to the user as an alert.
     @Published var storageAlertMessage: String? = nil
@@ -55,23 +54,46 @@ final class POSDataStore: ObservableObject {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
     }
 
+    /// Which system this store holds (jewelry or scarves). Each has its own database file.
+    let line: BusinessLine
+    var pinVault: PinVault { line.pinVault }
+    var categories: [String] { line.categories }
+
     private var dbFileURL: URL {
-        documentsURL.appendingPathComponent("salford_jewelry_native_db_v610.json")
+        documentsURL.appendingPathComponent(line.databaseFileName)
     }
 
     /// Copy of the last database file that was loaded successfully (refreshed on every launch).
     private var lastGoodFileURL: URL {
-        documentsURL.appendingPathComponent("salford_jewelry_native_db_v610.lastgood.json")
+        documentsURL.appendingPathComponent(line.lastGoodFileName)
     }
 
     private var recoveryFolderURL: URL {
         documentsURL.appendingPathComponent("Recovery", isDirectory: true)
     }
 
-    init() {
+    init(line: BusinessLine = .jewelry) {
+        self.line = line
         loadFromDisk()
-        // Fresh install (no legacy PIN found in any database): install the default PIN.
-        PinVault.bootstrap(legacyPin: nil)
+        // Jewelry: fresh install gets the default PIN (Face ID is the main way in).
+        // Scarves: no default — the user creates the scarves code the first time.
+        if line == .jewelry {
+            pinVault.bootstrap(legacyPin: nil)
+        }
+    }
+
+    /// Scarves has no PIN until the user creates one.
+    var needsPinSetup: Bool { !pinVault.isConfigured }
+
+    /// Creates this system's PIN the first time. Returns an error message or nil.
+    func setupPin(_ pin: String, confirm: String) -> String? {
+        let a = PinVault.normalize(pin), b = PinVault.normalize(confirm)
+        guard PinVault.isValidFormat(a) else { return "الرمز يجب أن يكون \(PinVault.pinLength) أرقام" }
+        guard a == b else { return "الرمزان غير متطابقين — حاول مرة أخرى" }
+        guard pinVault.store(pin: a) else { return "تعذر حفظ الرمز في سلسلة المفاتيح الآمنة" }
+        objectWillChange.send()
+        unlock()
+        return nil
     }
 
     // MARK: - Login / PIN
@@ -83,24 +105,24 @@ final class POSDataStore: ObservableObject {
     }
 
     func verifyPin(_ input: String) -> PinCheckResult {
-        if let until = PinVault.lockedUntil {
+        if let until = pinVault.lockedUntil {
             return .lockedOut(until: until)
         }
-        guard PinVault.verify(input) else {
-            PinVault.recordFailure()
-            if let until = PinVault.lockedUntil {
+        guard pinVault.verify(input) else {
+            pinVault.recordFailure()
+            if let until = pinVault.lockedUntil {
                 return .lockedOut(until: until)
             }
-            return .wrong(attemptsLeftBeforeLock: max(0, PinVault.freeAttempts - PinVault.failedAttempts))
+            return .wrong(attemptsLeftBeforeLock: max(0, PinVault.freeAttempts - pinVault.failedAttempts))
         }
-        PinVault.recordSuccess()
+        pinVault.recordSuccess()
         unlock()
         return .success
     }
 
     /// Called only after LocalAuthentication confirmed the device owner (Face ID / Touch ID).
     func unlockWithBiometrics() {
-        PinVault.recordSuccess()
+        pinVault.recordSuccess()
         unlock()
     }
 
@@ -115,18 +137,18 @@ final class POSDataStore: ObservableObject {
         showGiftReceiptStudio = false
     }
 
-    var isUsingDefaultPin: Bool { PinVault.isUsingDefaultPin }
+    var isUsingDefaultPin: Bool { pinVault.isUsingDefaultPin }
 
     enum PinChangeResult: Equatable {
         case success, wrongCurrentPin, invalidNewPin, sameAsDefault, keychainError
     }
 
     func changePin(current: String, new newPin: String) -> PinChangeResult {
-        guard PinVault.verify(current) else { return .wrongCurrentPin }
+        guard pinVault.verify(current) else { return .wrongCurrentPin }
         let normalized = PinVault.normalize(newPin)
         guard PinVault.isValidFormat(normalized) else { return .invalidNewPin }
         guard normalized != PinVault.defaultPin else { return .sameAsDefault }
-        guard PinVault.store(pin: normalized) else { return .keychainError }
+        guard pinVault.store(pin: normalized) else { return .keychainError }
         objectWillChange.send() // refresh the "default PIN" warnings
         return .success
     }
@@ -166,7 +188,7 @@ final class POSDataStore: ObservableObject {
             guard let b64 = products[i].imageBase64, !b64.isEmpty else { continue }
             let raw = b64.firstIndex(of: ",").map { String(b64[b64.index(after: $0)...]) } ?? b64
             if let data = Data(base64Encoded: raw, options: .ignoreUnknownCharacters),
-               let file = ProductImageHelper.storeImageData(data) {
+               let file = ProductImageHelper.storeImageData(data, prefix: line.imagePrefix) {
                 products[i].imageFile = file
                 products[i].imageBase64 = nil
                 changed = true
@@ -179,7 +201,7 @@ final class POSDataStore: ObservableObject {
     private func apply(_ state: POSDatabaseState) {
         // Older databases carried the PIN in plain text: move it into the Keychain once.
         // If a PIN is already configured this is a no-op, so importing a backup never changes the PIN.
-        PinVault.bootstrap(legacyPin: state.pin)
+        if line == .jewelry { pinVault.bootstrap(legacyPin: state.pin) }
         self.exchangeRate = state.exchangeRate
         self.products = state.products
         self.customers = state.customers
@@ -191,7 +213,7 @@ final class POSDataStore: ObservableObject {
         self.receipts = state.receipts
         self.payments = state.payments
         // Older files have no brand list: start with the shop's main brands.
-        var list = state.brands ?? Self.defaultBrands
+        var list = state.brands ?? line.defaultBrands
         for b in state.products.compactMap(\.brand) where !list.contains(where: { $0.caseInsensitiveCompare(b) == .orderedSame }) {
             list.append(b)
         }
@@ -238,7 +260,13 @@ final class POSDataStore: ObservableObject {
                 storageAlertMessage = "لم يتم العثور على قاعدة البيانات الرئيسية، وتمت استعادة آخر نسخة سليمة محفوظة تلقائياً."
                 return
             }
-            seedDemoData()
+            if line == .jewelry {
+                seedDemoData()
+            } else {
+                // A new system starts empty (no demo pieces).
+                apply(POSDatabaseState.empty)
+                saveToDisk()
+            }
             return
         }
 
@@ -261,7 +289,7 @@ final class POSDataStore: ObservableObject {
             }
             refreshLastGoodCopy()
             // Delete photo files left behind by cancelled edits or deleted products.
-            ProductImageHelper.removeUnusedImages(keeping: Set(products.compactMap(\.imageFile)))
+            ProductImageHelper.removeUnusedImages(keeping: Set(products.compactMap(\.imageFile)), prefix: line.imagePrefix)
         } catch {
             Self.log.error("Failed to load database: \(error.localizedDescription, privacy: .public)")
             guard let recoveryName = preserveUnreadableDatabase() else {
@@ -301,7 +329,7 @@ final class POSDataStore: ObservableObject {
         let df = DateFormatter()
         df.locale = Locale(identifier: "en_US_POSIX")
         df.dateFormat = "yyyyMMdd-HHmmss"
-        let name = "unreadable-db-\(df.string(from: Date())).json"
+        let name = "unreadable-\(line.rawValue)-db-\(df.string(from: Date())).json"
         do {
             try fm.createDirectory(at: recoveryFolderURL, withIntermediateDirectories: true)
             let dest = recoveryFolderURL.appendingPathComponent(name)
@@ -369,7 +397,7 @@ final class POSDataStore: ObservableObject {
         df.locale = Locale(identifier: "en_US_POSIX")
         df.dateFormat = "yyyy-MM-dd_HHmm"
         let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("SALFORD_Jewelry_Backup_\(df.string(from: Date())).json")
+            .appendingPathComponent("SALFORD_\(line == .jewelry ? "Jewelry" : "Scarves")_Backup_\(df.string(from: Date())).json")
 
         var backupProducts = products
         for i in backupProducts.indices {
@@ -929,10 +957,10 @@ final class POSDataStore: ObservableObject {
     private func takeNextReceiptNo() -> String {
         receiptCounter += 1
         let year = Calendar(identifier: .gregorian).component(.year, from: Date())
-        var no = String(format: "GR-%d-%04d", year, receiptCounter)
+        var no = String(format: "%@-%d-%04d", line.receiptPrefix, year, receiptCounter)
         while receipts.contains(where: { $0.receiptNo == no }) {
             receiptCounter += 1
-            no = String(format: "GR-%d-%04d", year, receiptCounter)
+            no = String(format: "%@-%d-%04d", line.receiptPrefix, year, receiptCounter)
         }
         return no
     }
@@ -1281,7 +1309,6 @@ final class POSDataStore: ObservableObject {
 
     // MARK: - Brands
 
-    static let defaultBrands = ["Swarovski", "Tiffany & Co.", "Pandora"]
     static let noBrandLabel = "بدون ماركة"
 
     /// Trims the typed name and reuses the existing spelling ("pandora" -> "Pandora"). nil if empty.

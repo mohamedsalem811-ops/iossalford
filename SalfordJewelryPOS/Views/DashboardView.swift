@@ -5,6 +5,7 @@ import Charts
 /// quick actions, the month's daily chart, categories and the latest sales.
 struct DashboardView: View {
     @EnvironmentObject var store: POSDataStore
+    @Environment(\.switchSystem) private var switchSystem
     @Binding var selectedTab: AppTab
     @State private var selectedMonth: String = ""
     @State private var showRateEditor: Bool = false
@@ -56,7 +57,7 @@ struct DashboardView: View {
             .padding(SalfordSpacing.l)
         }
         .background(SalfordTheme.bgPrimary)
-        .navigationTitle("الرئيسية")
+        .navigationTitle(store.line.title)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showRateEditor) {
             NavigationStack {
@@ -91,10 +92,20 @@ struct DashboardView: View {
                 .accessibilityLabel(String(format: "سعر الدولار %.2f دينار، اضغط للتعديل", store.exchangeRate))
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    withAnimation { store.lock() }
+                Menu {
+                    Button {
+                        switchSystem()
+                    } label: {
+                        Label(store.line == .jewelry ? "الانتقال إلى الأوشحة" : "الانتقال إلى المجوهرات",
+                              systemImage: "arrow.left.arrow.right")
+                    }
+                    Button {
+                        withAnimation { store.lock() }
+                    } label: {
+                        Label("قفل", systemImage: "lock.fill")
+                    }
                 } label: {
-                    Label("قفل التطبيق", systemImage: "lock.fill")
+                    Label("النظام", systemImage: "person.crop.circle")
                 }
             }
         }

@@ -88,7 +88,7 @@ struct SalePOSView: View {
     private var categoryChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: SalfordSpacing.s) {
-                ForEach(["الكل"] + POSDataStore.categories, id: \.self) { cat in
+                ForEach(["الكل"] + store.categories, id: \.self) { cat in
                     let selected = category == cat
                     Button {
                         category = cat

@@ -279,10 +279,10 @@ enum ProductImageHelper {
     }
 
     /// Writes photo data to a new encrypted file and returns its name.
-    static func storeImageData(_ data: Data) -> String? {
+    static func storeImageData(_ data: Data, prefix: String = "") -> String? {
         do {
             try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-            let name = UUID().uuidString + ".jpg"
+            let name = prefix + UUID().uuidString + ".jpg"
             try data.write(to: fileURL(name), options: [.atomic, .completeFileProtection])
             return name
         } catch {
@@ -291,9 +291,9 @@ enum ProductImageHelper {
     }
 
     /// Resizes, compresses and stores a picked photo. Returns the new file name.
-    static func storeImage(_ image: UIImage) -> String? {
+    static func storeImage(_ image: UIImage, prefix: String = "") -> String? {
         guard let data = jpegData(image) else { return nil }
-        return storeImageData(data)
+        return storeImageData(data, prefix: prefix)
     }
 
     static func image(named name: String?) -> UIImage? {
@@ -316,9 +316,15 @@ enum ProductImageHelper {
     }
 
     /// Removes photo files that no product refers to any more (e.g. a photo picked and then cancelled).
-    static func removeUnusedImages(keeping used: Set<String>) {
+    /// Only looks at this system's photos: scarves photos start with "scarf-", jewelry photos
+    /// have no prefix, so cleaning one system never deletes the other system's photos.
+    static func removeUnusedImages(keeping used: Set<String>, prefix: String = "") {
         guard let files = try? FileManager.default.contentsOfDirectory(atPath: folderURL.path) else { return }
-        for f in files where !used.contains(f) {
+        let otherPrefixes = BusinessLine.allCases.map(\.imagePrefix).filter { !$0.isEmpty && $0 != prefix }
+        let mine = files.filter { f in
+            prefix.isEmpty ? !otherPrefixes.contains(where: { f.hasPrefix($0) }) : f.hasPrefix(prefix)
+        }
+        for f in mine where !used.contains(f) {
             deleteImage(named: f)
         }
     }
