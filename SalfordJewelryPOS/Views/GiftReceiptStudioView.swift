@@ -108,7 +108,9 @@ struct GiftReceiptStudioView: View {
                 HStack(spacing: 10) {
                     Button {
                         if let url = saveAndBuildPDF() {
-                            NativePDFGenerator.printPDF(url: url, jobName: "SALFORD Receipt \(store.activeReceiptNo)")
+                            if !NativePDFGenerator.printPDF(url: url, jobName: "SALFORD Receipt \(store.activeReceiptNo)") {
+                                errorMessage = "تعذرت طباعة الملف — جرّب «تصدير ومشاركة PDF» ثم اطبع من تطبيق الملفات"
+                            }
                         }
                     } label: {
                         Label("طباعة AirPrint", systemImage: "printer.fill")
@@ -314,7 +316,7 @@ struct GiftReceiptStudioView: View {
             return nil
         }
         savedMessage = "✅ تم حفظ الفاتورة \(store.activeReceiptNo)"
-        let url = NativePDFGenerator.generateGiftReceiptPDF(
+        guard let url = NativePDFGenerator.generateGiftReceiptPDF(
             template: store.activeReceiptTemplate,
             showRealPrices: store.showRealPricesInReceipt,
             receiptNo: store.activeReceiptNo,
@@ -322,7 +324,10 @@ struct GiftReceiptStudioView: View {
             timeStr: store.activeReceiptTime,
             customer: store.activeReceiptCustomer,
             items: store.activeReceiptItems
-        )
+        ) else {
+            errorMessage = "تعذر إنشاء ملف PDF — تأكد من توفر مساحة على الجهاز"
+            return nil
+        }
         return url
     }
 }
