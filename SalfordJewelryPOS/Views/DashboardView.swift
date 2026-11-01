@@ -49,6 +49,9 @@ struct DashboardView: View {
                 attentionSection
                 quickActions
                 dailyChart
+                if store.line == .scarves {
+                    sizeBreakdown
+                }
                 categoryBreakdown
                 brandBreakdown
                 recentSales
@@ -281,7 +284,7 @@ struct DashboardView: View {
             Button {
                 selectedTab = .products
             } label: {
-                Label("قطعة جديدة", systemImage: "plus.square.fill")
+                Label(store.line == .scarves ? "تصميم جديد" : "قطعة جديدة", systemImage: "plus.square.fill")
             }
             .buttonStyle(.salfordSecondary)
         }
@@ -365,7 +368,7 @@ struct DashboardView: View {
         if !totals.isEmpty {
             let maxTotal = max(totals.map(\.total).max() ?? 1, 0.001)
             VStack(alignment: .leading, spacing: SalfordSpacing.m) {
-                SalfordSectionTitle(title: "المبيعات حسب الفئة", icon: "square.grid.2x2.fill")
+                SalfordSectionTitle(title: store.line == .scarves ? "المبيعات حسب الخامة" : "المبيعات حسب الفئة", icon: "square.grid.2x2.fill")
                 ForEach(totals) { item in
                     VStack(alignment: .leading, spacing: 4) {
                         HStack {
@@ -390,6 +393,77 @@ struct DashboardView: View {
             .padding(SalfordSpacing.l)
             .salfordCard()
         }
+    }
+
+    // MARK: Sizes (scarves)
+
+    private struct SizeTotal: Identifiable {
+        let size: String
+        let pieces: Int
+        let total: Double
+        var id: String { size }
+    }
+
+    @ViewBuilder private var sizeBreakdown: some View {
+        let totals: [SizeTotal] = {
+            var pieces: [String: Int] = [:]
+            var money: [String: Double] = [:]
+            for s in monthSales {
+                // Size at sale time; older sales fall back to the item's current size.
+                let size = s.size ?? store.products.first(where: { $0.id == s.productId })?.size ?? "بدون مقاس"
+                pieces[size, default: 0] += s.quantity
+                money[size, default: 0] += s.totalSell
+            }
+            return money.keys
+                .map { SizeTotal(size: $0, pieces: pieces[$0] ?? 0, total: money[$0] ?? 0) }
+                .sorted { POSDataStore.sizeSortKey($0.size) < POSDataStore.sizeSortKey($1.size) }
+        }()
+        let stockBySize: [(String, Int)] = {
+            var map: [String: Int] = [:]
+            for p in store.products { map[p.size ?? "بدون مقاس", default: 0] += p.stock }
+            return map.sorted { POSDataStore.sizeSortKey($0.key) < POSDataStore.sizeSortKey($1.key) }.map { ($0.key, $0.value) }
+        }()
+        VStack(alignment: .leading, spacing: SalfordSpacing.m) {
+            SalfordSectionTitle(title: "المقاسات — \(activeMonth)", icon: "square.dashed")
+            if totals.isEmpty {
+                Text("لا توجد مبيعات أوشحة في هذا الشهر")
+                    .font(.system(.footnote))
+                    .foregroundColor(SalfordTheme.textMuted)
+            } else {
+                let maxTotal = max(totals.map(\.total).max() ?? 1, 0.001)
+                ForEach(totals) { item in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(item.size)
+                                .font(.system(.subheadline, weight: .bold))
+                                .foregroundColor(SalfordTheme.textPrimary)
+                            Text("\(item.pieces) قطعة")
+                                .font(.system(.caption))
+                                .foregroundColor(SalfordTheme.textMuted)
+                            Spacer()
+                            Text(Money.lyd(item.total))
+                                .font(.system(.subheadline, weight: .bold))
+                                .foregroundColor(SalfordTheme.textPrimary)
+                        }
+                        GeometryReader { geo in
+                            Capsule()
+                                .fill(store.line.accent.opacity(0.75))
+                                .frame(width: max(6, geo.size.width * CGFloat(item.total / maxTotal)))
+                        }
+                        .frame(height: 6)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            if !stockBySize.isEmpty {
+                Divider()
+                Text("في المخزن الآن: " + stockBySize.map { "\($0.0): \($0.1)" }.joined(separator: " • "))
+                    .font(.system(.footnote, weight: .semibold))
+                    .foregroundColor(SalfordTheme.textMuted)
+            }
+        }
+        .padding(SalfordSpacing.l)
+        .salfordCard()
     }
 
     // MARK: Brands

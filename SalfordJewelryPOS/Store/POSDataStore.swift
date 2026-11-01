@@ -727,7 +727,8 @@ final class POSDataStore: ObservableObject {
             note: note,
             saleDate: timestamp,
             monthYear: monthYear,
-            brand: product.brand
+            brand: product.brand,
+            size: line == .scarves ? product.size : nil
         )
     }
 

@@ -86,6 +86,8 @@ struct SaleRecord: Identifiable, Codable, Equatable {
     var monthYear: String
     /// Brand of the piece at the time of sale (for "sales by brand").
     var brand: String? = nil
+    /// Scarves: size sold (for "sales by size").
+    var size: String? = nil
 }
 
 struct CartItem: Identifiable, Equatable {
