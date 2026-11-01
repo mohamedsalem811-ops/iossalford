@@ -48,18 +48,6 @@ struct MoreManagementHubView: View {
                     }
 
                     NavigationLink {
-                        ReceiptsHistoryView()
-                    } label: {
-                        ManagementRowCard(
-                            title: "سجل الفواتير",
-                            subtitle: "البحث عن أي فاتورة صادرة وإعادة طباعتها أو مشاركتها",
-                            badgeText: "\(store.receipts.count) فاتورة",
-                            icon: "doc.text.magnifyingglass",
-                            accent: SalfordTheme.goldLight
-                        )
-                    }
-
-                    NavigationLink {
                         DebtsView()
                     } label: {
                         ManagementRowCard(

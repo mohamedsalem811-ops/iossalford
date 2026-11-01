@@ -3,7 +3,7 @@ import Charts
 
 struct DashboardView: View {
     @EnvironmentObject var store: POSDataStore
-    @Binding var selectedTab: Int
+    @Binding var selectedTab: AppTab
     @State private var selectedMonth: String = ""
 
     private var activeMonth: String {
@@ -55,7 +55,7 @@ struct DashboardView: View {
             VStack(spacing: 14) {
                 if !lowStockProducts.isEmpty {
                     Button {
-                        selectedTab = 3
+                        selectedTab = .products
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "exclamationmark.triangle.fill")
@@ -131,7 +131,7 @@ struct DashboardView: View {
                 // Quick Action Bar
                 HStack(spacing: 10) {
                     Button {
-                        selectedTab = 1
+                        selectedTab = .sale
                     } label: {
                         Label("تسجيل بيعة جديدة", systemImage: "plus.circle.fill")
                             .font(.system(.subheadline, weight: .bold))

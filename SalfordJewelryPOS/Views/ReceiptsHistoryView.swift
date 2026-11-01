@@ -18,17 +18,13 @@ struct ReceiptsHistoryView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 10) {
-                TextField("ابحث برقم الفاتورة أو اسم الزبون أو القطعة", text: $search)
-                    .padding(10)
-                    .background(SalfordTheme.bgElevated)
-                    .foregroundColor(SalfordTheme.textPrimary)
-                    .cornerRadius(10)
-
                 if filtered.isEmpty {
-                    Text(store.receipts.isEmpty ? "لم تصدر أي فاتورة بعد" : "لا توجد نتائج")
-                        .font(.system(.subheadline))
-                        .foregroundColor(SalfordTheme.textMuted)
-                        .padding(.top, 30)
+                    if store.receipts.isEmpty {
+                        SalfordEmptyState(icon: "doc.text", title: "لم تصدر أي فاتورة بعد",
+                                          message: "تُحفظ فاتورة كل بيعة هنا تلقائياً. لإصدار فاتورة هدية اضغط ＋ في الأعلى.")
+                    } else {
+                        SalfordEmptyState(icon: "magnifyingglass", title: "لا توجد نتائج", message: "جرّب رقم الفاتورة أو اسم الزبون أو القطعة")
+                    }
                 }
 
                 ForEach(filtered) { r in
@@ -71,7 +67,17 @@ struct ReceiptsHistoryView: View {
             .padding(14)
         }
         .background(SalfordTheme.bgPrimary)
-        .navigationTitle("سجل الفواتير")
+        .navigationTitle("الفواتير")
+        .searchable(text: $search, prompt: "رقم الفاتورة أو الزبون أو القطعة")
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    store.openNewDraftReceipt(items: [])
+                } label: {
+                    Label("فاتورة جديدة", systemImage: "plus")
+                }
+            }
+        }
         .navigationBarTitleDisplayMode(.inline)
     }
 }
