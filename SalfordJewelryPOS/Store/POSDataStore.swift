@@ -337,8 +337,8 @@ final class POSDataStore: ObservableObject {
             expenses: expenses,
             closings: closings,
             receipts: receipts,
-            receiptCounter: receiptCounter,
-            payments: payments
+            payments: payments,
+            receiptCounter: receiptCounter
         )
         do {
             let data = try JSONEncoder().encode(state)
@@ -381,8 +381,8 @@ final class POSDataStore: ObservableObject {
             expenses: expenses,
             closings: closings,
             receipts: receipts,
-            receiptCounter: receiptCounter,
-            payments: payments
+            payments: payments,
+            receiptCounter: receiptCounter
         )
         do {
             let data = try JSONEncoder().encode(state)
