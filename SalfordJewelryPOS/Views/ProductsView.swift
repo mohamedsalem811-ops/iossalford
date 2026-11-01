@@ -1,184 +1,146 @@
 import SwiftUI
 import UIKit
 
+/// Products: searchable, filterable, sortable list. Tap a piece to edit it; swipe for quick actions.
 struct ProductsView: View {
     @EnvironmentObject var store: POSDataStore
     @State private var searchText: String = ""
     @State private var selectedCategory: String = "الكل"
+    @State private var sort: SortOrder = .name
+    @State private var onlyAttention: Bool = false
     @State private var showAddSheet: Bool = false
     @State private var editingProduct: Product? = nil
     @State private var previewingProduct: Product? = nil
     @State private var productToDelete: Product? = nil
 
+    enum SortOrder: String, CaseIterable, Identifiable {
+        case name = "الاسم"
+        case stockLow = "الأقل مخزوناً"
+        case priceHigh = "الأعلى سعراً"
+        case newest = "الأحدث"
+        var id: String { rawValue }
+    }
+
     var filteredProducts: [Product] {
-        store.products.filter { prod in
-            let matchesCat = (selectedCategory == "الكل") || (prod.category == selectedCategory)
-            let matchesSearch = searchText.isEmpty ||
-                prod.name.localizedCaseInsensitiveContains(searchText) ||
-                prod.sku.localizedCaseInsensitiveContains(searchText)
-            return matchesCat && matchesSearch
+        let q = NumberInput.latinDigits(searchText).trimmingCharacters(in: .whitespaces)
+        let list = store.products.filter { prod in
+            (selectedCategory == "الكل" || prod.category == selectedCategory)
+                && (q.isEmpty || prod.name.localizedCaseInsensitiveContains(q) || prod.sku.localizedCaseInsensitiveContains(q))
+                && (!onlyAttention || prod.isLowStock || prod.isOutOfStock)
+        }
+        switch sort {
+        case .name: return list.sorted { $0.name < $1.name }
+        case .stockLow: return list.sorted { $0.stock < $1.stock }
+        case .priceHigh: return list.sorted { $0.sellPrice > $1.sellPrice }
+        case .newest: return list.sorted { $0.createdAt > $1.createdAt }
         }
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Category Filter Strip
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(["الكل"] + POSDataStore.categories, id: \.self) { cat in
-                        Button {
-                            selectedCategory = cat
-                        } label: {
-                            Text(cat)
-                                .font(.system(.footnote, weight: .bold))
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 7)
-                                .background(selectedCategory == cat ? SalfordTheme.silverLight : SalfordTheme.bgCard)
-                                .foregroundColor(selectedCategory == cat ? SalfordTheme.onPrimary : SalfordTheme.silverLight)
-                                .clipShape(Capsule())
-                        }
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-            }
-            .background(SalfordTheme.bgSecondary)
-
-            ScrollView {
-                LazyVStack(spacing: 12) {
-                    // Quick Add Product Banner Button at top of list
+        List {
+            Section {
+                ForEach(filteredProducts) { prod in
                     Button {
-                        showAddSheet = true
+                        editingProduct = prod
                     } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "camera.viewfinder")
-                                .font(.system(.headline, weight: .bold))
-                            Text("إضافة قطعة جديدة مع تصوير أو رفع صورة")
-                                .font(.system(.subheadline, weight: .heavy))
-                            Spacer()
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(.body))
+                        ProductRow(product: prod) {
+                            if prod.hasImage { previewingProduct = prod } else { editingProduct = prod }
                         }
-                        .padding(13)
-                        .background(SalfordTheme.silverGradient)
-                        .foregroundColor(SalfordTheme.onPrimary)
-                        .cornerRadius(14)
                     }
-
-                    ForEach(filteredProducts) { prod in
-                        HStack(spacing: 12) {
-                            // Tappable 74x74 Clear Product Photo Thumbnail
-                            Button {
-                                if prod.hasImage {
-                                    previewingProduct = prod
-                                } else {
-                                    editingProduct = prod
-                                }
-                            } label: {
-                                SalfordProductThumbnailView(
-                                    image: ProductImageHelper.image(for: prod),
-                                    size: 74,
-                                    cornerRadius: 14,
-                                    showZoomBadge: prod.hasImage
-                                )
-                            }
-                            .buttonStyle(.plain)
-
-                            VStack(alignment: .leading, spacing: 5) {
-                                HStack(spacing: 6) {
-                                    Text(prod.name)
-                                        .font(.system(.subheadline, weight: .bold))
-                                        .foregroundColor(SalfordTheme.textPrimary)
-                                        .lineLimit(1)
-                                    if prod.isOutOfStock {
-                                        Text("نفد المخزون")
-                                            .font(.system(.caption2, weight: .bold))
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(SalfordTheme.dangerRed.opacity(0.25))
-                                            .foregroundColor(SalfordTheme.dangerRed)
-                                            .cornerRadius(5)
-                                    } else if prod.isLowStock {
-                                        Text("مخزون منخفض")
-                                            .font(.system(.caption2, weight: .bold))
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 2)
-                                            .background(SalfordTheme.warningAmber.opacity(0.25))
-                                            .foregroundColor(SalfordTheme.warningAmber)
-                                            .cornerRadius(5)
-                                    }
-                                }
-
-                                Text("الكود: \(prod.sku) • \(prod.category) • \(prod.color ?? "بدون لون")" + (prod.size.map { " • المقاس: \($0)" } ?? ""))
-                                    .font(.system(.caption))
-                                    .foregroundColor(SalfordTheme.textMuted)
-
-                                HStack(spacing: 10) {
-                                    Text(String(format: "التكلفة: %@ د.ل", Money.plain(prod.costPrice)))
-                                        .font(.system(.caption, weight: .semibold))
-                                        .foregroundColor(SalfordTheme.silverAccent)
-
-                                    Text(String(format: "البيع: %@ د.ل", Money.plain(prod.sellPrice)))
-                                        .font(.system(.footnote, weight: .bold))
-                                        .foregroundColor(SalfordTheme.emeraldSuccess)
-
-                                    Text("المخزون: \(prod.stock)")
-                                        .font(.system(.caption, weight: .bold))
-                                        .foregroundColor(prod.stock > 0 ? SalfordTheme.goldLight : SalfordTheme.dangerRed)
-                                }
-                            }
-                            Spacer()
-
-                            VStack(spacing: 8) {
-                                Button {
-                                    editingProduct = prod
-                                } label: {
-                                    Image(systemName: "pencil.circle.fill")
-                                        .font(.system(.title2))
-                                        .foregroundColor(SalfordTheme.silverLight)
-                                }
-
-                                Menu {
-                                    Button {
-                                        editingProduct = prod
-                                    } label: {
-                                        Label("تعديل بيانات وصورة القطعة", systemImage: "camera.fill")
-                                    }
-                                    if prod.hasImage {
-                                        Button {
-                                            previewingProduct = prod
-                                        } label: {
-                                            Label("تكبير صورة القطعة", systemImage: "arrow.up.left.and.arrow.down.right")
-                                        }
-                                    }
-                                    Button {
-                                        store.openNewDraftReceipt(
-                                            items: [ReceiptLineItem(name: prod.name, color: prod.color ?? "", code: prod.sku, qty: 1, price: prod.sellPrice)]
-                                        )
-                                    } label: {
-                                        Label("إصدار فاتورة هدية", systemImage: "gift.fill")
-                                    }
-                                    Button(role: .destructive) {
-                                        productToDelete = prod
-                                    } label: {
-                                        Label("حذف القطعة", systemImage: "trash.fill")
-                                    }
-                                } label: {
-                                    Image(systemName: "ellipsis.circle.fill")
-                                        .font(.system(.title2))
-                                        .foregroundColor(SalfordTheme.silverAccent)
-                                }
-                            }
+                    .buttonStyle(.plain)
+                    .listRowBackground(SalfordTheme.bgCard)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            productToDelete = prod
+                        } label: {
+                            Label("حذف", systemImage: "trash")
                         }
-                        .salfordCard()
+                        Button {
+                            store.openNewDraftReceipt(
+                                items: [ReceiptLineItem(name: prod.name, color: prod.color ?? "", code: prod.sku, qty: 1, price: prod.sellPrice)]
+                            )
+                        } label: {
+                            Label("فاتورة هدية", systemImage: "gift")
+                        }
+                        .tint(SalfordTheme.gold)
+                    }
+                    .swipeActions(edge: .leading) {
+                        Button {
+                            store.adjustStock(productId: prod.id, by: 1)
+                        } label: {
+                            Label("+1 مخزون", systemImage: "plus")
+                        }
+                        .tint(SalfordTheme.emeraldSuccess)
+                        Button {
+                            store.adjustStock(productId: prod.id, by: -1)
+                        } label: {
+                            Label("−1 مخزون", systemImage: "minus")
+                        }
+                        .tint(SalfordTheme.warningAmber)
+                    }
+                    .contextMenu {
+                        Button { editingProduct = prod } label: { Label("تعديل", systemImage: "pencil") }
+                        if prod.hasImage {
+                            Button { previewingProduct = prod } label: { Label("عرض الصورة", systemImage: "photo") }
+                        }
+                        Button { store.adjustStock(productId: prod.id, by: 1) } label: { Label("+1 مخزون", systemImage: "plus") }
+                        Button {
+                            store.openNewDraftReceipt(
+                                items: [ReceiptLineItem(name: prod.name, color: prod.color ?? "", code: prod.sku, qty: 1, price: prod.sellPrice)]
+                            )
+                        } label: { Label("إصدار فاتورة هدية", systemImage: "gift") }
+                        Button(role: .destructive) { productToDelete = prod } label: { Label("حذف القطعة", systemImage: "trash") }
                     }
                 }
-                .padding(14)
+            } header: {
+                VStack(alignment: .leading, spacing: SalfordSpacing.s) {
+                    categoryChips
+                    Text(summaryText)
+                        .font(.system(.footnote))
+                        .foregroundColor(SalfordTheme.textMuted)
+                        .textCase(nil)
+                }
+                .padding(.vertical, SalfordSpacing.xs)
+            }
+
+            if filteredProducts.isEmpty {
+                Section {
+                    if store.products.isEmpty {
+                        SalfordEmptyState(icon: "sparkles", title: "لا توجد قطع بعد",
+                                          message: "اضغط ＋ لإضافة أول قطعة مع صورتها وسعرها.")
+                    } else {
+                        SalfordEmptyState(icon: "magnifyingglass", title: "لا توجد نتائج",
+                                          message: "غيّر البحث أو الفئة أو الفلتر.")
+                    }
+                }
+                .listRowBackground(Color.clear)
             }
         }
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
         .background(SalfordTheme.bgPrimary)
-        .searchable(text: $searchText, prompt: "ابحث باسم القطعة أو الكود...")
-        .navigationTitle("إدارة المنتجات")
+        .searchable(text: $searchText, prompt: "اسم القطعة أو الكود")
+        .navigationTitle("المنتجات")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Menu {
+                    Picker("الترتيب", selection: $sort) {
+                        ForEach(SortOrder.allCases) { Text($0.rawValue).tag($0) }
+                    }
+                    Toggle("المنخفض والنافد فقط", isOn: $onlyAttention)
+                } label: {
+                    Label("ترتيب وفلترة", systemImage: onlyAttention ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                }
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    showAddSheet = true
+                } label: {
+                    Label("إضافة قطعة", systemImage: "plus")
+                }
+            }
+        }
         .confirmDelete(
             $productToDelete,
             title: { "حذف «\($0.name)»؟" },
@@ -197,26 +159,13 @@ struct ProductsView: View {
             },
             perform: { store.deleteProduct(id: $0.id) }
         )
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    showAddSheet = true
-                } label: {
-                    Label("إضافة منتج", systemImage: "plus.circle.fill")
-                        .foregroundColor(SalfordTheme.silverLight)
-                }
-            }
-        }
         .sheet(isPresented: $showAddSheet) {
             ProductFormSheet(product: nil)
                 .environment(\.layoutDirection, .rightToLeft)
-                .environment(\.locale, Locale(identifier: "ar_LY"))
         }
         .sheet(item: $editingProduct) { prod in
             ProductFormSheet(product: prod)
                 .environment(\.layoutDirection, .rightToLeft)
-                .environment(\.locale, Locale(identifier: "ar_LY"))
         }
         .sheet(item: $previewingProduct) { prod in
             ProductPhotoLightboxSheet(product: prod) {
@@ -226,8 +175,102 @@ struct ProductsView: View {
                 }
             }
             .environment(\.layoutDirection, .rightToLeft)
-            .environment(\.locale, Locale(identifier: "ar_LY"))
         }
+    }
+
+    private var summaryText: String {
+        let list = filteredProducts
+        let pieces = list.reduce(0) { $0 + $1.stock }
+        return "\(list.count) صنف • \(pieces) قطعة في المخزن • اسحب الصف لليمين لتعديل المخزون"
+    }
+
+    private var categoryChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: SalfordSpacing.s) {
+                ForEach(["الكل"] + POSDataStore.categories, id: \.self) { cat in
+                    let selected = selectedCategory == cat
+                    Button {
+                        selectedCategory = cat
+                    } label: {
+                        Text(cat)
+                            .font(.system(.subheadline, weight: .semibold))
+                            .padding(.horizontal, SalfordSpacing.l)
+                            .frame(minHeight: 34)
+                            .background(selected ? SalfordTheme.silverLight : SalfordTheme.bgCard)
+                            .foregroundColor(selected ? SalfordTheme.onPrimary : SalfordTheme.textPrimary)
+                            .clipShape(Capsule())
+                            .overlay(Capsule().stroke(SalfordTheme.borderSubtle, lineWidth: selected ? 0 : 1))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
+        }
+        .textCase(nil)
+    }
+}
+
+/// One row of the products list.
+struct ProductRow: View {
+    let product: Product
+    let onPhotoTap: () -> Void
+
+    var body: some View {
+        HStack(spacing: SalfordSpacing.m) {
+            Button(action: onPhotoTap) {
+                SalfordProductThumbnailView(
+                    image: ProductImageHelper.image(for: product),
+                    size: 60,
+                    cornerRadius: 12,
+                    showZoomBadge: product.hasImage
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(product.hasImage ? "عرض صورة القطعة" : "إضافة صورة")
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(product.name)
+                    .font(.system(.subheadline, weight: .bold))
+                    .foregroundColor(SalfordTheme.textPrimary)
+                    .lineLimit(2)
+                Text([product.sku, product.category, product.color, product.size.map { "مقاس \($0)" }]
+                        .compactMap { $0 }.joined(separator: " • "))
+                    .font(.system(.caption))
+                    .foregroundColor(SalfordTheme.textMuted)
+                    .lineLimit(1)
+                HStack(spacing: SalfordSpacing.s) {
+                    Text(Money.lyd(product.sellPrice))
+                        .font(.system(.subheadline, weight: .heavy))
+                        .foregroundColor(SalfordTheme.goldLight)
+                    Text("تكلفة \(Money.plain(product.costPrice))")
+                        .font(.system(.caption))
+                        .foregroundColor(SalfordTheme.textMuted)
+                }
+            }
+
+            Spacer(minLength: 4)
+
+            stockPill
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("اضغط للتعديل")
+    }
+
+    private var stockPill: some View {
+        let color: Color = product.isOutOfStock ? SalfordTheme.dangerRed
+            : (product.isLowStock ? SalfordTheme.warningAmber : SalfordTheme.emeraldSuccess)
+        return VStack(spacing: 0) {
+            Text("\(product.stock)")
+                .font(.system(.headline, weight: .heavy))
+            Text(product.isOutOfStock ? "نفد" : "قطعة")
+                .font(.system(.caption2, weight: .semibold))
+        }
+        .foregroundColor(color)
+        .frame(minWidth: 48, minHeight: 44)
+        .background(color.opacity(0.12))
+        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
     }
 }
 
@@ -353,6 +396,7 @@ struct ProductPhotoLightboxSheet: View {
     }
 }
 
+/// Add / edit a piece: photo, details, price (with live profit) and stock.
 struct ProductFormSheet: View {
     @EnvironmentObject var store: POSDataStore
     @Environment(\.dismiss) private var dismiss
@@ -361,10 +405,10 @@ struct ProductFormSheet: View {
     @State private var name: String = ""
     @State private var sku: String = ""
     @State private var category: String = "خواتم"
-    @State private var color: String = "فضي"
+    @State private var color: String = ""
     @State private var costPrice: String = ""
     @State private var sellPrice: String = ""
-    @State private var stock: String = "5"
+    @State private var stock: String = "1"
     @State private var size: String = ""
     @State private var lowStockAlert: String = "3"
     /// Photo file chosen in this form (nil = no photo).
@@ -375,279 +419,108 @@ struct ProductFormSheet: View {
     @State private var showCameraPicker: Bool = false
     @State private var showLibraryPicker: Bool = false
     @State private var formError: String? = nil
+    @State private var triedToSave: Bool = false
+
+    private var sellValue: Double? { NumberInput.decimal(sellPrice) }
+    private var costValue: Double? { NumberInput.decimal(costPrice) }
+    private var nameMissing: Bool { name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var sellMissing: Bool { (sellValue ?? 0) <= 0 }
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 14) {
-                    // 1. Prominent Product Photo Upload & Camera Capture Card
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Image(systemName: "camera.fill")
-                                .foregroundColor(SalfordTheme.goldLight)
-                            Text("صورة القطعة (التقاط بالكاميرا أو رفع من الألبوم)")
-                                .font(.system(.subheadline, weight: .bold))
-                                .foregroundColor(SalfordTheme.silverLight)
-                            Spacer()
-                            if imageFile != nil || legacyImageBase64 != nil {
-                                Button(role: .destructive) {
-                                    imageFile = nil
-                                    legacyImageBase64 = nil
-                                } label: {
-                                    Label("حذف الصورة", systemImage: "trash")
-                                        .font(.system(.caption, weight: .bold))
-                                        .foregroundColor(SalfordTheme.dangerRed)
-                                }
-                            }
-                        }
+            Form {
+                photoSection
 
-                        // Large Clear Preview Box
-                        ZStack {
-                            if let uiImg = ProductImageHelper.image(named: imageFile) ?? ProductImageHelper.image(from: legacyImageBase64) {
-                                Image(uiImage: uiImg)
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 195)
-                                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                            .stroke(SalfordTheme.goldLight, lineWidth: 1.5)
-                                    )
-                            } else {
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(SalfordTheme.bgElevated)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 155)
-                                    .overlay(
-                                        VStack(spacing: 8) {
-                                            Image(systemName: "camera.viewfinder")
-                                                .font(.system(.largeTitle))
-                                                .foregroundColor(SalfordTheme.goldLight)
-                                            Text("لم يتم إرفاق صورة للقطعة بعد")
-                                                .font(.system(.subheadline, weight: .bold))
-                                                .foregroundColor(SalfordTheme.textPrimary)
-                                            Text("اضغط على أحد الزرين بالأسفل لتصوير القطعة أو اختيار صورتها")
-                                                .font(.system(.caption))
-                                                .foregroundColor(SalfordTheme.textMuted)
-                                        }
-                                    )
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                            .stroke(SalfordTheme.borderSubtle, lineWidth: 1)
-                                    )
-                            }
-                        }
-
-                        // Camera & Photo Library Buttons
-                        HStack(spacing: 10) {
-                            Button {
-                                showCameraPicker = true
-                            } label: {
-                                Label("التقاط بالكاميرا", systemImage: "camera.fill")
-                                    .font(.system(.subheadline, weight: .heavy))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
-                                    .background(SalfordTheme.silverGradient)
-                                    .foregroundColor(SalfordTheme.onPrimary)
-                                    .cornerRadius(11)
-                            }
-
-                            Button {
-                                showLibraryPicker = true
-                            } label: {
-                                Label("رفع من الألبوم", systemImage: "photo.on.rectangle.angled")
-                                    .font(.system(.subheadline, weight: .bold))
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
-                                    .background(SalfordTheme.royalNavyMid)
-                                    .foregroundColor(SalfordTheme.silverLight)
-                                    .cornerRadius(11)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 11)
-                                            .stroke(SalfordTheme.silverAccent.opacity(0.45), lineWidth: 1)
-                                    )
-                            }
-                        }
+                Section("بيانات القطعة") {
+                    TextField("اسم القطعة — مثال: خاتم سوليتير ألماس", text: $name)
+                    if triedToSave && nameMissing {
+                        fieldError("اسم القطعة مطلوب")
                     }
-                    .salfordCard()
-
-                    // 2. Basic Piece Info Card
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("بيانات القطعة الأساسية")
-                            .font(.system(.subheadline, weight: .bold))
-                            .foregroundColor(SalfordTheme.silverLight)
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("اسم القطعة")
-                                .font(.system(.caption))
-                                .foregroundColor(SalfordTheme.textMuted)
-                            TextField("مثال: خاتم سوليتير ألماس ملكي", text: $name)
-                                .padding(10)
-                                .background(SalfordTheme.bgElevated)
-                                .foregroundColor(SalfordTheme.textPrimary)
-                                .cornerRadius(10)
-                        }
-
-                        HStack(spacing: 10) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("الفئة")
-                                    .font(.system(.caption))
-                                    .foregroundColor(SalfordTheme.textMuted)
-                                Picker("الفئة", selection: $category) {
-                                    ForEach(POSDataStore.categories, id: \.self) { cat in
-                                        Text(cat).tag(cat)
-                                    }
-                                }
-                                .pickerStyle(.menu)
-                                .padding(6)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(SalfordTheme.bgElevated)
-                                .cornerRadius(10)
-                            }
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("اللون")
-                                    .font(.system(.caption))
-                                    .foregroundColor(SalfordTheme.textMuted)
-                                TextField("ذهبي، فضي، روز جولد", text: $color)
-                                    .padding(10)
-                                    .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(SalfordTheme.textPrimary)
-                                    .cornerRadius(10)
-                            }
-                        }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("كود القطعة (يُولّد تلقائياً إذا تُرك فارغاً — لا يتكرر)")
-                                .font(.system(.caption))
-                                .foregroundColor(SalfordTheme.textMuted)
-                            TextField("RNG-SFD01", text: $sku)
-                                .padding(10)
-                                .background(SalfordTheme.bgElevated)
-                                .foregroundColor(SalfordTheme.textPrimary)
-                                .cornerRadius(10)
-                        }
+                    Picker("الفئة", selection: $category) {
+                        ForEach(POSDataStore.categories, id: \.self) { Text($0).tag($0) }
                     }
-                    .salfordCard()
-
-                    // 3. Pricing & Stock Card
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("التسعير والمخزون")
-                            .font(.system(.subheadline, weight: .bold))
-                            .foregroundColor(SalfordTheme.silverLight)
-
-                        HStack(spacing: 10) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("سعر التكلفة بالدينار")
-                                    .font(.system(.caption))
-                                    .foregroundColor(SalfordTheme.textMuted)
-                                TextField("0", text: $costPrice)
-                                    .numericInput($costPrice, .decimal)
-                                    .padding(10)
-                                    .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(SalfordTheme.textPrimary)
-                                    .cornerRadius(10)
-                            }
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("سعر البيع بالدينار")
-                                    .font(.system(.caption))
-                                    .foregroundColor(SalfordTheme.emeraldSuccess)
-                                TextField("0", text: $sellPrice)
-                                    .numericInput($sellPrice, .decimal)
-                                    .padding(10)
-                                    .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(SalfordTheme.textPrimary)
-                                    .cornerRadius(10)
-                            }
-                        }
-
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("الكمية المتوفرة في المخزن")
-                                .font(.system(.caption))
-                                .foregroundColor(SalfordTheme.textMuted)
-                            TextField("5", text: $stock)
-                                .numericInput($stock, .integer)
-                                .padding(10)
-                                .background(SalfordTheme.bgElevated)
-                                .foregroundColor(SalfordTheme.textPrimary)
-                                .cornerRadius(10)
-                        }
-
-                        HStack(spacing: 10) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("المقاس (اختياري)")
-                                    .font(.system(.caption))
-                                    .foregroundColor(SalfordTheme.textMuted)
-                                TextField("مثال: 7 أو M", text: $size)
-                                    .padding(10)
-                                    .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(SalfordTheme.textPrimary)
-                                    .cornerRadius(10)
-                            }
-
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("تنبيه عند وصول المخزون إلى")
-                                    .font(.system(.caption))
-                                    .foregroundColor(SalfordTheme.textMuted)
-                                TextField("3", text: $lowStockAlert)
-                                    .numericInput($lowStockAlert, .integer)
-                                    .padding(10)
-                                    .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(SalfordTheme.textPrimary)
-                                    .cornerRadius(10)
-                            }
-                        }
-
-                        Button {
-                            savePiece()
-                        } label: {
-                            Label(product == nil ? "حفظ وإضافة القطعة للمخزون" : "حفظ التعديلات على القطعة", systemImage: "checkmark.circle.fill")
-                                .font(.system(.subheadline, weight: .heavy))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 13)
-                                .background(SalfordTheme.emeraldSuccess)
-                                .foregroundColor(SalfordTheme.onColored)
-                                .cornerRadius(12)
-                        }
-                        .padding(.top, 4)
+                    TextField("اللون — ذهبي، فضي، روز جولد", text: $color)
+                    TextField("المقاس (اختياري) — مثال: 7 أو M", text: $size)
+                    VStack(alignment: .leading, spacing: 2) {
+                        TextField("الكود (يُولّد تلقائياً إذا تُرك فارغاً)", text: $sku)
+                            .textInputAutocapitalization(.characters)
+                            .autocorrectionDisabled()
+                        Text("يجب أن يكون الكود مختلفاً لكل قطعة")
+                            .font(.system(.caption2))
+                            .foregroundColor(SalfordTheme.textMuted)
                     }
-                    .salfordCard()
                 }
-                .padding(14)
+
+                Section {
+                    labeledNumberField("سعر البيع", text: $sellPrice, kind: .decimal, suffix: "د.ل")
+                    if triedToSave && sellMissing {
+                        fieldError("سعر البيع مطلوب ويجب أن يكون أكبر من 0")
+                    }
+                    labeledNumberField("سعر التكلفة", text: $costPrice, kind: .decimal, suffix: "د.ل")
+                    if let sell = sellValue, let cost = costValue, sell > 0 {
+                        let profit = sell - cost
+                        HStack {
+                            Text("الربح للقطعة")
+                            Spacer()
+                            Text("\(Money.lyd(profit)) • \(Int((profit / sell) * 100))٪")
+                                .font(.system(.subheadline, weight: .bold))
+                                .foregroundColor(profit >= 0 ? SalfordTheme.emeraldSuccess : SalfordTheme.dangerRed)
+                        }
+                    }
+                } header: {
+                    Text("السعر")
+                } footer: {
+                    Text("أدخل التكلفة 0 إذا كانت غير معروفة. التكلفة بالدولار تُحفظ بسعر الصرف الحالي.")
+                }
+
+                Section("المخزون") {
+                    HStack {
+                        Text("الكمية في المخزن")
+                        Spacer()
+                        Button {
+                            let v = max(0, (NumberInput.integer(stock) ?? 0) - 1)
+                            stock = "\(v)"
+                        } label: { Image(systemName: "minus.circle.fill").font(.system(.title3)) }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("إنقاص الكمية")
+                        TextField("0", text: $stock)
+                            .numericInput($stock, .integer)
+                            .multilineTextAlignment(.center)
+                            .frame(width: 60)
+                        Button {
+                            stock = "\((NumberInput.integer(stock) ?? 0) + 1)"
+                        } label: { Image(systemName: "plus.circle.fill").font(.system(.title3)) }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel("زيادة الكمية")
+                    }
+                    labeledNumberField("تنبيه عند وصول المخزون إلى", text: $lowStockAlert, kind: .integer, suffix: "قطع")
+                }
+
+                Section {
+                    Button {
+                        savePiece()
+                    } label: {
+                        Label(product == nil ? "حفظ وإضافة القطعة" : "حفظ التعديلات", systemImage: "checkmark.circle.fill")
+                    }
+                    .buttonStyle(.salfordSuccess)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                }
             }
+            .scrollContentBackground(.hidden)
             .background(SalfordTheme.bgPrimary)
-            .navigationTitle(product == nil ? "إضافة قطعة جديدة" : "تعديل بيانات وصورة القطعة")
+            .navigationTitle(product == nil ? "قطعة جديدة" : "تعديل القطعة")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("إلغاء") { dismiss() }
-                        .foregroundColor(SalfordTheme.silverLight)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("حفظ") {
-                        savePiece()
-                    }
-                    .font(.system(.subheadline, weight: .bold))
-                    .foregroundColor(SalfordTheme.emeraldSuccess)
+                    Button("حفظ") { savePiece() }
+                        .font(.system(.body, weight: .bold))
                 }
             }
-            .onAppear {
-                if let p = product {
-                    name = p.name
-                    sku = p.sku
-                    category = p.category
-                    color = p.color ?? ""
-                    costPrice = NumberInput.editable(p.costPrice)
-                    sellPrice = NumberInput.editable(p.sellPrice)
-                    stock = "\(p.stock)"
-                    size = p.size ?? ""
-                    lowStockAlert = "\(p.lowStockAlert)"
-                    imageFile = p.imageFile
-                    legacyImageBase64 = p.imageBase64
-                }
-            }
+            .onAppear(perform: load)
             .alert("لم يتم الحفظ", isPresented: Binding(get: { formError != nil }, set: { if !$0 { formError = nil } })) {
                 Button("حسناً", role: .cancel) {}
             } message: {
@@ -674,13 +547,114 @@ struct ProductFormSheet: View {
         }
     }
 
+    // MARK: Sections
+
+    private var photoSection: some View {
+        Section {
+            let image = ProductImageHelper.image(named: imageFile) ?? ProductImageHelper.image(from: legacyImageBase64)
+            ZStack {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    ZStack {
+                        SalfordTheme.fieldBg
+                        VStack(spacing: SalfordSpacing.s) {
+                            Image(systemName: "camera.viewfinder")
+                                .font(.system(.largeTitle))
+                            Text("أضف صورة واضحة للقطعة")
+                                .font(.system(.subheadline, weight: .semibold))
+                        }
+                        .foregroundColor(SalfordTheme.textMuted)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 200)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+            .accessibilityLabel(image == nil ? "لا توجد صورة" : "صورة القطعة")
+
+            HStack(spacing: SalfordSpacing.m) {
+                Button {
+                    showCameraPicker = true
+                } label: {
+                    Label("الكاميرا", systemImage: "camera.fill")
+                }
+                .buttonStyle(.salfordPrimary)
+
+                Button {
+                    showLibraryPicker = true
+                } label: {
+                    Label("الألبوم", systemImage: "photo.on.rectangle")
+                }
+                .buttonStyle(.salfordSecondary)
+
+                if image != nil {
+                    Button(role: .destructive) {
+                        imageFile = nil
+                        legacyImageBase64 = nil
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(SalfordButtonStyle(kind: .destructive, fullWidth: false))
+                    .accessibilityLabel("حذف الصورة")
+                }
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 8, bottom: 8, trailing: 8))
+            .listRowBackground(Color.clear)
+        }
+    }
+
+    private func labeledNumberField(_ title: String, text: Binding<String>, kind: NumberInput.Kind, suffix: String) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            TextField("0", text: text)
+                .numericInput(text, kind)
+                .multilineTextAlignment(.trailing)
+                .frame(maxWidth: 120)
+            Text(suffix)
+                .foregroundColor(SalfordTheme.textMuted)
+        }
+    }
+
+    private func fieldError(_ text: String) -> some View {
+        Label(text, systemImage: "exclamationmark.circle.fill")
+            .font(.system(.footnote, weight: .semibold))
+            .foregroundColor(SalfordTheme.dangerRed)
+    }
+
+    // MARK: Load / save
+
+    private func load() {
+        guard let p = product else { return }
+        name = p.name
+        sku = p.sku
+        category = POSDataStore.categories.contains(p.category) ? p.category : "أخرى"
+        color = p.color ?? ""
+        costPrice = NumberInput.editable(p.costPrice)
+        sellPrice = NumberInput.editable(p.sellPrice)
+        stock = "\(p.stock)"
+        size = p.size ?? ""
+        lowStockAlert = "\(p.lowStockAlert)"
+        imageFile = p.imageFile
+        legacyImageBase64 = p.imageBase64
+    }
+
     private func savePiece() {
+        triedToSave = true
+        guard !nameMissing else {
+            formError = "يرجى إدخال اسم القطعة"
+            return
+        }
         // Never save a price that was left empty or mistyped as 0.
-        guard let sell = NumberInput.decimal(sellPrice), sell > 0 else {
+        guard let sell = sellValue, sell > 0 else {
             formError = "يرجى إدخال سعر البيع (أرقام 0-9 فقط)"
             return
         }
-        guard let cost = NumberInput.decimal(costPrice) else {
+        guard let cost = costValue else {
             formError = "يرجى إدخال سعر التكلفة (أرقام 0-9 فقط). أدخل 0 إذا كانت التكلفة غير معروفة."
             return
         }
@@ -703,14 +677,13 @@ struct ProductFormSheet: View {
             costUSD = cost / rate
         }
 
-        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedColor = color.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedSize = size.trimmingCharacters(in: .whitespacesAndNewlines)
 
         let newProd = Product(
             id: product?.id ?? 0,
             sku: sku.trimmingCharacters(in: .whitespacesAndNewlines),
-            name: trimmedName.isEmpty ? "قطعة سالفورد" : trimmedName,
+            name: name.trimmingCharacters(in: .whitespacesAndNewlines),
             category: category,
             costPrice: Money.round(cost),
             sellPrice: Money.round(sell),

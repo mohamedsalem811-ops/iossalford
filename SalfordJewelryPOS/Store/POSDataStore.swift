@@ -511,6 +511,13 @@ final class POSDataStore: ObservableObject {
         return nil
     }
 
+    /// Quick stock correction from the products list (e.g. a new delivery of +3).
+    func adjustStock(productId: Int, by delta: Int) {
+        guard let idx = products.firstIndex(where: { $0.id == productId }) else { return }
+        products[idx].stock = max(0, products[idx].stock + delta)
+        saveToDisk()
+    }
+
     /// Deletes a product. Its sales and receipts keep their own copy of the name and price,
     /// so history is not affected. It is also removed from the cart.
     func deleteProduct(id: Int) {
