@@ -149,6 +149,23 @@ enum ReceiptTemplate: String, CaseIterable, Identifiable, Codable {
         case .swarovskiLondon: return "🦢 Swarovski London"
         }
     }
+
+    /// Short name for the template picker cards.
+    var shortName: String {
+        switch self {
+        case .salfordRoyal: return "SALFORD الملكي"
+        case .salfordWhite: return "SALFORD الرسمي"
+        case .swarovskiLondon: return "Swarovski London"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .salfordRoyal: return "ترويسة داكنة بشعار SJ"
+        case .salfordWhite: return "أبيض كلاسيكي"
+        case .swarovskiLondon: return "قالب Covent Garden"
+        }
+    }
 }
 
 struct ReceiptLineItem: Identifiable, Codable, Equatable {

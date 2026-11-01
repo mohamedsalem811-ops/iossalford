@@ -8,119 +8,21 @@ struct GiftReceiptStudioView: View {
     @State private var errorMessage: String? = nil
     @State private var savedMessage: String = ""
 
+    private var itemsTotal: Double {
+        store.activeReceiptItems.reduce(0) { $0 + $1.price * Double($1.qty) }
+    }
+
     var body: some View {
         ScrollView {
-            VStack(spacing: 14) {
-                // Template & Price Mode Controls
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Image(systemName: "wand.and.stars")
-                            .foregroundColor(SalfordTheme.silverAccent)
-                        Text("تخصيص قالب الفاتورة والأسعار")
-                            .font(.system(.subheadline, weight: .bold))
-                            .foregroundColor(SalfordTheme.silverLight)
-                        Spacer()
-                    }
+            VStack(alignment: .leading, spacing: SalfordSpacing.l) {
+                receiptHeader
+                templateSection
+                priceModeSection
+                customerSection
+                itemsSection
+                actionsSection
 
-                    Picker("قالب الفاتورة", selection: $store.activeReceiptTemplate) {
-                        ForEach(ReceiptTemplate.allCases) { tpl in
-                            Text(tpl.title).tag(tpl)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    Toggle(isOn: $store.showRealPricesInReceipt) {
-                        Text(store.showRealPricesInReceipt ? "إظهار الأسعار الفعلية (فاتورة رسمية)" : "إخفاء الأسعار (Price: XXX — فاتورة هدية)")
-                            .font(.system(.footnote, weight: .bold))
-                            .foregroundColor(SalfordTheme.silverLight)
-                    }
-                    .tint(SalfordTheme.emeraldSuccess)
-
-                    HStack(spacing: 10) {
-                        // The number is assigned by the app and can't be typed, so it is always unique.
-                        HStack(spacing: 6) {
-                            Image(systemName: "number")
-                                .foregroundColor(SalfordTheme.silverAccent)
-                            Text(store.activeReceiptNo.isEmpty ? "رقم جديد عند الحفظ" : store.activeReceiptNo)
-                                .font(.system(.footnote, design: .monospaced, weight: .bold))
-                                .foregroundColor(store.activeReceiptNo.isEmpty ? SalfordTheme.textMuted : SalfordTheme.textPrimary)
-                        }
-                        .padding(9)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(SalfordTheme.bgElevated)
-                        .cornerRadius(9)
-
-                        TextField("اسم الزبون", text: $store.activeReceiptCustomer)
-                            .salfordField()
-                    }
-
-                    if store.activeReceiptItems.isEmpty {
-                        Text("لا توجد قطع في الفاتورة — أضف سطراً أدناه")
-                            .font(.system(.footnote))
-                            .foregroundColor(SalfordTheme.textMuted)
-                    }
-
-                    // Line Items Editor
-                    ForEach($store.activeReceiptItems) { $item in
-                        ReceiptLineEditorRow(item: $item) {
-                            store.activeReceiptItems.removeAll { $0.id == item.id }
-                        }
-                    }
-
-                    HStack {
-                        Button {
-                            store.activeReceiptItems.append(
-                                ReceiptLineItem(name: "", color: "", code: "", qty: 1, price: 0)
-                            )
-                        } label: {
-                            Label("إضافة سطر منتج للفاتورة", systemImage: "plus.circle")
-                                .font(.system(.footnote, weight: .bold))
-                                .foregroundColor(SalfordTheme.silverAccent)
-                        }
-                        Spacer()
-                        Button {
-                            if let no = store.commitActiveReceipt() {
-                                savedMessage = "✅ تم حفظ الفاتورة \(no)"
-                                UINotificationFeedbackGenerator().notificationOccurred(.success)
-                            } else {
-                                errorMessage = "أضف قطعة واحدة على الأقل باسم واضح قبل الحفظ"
-                            }
-                        } label: {
-                            Label("حفظ الفاتورة", systemImage: "tray.and.arrow.down.fill")
-                                .font(.system(.footnote, weight: .bold))
-                                .foregroundColor(SalfordTheme.emeraldSuccess)
-                        }
-                    }
-
-                    if !savedMessage.isEmpty {
-                        Text(savedMessage)
-                            .font(.system(.footnote, weight: .bold))
-                            .foregroundColor(SalfordTheme.emeraldSuccess)
-                    }
-                }
-                .salfordCard()
-
-                // Action Buttons: Native PDF Export, Share & AirPrint.
-                // The receipt is saved (and numbered) before any PDF leaves the app.
-                HStack(spacing: 10) {
-                    Button {
-                        if let url = saveAndBuildPDF() {
-                            if !NativePDFGenerator.printPDF(url: url, jobName: "SALFORD Receipt \(store.activeReceiptNo)") {
-                                errorMessage = "تعذرت طباعة الملف — جرّب «تصدير ومشاركة PDF» ثم اطبع من تطبيق الملفات"
-                            }
-                        }
-                    } label: {
-                        Label("طباعة AirPrint", systemImage: "printer.fill")
-                    }
-                    .buttonStyle(.salfordSecondary)
-
-                    Button {
-                        shareURL = saveAndBuildPDF()
-                    } label: {
-                        Label("تصدير ومشاركة PDF", systemImage: "square.and.arrow.up.fill")
-                    }
-                    .buttonStyle(.salfordPrimary)
-                }
+                SalfordSectionTitle(title: "معاينة الفاتورة", icon: "eye")
 
                 // Live Interactive Paper Preview matching Invoice swarovski.pdf & SALFORD Royal
                 VStack(spacing: 0) {
@@ -192,7 +94,7 @@ struct GiftReceiptStudioView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Date: \(store.activeReceiptDate)")
                             Text("Time: \(store.activeReceiptTime)")
-                            Text("Receipt No: \(store.activeReceiptNo)")
+                            Text("Receipt No: \(store.activeReceiptNo.isEmpty ? "— (assigned on save)" : store.activeReceiptNo)")
                             Text("Store: \(store.activeReceiptTemplate == .swarovskiLondon ? "Swarovski London" : "SALFORD Jewelry — Libya")")
                         }
                         .font(.system(size: 11))
@@ -249,33 +151,32 @@ struct GiftReceiptStudioView: View {
                     .environment(\.layoutDirection, .leftToRight)
                 }
                 .background(Color.white)
-                .cornerRadius(14)
-                .shadow(color: .black.opacity(0.4), radius: 10, x: 0, y: 4)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .shadow(color: .black.opacity(0.25), radius: 10, x: 0, y: 4)
+                .accessibilityLabel("معاينة الفاتورة كما ستُطبع")
             }
-            .padding(14)
+            .padding(SalfordSpacing.l)
         }
         .background(SalfordTheme.bgPrimary)
-        .navigationTitle("استوديو الفاتورة الملكية")
+        .navigationTitle(store.activeReceiptId == nil ? "فاتورة جديدة" : "الفاتورة")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if isModalSheet {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("إغلاق") {
-                        dismiss()
-                    }
-                    .foregroundColor(SalfordTheme.silverLight)
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("إغلاق") { dismiss() }
                 }
             }
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    store.openNewDraftReceipt(items: [], present: isModalSheet)
-                    savedMessage = ""
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button {
+                        store.openNewDraftReceipt(items: [], present: isModalSheet)
+                        savedMessage = ""
+                    } label: {
+                        Label("فاتورة جديدة فارغة", systemImage: "doc.badge.plus")
+                    }
                 } label: {
-                    Label("فاتورة جديدة", systemImage: "doc.badge.plus")
+                    Label("المزيد", systemImage: "ellipsis.circle")
                 }
-                .foregroundColor(SalfordTheme.silverLight)
             }
         }
         .onAppear {
@@ -293,6 +194,218 @@ struct GiftReceiptStudioView: View {
             Button("حسناً", role: .cancel) {}
         } message: {
             Text(errorMessage ?? "")
+        }
+    }
+
+    // MARK: Sections
+
+    /// Number, date/time and save status at a glance.
+    private var receiptHeader: some View {
+        HStack(alignment: .center, spacing: SalfordSpacing.m) {
+            Image(systemName: "doc.text.fill")
+                .font(.system(.title2))
+                .foregroundColor(SalfordTheme.gold)
+                .frame(width: 44, height: 44)
+                .background(SalfordTheme.royalNavyMid)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            VStack(alignment: .leading, spacing: 2) {
+                if store.activeReceiptNo.isEmpty {
+                    Text("فاتورة جديدة")
+                        .font(.system(.headline, weight: .bold))
+                        .foregroundColor(SalfordTheme.textPrimary)
+                    Text("يُعطى الرقم تلقائياً عند الحفظ أو الطباعة")
+                        .font(.system(.caption))
+                        .foregroundColor(SalfordTheme.textMuted)
+                } else {
+                    Text(store.activeReceiptNo)
+                        .font(.system(.headline, design: .monospaced, weight: .bold))
+                        .foregroundColor(SalfordTheme.textPrimary)
+                    Text("\(store.activeReceiptDate) • \(store.activeReceiptTime)")
+                        .font(.system(.caption))
+                        .foregroundColor(SalfordTheme.textMuted)
+                }
+            }
+            Spacer()
+            if !savedMessage.isEmpty {
+                Label("محفوظة", systemImage: "checkmark.circle.fill")
+                    .font(.system(.caption, weight: .bold))
+                    .foregroundColor(SalfordTheme.emeraldSuccess)
+            }
+        }
+        .padding(SalfordSpacing.l)
+        .salfordCard()
+    }
+
+    /// Template cards with full names (no truncation) and a small colour preview.
+    private var templateSection: some View {
+        VStack(alignment: .leading, spacing: SalfordSpacing.s) {
+            SalfordSectionTitle(title: "القالب", icon: "paintpalette.fill")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: SalfordSpacing.m) {
+                    ForEach(ReceiptTemplate.allCases) { tpl in
+                        let selected = store.activeReceiptTemplate == tpl
+                        Button {
+                            store.activeReceiptTemplate = tpl
+                        } label: {
+                            VStack(alignment: .leading, spacing: SalfordSpacing.s) {
+                                templateSwatch(tpl)
+                                Text(tpl.shortName)
+                                    .font(.system(.subheadline, weight: .bold))
+                                    .foregroundColor(SalfordTheme.textPrimary)
+                                    .lineLimit(1)
+                                Text(tpl.subtitle)
+                                    .font(.system(.caption))
+                                    .foregroundColor(SalfordTheme.textMuted)
+                                    .lineLimit(1)
+                            }
+                            .padding(SalfordSpacing.m)
+                            .frame(width: 165, alignment: .leading)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(SalfordTheme.bgCard)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(selected ? SalfordTheme.gold : SalfordTheme.borderSubtle, lineWidth: selected ? 2 : 1)
+                            )
+                            .overlay(alignment: .topLeading) {
+                                if selected {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(SalfordTheme.gold)
+                                        .padding(8)
+                                }
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(tpl.shortName)
+                        .accessibilityAddTraits(selected ? .isSelected : [])
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+    }
+
+    /// Mini picture of the template's header so the choice is visual.
+    private func templateSwatch(_ tpl: ReceiptTemplate) -> some View {
+        ZStack {
+            switch tpl {
+            case .salfordRoyal:
+                LinearGradient(colors: [Color(red: 0.17, green: 0.10, blue: 0.33), Color(red: 0.04, green: 0.04, blue: 0.09)],
+                               startPoint: .topTrailing, endPoint: .bottomLeading)
+                Text("SJ").font(.system(.headline, design: .serif, weight: .black)).foregroundColor(.white)
+            case .salfordWhite:
+                Color.white
+                Text("SJ").font(.system(.headline, design: .serif, weight: .black)).foregroundColor(.black)
+            case .swarovskiLondon:
+                Color.white
+                Text("SWAROVSKI").font(.system(.caption2, weight: .bold)).foregroundColor(.black)
+            }
+        }
+        .frame(height: 54)
+        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Color.black.opacity(0.08), lineWidth: 1))
+    }
+
+    /// Two clearly named choices instead of a switch whose label flips meaning.
+    private var priceModeSection: some View {
+        VStack(alignment: .leading, spacing: SalfordSpacing.s) {
+            SalfordSectionTitle(title: "نوع الفاتورة", icon: "tag.fill")
+            Picker("نوع الفاتورة", selection: $store.showRealPricesInReceipt) {
+                Text("رسمية بالأسعار").tag(true)
+                Text("هدية بدون أسعار").tag(false)
+            }
+            .pickerStyle(.segmented)
+            Text(store.showRealPricesInReceipt
+                 ? "تظهر أسعار القطع والمجموع في الفاتورة."
+                 : "تُخفى الأسعار وتظهر XXX مكانها — مناسبة لتقديم الهدية.")
+                .font(.system(.caption))
+                .foregroundColor(SalfordTheme.textMuted)
+        }
+    }
+
+    private var customerSection: some View {
+        VStack(alignment: .leading, spacing: SalfordSpacing.s) {
+            SalfordSectionTitle(title: "الزبون", icon: "person.fill")
+            TextField("اسم الزبون كما يظهر في الفاتورة", text: $store.activeReceiptCustomer)
+                .salfordField()
+        }
+    }
+
+    private var itemsSection: some View {
+        VStack(alignment: .leading, spacing: SalfordSpacing.m) {
+            HStack {
+                SalfordSectionTitle(title: "القطع (\(store.activeReceiptItems.count))", icon: "sparkles")
+                if store.showRealPricesInReceipt && !store.activeReceiptItems.isEmpty {
+                    Text(Money.lyd(itemsTotal))
+                        .font(.system(.subheadline, weight: .heavy))
+                        .foregroundColor(SalfordTheme.goldLight)
+                }
+            }
+
+            if store.activeReceiptItems.isEmpty {
+                SalfordEmptyState(icon: "tray", title: "لا توجد قطع في الفاتورة", message: "أضف قطعة بالزر أدناه.")
+            }
+
+            ForEach($store.activeReceiptItems) { $item in
+                ReceiptLineEditorRow(item: $item) {
+                    store.activeReceiptItems.removeAll { $0.id == item.id }
+                }
+            }
+
+            Button {
+                store.activeReceiptItems.append(
+                    ReceiptLineItem(name: "", color: "", code: "", qty: 1, price: 0)
+                )
+            } label: {
+                Label("إضافة قطعة للفاتورة", systemImage: "plus.circle.fill")
+            }
+            .buttonStyle(.salfordSecondary)
+        }
+    }
+
+    private var actionsSection: some View {
+        VStack(spacing: SalfordSpacing.m) {
+            HStack(spacing: SalfordSpacing.m) {
+                Button {
+                    if let url = saveAndBuildPDF() {
+                        if !NativePDFGenerator.printPDF(url: url, jobName: "SALFORD Receipt \(store.activeReceiptNo)") {
+                            errorMessage = "تعذرت طباعة الملف — جرّب «مشاركة PDF» ثم اطبع من تطبيق الملفات"
+                        }
+                    }
+                } label: {
+                    Label("طباعة", systemImage: "printer.fill")
+                }
+                .buttonStyle(.salfordPrimary)
+
+                Button {
+                    shareURL = saveAndBuildPDF()
+                } label: {
+                    Label("مشاركة PDF", systemImage: "square.and.arrow.up")
+                }
+                .buttonStyle(.salfordSecondary)
+            }
+
+            Button {
+                if let no = store.commitActiveReceipt() {
+                    savedMessage = "✅ تم حفظ الفاتورة \(no)"
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                } else {
+                    errorMessage = "أضف قطعة واحدة على الأقل باسم واضح قبل الحفظ"
+                }
+            } label: {
+                Label("حفظ الفاتورة فقط", systemImage: "tray.and.arrow.down")
+                    .font(.system(.subheadline, weight: .semibold))
+            }
+            .frame(maxWidth: .infinity, minHeight: SalfordSpacing.touch)
+
+            if !savedMessage.isEmpty {
+                Text(savedMessage)
+                    .font(.system(.footnote, weight: .bold))
+                    .foregroundColor(SalfordTheme.emeraldSuccess)
+                    .frame(maxWidth: .infinity)
+            }
         }
     }
 
@@ -326,51 +439,52 @@ struct ReceiptLineEditorRow: View {
     @State private var priceText: String = ""
 
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: SalfordSpacing.s) {
+            HStack(spacing: SalfordSpacing.s) {
                 TextField("اسم القطعة", text: $item.name)
-                    .font(.system(.footnote))
                     .salfordField()
-
-                TextField("اللون", text: $item.color)
-                    .font(.system(.footnote))
-                    .frame(width: 85)
-                    .salfordField()
-
-                TextField("الكود", text: $item.code)
-                    .font(.system(.footnote))
-                    .frame(width: 90)
-                    .salfordField()
-            }
-            HStack(spacing: 8) {
-                Stepper("الكمية: \(item.qty)", value: $item.qty, in: 1...99)
-                    .font(.system(.footnote, weight: .bold))
-                    .foregroundColor(SalfordTheme.textPrimary)
-
-                TextField("السعر", text: $priceText)
-                    .numericInput($priceText, .decimal)
-                    .font(.system(.footnote))
-                    .frame(width: 90)
-                    .salfordField()
-                    .onChange(of: priceText) { newValue in
-                        item.price = NumberInput.decimal(newValue) ?? 0
-                    }
-
                 Button(role: .destructive) {
                     onDelete()
                 } label: {
-                    Image(systemName: "trash.fill")
-                        .font(.system(.footnote))
-                        .padding(7)
-                        .background(SalfordTheme.dangerRed.opacity(0.18))
+                    Image(systemName: "trash")
+                        .frame(width: SalfordSpacing.touch, height: SalfordSpacing.touch)
+                        .background(SalfordTheme.dangerRed.opacity(0.12))
                         .foregroundColor(SalfordTheme.dangerRed)
-                        .cornerRadius(8)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+                .accessibilityLabel("حذف القطعة من الفاتورة")
+            }
+            HStack(spacing: SalfordSpacing.s) {
+                TextField("اللون", text: $item.color)
+                    .salfordField()
+                TextField("الكود", text: $item.code)
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
+                    .salfordField()
+            }
+            HStack(spacing: SalfordSpacing.m) {
+                Stepper(value: $item.qty, in: 1...99) {
+                    Text("الكمية: \(item.qty)")
+                        .font(.system(.subheadline, weight: .semibold))
+                        .foregroundColor(SalfordTheme.textPrimary)
+                }
+                HStack(spacing: 4) {
+                    TextField("السعر", text: $priceText)
+                        .numericInput($priceText, .decimal)
+                        .multilineTextAlignment(.center)
+                        .salfordField()
+                        .frame(width: 100)
+                        .onChange(of: priceText) { newValue in
+                            item.price = NumberInput.decimal(newValue) ?? 0
+                        }
+                    Text("د.ل")
+                        .font(.system(.footnote))
+                        .foregroundColor(SalfordTheme.textMuted)
                 }
             }
         }
-        .padding(8)
-        .background(SalfordTheme.bgPrimary.opacity(0.4))
-        .cornerRadius(10)
+        .padding(SalfordSpacing.m)
+        .salfordCard()
         .onAppear {
             priceText = item.price > 0 ? NumberInput.editable(item.price) : ""
         }
