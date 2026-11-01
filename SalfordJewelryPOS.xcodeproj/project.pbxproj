@@ -20,7 +20,16 @@
 		A10000092345678900000001 /* SalePOSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000092345678900000001 /* SalePOSView.swift */; };
 		A10000102345678900000001 /* GiftReceiptStudioView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000102345678900000001 /* GiftReceiptStudioView.swift */; };
 		A10000112345678900000001 /* ProductsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000112345678900000001 /* ProductsView.swift */; };
-		A10000122345678900000001 /* ManagementViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000122345678900000001 /* ManagementViews.swift */; };
+		A10000162345678900000001 /* ManagementHubView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000172345678900000001 /* ManagementHubView.swift */; };
+		A10000172345678900000001 /* DebtsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000182345678900000001 /* DebtsViews.swift */; };
+		A10000182345678900000001 /* ReceiptsHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000192345678900000001 /* ReceiptsHistoryView.swift */; };
+		A10000192345678900000001 /* SalesHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000202345678900000001 /* SalesHistoryView.swift */; };
+		A10000202345678900000001 /* CustomersManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000212345678900000001 /* CustomersManagementView.swift */; };
+		A10000212345678900000001 /* SetsManagementView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000222345678900000001 /* SetsManagementView.swift */; };
+		A10000222345678900000001 /* MonthlyComparisonChartView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000232345678900000001 /* MonthlyComparisonChartView.swift */; };
+		A10000232345678900000001 /* ExpensesAndReturnsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000242345678900000001 /* ExpensesAndReturnsView.swift */; };
+		A10000242345678900000001 /* QuarterlyClosingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000252345678900000001 /* QuarterlyClosingView.swift */; };
+		A10000252345678900000001 /* SettingsAndBackupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000262345678900000001 /* SettingsAndBackupView.swift */; };
 		A10000132345678900000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000132345678900000001 /* Assets.xcassets */; };
 /* End PBXBuildFile section */
 
@@ -39,7 +48,16 @@
 		A20000092345678900000001 /* SalePOSView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SalePOSView.swift; sourceTree = "<group>"; };
 		A20000102345678900000001 /* GiftReceiptStudioView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/GiftReceiptStudioView.swift; sourceTree = "<group>"; };
 		A20000112345678900000001 /* ProductsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ProductsView.swift; sourceTree = "<group>"; };
-		A20000122345678900000001 /* ManagementViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ManagementViews.swift; sourceTree = "<group>"; };
+		A20000172345678900000001 /* ManagementHubView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ManagementHubView.swift; sourceTree = "<group>"; };
+		A20000182345678900000001 /* DebtsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/DebtsViews.swift; sourceTree = "<group>"; };
+		A20000192345678900000001 /* ReceiptsHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ReceiptsHistoryView.swift; sourceTree = "<group>"; };
+		A20000202345678900000001 /* SalesHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SalesHistoryView.swift; sourceTree = "<group>"; };
+		A20000212345678900000001 /* CustomersManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/CustomersManagementView.swift; sourceTree = "<group>"; };
+		A20000222345678900000001 /* SetsManagementView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SetsManagementView.swift; sourceTree = "<group>"; };
+		A20000232345678900000001 /* MonthlyComparisonChartView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/MonthlyComparisonChartView.swift; sourceTree = "<group>"; };
+		A20000242345678900000001 /* ExpensesAndReturnsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/ExpensesAndReturnsView.swift; sourceTree = "<group>"; };
+		A20000252345678900000001 /* QuarterlyClosingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/QuarterlyClosingView.swift; sourceTree = "<group>"; };
+		A20000262345678900000001 /* SettingsAndBackupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views/SettingsAndBackupView.swift; sourceTree = "<group>"; };
 		A20000132345678900000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A20000142345678900000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -79,7 +97,16 @@
 				A20000092345678900000001 /* SalePOSView.swift */,
 				A20000102345678900000001 /* GiftReceiptStudioView.swift */,
 				A20000112345678900000001 /* ProductsView.swift */,
-				A20000122345678900000001 /* ManagementViews.swift */,
+				A20000172345678900000001 /* ManagementHubView.swift */,
+				A20000182345678900000001 /* DebtsViews.swift */,
+				A20000192345678900000001 /* ReceiptsHistoryView.swift */,
+				A20000202345678900000001 /* SalesHistoryView.swift */,
+				A20000212345678900000001 /* CustomersManagementView.swift */,
+				A20000222345678900000001 /* SetsManagementView.swift */,
+				A20000232345678900000001 /* MonthlyComparisonChartView.swift */,
+				A20000242345678900000001 /* ExpensesAndReturnsView.swift */,
+				A20000252345678900000001 /* QuarterlyClosingView.swift */,
+				A20000262345678900000001 /* SettingsAndBackupView.swift */,
 				A20000132345678900000001 /* Assets.xcassets */,
 				A20000142345678900000001 /* Info.plist */,
 			);
@@ -177,7 +204,16 @@
 				A10000092345678900000001 /* SalePOSView.swift in Sources */,
 				A10000102345678900000001 /* GiftReceiptStudioView.swift in Sources */,
 				A10000112345678900000001 /* ProductsView.swift in Sources */,
-				A10000122345678900000001 /* ManagementViews.swift in Sources */,
+				A10000162345678900000001 /* ManagementHubView.swift in Sources */,
+				A10000172345678900000001 /* DebtsViews.swift in Sources */,
+				A10000182345678900000001 /* ReceiptsHistoryView.swift in Sources */,
+				A10000192345678900000001 /* SalesHistoryView.swift in Sources */,
+				A10000202345678900000001 /* CustomersManagementView.swift in Sources */,
+				A10000212345678900000001 /* SetsManagementView.swift in Sources */,
+				A10000222345678900000001 /* MonthlyComparisonChartView.swift in Sources */,
+				A10000232345678900000001 /* ExpensesAndReturnsView.swift in Sources */,
+				A10000242345678900000001 /* QuarterlyClosingView.swift in Sources */,
+				A10000252345678900000001 /* SettingsAndBackupView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
