@@ -384,6 +384,7 @@ struct SalesHistoryView: View {
 
 struct CustomersManagementView: View {
     @EnvironmentObject var store: POSDataStore
+    @State private var customerToDelete: Customer? = nil
     @State private var name: String = ""
     @State private var phone: String = ""
     @State private var area: String = ""
@@ -464,7 +465,7 @@ struct CustomersManagementView: View {
                                 .foregroundColor(SalfordTheme.textMuted)
                             Spacer()
                             Button(role: .destructive) {
-                                store.deleteCustomer(id: cust.id)
+                                customerToDelete = cust
                             } label: {
                                 Image(systemName: "trash")
                                     .font(.system(size: 12))
@@ -484,12 +485,24 @@ struct CustomersManagementView: View {
         }
         .background(SalfordTheme.bgPrimary)
         .navigationTitle("قاعدة بيانات الزبائن")
+        .confirmDelete(
+            $customerToDelete,
+            title: { "حذف الزبون «\($0.name)»؟" },
+            message: { cust in
+                let count = store.sales.filter { $0.customerId == cust.id }.count
+                return count > 0
+                    ? "لهذا الزبون \(count) عملية شراء. تبقى المبيعات والفواتير باسمه، لكن تُحذف بيانات الاتصال والملاحظات."
+                    : "تُحذف بيانات الاتصال والملاحظات."
+            },
+            perform: { store.deleteCustomer(id: $0.id) }
+        )
         .navigationBarTitleDisplayMode(.inline)
     }
 }
 
 struct SetsManagementView: View {
     @EnvironmentObject var store: POSDataStore
+    @State private var setToDelete: JewelrySet? = nil
     @State private var setName: String = ""
     @State private var setDesc: String = ""
     @State private var setDiscount: String = "100"
@@ -556,7 +569,7 @@ struct SetsManagementView: View {
                                 .font(.system(size: 11.5, weight: .bold))
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                             Button(role: .destructive) {
-                                store.deleteSet(id: jset.id)
+                                setToDelete = jset
                             } label: {
                                 Image(systemName: "trash")
                                     .font(.system(size: 12))
@@ -576,6 +589,12 @@ struct SetsManagementView: View {
         }
         .background(SalfordTheme.bgPrimary)
         .navigationTitle("الأطقم الملكية")
+        .confirmDelete(
+            $setToDelete,
+            title: { "حذف طقم «\($0.name)»؟" },
+            message: { _ in "يُحذف تعريف الطقم فقط؛ القطع تبقى في المخزون." },
+            perform: { store.deleteSet(id: $0.id) }
+        )
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -673,6 +692,7 @@ struct MonthlyComparisonChartView: View {
 
 struct ExpensesAndReturnsView: View {
     @EnvironmentObject var store: POSDataStore
+    @State private var expenseToDelete: ExpenseRecord? = nil
     @State private var expDesc: String = ""
     @State private var expAmount: String = ""
 
@@ -733,7 +753,7 @@ struct ExpensesAndReturnsView: View {
                             .font(.system(size: 13, weight: .bold))
                             .foregroundColor(SalfordTheme.dangerRed)
                         Button(role: .destructive) {
-                            store.deleteExpense(id: exp.id)
+                            expenseToDelete = exp
                         } label: {
                             Image(systemName: "trash")
                                 .font(.system(size: 12))
@@ -747,6 +767,12 @@ struct ExpensesAndReturnsView: View {
         }
         .background(SalfordTheme.bgPrimary)
         .navigationTitle("المصاريف والمرتجعات")
+        .confirmDelete(
+            $expenseToDelete,
+            title: { String(format: "حذف مصروف «%@» (%.0f د.ل)؟", $0.description, $0.amount) },
+            message: { _ in "سيتغير صافي الربح للشهر الذي سُجل فيه المصروف وأي إقفال ربع سنوي يعاد إصداره." },
+            perform: { store.deleteExpense(id: $0.id) }
+        )
         .navigationBarTitleDisplayMode(.inline)
     }
 }

@@ -8,6 +8,7 @@ struct ProductsView: View {
     @State private var showAddSheet: Bool = false
     @State private var editingProduct: Product? = nil
     @State private var previewingProduct: Product? = nil
+    @State private var productToDelete: Product? = nil
 
     var filteredProducts: [Product] {
         store.products.filter { prod in
@@ -158,7 +159,7 @@ struct ProductsView: View {
                                         Label("إصدار فاتورة هدية", systemImage: "gift.fill")
                                     }
                                     Button(role: .destructive) {
-                                        store.deleteProduct(id: prod.id)
+                                        productToDelete = prod
                                     } label: {
                                         Label("حذف القطعة", systemImage: "trash.fill")
                                     }
@@ -178,6 +179,24 @@ struct ProductsView: View {
         .background(SalfordTheme.bgPrimary)
         .searchable(text: $searchText, prompt: "ابحث باسم القطعة أو الكود...")
         .navigationTitle("إدارة المنتجات")
+        .confirmDelete(
+            $productToDelete,
+            title: { "حذف «\($0.name)»؟" },
+            message: { prod in
+                let salesCount = store.sales.filter { $0.productId == prod.id }.count
+                let setsCount = store.sets.filter { $0.items.contains { $0.productId == prod.id } }.count
+                var lines = ["المخزون الحالي: \(prod.stock) قطعة."]
+                if salesCount > 0 {
+                    lines.append("لهذه القطعة \(salesCount) عملية بيع: تبقى في السجل، لكن أي مرتجع منها لن يعود للمخزن.")
+                    lines.append("إذا نفدت القطعة فقط، اجعل الكمية 0 بدلاً من حذفها.")
+                }
+                if setsCount > 0 {
+                    lines.append("القطعة موجودة في \(setsCount) طقم.")
+                }
+                return lines.joined(separator: "\n")
+            },
+            perform: { store.deleteProduct(id: $0.id) }
+        )
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {

@@ -14,6 +14,7 @@ struct SalePOSView: View {
     @State private var saleNote: String = ""
     @State private var alertMessage: String = ""
     @State private var showAlert: Bool = false
+    @State private var confirmClearCart: Bool = false
 
     let paymentMethods = ["كاش", "بطاقة", "تحويل", "آجل"]
 
@@ -173,7 +174,7 @@ struct SalePOSView: View {
                                 .foregroundColor(SalfordTheme.silverLight)
                             Spacer()
                             Button("إفراغ السلة") {
-                                store.cart.removeAll()
+                                confirmClearCart = true
                             }
                             .font(.system(size: 11.5, weight: .bold))
                             .foregroundColor(SalfordTheme.dangerRed)
@@ -288,6 +289,12 @@ struct SalePOSView: View {
             if liveRateText.isEmpty {
                 liveRateText = NumberInput.editable(store.exchangeRate)
             }
+        }
+        .confirmationDialog("إفراغ السلة بالكامل؟", isPresented: $confirmClearCart, titleVisibility: .visible) {
+            Button("إفراغ السلة", role: .destructive) { store.cart.removeAll() }
+            Button("إلغاء", role: .cancel) {}
+        } message: {
+            Text("ستُزال كل القطع من السلة. لا يتأثر المخزون لأن السلة لم تُبع بعد.")
         }
         .alert("تنبيه", isPresented: $showAlert) {
             Button("حسناً", role: .cancel) {}

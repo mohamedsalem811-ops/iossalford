@@ -342,3 +342,29 @@ struct NativeImagePickerSheet: UIViewControllerRepresentable {
         }
     }
 }
+
+extension View {
+    /// Asks before deleting. Set `item` to show the dialog; `perform` runs only on confirm.
+    func confirmDelete<Item>(
+        _ item: Binding<Item?>,
+        title: @escaping (Item) -> String,
+        message: @escaping (Item) -> String,
+        confirmLabel: String = "حذف نهائي",
+        perform: @escaping (Item) -> Void
+    ) -> some View {
+        confirmationDialog(
+            item.wrappedValue.map(title) ?? "",
+            isPresented: Binding(get: { item.wrappedValue != nil }, set: { if !$0 { item.wrappedValue = nil } }),
+            titleVisibility: .visible,
+            presenting: item.wrappedValue
+        ) { value in
+            Button(confirmLabel, role: .destructive) {
+                perform(value)
+                item.wrappedValue = nil
+            }
+            Button("إلغاء", role: .cancel) { item.wrappedValue = nil }
+        } message: { value in
+            Text(message(value))
+        }
+    }
+}

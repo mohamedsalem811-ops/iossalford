@@ -387,8 +387,11 @@ final class POSDataStore: ObservableObject {
         saveToDisk()
     }
 
+    /// Deletes a product. Its sales and receipts keep their own copy of the name and price,
+    /// so history is not affected. It is also removed from the cart.
     func deleteProduct(id: Int) {
         products.removeAll { $0.id == id }
+        cart.removeAll { $0.product.id == id }
         saveToDisk()
     }
 
