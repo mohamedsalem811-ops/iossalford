@@ -361,7 +361,12 @@ final class POSDataStore: ObservableObject {
     // MARK: - Products CRUD
     func saveProduct(_ prod: Product) {
         if let idx = products.firstIndex(where: { $0.id == prod.id }) {
-            products[idx] = prod
+            var updated = prod
+            // An existing piece must never end up without a code (receipts and returns use it).
+            if updated.sku.trimmingCharacters(in: .whitespaces).isEmpty {
+                updated.sku = products[idx].sku.isEmpty ? generateSKU(for: updated.category) : products[idx].sku
+            }
+            products[idx] = updated
         } else {
             var newProd = prod
             newProd.id = (products.map(\.id).max() ?? 0) + 1

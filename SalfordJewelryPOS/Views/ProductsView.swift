@@ -89,7 +89,15 @@ struct ProductsView: View {
                                         .font(.system(size: 14, weight: .bold))
                                         .foregroundColor(.white)
                                         .lineLimit(1)
-                                    if prod.isLowStock {
+                                    if prod.isOutOfStock {
+                                        Text("نفد المخزون")
+                                            .font(.system(size: 9.5, weight: .bold))
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(SalfordTheme.dangerRed.opacity(0.25))
+                                            .foregroundColor(SalfordTheme.dangerRed)
+                                            .cornerRadius(5)
+                                    } else if prod.isLowStock {
                                         Text("مخزون منخفض")
                                             .font(.system(size: 9.5, weight: .bold))
                                             .padding(.horizontal, 6)
@@ -100,7 +108,7 @@ struct ProductsView: View {
                                     }
                                 }
 
-                                Text("الكود: \(prod.sku) • \(prod.category) • \(prod.color ?? "بدون لون")")
+                                Text("الكود: \(prod.sku) • \(prod.category) • \(prod.color ?? "بدون لون")" + (prod.size.map { " • المقاس: \($0)" } ?? ""))
                                     .font(.system(size: 11.5))
                                     .foregroundColor(SalfordTheme.textMuted)
 
@@ -340,6 +348,8 @@ struct ProductFormSheet: View {
     @State private var costPrice: String = ""
     @State private var sellPrice: String = ""
     @State private var stock: String = "5"
+    @State private var size: String = ""
+    @State private var lowStockAlert: String = "3"
     @State private var imageBase64: String? = nil
 
     @State private var showCameraPicker: Bool = false
@@ -544,6 +554,31 @@ struct ProductFormSheet: View {
                                 .cornerRadius(10)
                         }
 
+                        HStack(spacing: 10) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("المقاس (اختياري)")
+                                    .font(.system(size: 11.5))
+                                    .foregroundColor(SalfordTheme.textMuted)
+                                TextField("مثال: 7 أو M", text: $size)
+                                    .padding(10)
+                                    .background(SalfordTheme.bgElevated)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(10)
+                            }
+
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("تنبيه عند وصول المخزون إلى")
+                                    .font(.system(size: 11.5))
+                                    .foregroundColor(SalfordTheme.textMuted)
+                                TextField("3", text: $lowStockAlert)
+                                    .numericInput($lowStockAlert, .integer)
+                                    .padding(10)
+                                    .background(SalfordTheme.bgElevated)
+                                    .foregroundColor(.white)
+                                    .cornerRadius(10)
+                            }
+                        }
+
                         Button {
                             savePiece()
                         } label: {
@@ -586,6 +621,8 @@ struct ProductFormSheet: View {
                     costPrice = NumberInput.editable(p.costPrice)
                     sellPrice = NumberInput.editable(p.sellPrice)
                     stock = "\(p.stock)"
+                    size = p.size ?? ""
+                    lowStockAlert = "\(p.lowStockAlert)"
                     imageBase64 = p.imageBase64
                 }
             }
@@ -627,21 +664,39 @@ struct ProductFormSheet: View {
             formError = "يرجى إدخال الكمية المتوفرة في المخزن"
             return
         }
-        let rate = store.exchangeRate > 0 ? store.exchangeRate : 7.0
+        let alertLevel = NumberInput.integer(lowStockAlert) ?? 3
+
+        // The USD cost records the exchange rate on the day the piece was bought.
+        // Keep it on edit unless the cost price itself was changed.
+        let costRate: Double?
+        let costUSD: Double?
+        if let p = product, abs(p.costPrice - cost) < 0.0005 {
+            costRate = p.costRate
+            costUSD = p.costUSD
+        } else {
+            let rate = store.exchangeRate > 0 ? store.exchangeRate : 7.0
+            costRate = rate
+            costUSD = cost / rate
+        }
+
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedColor = color.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedSize = size.trimmingCharacters(in: .whitespacesAndNewlines)
+
         let newProd = Product(
             id: product?.id ?? 0,
-            sku: sku,
-            name: name.isEmpty ? "قطعة سالفورد" : name,
+            sku: sku.trimmingCharacters(in: .whitespacesAndNewlines),
+            name: trimmedName.isEmpty ? "قطعة سالفورد" : trimmedName,
             category: category,
             costPrice: cost,
             sellPrice: sell,
             stock: stk,
-            lowStockAlert: 3,
-            size: nil,
-            color: color,
+            lowStockAlert: alertLevel,
+            size: trimmedSize.isEmpty ? nil : trimmedSize,
+            color: trimmedColor.isEmpty ? nil : trimmedColor,
             imageBase64: imageBase64,
-            costRate: rate,
-            costUSD: cost / rate,
+            costRate: costRate,
+            costUSD: costUSD,
             createdAt: product?.createdAt ?? store.nowTimestamp()
         )
         store.saveProduct(newProd)
