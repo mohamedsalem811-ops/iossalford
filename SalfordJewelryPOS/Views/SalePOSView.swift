@@ -49,7 +49,7 @@ struct SalePOSView: View {
                     .onChange(of: selectedProductId) { newId in
                         quantity = 1
                         if let p = store.products.first(where: { $0.id == newId }) {
-                            unitPriceText = String(format: "%.0f", p.sellPrice)
+                            unitPriceText = NumberInput.editable(p.sellPrice)
                         }
                     }
 
@@ -77,7 +77,7 @@ struct SalePOSView: View {
                                 .font(.system(size: 11.5, weight: .semibold))
                                 .foregroundColor(SalfordTheme.textMuted)
                             TextField("السعر", text: $unitPriceText)
-                                .keyboardType(.decimalPad)
+                                .numericInput($unitPriceText, .decimal)
                                 .padding(10)
                                 .background(SalfordTheme.bgElevated)
                                 .foregroundColor(.white)
@@ -89,7 +89,7 @@ struct SalePOSView: View {
                                 .font(.system(size: 11.5, weight: .bold))
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                             TextField("7.00", text: $liveRateText)
-                                .keyboardType(.decimalPad)
+                                .numericInput($liveRateText, .decimal)
                                 .padding(10)
                                 .background(SalfordTheme.bgElevated)
                                 .foregroundColor(.white)
@@ -99,8 +99,8 @@ struct SalePOSView: View {
 
                     // Live Profit Preview Strip
                     if let prod = selectedProduct {
-                        let unitP = Double(unitPriceText) ?? prod.sellPrice
-                        let rate = Double(liveRateText) ?? store.exchangeRate
+                        let unitP = NumberInput.decimal(unitPriceText) ?? prod.sellPrice
+                        let rate = NumberInput.decimal(liveRateText) ?? store.exchangeRate
                         let totalSell = unitP * Double(quantity)
                         let profit = totalSell - (prod.costPrice * Double(quantity))
                         let profitUSD = rate > 0 ? profit / rate : 0
@@ -254,7 +254,7 @@ struct SalePOSView: View {
 
                     HStack(spacing: 10) {
                         TextField("رقم الهاتف", text: $customerPhone)
-                            .keyboardType(.phonePad)
+                            .numericInput($customerPhone, .phone)
                             .padding(10)
                             .background(SalfordTheme.bgElevated)
                             .foregroundColor(.white)
@@ -283,10 +283,10 @@ struct SalePOSView: View {
         .onAppear {
             if selectedProductId == 0, let first = store.products.first {
                 selectedProductId = first.id
-                unitPriceText = String(format: "%.0f", first.sellPrice)
+                unitPriceText = NumberInput.editable(first.sellPrice)
             }
             if liveRateText.isEmpty {
-                liveRateText = String(format: "%.2f", store.exchangeRate)
+                liveRateText = NumberInput.editable(store.exchangeRate)
             }
         }
         .alert("تنبيه", isPresented: $showAlert) {
@@ -313,7 +313,7 @@ struct SalePOSView: View {
 
     private func addToCart() {
         guard let prod = selectedProduct else { return }
-        let unitP = Double(unitPriceText) ?? prod.sellPrice
+        let unitP = NumberInput.decimal(unitPriceText) ?? prod.sellPrice
         if let problem = store.addToCart(product: prod, quantity: quantity, unitPrice: unitP) {
             showProblems([problem], title: "لم تتم الإضافة للسلة:")
             return
@@ -324,13 +324,13 @@ struct SalePOSView: View {
 
     private func completeDirectSale() {
         guard let prod = selectedProduct else { return }
-        guard let rate = Double(liveRateText), rate > 0 else {
+        guard let rate = NumberInput.decimal(liveRateText), rate > 0 else {
             alertMessage = "يرجى إدخال سعر الصرف الحالي للدولار"
             showAlert = true
             return
         }
         store.exchangeRate = rate
-        let unitP = Double(unitPriceText) ?? prod.sellPrice
+        let unitP = NumberInput.decimal(unitPriceText) ?? prod.sellPrice
         if let problem = store.recordSingleSale(
             product: prod,
             quantity: quantity,
@@ -350,7 +350,7 @@ struct SalePOSView: View {
     }
 
     private func checkoutUnifiedCart() {
-        guard let rate = Double(liveRateText), rate > 0 else {
+        guard let rate = NumberInput.decimal(liveRateText), rate > 0 else {
             alertMessage = "يرجى إدخال سعر الصرف الحالي للدولار"
             showAlert = true
             return

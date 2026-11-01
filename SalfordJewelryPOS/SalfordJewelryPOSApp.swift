@@ -88,7 +88,7 @@ struct SalfordJewelryPOSApp: App {
                 }
             }
             .environment(\.layoutDirection, .rightToLeft)
-            .environment(\.locale, Locale(identifier: "ar_LY"))
+            .environment(\.locale, Locale(identifier: "ar_LY@numbers=latn"))
             .preferredColorScheme(.dark)
             .alert(
                 "تنبيه حفظ البيانات",

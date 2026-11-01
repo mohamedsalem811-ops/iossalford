@@ -322,7 +322,7 @@ struct CustomersManagementView: View {
 
                     HStack(spacing: 10) {
                         TextField("رقم الهاتف", text: $phone)
-                            .keyboardType(.phonePad)
+                            .numericInput($phone, .phone)
                             .padding(10)
                             .background(SalfordTheme.bgElevated)
                             .foregroundColor(.white)
@@ -431,7 +431,7 @@ struct SetsManagementView: View {
                         .cornerRadius(10)
 
                     TextField("قيمة الخصم الخاص للطقم بالدينار", text: $setDiscount)
-                        .keyboardType(.decimalPad)
+                        .numericInput($setDiscount, .decimal)
                         .padding(10)
                         .background(SalfordTheme.bgElevated)
                         .foregroundColor(.white)
@@ -442,7 +442,7 @@ struct SetsManagementView: View {
                         store.addSet(
                             name: setName,
                             description: setDesc,
-                            discount: Double(setDiscount) ?? 0,
+                            discount: NumberInput.decimal(setDiscount) ?? 0,
                             items: []
                         )
                         setName = ""
@@ -606,13 +606,13 @@ struct ExpensesAndReturnsView: View {
                         .foregroundColor(.white)
                         .cornerRadius(10)
                     TextField("القيمة بالدينار الليبي", text: $expAmount)
-                        .keyboardType(.decimalPad)
+                        .numericInput($expAmount, .decimal)
                         .padding(10)
                         .background(SalfordTheme.bgElevated)
                         .foregroundColor(.white)
                         .cornerRadius(10)
                     Button {
-                        if let amt = Double(expAmount), amt > 0, !expDesc.isEmpty {
+                        if let amt = NumberInput.decimal(expAmount), amt > 0, !expDesc.isEmpty {
                             store.addExpense(description: expDesc, amount: amt, monthYear: store.currentMonthYear())
                             expDesc = ""
                             expAmount = ""
@@ -786,7 +786,7 @@ struct ReturnEntryCard: View {
                     .font(.system(size: 11.5, weight: .semibold))
                     .foregroundColor(SalfordTheme.textMuted)
                 TextField("0", text: $refundText)
-                    .keyboardType(.decimalPad)
+                    .numericInput($refundText, .decimal)
                     .padding(10)
                     .background(SalfordTheme.bgElevated)
                     .foregroundColor(.white)
@@ -829,13 +829,13 @@ struct ReturnEntryCard: View {
         switch mode {
         case .fromSale:
             if let sale = selectedSale {
-                refundText = String(format: "%.0f", sale.actualPrice * Double(quantity))
+                refundText = NumberInput.editable(sale.actualPrice * Double(quantity))
             } else {
                 refundText = ""
             }
         case .withoutSale:
             if let prod = selectedProduct {
-                refundText = String(format: "%.0f", prod.sellPrice * Double(quantity))
+                refundText = NumberInput.editable(prod.sellPrice * Double(quantity))
             } else {
                 refundText = ""
             }
@@ -850,7 +850,7 @@ struct ReturnEntryCard: View {
     }
 
     private func submit() {
-        guard let refund = Double(refundText) else {
+        guard let refund = NumberInput.decimal(refundText) else {
             show("يرجى إدخال المبلغ المسترد", error: true)
             return
         }
@@ -1150,13 +1150,13 @@ struct SettingsAndBackupView: View {
 
                     HStack {
                         TextField("سعر الصرف بالدينار", text: $rateText)
-                            .keyboardType(.decimalPad)
+                            .numericInput($rateText, .decimal)
                             .padding(10)
                             .background(SalfordTheme.bgElevated)
                             .foregroundColor(.white)
                             .cornerRadius(10)
                         Button("حفظ السعر") {
-                            if let r = Double(rateText), r > 0 {
+                            if let r = NumberInput.decimal(rateText), r > 0 {
                                 store.exchangeRate = r
                                 store.saveToDisk()
                                 statusMsg = "تم تحديث سعر الصرف بنجاح"
@@ -1251,7 +1251,7 @@ struct SettingsAndBackupView: View {
         .navigationTitle("الإعدادات والنسخ الاحتياطي")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            rateText = String(format: "%.2f", store.exchangeRate)
+            rateText = NumberInput.editable(store.exchangeRate)
             backupURL = store.exportBackupJSON()
         }
         .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.json]) { result in

@@ -344,6 +344,7 @@ struct ProductFormSheet: View {
 
     @State private var showCameraPicker: Bool = false
     @State private var showLibraryPicker: Bool = false
+    @State private var formError: String? = nil
 
     var body: some View {
         NavigationStack {
@@ -511,7 +512,7 @@ struct ProductFormSheet: View {
                                     .font(.system(size: 11.5))
                                     .foregroundColor(SalfordTheme.textMuted)
                                 TextField("0", text: $costPrice)
-                                    .keyboardType(.decimalPad)
+                                    .numericInput($costPrice, .decimal)
                                     .padding(10)
                                     .background(SalfordTheme.bgElevated)
                                     .foregroundColor(.white)
@@ -523,7 +524,7 @@ struct ProductFormSheet: View {
                                     .font(.system(size: 11.5))
                                     .foregroundColor(SalfordTheme.emeraldSuccess)
                                 TextField("0", text: $sellPrice)
-                                    .keyboardType(.decimalPad)
+                                    .numericInput($sellPrice, .decimal)
                                     .padding(10)
                                     .background(SalfordTheme.bgElevated)
                                     .foregroundColor(.white)
@@ -536,7 +537,7 @@ struct ProductFormSheet: View {
                                 .font(.system(size: 11.5))
                                 .foregroundColor(SalfordTheme.textMuted)
                             TextField("5", text: $stock)
-                                .keyboardType(.numberPad)
+                                .numericInput($stock, .integer)
                                 .padding(10)
                                 .background(SalfordTheme.bgElevated)
                                 .foregroundColor(.white)
@@ -582,11 +583,16 @@ struct ProductFormSheet: View {
                     sku = p.sku
                     category = p.category
                     color = p.color ?? ""
-                    costPrice = String(format: "%.0f", p.costPrice)
-                    sellPrice = String(format: "%.0f", p.sellPrice)
+                    costPrice = NumberInput.editable(p.costPrice)
+                    sellPrice = NumberInput.editable(p.sellPrice)
                     stock = "\(p.stock)"
                     imageBase64 = p.imageBase64
                 }
+            }
+            .alert("لم يتم الحفظ", isPresented: Binding(get: { formError != nil }, set: { if !$0 { formError = nil } })) {
+                Button("حسناً", role: .cancel) {}
+            } message: {
+                Text(formError ?? "")
             }
             .sheet(isPresented: $showCameraPicker) {
                 NativeImagePickerSheet(sourceType: .camera) { pickedImage in
@@ -608,9 +614,19 @@ struct ProductFormSheet: View {
     }
 
     private func savePiece() {
-        let cost = Double(costPrice) ?? 0
-        let sell = Double(sellPrice) ?? 0
-        let stk = Int(stock) ?? 1
+        // Never save a price that was left empty or mistyped as 0.
+        guard let sell = NumberInput.decimal(sellPrice), sell > 0 else {
+            formError = "يرجى إدخال سعر البيع (أرقام 0-9 فقط)"
+            return
+        }
+        guard let cost = NumberInput.decimal(costPrice) else {
+            formError = "يرجى إدخال سعر التكلفة (أرقام 0-9 فقط). أدخل 0 إذا كانت التكلفة غير معروفة."
+            return
+        }
+        guard let stk = NumberInput.integer(stock) else {
+            formError = "يرجى إدخال الكمية المتوفرة في المخزن"
+            return
+        }
         let rate = store.exchangeRate > 0 ? store.exchangeRate : 7.0
         let newProd = Product(
             id: product?.id ?? 0,
