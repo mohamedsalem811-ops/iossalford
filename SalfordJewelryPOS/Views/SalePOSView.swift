@@ -56,7 +56,7 @@ struct SalePOSView: View {
 
                     if let prod = selectedProduct {
                         HStack(spacing: 12) {
-                            SalfordProductThumbnailView(imageBase64: prod.imageBase64, size: 60, cornerRadius: 12)
+                            SalfordProductThumbnailView(image: ProductImageHelper.image(for: prod), size: 60, cornerRadius: 12)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("الكود: \(prod.sku)")
                                     .font(.system(size: 11.5, weight: .semibold))

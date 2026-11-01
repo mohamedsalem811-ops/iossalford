@@ -11,10 +11,17 @@ struct Product: Identifiable, Codable, Equatable {
     var lowStockAlert: Int
     var size: String?
     var color: String?
+    /// Legacy / backups only: older versions kept the photo inside the database as Base64.
+    /// It is moved into its own file on load (see `imageFile`) and only filled again inside backups.
     var imageBase64: String?
     var costRate: Double?
     var costUSD: Double?
     var createdAt: String
+
+    /// File name of the product photo in Documents/ProductImages.
+    var imageFile: String? = nil
+
+    var hasImage: Bool { imageFile != nil || !(imageBase64 ?? "").isEmpty }
 
     var isLowStock: Bool { stock <= lowStockAlert && stock > 0 }
     var isOutOfStock: Bool { stock <= 0 }

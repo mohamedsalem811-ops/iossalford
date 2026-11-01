@@ -86,6 +86,9 @@ struct SalfordJewelryPOSApp: App {
                 if phase == .background {
                     store.lock()
                 }
+                if phase == .active {
+                    store.retryDeferredLoadIfNeeded()
+                }
             }
             .environment(\.layoutDirection, .rightToLeft)
             .environment(\.locale, Locale(identifier: "ar_LY@numbers=latn"))

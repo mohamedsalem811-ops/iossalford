@@ -227,8 +227,8 @@ enum ProductImageHelper {
         return UIImage(data: data)
     }
 
-    /// Resizes UIImage to maxDimension (720px) and encodes as compressed JPEG Base64 string
-    static func encodeToBase64(_ image: UIImage, maxDimension: CGFloat = 720, quality: CGFloat = 0.78) -> String? {
+    /// Resizes to maxDimension (720px) and compresses as JPEG.
+    static func jpegData(_ image: UIImage, maxDimension: CGFloat = 720, quality: CGFloat = 0.78) -> Data? {
         let size = image.size
         guard size.width > 0 && size.height > 0 else { return nil }
         let ratio = min(maxDimension / size.width, maxDimension / size.height, 1.0)
@@ -240,21 +240,78 @@ enum ProductImageHelper {
         let resized = renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: targetSize))
         }
-        guard let jpegData = resized.jpegData(compressionQuality: quality) else { return nil }
-        return jpegData.base64EncodedString()
+        return resized.jpegData(compressionQuality: quality)
+    }
+
+    // MARK: Photo files (Documents/ProductImages)
+
+    private static let cache = NSCache<NSString, UIImage>()
+
+    static var folderURL: URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return docs.appendingPathComponent("ProductImages", isDirectory: true)
+    }
+
+    static func fileURL(_ name: String) -> URL {
+        folderURL.appendingPathComponent(name)
+    }
+
+    /// Writes photo data to a new encrypted file and returns its name.
+    static func storeImageData(_ data: Data) -> String? {
+        do {
+            try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
+            let name = UUID().uuidString + ".jpg"
+            try data.write(to: fileURL(name), options: [.atomic, .completeFileProtection])
+            return name
+        } catch {
+            return nil
+        }
+    }
+
+    /// Resizes, compresses and stores a picked photo. Returns the new file name.
+    static func storeImage(_ image: UIImage) -> String? {
+        guard let data = jpegData(image) else { return nil }
+        return storeImageData(data)
+    }
+
+    static func image(named name: String?) -> UIImage? {
+        guard let name, !name.isEmpty else { return nil }
+        if let cached = cache.object(forKey: name as NSString) { return cached }
+        guard let data = try? Data(contentsOf: fileURL(name)), let img = UIImage(data: data) else { return nil }
+        cache.setObject(img, forKey: name as NSString)
+        return img
+    }
+
+    /// The product's photo, from its file (or from legacy Base64 data if not migrated yet).
+    static func image(for product: Product) -> UIImage? {
+        image(named: product.imageFile) ?? image(from: product.imageBase64)
+    }
+
+    static func deleteImage(named name: String?) {
+        guard let name, !name.isEmpty else { return }
+        cache.removeObject(forKey: name as NSString)
+        try? FileManager.default.removeItem(at: fileURL(name))
+    }
+
+    /// Removes photo files that no product refers to any more (e.g. a photo picked and then cancelled).
+    static func removeUnusedImages(keeping used: Set<String>) {
+        guard let files = try? FileManager.default.contentsOfDirectory(atPath: folderURL.path) else { return }
+        for f in files where !used.contains(f) {
+            deleteImage(named: f)
+        }
     }
 }
 
 /// Reusable Thumbnail View that clearly displays a Product's captured/uploaded photo or a luxury fallback icon
 struct SalfordProductThumbnailView: View {
-    let imageBase64: String?
+    let image: UIImage?
     var size: CGFloat = 72
     var cornerRadius: CGFloat = 14
     var showZoomBadge: Bool = false
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            if let uiImg = ProductImageHelper.image(from: imageBase64) {
+            if let uiImg = image {
                 Image(uiImage: uiImg)
                     .resizable()
                     .scaledToFill()

@@ -69,17 +69,17 @@ struct ProductsView: View {
                         HStack(spacing: 12) {
                             // Tappable 74x74 Clear Product Photo Thumbnail
                             Button {
-                                if prod.imageBase64 != nil {
+                                if prod.hasImage {
                                     previewingProduct = prod
                                 } else {
                                     editingProduct = prod
                                 }
                             } label: {
                                 SalfordProductThumbnailView(
-                                    imageBase64: prod.imageBase64,
+                                    image: ProductImageHelper.image(for: prod),
                                     size: 74,
                                     cornerRadius: 14,
-                                    showZoomBadge: prod.imageBase64 != nil
+                                    showZoomBadge: prod.hasImage
                                 )
                             }
                             .buttonStyle(.plain)
@@ -144,7 +144,7 @@ struct ProductsView: View {
                                     } label: {
                                         Label("تعديل بيانات وصورة القطعة", systemImage: "camera.fill")
                                     }
-                                    if prod.imageBase64 != nil {
+                                    if prod.hasImage {
                                         Button {
                                             previewingProduct = prod
                                         } label: {
@@ -244,7 +244,7 @@ struct ProductPhotoLightboxSheet: View {
                 SalfordTheme.bgPrimary.ignoresSafeArea()
 
                 VStack(spacing: 16) {
-                    if let uiImg = ProductImageHelper.image(from: product.imageBase64) {
+                    if let uiImg = ProductImageHelper.image(for: product) {
                         Image(uiImage: uiImg)
                             .resizable()
                             .scaledToFit()
@@ -367,7 +367,10 @@ struct ProductFormSheet: View {
     @State private var stock: String = "5"
     @State private var size: String = ""
     @State private var lowStockAlert: String = "3"
-    @State private var imageBase64: String? = nil
+    /// Photo file chosen in this form (nil = no photo).
+    @State private var imageFile: String? = nil
+    /// Legacy Base64 photo of a product that was not migrated to a file yet.
+    @State private var legacyImageBase64: String? = nil
 
     @State private var showCameraPicker: Bool = false
     @State private var showLibraryPicker: Bool = false
@@ -386,9 +389,10 @@ struct ProductFormSheet: View {
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverLight)
                             Spacer()
-                            if imageBase64 != nil {
+                            if imageFile != nil || legacyImageBase64 != nil {
                                 Button(role: .destructive) {
-                                    imageBase64 = nil
+                                    imageFile = nil
+                                    legacyImageBase64 = nil
                                 } label: {
                                     Label("حذف الصورة", systemImage: "trash")
                                         .font(.system(size: 11.5, weight: .bold))
@@ -399,7 +403,7 @@ struct ProductFormSheet: View {
 
                         // Large Clear Preview Box
                         ZStack {
-                            if let uiImg = ProductImageHelper.image(from: imageBase64) {
+                            if let uiImg = ProductImageHelper.image(named: imageFile) ?? ProductImageHelper.image(from: legacyImageBase64) {
                                 Image(uiImage: uiImg)
                                     .resizable()
                                     .scaledToFill()
@@ -640,7 +644,8 @@ struct ProductFormSheet: View {
                     stock = "\(p.stock)"
                     size = p.size ?? ""
                     lowStockAlert = "\(p.lowStockAlert)"
-                    imageBase64 = p.imageBase64
+                    imageFile = p.imageFile
+                    legacyImageBase64 = p.imageBase64
                 }
             }
             .alert("لم يتم الحفظ", isPresented: Binding(get: { formError != nil }, set: { if !$0 { formError = nil } })) {
@@ -650,16 +655,18 @@ struct ProductFormSheet: View {
             }
             .sheet(isPresented: $showCameraPicker) {
                 NativeImagePickerSheet(sourceType: .camera) { pickedImage in
-                    if let encoded = ProductImageHelper.encodeToBase64(pickedImage) {
-                        imageBase64 = encoded
+                    if let file = ProductImageHelper.storeImage(pickedImage) {
+                        imageFile = file
+                        legacyImageBase64 = nil
                     }
                 }
                 .ignoresSafeArea()
             }
             .sheet(isPresented: $showLibraryPicker) {
                 NativeImagePickerSheet(sourceType: .photoLibrary) { pickedImage in
-                    if let encoded = ProductImageHelper.encodeToBase64(pickedImage) {
-                        imageBase64 = encoded
+                    if let file = ProductImageHelper.storeImage(pickedImage) {
+                        imageFile = file
+                        legacyImageBase64 = nil
                     }
                 }
                 .ignoresSafeArea()
@@ -711,10 +718,11 @@ struct ProductFormSheet: View {
             lowStockAlert: alertLevel,
             size: trimmedSize.isEmpty ? nil : trimmedSize,
             color: trimmedColor.isEmpty ? nil : trimmedColor,
-            imageBase64: imageBase64,
+            imageBase64: legacyImageBase64,
             costRate: costRate,
             costUSD: costUSD,
-            createdAt: product?.createdAt ?? store.nowTimestamp()
+            createdAt: product?.createdAt ?? store.nowTimestamp(),
+            imageFile: imageFile
         )
         if let error = store.saveProduct(newProd) {
             formError = error

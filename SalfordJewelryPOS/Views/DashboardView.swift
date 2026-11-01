@@ -22,8 +22,19 @@ struct DashboardView: View {
         store.expenses.filter { $0.monthYear == activeMonth }
     }
 
+    private var stockAlertText: String {
+        let out = lowStockProducts.filter(\.isOutOfStock).count
+        let low = lowStockProducts.count - out
+        var parts: [String] = []
+        if out > 0 { parts.append("\(out) نفدت") }
+        if low > 0 { parts.append("\(low) قاربت على النفاد") }
+        return "تنبيه المخزون: " + parts.joined(separator: " • ")
+    }
+
     private var lowStockProducts: [Product] {
-        store.products.filter { $0.isLowStock }
+        // Out-of-stock pieces matter most, so they are included (and listed first).
+        store.products.filter { $0.isLowStock || $0.isOutOfStock }
+            .sorted { ($0.isOutOfStock ? 0 : 1, $0.stock) < ($1.isOutOfStock ? 0 : 1, $1.stock) }
     }
 
     var body: some View {
@@ -49,7 +60,7 @@ struct DashboardView: View {
                         HStack(spacing: 10) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(SalfordTheme.warningAmber)
-                            Text("تنبيه المخزون: \(lowStockProducts.count) أصناف قاربت على النفاد")
+                            Text(stockAlertText)
                                 .font(.system(size: 12.5, weight: .bold))
                                 .foregroundColor(.white)
                             Spacer()

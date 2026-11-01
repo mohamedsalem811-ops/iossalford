@@ -41,6 +41,11 @@ final class POSDataStore: ObservableObject {
     /// so the original file is never overwritten.
     private var savingBlocked = false
 
+    /// True when the database could not be opened because the phone was still locked
+    /// (iOS can start the app in the background before the first unlock). Loading is retried
+    /// as soon as the app becomes active; nothing is saved meanwhile.
+    private var loadDeferredUntilUnlock = false
+
     private static let log = Logger(subsystem: "com.salfordjewelry.pos", category: "storage")
 
     private var documentsURL: URL {
@@ -144,6 +149,30 @@ final class POSDataStore: ObservableObject {
         return try JSONDecoder().decode(POSDatabaseState.self, from: data)
     }
 
+    /// Encrypts a file with iOS "complete" data protection: unreadable while the phone is locked.
+    private func protect(_ url: URL) {
+        try? FileManager.default.setAttributes([.protectionKey: FileProtectionType.complete], ofItemAtPath: url.path)
+    }
+
+    /// Moves photos stored inside the database (Base64, older versions and backups) into their own
+    /// files, so the database stays small and fast to save. Returns true if anything was moved.
+    @discardableResult
+    private func migrateLegacyImages() -> Bool {
+        var changed = false
+        for i in products.indices {
+            guard let b64 = products[i].imageBase64, !b64.isEmpty else { continue }
+            let raw = b64.firstIndex(of: ",").map { String(b64[b64.index(after: $0)...]) } ?? b64
+            if let data = Data(base64Encoded: raw, options: .ignoreUnknownCharacters),
+               let file = ProductImageHelper.storeImageData(data) {
+                products[i].imageFile = file
+                products[i].imageBase64 = nil
+                changed = true
+            }
+            // If the photo can't be written it simply stays in the database, as before.
+        }
+        return changed
+    }
+
     private func apply(_ state: POSDatabaseState) {
         // Older databases carried the PIN in plain text: move it into the Keychain once.
         // If a PIN is already configured this is a no-op, so importing a backup never changes the PIN.
@@ -159,6 +188,30 @@ final class POSDataStore: ObservableObject {
         self.receipts = state.receipts
         // Never hand out a number that already exists, even if the counter was lost.
         self.receiptCounter = max(state.receiptCounter, state.receipts.count)
+        imagesNeedSaving = migrateLegacyImages() || imagesNeedSaving
+    }
+
+    private var imagesNeedSaving = false
+
+    /// Called when the app becomes active: finishes a load that had to wait for the phone to unlock.
+    func retryDeferredLoadIfNeeded() {
+        guard loadDeferredUntilUnlock else { return }
+        loadDeferredUntilUnlock = false
+        savingBlocked = false
+        loadFromDisk()
+    }
+
+    /// True when the file exists but iOS refuses to open it because the phone is locked.
+    private func isLockedByDataProtection(_ url: URL) -> Bool {
+        do {
+            let handle = try FileHandle(forReadingFrom: url)
+            try? handle.close()
+            return false
+        } catch let error as CocoaError where error.code == .fileReadNoPermission {
+            return true
+        } catch {
+            return false
+        }
     }
 
     /// Loads the database. Demo data is only created on a true first launch (no database file at all).
@@ -179,14 +232,26 @@ final class POSDataStore: ObservableObject {
             return
         }
 
+        if isLockedByDataProtection(dbFileURL) {
+            // Not damaged — just encrypted while the phone is locked. Wait; never treat it as corrupt.
+            loadDeferredUntilUnlock = true
+            savingBlocked = true
+            Self.log.info("Database locked by data protection; will load after unlock")
+            return
+        }
+
         do {
+            imagesNeedSaving = false
             let state = try decodeState(from: dbFileURL)
             apply(state)
-            if state.pin != nil {
-                // Rewrite immediately so the plain-text PIN disappears from the file.
+            if state.pin != nil || imagesNeedSaving {
+                // Rewrite immediately so the plain-text PIN / embedded photos leave the file.
                 saveToDisk()
+                imagesNeedSaving = false
             }
             refreshLastGoodCopy()
+            // Delete photo files left behind by cancelled edits or deleted products.
+            ProductImageHelper.removeUnusedImages(keeping: Set(products.compactMap(\.imageFile)))
         } catch {
             Self.log.error("Failed to load database: \(error.localizedDescription, privacy: .public)")
             guard let recoveryName = preserveUnreadableDatabase() else {
@@ -229,7 +294,9 @@ final class POSDataStore: ObservableObject {
         let name = "unreadable-db-\(df.string(from: Date())).json"
         do {
             try fm.createDirectory(at: recoveryFolderURL, withIntermediateDirectories: true)
-            try fm.copyItem(at: dbFileURL, to: recoveryFolderURL.appendingPathComponent(name))
+            let dest = recoveryFolderURL.appendingPathComponent(name)
+            try fm.copyItem(at: dbFileURL, to: dest)
+            protect(dest)
             return name
         } catch {
             Self.log.error("Failed to preserve unreadable database: \(error.localizedDescription, privacy: .public)")
@@ -244,6 +311,7 @@ final class POSDataStore: ObservableObject {
                 try fm.removeItem(at: lastGoodFileURL)
             }
             try fm.copyItem(at: dbFileURL, to: lastGoodFileURL)
+            protect(lastGoodFileURL)
         } catch {
             Self.log.error("Failed to refresh last good copy: \(error.localizedDescription, privacy: .public)")
         }
@@ -251,6 +319,7 @@ final class POSDataStore: ObservableObject {
 
     @discardableResult
     func saveToDisk() -> Bool {
+        guard !loadDeferredUntilUnlock else { return false }
         guard !savingBlocked else {
             storageAlertMessage = "الحفظ متوقف لحماية قاعدة البيانات الأصلية. أعد تشغيل التطبيق بعد تحرير مساحة على الجهاز."
             return false
@@ -270,7 +339,7 @@ final class POSDataStore: ObservableObject {
         )
         do {
             let data = try JSONEncoder().encode(state)
-            try data.write(to: dbFileURL, options: .atomic)
+            try data.write(to: dbFileURL, options: [.atomic, .completeFileProtection])
             return true
         } catch {
             Self.log.error("Failed to save database: \(error.localizedDescription, privacy: .public)")
@@ -279,7 +348,8 @@ final class POSDataStore: ObservableObject {
         }
     }
 
-    /// Saves, then writes a dated copy of the database to a temporary file for sharing.
+    /// Saves, then writes a dated, self-contained backup to a temporary file for sharing:
+    /// the database with every product photo embedded, so restoring it brings the photos back.
     /// The live database file itself is never handed to the share sheet.
     func exportBackupJSON() -> URL? {
         guard saveToDisk() else { return nil }
@@ -288,11 +358,31 @@ final class POSDataStore: ObservableObject {
         df.dateFormat = "yyyy-MM-dd_HHmm"
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("SALFORD_Jewelry_Backup_\(df.string(from: Date())).json")
-        do {
-            if FileManager.default.fileExists(atPath: url.path) {
-                try FileManager.default.removeItem(at: url)
+
+        var backupProducts = products
+        for i in backupProducts.indices {
+            if let file = backupProducts[i].imageFile,
+               let data = try? Data(contentsOf: ProductImageHelper.fileURL(file)) {
+                backupProducts[i].imageBase64 = data.base64EncodedString()
             }
-            try FileManager.default.copyItem(at: dbFileURL, to: url)
+            backupProducts[i].imageFile = nil
+        }
+        let state = POSDatabaseState(
+            pin: nil,
+            exchangeRate: exchangeRate,
+            products: backupProducts,
+            customers: customers,
+            sets: sets,
+            sales: sales,
+            returns: returns,
+            expenses: expenses,
+            closings: closings,
+            receipts: receipts,
+            receiptCounter: receiptCounter
+        )
+        do {
+            let data = try JSONEncoder().encode(state)
+            try data.write(to: url, options: .atomic)
             return url
         } catch {
             Self.log.error("Failed to prepare backup: \(error.localizedDescription, privacy: .public)")
@@ -399,7 +489,11 @@ final class POSDataStore: ObservableObject {
             if updated.sku.isEmpty {
                 updated.sku = products[idx].sku.isEmpty ? generateSKU(for: updated.category) : products[idx].sku
             }
+            let oldPhoto = products[idx].imageFile
             products[idx] = updated
+            if oldPhoto != updated.imageFile {
+                ProductImageHelper.deleteImage(named: oldPhoto) // photo was replaced or removed
+            }
         } else {
             var newProd = prod
             newProd.sku = typedSku
@@ -416,7 +510,9 @@ final class POSDataStore: ObservableObject {
     /// Deletes a product. Its sales and receipts keep their own copy of the name and price,
     /// so history is not affected. It is also removed from the cart.
     func deleteProduct(id: Int) {
+        let photo = products.first { $0.id == id }?.imageFile
         products.removeAll { $0.id == id }
+        ProductImageHelper.deleteImage(named: photo)
         cart.removeAll { $0.product.id == id }
         saveToDisk()
     }
