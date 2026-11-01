@@ -10,55 +10,13 @@ struct SalfordJewelryPOSApp: App {
         Self.configureNativeBarsAppearance()
     }
 
-    /// Configures 100% Native iOS Top Navigation Bar & Bottom Tab Bar with SALFORD Royal Navy (#122452 -> #0B1530)
+    /// The navigation bar and tab bar are left to iOS so they get the system look
+    /// (the new "Liquid Glass" bars on iOS 26) in both Light and Dark mode.
+    /// The SALFORD gold is applied as the app tint.
     static func configureNativeBarsAppearance() {
-        let royalNavy = UIColor(red: 18/255.0, green: 36/255.0, blue: 82/255.0, alpha: 1.0)
-        let deepNavy  = UIColor(red: 11/255.0, green: 21/255.0, blue: 48/255.0, alpha: 1.0)
-        let crystal   = UIColor(red: 200/255.0, green: 216/255.0, blue: 240/255.0, alpha: 1.0)
-        let goldLight = UIColor(red: 212/255.0, green: 175/255.0, blue: 122/255.0, alpha: 1.0)
-        let muted     = UIColor(red: 140/255.0, green: 158/255.0, blue: 192/255.0, alpha: 1.0)
-
-        let navAppearance = UINavigationBarAppearance()
-        navAppearance.configureWithOpaqueBackground()
-        navAppearance.backgroundColor = royalNavy
-        navAppearance.shadowColor = crystal.withAlphaComponent(0.18)
-        navAppearance.titleTextAttributes = [
-            .foregroundColor: crystal,
-            .font: UIFont.systemFont(ofSize: 18, weight: .bold)
-        ]
-        navAppearance.largeTitleTextAttributes = [
-            .foregroundColor: crystal,
-            .font: UIFont.systemFont(ofSize: 26, weight: .heavy)
-        ]
-
-        UINavigationBar.appearance().standardAppearance = navAppearance
-        UINavigationBar.appearance().scrollEdgeAppearance = navAppearance
-        UINavigationBar.appearance().compactAppearance = navAppearance
-        UINavigationBar.appearance().tintColor = goldLight
-
-        let tabAppearance = UITabBarAppearance()
-        tabAppearance.configureWithOpaqueBackground()
-        tabAppearance.backgroundColor = deepNavy
-        tabAppearance.shadowColor = crystal.withAlphaComponent(0.2)
-
-        let itemAppearance = UITabBarItemAppearance()
-        itemAppearance.normal.iconColor = muted
-        itemAppearance.normal.titleTextAttributes = [.foregroundColor: muted]
-        itemAppearance.selected.iconColor = goldLight
-        itemAppearance.selected.titleTextAttributes = [.foregroundColor: goldLight]
-
-        tabAppearance.stackedLayoutAppearance = itemAppearance
-        tabAppearance.inlineLayoutAppearance = itemAppearance
-        tabAppearance.compactInlineLayoutAppearance = itemAppearance
-
-        UITabBar.appearance().standardAppearance = tabAppearance
-        UITabBar.appearance().scrollEdgeAppearance = tabAppearance
-        UITabBar.appearance().tintColor = goldLight
-
         // Right-to-left only for the bars and controls the app itself draws. The app's screens get
         // RTL from the SwiftUI environment below; system screens (share sheet, camera, print,
         // Face ID) keep the phone's own direction instead of being flipped.
-        // Normal iOS scroll bounce is kept (it used to be switched off for every scroll view).
         UINavigationBar.appearance().semanticContentAttribute = .forceRightToLeft
         UITabBar.appearance().semanticContentAttribute = .forceRightToLeft
         UISegmentedControl.appearance().semanticContentAttribute = .forceRightToLeft
@@ -97,7 +55,7 @@ struct SalfordJewelryPOSApp: App {
             }
             .environment(\.layoutDirection, .rightToLeft)
             .environment(\.locale, Locale(identifier: "ar_LY@numbers=latn"))
-            .preferredColorScheme(.dark)
+            .tint(SalfordTheme.gold)
             .alert(
                 "تنبيه حفظ البيانات",
                 isPresented: Binding(

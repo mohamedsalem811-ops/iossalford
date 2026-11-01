@@ -18,7 +18,7 @@ struct SettingsAndBackupView: View {
             VStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("سعر صرف الدولار ورمز الدخول")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.silverLight)
 
                     HStack {
@@ -26,7 +26,7 @@ struct SettingsAndBackupView: View {
                             .numericInput($rateText, .decimal)
                             .padding(10)
                             .background(SalfordTheme.bgElevated)
-                            .foregroundColor(.white)
+                            .foregroundColor(SalfordTheme.textPrimary)
                             .cornerRadius(10)
                         Button("حفظ السعر") {
                             if let r = NumberInput.decimal(rateText), r > 0 {
@@ -35,22 +35,22 @@ struct SettingsAndBackupView: View {
                                 statusMsg = "تم تحديث سعر الصرف بنجاح"
                             }
                         }
-                        .font(.system(size: 12.5, weight: .bold))
+                        .font(.system(.footnote, weight: .bold))
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
                         .background(SalfordTheme.emeraldSuccess)
-                        .foregroundColor(.black)
+                        .foregroundColor(SalfordTheme.onColored)
                         .cornerRadius(10)
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text("تغيير رمز الدخول")
-                            .font(.system(size: 12.5, weight: .bold))
+                            .font(.system(.footnote, weight: .bold))
                             .foregroundColor(SalfordTheme.silverLight)
 
                         if store.isUsingDefaultPin {
                             Label("أنت تستخدم الرمز الافتراضي — غيّره الآن لحماية بيانات المحل", systemImage: "exclamationmark.triangle.fill")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(.footnote, weight: .bold))
                                 .foregroundColor(SalfordTheme.warningAmber)
                         }
 
@@ -61,16 +61,16 @@ struct SettingsAndBackupView: View {
                         Button("تحديث الرمز") {
                             updatePin()
                         }
-                        .font(.system(size: 12.5, weight: .bold))
+                        .font(.system(.footnote, weight: .bold))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background(SalfordTheme.silverGradient)
-                        .foregroundColor(SalfordTheme.bgPrimary)
+                        .foregroundColor(SalfordTheme.onPrimary)
                         .cornerRadius(10)
 
                         if !pinStatusMsg.isEmpty {
                             Text(pinStatusMsg)
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(.footnote, weight: .bold))
                                 .foregroundColor(pinStatusIsError ? SalfordTheme.dangerRed : SalfordTheme.emeraldSuccess)
                         }
                     }
@@ -79,22 +79,22 @@ struct SettingsAndBackupView: View {
 
                 VStack(alignment: .leading, spacing: 10) {
                     Text("النسخ الاحتياطي واستعادة قاعدة البيانات")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.silverLight)
 
                     if let backupURL {
                         ShareLink(item: backupURL, preview: SharePreview(backupURL.lastPathComponent)) {
                             Label("تصدير نسخة احتياطية كاملة إلى الملفات", systemImage: "externaldrive.fill.badge.checkmark")
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(.subheadline, weight: .bold))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
                                 .background(SalfordTheme.royalNavyMid)
-                                .foregroundColor(.white)
+                                .foregroundColor(SalfordTheme.textPrimary)
                                 .cornerRadius(11)
                         }
                     } else {
                         Text("تعذر تجهيز ملف النسخة الاحتياطية — تحقق من مساحة التخزين")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(.footnote, weight: .bold))
                             .foregroundColor(SalfordTheme.dangerRed)
                     }
 
@@ -102,7 +102,7 @@ struct SettingsAndBackupView: View {
                         showFileImporter = true
                     } label: {
                         Label("استيراد نسخة احتياطية محفوظة", systemImage: "square.and.arrow.down.fill")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(SalfordTheme.bgElevated)
@@ -112,7 +112,7 @@ struct SettingsAndBackupView: View {
 
                     if !statusMsg.isEmpty {
                         Text(statusMsg)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(.footnote, weight: .bold))
                             .foregroundColor(SalfordTheme.emeraldSuccess)
                     }
                 }
@@ -144,7 +144,7 @@ struct SettingsAndBackupView: View {
             .keyboardType(.numberPad)
             .padding(10)
             .background(SalfordTheme.bgElevated)
-            .foregroundColor(.white)
+            .foregroundColor(SalfordTheme.textPrimary)
             .cornerRadius(10)
             .onChange(of: text.wrappedValue) { newVal in
                 let cleaned = String(PinVault.normalize(newVal).prefix(PinVault.pinLength))

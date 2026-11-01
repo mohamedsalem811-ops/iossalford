@@ -9,18 +9,18 @@ struct DebtsView: View {
             LazyVStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("إجمالي الديون المستحقة")
-                        .font(.system(size: 12.5, weight: .bold))
+                        .font(.system(.footnote, weight: .bold))
                         .foregroundColor(SalfordTheme.textMuted)
                     Text(Money.lyd(store.totalOutstanding))
-                        .font(.system(size: 26, weight: .heavy))
+                        .font(.system(.title, weight: .heavy))
                         .foregroundColor(store.totalOutstanding > 0 ? SalfordTheme.dangerRed : SalfordTheme.emeraldSuccess)
                     Text("\(store.debtors.count) زبون عليه دين")
-                        .font(.system(size: 11.5))
+                        .font(.system(.caption))
                         .foregroundColor(SalfordTheme.textMuted)
                     if store.unassignedCreditTotal > 0 {
                         Label(String(format: "%@ د.ل مبيعات آجلة قديمة بدون اسم زبون — لا يمكن تحصيلها من هنا", Money.plain(store.unassignedCreditTotal)),
                               systemImage: "exclamationmark.triangle.fill")
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(.caption, weight: .bold))
                             .foregroundColor(SalfordTheme.warningAmber)
                     }
                 }
@@ -29,7 +29,7 @@ struct DebtsView: View {
 
                 if store.debtors.isEmpty {
                     Text("لا توجد ديون مستحقة 👌")
-                        .font(.system(size: 13))
+                        .font(.system(.subheadline))
                         .foregroundColor(SalfordTheme.textMuted)
                         .padding(.top, 20)
                 }
@@ -41,18 +41,18 @@ struct DebtsView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(entry.customer.name)
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .font(.system(.subheadline, weight: .bold))
+                                    .foregroundColor(SalfordTheme.textPrimary)
                                 Text(entry.customer.phone ?? "بدون هاتف")
-                                    .font(.system(size: 11.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                             }
                             Spacer()
                             Text(Money.lyd(entry.balance))
-                                .font(.system(size: 15, weight: .heavy))
+                                .font(.system(.callout, weight: .heavy))
                                 .foregroundColor(SalfordTheme.dangerRed)
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(.footnote, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverAccent)
                         }
                         .salfordCard()
@@ -90,10 +90,10 @@ struct CustomerAccountView: View {
             VStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(customer?.name ?? "زبون")
-                        .font(.system(size: 16, weight: .heavy))
-                        .foregroundColor(.white)
+                        .font(.system(.callout, weight: .heavy))
+                        .foregroundColor(SalfordTheme.textPrimary)
                     Text(String(format: "المتبقي عليه: %@ د.ل", Money.plain(owed)))
-                        .font(.system(size: 14, weight: .heavy))
+                        .font(.system(.subheadline, weight: .heavy))
                         .foregroundColor(owed > 0 ? SalfordTheme.dangerRed : SalfordTheme.emeraldSuccess)
 
                     if owed > 0 {
@@ -102,10 +102,10 @@ struct CustomerAccountView: View {
                                 .numericInput($amountText, .decimal)
                                 .padding(10)
                                 .background(SalfordTheme.bgElevated)
-                                .foregroundColor(.white)
+                                .foregroundColor(SalfordTheme.textPrimary)
                                 .cornerRadius(10)
                             Button("كامل المبلغ") { amountText = NumberInput.editable(owed) }
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(.footnote, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverAccent)
                         }
                         Picker("طريقة الدفع", selection: $method) {
@@ -115,23 +115,23 @@ struct CustomerAccountView: View {
                         TextField("ملاحظة (اختياري)", text: $note)
                             .padding(10)
                             .background(SalfordTheme.bgElevated)
-                            .foregroundColor(.white)
+                            .foregroundColor(SalfordTheme.textPrimary)
                             .cornerRadius(10)
                         Button {
                             submit()
                         } label: {
                             Label("تسجيل الدفعة", systemImage: "banknote.fill")
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(.subheadline, weight: .bold))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 11)
                                 .background(SalfordTheme.emeraldSuccess)
-                                .foregroundColor(.black)
+                                .foregroundColor(SalfordTheme.onColored)
                                 .cornerRadius(10)
                         }
                     }
                     if !message.isEmpty {
                         Text(message)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(.footnote, weight: .bold))
                             .foregroundColor(messageIsError ? SalfordTheme.dangerRed : SalfordTheme.emeraldSuccess)
                     }
                 }
@@ -140,21 +140,21 @@ struct CustomerAccountView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("المبيعات الآجلة")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.goldLight)
                     ForEach(store.creditSales(for: customerId)) { sale in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("#\(sale.id) \(sale.productName) ×\(sale.quantity)")
-                                    .font(.system(size: 12.5, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .font(.system(.footnote, weight: .bold))
+                                    .foregroundColor(SalfordTheme.textPrimary)
                                 Text(sale.saleDate)
-                                    .font(.system(size: 10.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                             }
                             Spacer()
                             Text(String(format: "+%@", Money.plain(sale.totalSell)))
-                                .font(.system(size: 12.5, weight: .bold))
+                                .font(.system(.footnote, weight: .bold))
                                 .foregroundColor(SalfordTheme.dangerRed)
                         }
                     }
@@ -164,27 +164,27 @@ struct CustomerAccountView: View {
 
                 VStack(alignment: .leading, spacing: 8) {
                     Text("الدفعات المستلمة")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.goldLight)
                     let list = store.payments(for: customerId)
                     if list.isEmpty {
                         Text("لا توجد دفعات بعد")
-                            .font(.system(size: 12))
+                            .font(.system(.footnote))
                             .foregroundColor(SalfordTheme.textMuted)
                     }
                     ForEach(list) { p in
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("\(p.method)\(p.note.map { " • " + $0 } ?? "")")
-                                    .font(.system(size: 12.5, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .font(.system(.footnote, weight: .bold))
+                                    .foregroundColor(SalfordTheme.textPrimary)
                                 Text(p.paymentDate)
-                                    .font(.system(size: 10.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                             }
                             Spacer()
                             Text(String(format: "−%@", Money.plain(p.amount)))
-                                .font(.system(size: 12.5, weight: .bold))
+                                .font(.system(.footnote, weight: .bold))
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                             Button {
                                 paymentToDelete = p

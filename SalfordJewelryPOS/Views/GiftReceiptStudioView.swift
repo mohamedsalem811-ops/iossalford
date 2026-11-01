@@ -17,7 +17,7 @@ struct GiftReceiptStudioView: View {
                         Image(systemName: "wand.and.stars")
                             .foregroundColor(SalfordTheme.silverAccent)
                         Text("تخصيص قالب الفاتورة والأسعار")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .foregroundColor(SalfordTheme.silverLight)
                         Spacer()
                     }
@@ -31,7 +31,7 @@ struct GiftReceiptStudioView: View {
 
                     Toggle(isOn: $store.showRealPricesInReceipt) {
                         Text(store.showRealPricesInReceipt ? "إظهار الأسعار الفعلية (فاتورة رسمية)" : "إخفاء الأسعار (Price: XXX — فاتورة هدية)")
-                            .font(.system(size: 12.5, weight: .bold))
+                            .font(.system(.footnote, weight: .bold))
                             .foregroundColor(SalfordTheme.silverLight)
                     }
                     .tint(SalfordTheme.emeraldSuccess)
@@ -42,8 +42,8 @@ struct GiftReceiptStudioView: View {
                             Image(systemName: "number")
                                 .foregroundColor(SalfordTheme.silverAccent)
                             Text(store.activeReceiptNo.isEmpty ? "رقم جديد عند الحفظ" : store.activeReceiptNo)
-                                .font(.system(size: 12.5, weight: .bold, design: .monospaced))
-                                .foregroundColor(store.activeReceiptNo.isEmpty ? SalfordTheme.textMuted : .white)
+                                .font(.system(.footnote, design: .monospaced, weight: .bold))
+                                .foregroundColor(store.activeReceiptNo.isEmpty ? SalfordTheme.textMuted : SalfordTheme.textPrimary)
                         }
                         .padding(9)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -53,13 +53,13 @@ struct GiftReceiptStudioView: View {
                         TextField("اسم الزبون", text: $store.activeReceiptCustomer)
                             .padding(9)
                             .background(SalfordTheme.bgElevated)
-                            .foregroundColor(.white)
+                            .foregroundColor(SalfordTheme.textPrimary)
                             .cornerRadius(9)
                     }
 
                     if store.activeReceiptItems.isEmpty {
                         Text("لا توجد قطع في الفاتورة — أضف سطراً أدناه")
-                            .font(.system(size: 12))
+                            .font(.system(.footnote))
                             .foregroundColor(SalfordTheme.textMuted)
                     }
 
@@ -77,7 +77,7 @@ struct GiftReceiptStudioView: View {
                             )
                         } label: {
                             Label("إضافة سطر منتج للفاتورة", systemImage: "plus.circle")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(.footnote, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverAccent)
                         }
                         Spacer()
@@ -90,14 +90,14 @@ struct GiftReceiptStudioView: View {
                             }
                         } label: {
                             Label("حفظ الفاتورة", systemImage: "tray.and.arrow.down.fill")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(.footnote, weight: .bold))
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                         }
                     }
 
                     if !savedMessage.isEmpty {
                         Text(savedMessage)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(.footnote, weight: .bold))
                             .foregroundColor(SalfordTheme.emeraldSuccess)
                     }
                 }
@@ -114,11 +114,11 @@ struct GiftReceiptStudioView: View {
                         }
                     } label: {
                         Label("طباعة AirPrint", systemImage: "printer.fill")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(SalfordTheme.royalNavyMid)
-                            .foregroundColor(.white)
+                            .foregroundColor(SalfordTheme.textPrimary)
                             .cornerRadius(11)
                     }
 
@@ -126,11 +126,11 @@ struct GiftReceiptStudioView: View {
                         shareURL = saveAndBuildPDF()
                     } label: {
                         Label("تصدير ومشاركة PDF", systemImage: "square.and.arrow.up.fill")
-                            .font(.system(size: 13, weight: .heavy))
+                            .font(.system(.subheadline, weight: .heavy))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 12)
                             .background(SalfordTheme.silverGradient)
-                            .foregroundColor(SalfordTheme.bgPrimary)
+                            .foregroundColor(SalfordTheme.onPrimary)
                             .cornerRadius(11)
                     }
                 }
@@ -149,10 +149,10 @@ struct GiftReceiptStudioView: View {
                             Text("jewelry")
                                 .font(.system(size: 9, weight: .medium))
                                 .kerning(4)
-                                .foregroundColor(SalfordTheme.silverAccent)
+                                .foregroundColor(Color(red: 200/255, green: 216/255, blue: 240/255))
                             Text("✦ FINE JEWELRY & LUXURY CREATIONS • TRIPOLI, LIBYA ✦")
                                 .font(.system(size: 8.5, weight: .semibold))
-                                .foregroundColor(SalfordTheme.silverAccent)
+                                .foregroundColor(Color(red: 200/255, green: 216/255, blue: 240/255))
                                 .padding(.top, 2)
                         }
                         .frame(maxWidth: .infinity)
@@ -342,40 +342,40 @@ struct ReceiptLineEditorRow: View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
                 TextField("اسم القطعة", text: $item.name)
-                    .font(.system(size: 12))
+                    .font(.system(.footnote))
                     .padding(8)
                     .background(SalfordTheme.bgElevated)
-                    .foregroundColor(.white)
+                    .foregroundColor(SalfordTheme.textPrimary)
                     .cornerRadius(8)
 
                 TextField("اللون", text: $item.color)
-                    .font(.system(size: 12))
+                    .font(.system(.footnote))
                     .frame(width: 85)
                     .padding(8)
                     .background(SalfordTheme.bgElevated)
-                    .foregroundColor(.white)
+                    .foregroundColor(SalfordTheme.textPrimary)
                     .cornerRadius(8)
 
                 TextField("الكود", text: $item.code)
-                    .font(.system(size: 12))
+                    .font(.system(.footnote))
                     .frame(width: 90)
                     .padding(8)
                     .background(SalfordTheme.bgElevated)
-                    .foregroundColor(.white)
+                    .foregroundColor(SalfordTheme.textPrimary)
                     .cornerRadius(8)
             }
             HStack(spacing: 8) {
                 Stepper("الكمية: \(item.qty)", value: $item.qty, in: 1...99)
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(.white)
+                    .font(.system(.footnote, weight: .bold))
+                    .foregroundColor(SalfordTheme.textPrimary)
 
                 TextField("السعر", text: $priceText)
                     .numericInput($priceText, .decimal)
-                    .font(.system(size: 12))
+                    .font(.system(.footnote))
                     .frame(width: 90)
                     .padding(8)
                     .background(SalfordTheme.bgElevated)
-                    .foregroundColor(.white)
+                    .foregroundColor(SalfordTheme.textPrimary)
                     .cornerRadius(8)
                     .onChange(of: priceText) { newValue in
                         item.price = NumberInput.decimal(newValue) ?? 0
@@ -385,7 +385,7 @@ struct ReceiptLineEditorRow: View {
                     onDelete()
                 } label: {
                     Image(systemName: "trash.fill")
-                        .font(.system(size: 12))
+                        .font(.system(.footnote))
                         .padding(7)
                         .background(SalfordTheme.dangerRed.opacity(0.18))
                         .foregroundColor(SalfordTheme.dangerRed)

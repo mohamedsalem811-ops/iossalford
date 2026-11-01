@@ -23,7 +23,7 @@ struct PinLoginView: View {
                     SalfordMonogramLogoView(size: 84, showWordmark: true)
 
                     Text("نظام إدارة المبيعات والمجوهرات المتكامل")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(.subheadline, weight: .medium))
                         .foregroundColor(SalfordTheme.textMuted)
                         .padding(.bottom, 4)
 
@@ -33,14 +33,14 @@ struct PinLoginView: View {
                             Image(systemName: "lock.shield.fill")
                                 .foregroundColor(SalfordTheme.silverAccent)
                             Text("أدخل رمز الدخول (8 أرقام)")
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(.subheadline, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverLight)
                             Spacer()
                             Button {
                                 authenticateWithFaceID()
                             } label: {
                                 Label("Face ID", systemImage: "faceid")
-                                    .font(.system(size: 12, weight: .bold))
+                                    .font(.system(.footnote, weight: .bold))
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 5)
                                     .background(SalfordTheme.royalNavyMid)
@@ -53,12 +53,12 @@ struct PinLoginView: View {
                         SecureField("••••••••", text: $pinInput)
                             .keyboardType(.numberPad)
                             .focused($isPinFieldFocused)
-                            .font(.system(size: 26, weight: .heavy, design: .monospaced))
+                            .font(.system(.title, design: .monospaced, weight: .heavy))
                             .multilineTextAlignment(.center)
-                            .foregroundColor(.white)
+                            .foregroundColor(SalfordTheme.textPrimary)
                             .padding(.vertical, 12)
                             .padding(.horizontal, 16)
-                            .background(Color.black.opacity(0.35))
+                            .background(SalfordTheme.fieldBg)
                             .cornerRadius(14)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 14)
@@ -82,7 +82,7 @@ struct PinLoginView: View {
                         HStack(spacing: 10) {
                             ForEach(0..<8, id: \.self) { index in
                                 Circle()
-                                    .fill(index < pinInput.count ? SalfordTheme.silverLight : Color.white.opacity(0.18))
+                                    .fill(index < pinInput.count ? SalfordTheme.silverLight : SalfordTheme.textMuted.opacity(0.3))
                                     .frame(width: 11, height: 11)
                                     .scaleEffect(index < pinInput.count ? 1.15 : 1.0)
                                     .animation(.spring(response: 0.25), value: pinInput.count)
@@ -92,7 +92,7 @@ struct PinLoginView: View {
 
                         if !errorMessage.isEmpty {
                             Text(errorMessage)
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(.footnote, weight: .bold))
                                 .foregroundColor(SalfordTheme.dangerRed)
                         }
 
@@ -103,12 +103,12 @@ struct PinLoginView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "lock.open.fill")
                                 Text("دخول إلى النظام")
-                                    .font(.system(size: 15, weight: .heavy))
+                                    .font(.system(.callout, weight: .heavy))
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 13)
                             .background(SalfordTheme.silverGradient)
-                            .foregroundColor(SalfordTheme.bgPrimary)
+                            .foregroundColor(SalfordTheme.onPrimary)
                             .cornerRadius(12)
                             .opacity(isLockedOut ? 0.4 : 1)
                         }

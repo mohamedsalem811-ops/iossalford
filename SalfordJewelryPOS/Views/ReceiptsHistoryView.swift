@@ -21,12 +21,12 @@ struct ReceiptsHistoryView: View {
                 TextField("ابحث برقم الفاتورة أو اسم الزبون أو القطعة", text: $search)
                     .padding(10)
                     .background(SalfordTheme.bgElevated)
-                    .foregroundColor(.white)
+                    .foregroundColor(SalfordTheme.textPrimary)
                     .cornerRadius(10)
 
                 if filtered.isEmpty {
                     Text(store.receipts.isEmpty ? "لم تصدر أي فاتورة بعد" : "لا توجد نتائج")
-                        .font(.system(size: 13))
+                        .font(.system(.subheadline))
                         .foregroundColor(SalfordTheme.textMuted)
                         .padding(.top, 30)
                 }
@@ -38,18 +38,18 @@ struct ReceiptsHistoryView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             HStack {
                                 Text(r.receiptNo)
-                                    .font(.system(size: 13.5, weight: .heavy, design: .monospaced))
-                                    .foregroundColor(.white)
+                                    .font(.system(.subheadline, design: .monospaced, weight: .heavy))
+                                    .foregroundColor(SalfordTheme.textPrimary)
                                 Spacer()
                                 Text(Money.lyd(r.total))
-                                    .font(.system(size: 13.5, weight: .heavy))
+                                    .font(.system(.subheadline, weight: .heavy))
                                     .foregroundColor(SalfordTheme.silverLight)
                             }
                             Text("\(r.customer) • \(r.date) \(r.time) • \(r.items.count) سطر")
-                                .font(.system(size: 11.5))
+                                .font(.system(.caption))
                                 .foregroundColor(SalfordTheme.textMuted)
                             Text(r.items.map(\.fullTitle).joined(separator: "، "))
-                                .font(.system(size: 11.5))
+                                .font(.system(.caption))
                                 .foregroundColor(SalfordTheme.silverAccent)
                                 .lineLimit(2)
                             HStack(spacing: 6) {
@@ -59,7 +59,7 @@ struct ReceiptsHistoryView: View {
                                 Text("•")
                                 Text(r.template.title)
                             }
-                            .font(.system(size: 10.5))
+                            .font(.system(.caption))
                             .foregroundColor(SalfordTheme.goldLight)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)

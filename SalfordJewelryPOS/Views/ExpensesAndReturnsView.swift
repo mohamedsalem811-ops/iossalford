@@ -12,18 +12,18 @@ struct ExpensesAndReturnsView: View {
                 // Add Expense Card
                 VStack(alignment: .leading, spacing: 10) {
                     Text("تسجيل مصروف تشغيلي جديد")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.silverLight)
                     TextField("بيان المصروف مثل تغليف أو إعلانات", text: $expDesc)
                         .padding(10)
                         .background(SalfordTheme.bgElevated)
-                        .foregroundColor(.white)
+                        .foregroundColor(SalfordTheme.textPrimary)
                         .cornerRadius(10)
                     TextField("القيمة بالدينار الليبي", text: $expAmount)
                         .numericInput($expAmount, .decimal)
                         .padding(10)
                         .background(SalfordTheme.bgElevated)
-                        .foregroundColor(.white)
+                        .foregroundColor(SalfordTheme.textPrimary)
                         .cornerRadius(10)
                     Button {
                         if let amt = NumberInput.decimal(expAmount), amt > 0, !expDesc.isEmpty {
@@ -33,11 +33,11 @@ struct ExpensesAndReturnsView: View {
                         }
                     } label: {
                         Text("إضافة المصروف")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 11)
                             .background(SalfordTheme.silverGradient)
-                            .foregroundColor(SalfordTheme.bgPrimary)
+                            .foregroundColor(SalfordTheme.onPrimary)
                             .cornerRadius(10)
                     }
                 }
@@ -52,21 +52,21 @@ struct ExpensesAndReturnsView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text(exp.description)
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(.white)
+                                .font(.system(.subheadline, weight: .bold))
+                                .foregroundColor(SalfordTheme.textPrimary)
                             Text(exp.expenseDate)
-                                .font(.system(size: 11))
+                                .font(.system(.caption))
                                 .foregroundColor(SalfordTheme.textMuted)
                         }
                         Spacer()
                         Text(Money.lyd(exp.amount))
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .foregroundColor(SalfordTheme.dangerRed)
                         Button(role: .destructive) {
                             expenseToDelete = exp
                         } label: {
                             Image(systemName: "trash")
-                                .font(.system(size: 12))
+                                .font(.system(.footnote))
                                 .foregroundColor(SalfordTheme.dangerRed)
                         }
                     }
@@ -140,7 +140,7 @@ struct ReturnEntryCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("تسجيل مرتجع وإعادة القطعة للمخزن")
-                .font(.system(size: 14, weight: .bold))
+                .font(.system(.subheadline, weight: .bold))
                 .foregroundColor(SalfordTheme.warningAmber)
 
             Picker("نوع المرتجع", selection: $mode) {
@@ -152,12 +152,12 @@ struct ReturnEntryCard: View {
                 TextField("ابحث باسم القطعة أو الزبون أو رقم البيعة", text: $saleSearch)
                     .padding(10)
                     .background(SalfordTheme.bgElevated)
-                    .foregroundColor(.white)
+                    .foregroundColor(SalfordTheme.textPrimary)
                     .cornerRadius(10)
 
                 if returnableSales.isEmpty {
                     Text("لا توجد مبيعات قابلة للإرجاع تطابق البحث")
-                        .font(.system(size: 12))
+                        .font(.system(.footnote))
                         .foregroundColor(SalfordTheme.textMuted)
                 } else {
                     Picker("البيعة", selection: $selectedSaleId) {
@@ -176,7 +176,7 @@ struct ReturnEntryCard: View {
 
                 if let sale = selectedSale {
                     Text(String(format: "دفع الزبون %@ د.ل للقطعة • المتبقي للإرجاع: %d", Money.plain(sale.actualPrice), store.returnableQuantity(for: sale)))
-                        .font(.system(size: 11.5))
+                        .font(.system(.caption))
                         .foregroundColor(SalfordTheme.silverAccent)
                 }
             } else {
@@ -193,47 +193,47 @@ struct ReturnEntryCard: View {
                 .cornerRadius(10)
 
                 Text("استخدم هذا فقط لقطع بيعت قبل استخدام التطبيق. أدخل المبلغ الذي أُعيد للزبون فعلاً.")
-                    .font(.system(size: 11))
+                    .font(.system(.caption))
                     .foregroundColor(SalfordTheme.textMuted)
             }
 
             Stepper("الكمية المرتجعة: \(quantity)", value: $quantity, in: 1...maxQuantity)
-                .font(.system(size: 12.5, weight: .bold))
-                .foregroundColor(.white)
+                .font(.system(.footnote, weight: .bold))
+                .foregroundColor(SalfordTheme.textPrimary)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("المبلغ المسترد للزبون (د.ل)")
-                    .font(.system(size: 11.5, weight: .semibold))
+                    .font(.system(.caption, weight: .semibold))
                     .foregroundColor(SalfordTheme.textMuted)
                 TextField("0", text: $refundText)
                     .numericInput($refundText, .decimal)
                     .padding(10)
                     .background(SalfordTheme.bgElevated)
-                    .foregroundColor(.white)
+                    .foregroundColor(SalfordTheme.textPrimary)
                     .cornerRadius(10)
             }
 
             TextField("سبب الإرجاع أو الاستبدال", text: $reason)
                 .padding(10)
                 .background(SalfordTheme.bgElevated)
-                .foregroundColor(.white)
+                .foregroundColor(SalfordTheme.textPrimary)
                 .cornerRadius(10)
 
             Button {
                 submit()
             } label: {
                 Text("تأكيد المرتجع وإضافة للمخزن")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(.subheadline, weight: .bold))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
                     .background(SalfordTheme.warningAmber)
-                    .foregroundColor(.black)
+                    .foregroundColor(SalfordTheme.onColored)
                     .cornerRadius(10)
             }
 
             if !message.isEmpty {
                 Text(message)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.system(.footnote, weight: .bold))
                     .foregroundColor(messageIsError ? SalfordTheme.dangerRed : SalfordTheme.emeraldSuccess)
             }
         }
@@ -316,33 +316,33 @@ struct ReturnsHistoryList: View {
         if !store.returns.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 Text("سجل المرتجعات")
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(.subheadline, weight: .bold))
                     .foregroundColor(SalfordTheme.goldLight)
 
                 ForEach(store.returns.prefix(30)) { ret in
                     HStack {
                         VStack(alignment: .leading, spacing: 3) {
                             Text("\(ret.productName) × \(ret.quantity)")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(.white)
+                                .font(.system(.subheadline, weight: .bold))
+                                .foregroundColor(SalfordTheme.textPrimary)
                             Text("\(ret.saleId.map { "بيعة #\($0)" } ?? "بدون فاتورة") • \(ret.returnDate)")
-                                .font(.system(size: 11))
+                                .font(.system(.caption))
                                 .foregroundColor(SalfordTheme.textMuted)
                             if let r = ret.reason {
                                 Text(r)
-                                    .font(.system(size: 11))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                             }
                         }
                         Spacer()
                         Text(String(format: "-%@ د.ل", Money.plain(ret.refundAmount)))
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .foregroundColor(SalfordTheme.warningAmber)
                         Button {
                             returnToDelete = ret
                         } label: {
                             Image(systemName: "arrow.uturn.backward.circle")
-                                .font(.system(size: 15))
+                                .font(.system(.callout))
                                 .foregroundColor(SalfordTheme.dangerRed)
                         }
                     }

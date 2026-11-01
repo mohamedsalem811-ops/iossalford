@@ -26,7 +26,7 @@ struct QuarterlyClosingView: View {
             VStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("إصدار إقفال ربع سنوي جديد")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.silverLight)
 
                     Picker("الربع السنوي", selection: $selectedPeriod) {
@@ -41,7 +41,7 @@ struct QuarterlyClosingView: View {
                     .cornerRadius(10)
 
                     Text("الأشهر المشمولة: " + selectedPeriod.monthKeys.joined(separator: " • "))
-                        .font(.system(size: 11))
+                        .font(.system(.caption))
                         .foregroundColor(SalfordTheme.textMuted)
 
                     // Live preview of exactly what will be saved
@@ -55,7 +55,7 @@ struct QuarterlyClosingView: View {
                         closingRow("صافي الربح", sum.netProfit, bold: true,
                                    color: sum.netProfit >= 0 ? SalfordTheme.emeraldSuccess : SalfordTheme.dangerRed)
                         Text("\(sum.transactions) عملية بيع • \(sum.itemsSold) قطعة مباعة • مبالغ مستردة \(Money.lyd(sum.refunds))")
-                            .font(.system(size: 11))
+                            .font(.system(.caption))
                             .foregroundColor(SalfordTheme.textMuted)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -66,7 +66,7 @@ struct QuarterlyClosingView: View {
                     TextField("ملاحظات الجرد والإقفال", text: $closingNotes)
                         .padding(10)
                         .background(SalfordTheme.bgElevated)
-                        .foregroundColor(.white)
+                        .foregroundColor(SalfordTheme.textPrimary)
                         .cornerRadius(10)
 
                     Button {
@@ -77,17 +77,17 @@ struct QuarterlyClosingView: View {
                         }
                     } label: {
                         Label("اعتماد وحفظ إقفال \(selectedPeriod.title)", systemImage: "checkmark.seal.fill")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 11)
                             .background(SalfordTheme.emeraldSuccess)
-                            .foregroundColor(.black)
+                            .foregroundColor(SalfordTheme.onColored)
                             .cornerRadius(10)
                     }
 
                     if !statusMsg.isEmpty {
                         Text(statusMsg)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(.footnote, weight: .bold))
                             .foregroundColor(SalfordTheme.emeraldSuccess)
                     }
                 }
@@ -97,36 +97,36 @@ struct QuarterlyClosingView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Text(cls.quarterKey)
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
+                                .font(.system(.subheadline, weight: .bold))
+                                .foregroundColor(SalfordTheme.textPrimary)
                             Spacer()
                             Text(String(format: "الصافي: %@ د.ل", Money.plain(cls.totalProfit)))
-                                .font(.system(size: 13, weight: .heavy))
+                                .font(.system(.subheadline, weight: .heavy))
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                         }
                         Text(String(format: "المبيعات: %@ د.ل • المرتجعات: %@ د.ل • المصاريف: %@ د.ل • القطع المباعة: %d", Money.plain(cls.totalSales), Money.plain(cls.totalRefunds), Money.plain(cls.totalExpenses), cls.itemsSold))
-                            .font(.system(size: 11.5))
+                            .font(.system(.caption))
                             .foregroundColor(SalfordTheme.textMuted)
                         if cls.periodKey == nil {
                             Label("إقفال قديم — حُسب على كل المبيعات منذ البداية وليس على هذا الربع فقط. يُنصح بحذفه وإعادة الإقفال.", systemImage: "exclamationmark.triangle.fill")
-                                .font(.system(size: 11, weight: .bold))
+                                .font(.system(.caption, weight: .bold))
                                 .foregroundColor(SalfordTheme.warningAmber)
                         }
                         if let notes = cls.notes {
                             Text(notes)
-                                .font(.system(size: 11))
+                                .font(.system(.caption))
                                 .foregroundColor(SalfordTheme.textMuted)
                         }
                         HStack {
                             Text("تاريخ الإقفال: \(cls.closedAt)")
-                                .font(.system(size: 11))
+                                .font(.system(.caption))
                                 .foregroundColor(SalfordTheme.goldLight)
                             Spacer()
                             Button(role: .destructive) {
                                 closingToDelete = cls
                             } label: {
                                 Image(systemName: "trash.fill")
-                                    .font(.system(size: 12))
+                                    .font(.system(.footnote))
                                     .foregroundColor(SalfordTheme.dangerRed)
                             }
                         }
@@ -168,11 +168,11 @@ struct QuarterlyClosingView: View {
     private func closingRow(_ title: String, _ value: Double, bold: Bool = false, color: Color = .white) -> some View {
         HStack {
             Text(title)
-                .font(.system(size: 12, weight: bold ? .bold : .regular))
+                .font(.system(.footnote, weight: bold ? .bold : .regular))
                 .foregroundColor(SalfordTheme.silverLight)
             Spacer()
             Text(Money.lyd(value))
-                .font(.system(size: 12.5, weight: bold ? .heavy : .semibold))
+                .font(.system(.footnote, weight: bold ? .heavy : .semibold))
                 .foregroundColor(color)
         }
     }

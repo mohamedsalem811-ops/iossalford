@@ -30,11 +30,11 @@ struct ProductsView: View {
                             selectedCategory = cat
                         } label: {
                             Text(cat)
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(.footnote, weight: .bold))
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 7)
                                 .background(selectedCategory == cat ? SalfordTheme.silverLight : SalfordTheme.bgCard)
-                                .foregroundColor(selectedCategory == cat ? SalfordTheme.bgPrimary : SalfordTheme.silverLight)
+                                .foregroundColor(selectedCategory == cat ? SalfordTheme.onPrimary : SalfordTheme.silverLight)
                                 .clipShape(Capsule())
                         }
                     }
@@ -52,16 +52,16 @@ struct ProductsView: View {
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "camera.viewfinder")
-                                .font(.system(size: 18, weight: .bold))
+                                .font(.system(.headline, weight: .bold))
                             Text("إضافة قطعة جديدة مع تصوير أو رفع صورة")
-                                .font(.system(size: 13.5, weight: .heavy))
+                                .font(.system(.subheadline, weight: .heavy))
                             Spacer()
                             Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 18))
+                                .font(.system(.body))
                         }
                         .padding(13)
                         .background(SalfordTheme.silverGradient)
-                        .foregroundColor(SalfordTheme.bgPrimary)
+                        .foregroundColor(SalfordTheme.onPrimary)
                         .cornerRadius(14)
                     }
 
@@ -87,12 +87,12 @@ struct ProductsView: View {
                             VStack(alignment: .leading, spacing: 5) {
                                 HStack(spacing: 6) {
                                     Text(prod.name)
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(.white)
+                                        .font(.system(.subheadline, weight: .bold))
+                                        .foregroundColor(SalfordTheme.textPrimary)
                                         .lineLimit(1)
                                     if prod.isOutOfStock {
                                         Text("نفد المخزون")
-                                            .font(.system(size: 9.5, weight: .bold))
+                                            .font(.system(.caption2, weight: .bold))
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
                                             .background(SalfordTheme.dangerRed.opacity(0.25))
@@ -100,7 +100,7 @@ struct ProductsView: View {
                                             .cornerRadius(5)
                                     } else if prod.isLowStock {
                                         Text("مخزون منخفض")
-                                            .font(.system(size: 9.5, weight: .bold))
+                                            .font(.system(.caption2, weight: .bold))
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 2)
                                             .background(SalfordTheme.warningAmber.opacity(0.25))
@@ -110,20 +110,20 @@ struct ProductsView: View {
                                 }
 
                                 Text("الكود: \(prod.sku) • \(prod.category) • \(prod.color ?? "بدون لون")" + (prod.size.map { " • المقاس: \($0)" } ?? ""))
-                                    .font(.system(size: 11.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
 
                                 HStack(spacing: 10) {
                                     Text(String(format: "التكلفة: %@ د.ل", Money.plain(prod.costPrice)))
-                                        .font(.system(size: 11.5, weight: .semibold))
+                                        .font(.system(.caption, weight: .semibold))
                                         .foregroundColor(SalfordTheme.silverAccent)
 
                                     Text(String(format: "البيع: %@ د.ل", Money.plain(prod.sellPrice)))
-                                        .font(.system(size: 12, weight: .bold))
+                                        .font(.system(.footnote, weight: .bold))
                                         .foregroundColor(SalfordTheme.emeraldSuccess)
 
                                     Text("المخزون: \(prod.stock)")
-                                        .font(.system(size: 11.5, weight: .bold))
+                                        .font(.system(.caption, weight: .bold))
                                         .foregroundColor(prod.stock > 0 ? SalfordTheme.goldLight : SalfordTheme.dangerRed)
                                 }
                             }
@@ -134,7 +134,7 @@ struct ProductsView: View {
                                     editingProduct = prod
                                 } label: {
                                     Image(systemName: "pencil.circle.fill")
-                                        .font(.system(size: 22))
+                                        .font(.system(.title2))
                                         .foregroundColor(SalfordTheme.silverLight)
                                 }
 
@@ -165,7 +165,7 @@ struct ProductsView: View {
                                     }
                                 } label: {
                                     Image(systemName: "ellipsis.circle.fill")
-                                        .font(.system(size: 22))
+                                        .font(.system(.title2))
                                         .foregroundColor(SalfordTheme.silverAccent)
                                 }
                             }
@@ -272,11 +272,11 @@ struct ProductPhotoLightboxSheet: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text(product.name)
-                                .font(.system(size: 18, weight: .heavy))
-                                .foregroundColor(.white)
+                                .font(.system(.headline, weight: .heavy))
+                                .foregroundColor(SalfordTheme.textPrimary)
                             Spacer()
                             Text(product.category)
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(.footnote, weight: .bold))
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 4)
                                 .background(SalfordTheme.royalNavyMid)
@@ -285,7 +285,7 @@ struct ProductPhotoLightboxSheet: View {
                         }
 
                         Text("الكود: \(product.sku) • اللون: \(product.color ?? "غير محدد")")
-                            .font(.system(size: 13))
+                            .font(.system(.subheadline))
                             .foregroundColor(SalfordTheme.textMuted)
 
                         Divider().background(SalfordTheme.borderSubtle)
@@ -293,28 +293,28 @@ struct ProductPhotoLightboxSheet: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("سعر التكلفة")
-                                    .font(.system(size: 11.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                                 Text(Money.lyd(product.costPrice))
-                                    .font(.system(size: 15, weight: .bold))
+                                    .font(.system(.callout, weight: .bold))
                                     .foregroundColor(SalfordTheme.silverLight)
                             }
                             Spacer()
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("سعر البيع")
-                                    .font(.system(size: 11.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                                 Text(Money.lyd(product.sellPrice))
-                                    .font(.system(size: 15, weight: .heavy))
+                                    .font(.system(.callout, weight: .heavy))
                                     .foregroundColor(SalfordTheme.emeraldSuccess)
                             }
                             Spacer()
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("المخزون المتوفر")
-                                    .font(.system(size: 11.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                                 Text("\(product.stock) قطع")
-                                    .font(.system(size: 15, weight: .bold))
+                                    .font(.system(.callout, weight: .bold))
                                     .foregroundColor(SalfordTheme.goldLight)
                             }
                         }
@@ -326,11 +326,11 @@ struct ProductPhotoLightboxSheet: View {
                         onEditRequested()
                     } label: {
                         Label("تغيير الصورة أو تعديل بيانات القطعة", systemImage: "camera.rotate.fill")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 13)
                             .background(SalfordTheme.silverGradient)
-                            .foregroundColor(SalfordTheme.bgPrimary)
+                            .foregroundColor(SalfordTheme.onPrimary)
                             .cornerRadius(12)
                     }
                     .padding(.horizontal, 16)
@@ -386,7 +386,7 @@ struct ProductFormSheet: View {
                             Image(systemName: "camera.fill")
                                 .foregroundColor(SalfordTheme.goldLight)
                             Text("صورة القطعة (التقاط بالكاميرا أو رفع من الألبوم)")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.system(.subheadline, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverLight)
                             Spacer()
                             if imageFile != nil || legacyImageBase64 != nil {
@@ -395,7 +395,7 @@ struct ProductFormSheet: View {
                                     legacyImageBase64 = nil
                                 } label: {
                                     Label("حذف الصورة", systemImage: "trash")
-                                        .font(.system(size: 11.5, weight: .bold))
+                                        .font(.system(.caption, weight: .bold))
                                         .foregroundColor(SalfordTheme.dangerRed)
                                 }
                             }
@@ -422,13 +422,13 @@ struct ProductFormSheet: View {
                                     .overlay(
                                         VStack(spacing: 8) {
                                             Image(systemName: "camera.viewfinder")
-                                                .font(.system(size: 38))
+                                                .font(.system(.largeTitle))
                                                 .foregroundColor(SalfordTheme.goldLight)
                                             Text("لم يتم إرفاق صورة للقطعة بعد")
-                                                .font(.system(size: 13, weight: .bold))
-                                                .foregroundColor(.white)
+                                                .font(.system(.subheadline, weight: .bold))
+                                                .foregroundColor(SalfordTheme.textPrimary)
                                             Text("اضغط على أحد الزرين بالأسفل لتصوير القطعة أو اختيار صورتها")
-                                                .font(.system(size: 11))
+                                                .font(.system(.caption))
                                                 .foregroundColor(SalfordTheme.textMuted)
                                         }
                                     )
@@ -445,11 +445,11 @@ struct ProductFormSheet: View {
                                 showCameraPicker = true
                             } label: {
                                 Label("التقاط بالكاميرا", systemImage: "camera.fill")
-                                    .font(.system(size: 13, weight: .heavy))
+                                    .font(.system(.subheadline, weight: .heavy))
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
                                     .background(SalfordTheme.silverGradient)
-                                    .foregroundColor(SalfordTheme.bgPrimary)
+                                    .foregroundColor(SalfordTheme.onPrimary)
                                     .cornerRadius(11)
                             }
 
@@ -457,7 +457,7 @@ struct ProductFormSheet: View {
                                 showLibraryPicker = true
                             } label: {
                                 Label("رفع من الألبوم", systemImage: "photo.on.rectangle.angled")
-                                    .font(.system(size: 13, weight: .bold))
+                                    .font(.system(.subheadline, weight: .bold))
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
                                     .background(SalfordTheme.royalNavyMid)
@@ -475,24 +475,24 @@ struct ProductFormSheet: View {
                     // 2. Basic Piece Info Card
                     VStack(alignment: .leading, spacing: 10) {
                         Text("بيانات القطعة الأساسية")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .foregroundColor(SalfordTheme.silverLight)
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text("اسم القطعة")
-                                .font(.system(size: 11.5))
+                                .font(.system(.caption))
                                 .foregroundColor(SalfordTheme.textMuted)
                             TextField("مثال: خاتم سوليتير ألماس ملكي", text: $name)
                                 .padding(10)
                                 .background(SalfordTheme.bgElevated)
-                                .foregroundColor(.white)
+                                .foregroundColor(SalfordTheme.textPrimary)
                                 .cornerRadius(10)
                         }
 
                         HStack(spacing: 10) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("الفئة")
-                                    .font(.system(size: 11.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                                 Picker("الفئة", selection: $category) {
                                     ForEach(POSDataStore.categories, id: \.self) { cat in
@@ -508,24 +508,24 @@ struct ProductFormSheet: View {
 
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("اللون")
-                                    .font(.system(size: 11.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                                 TextField("ذهبي، فضي، روز جولد", text: $color)
                                     .padding(10)
                                     .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(SalfordTheme.textPrimary)
                                     .cornerRadius(10)
                             }
                         }
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text("كود القطعة (يُولّد تلقائياً إذا تُرك فارغاً — لا يتكرر)")
-                                .font(.system(size: 11.5))
+                                .font(.system(.caption))
                                 .foregroundColor(SalfordTheme.textMuted)
                             TextField("RNG-SFD01", text: $sku)
                                 .padding(10)
                                 .background(SalfordTheme.bgElevated)
-                                .foregroundColor(.white)
+                                .foregroundColor(SalfordTheme.textPrimary)
                                 .cornerRadius(10)
                         }
                     }
@@ -534,68 +534,68 @@ struct ProductFormSheet: View {
                     // 3. Pricing & Stock Card
                     VStack(alignment: .leading, spacing: 10) {
                         Text("التسعير والمخزون")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .foregroundColor(SalfordTheme.silverLight)
 
                         HStack(spacing: 10) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("سعر التكلفة بالدينار")
-                                    .font(.system(size: 11.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                                 TextField("0", text: $costPrice)
                                     .numericInput($costPrice, .decimal)
                                     .padding(10)
                                     .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(SalfordTheme.textPrimary)
                                     .cornerRadius(10)
                             }
 
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("سعر البيع بالدينار")
-                                    .font(.system(size: 11.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.emeraldSuccess)
                                 TextField("0", text: $sellPrice)
                                     .numericInput($sellPrice, .decimal)
                                     .padding(10)
                                     .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(SalfordTheme.textPrimary)
                                     .cornerRadius(10)
                             }
                         }
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text("الكمية المتوفرة في المخزن")
-                                .font(.system(size: 11.5))
+                                .font(.system(.caption))
                                 .foregroundColor(SalfordTheme.textMuted)
                             TextField("5", text: $stock)
                                 .numericInput($stock, .integer)
                                 .padding(10)
                                 .background(SalfordTheme.bgElevated)
-                                .foregroundColor(.white)
+                                .foregroundColor(SalfordTheme.textPrimary)
                                 .cornerRadius(10)
                         }
 
                         HStack(spacing: 10) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("المقاس (اختياري)")
-                                    .font(.system(size: 11.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                                 TextField("مثال: 7 أو M", text: $size)
                                     .padding(10)
                                     .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(SalfordTheme.textPrimary)
                                     .cornerRadius(10)
                             }
 
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("تنبيه عند وصول المخزون إلى")
-                                    .font(.system(size: 11.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                                 TextField("3", text: $lowStockAlert)
                                     .numericInput($lowStockAlert, .integer)
                                     .padding(10)
                                     .background(SalfordTheme.bgElevated)
-                                    .foregroundColor(.white)
+                                    .foregroundColor(SalfordTheme.textPrimary)
                                     .cornerRadius(10)
                             }
                         }
@@ -604,11 +604,11 @@ struct ProductFormSheet: View {
                             savePiece()
                         } label: {
                             Label(product == nil ? "حفظ وإضافة القطعة للمخزون" : "حفظ التعديلات على القطعة", systemImage: "checkmark.circle.fill")
-                                .font(.system(size: 14, weight: .heavy))
+                                .font(.system(.subheadline, weight: .heavy))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 13)
                                 .background(SalfordTheme.emeraldSuccess)
-                                .foregroundColor(.black)
+                                .foregroundColor(SalfordTheme.onColored)
                                 .cornerRadius(12)
                         }
                         .padding(.top, 4)
@@ -629,7 +629,7 @@ struct ProductFormSheet: View {
                     Button("حفظ") {
                         savePiece()
                     }
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(.subheadline, weight: .bold))
                     .foregroundColor(SalfordTheme.emeraldSuccess)
                 }
             }

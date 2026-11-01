@@ -49,7 +49,7 @@ struct MainTabView: View {
             }
             .tag(4)
         }
-        .tint(SalfordTheme.silverLight)
+        .tint(SalfordTheme.gold)
         .sheet(isPresented: $store.showGiftReceiptStudio) {
             NavigationStack {
                 GiftReceiptStudioView(isModalSheet: true)

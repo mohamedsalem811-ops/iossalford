@@ -15,13 +15,13 @@ struct CustomersManagementView: View {
                 // Add Customer Card
                 VStack(alignment: .leading, spacing: 10) {
                     Text("إضافة زبون جديد")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.silverLight)
 
                     TextField("اسم الزبون الثلاثي", text: $name)
                         .padding(10)
                         .background(SalfordTheme.bgElevated)
-                        .foregroundColor(.white)
+                        .foregroundColor(SalfordTheme.textPrimary)
                         .cornerRadius(10)
 
                     HStack(spacing: 10) {
@@ -29,20 +29,20 @@ struct CustomersManagementView: View {
                             .numericInput($phone, .phone)
                             .padding(10)
                             .background(SalfordTheme.bgElevated)
-                            .foregroundColor(.white)
+                            .foregroundColor(SalfordTheme.textPrimary)
                             .cornerRadius(10)
 
                         TextField("المدينة أو المنطقة", text: $area)
                             .padding(10)
                             .background(SalfordTheme.bgElevated)
-                            .foregroundColor(.white)
+                            .foregroundColor(SalfordTheme.textPrimary)
                             .cornerRadius(10)
                     }
 
                     TextField("ملاحظات وتفضيلات الزبون", text: $notes)
                         .padding(10)
                         .background(SalfordTheme.bgElevated)
-                        .foregroundColor(.white)
+                        .foregroundColor(SalfordTheme.textPrimary)
                         .cornerRadius(10)
 
                     Button {
@@ -57,17 +57,17 @@ struct CustomersManagementView: View {
                         notes = ""
                     } label: {
                         Label("حفظ بيانات الزبون", systemImage: "person.badge.plus")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 11)
                             .background(SalfordTheme.silverGradient)
-                            .foregroundColor(SalfordTheme.bgPrimary)
+                            .foregroundColor(SalfordTheme.onPrimary)
                             .cornerRadius(10)
                     }
 
                     if !formMessage.isEmpty {
                         Text(formMessage)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(.footnote, weight: .bold))
                             .foregroundColor(SalfordTheme.dangerRed)
                     }
                 }
@@ -80,37 +80,37 @@ struct CustomersManagementView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Text(cust.name)
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
+                                .font(.system(.subheadline, weight: .bold))
+                                .foregroundColor(SalfordTheme.textPrimary)
                             Spacer()
                             Text(String(format: "%@ د.ل • %d مشتريات", Money.plain(totalSpent), custSales.count))
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(.footnote, weight: .bold))
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                         }
                         let owed = store.balance(for: cust.id)
                         HStack {
                             Text("الهاتف: \(cust.phone ?? "غير مسجل") • المنطقة: \(cust.area ?? "غير محددة")")
-                                .font(.system(size: 11.5))
+                                .font(.system(.caption))
                                 .foregroundColor(SalfordTheme.textMuted)
                             Spacer()
                             if owed > 0 {
                                 // A customer who still owes money can't be deleted (the debt would disappear).
                                 Text(String(format: "عليه %@ د.ل", Money.plain(owed)))
-                                    .font(.system(size: 11.5, weight: .heavy))
+                                    .font(.system(.caption, weight: .heavy))
                                     .foregroundColor(SalfordTheme.dangerRed)
                             } else {
                                 Button(role: .destructive) {
                                     customerToDelete = cust
                                 } label: {
                                     Image(systemName: "trash")
-                                        .font(.system(size: 12))
+                                        .font(.system(.footnote))
                                         .foregroundColor(SalfordTheme.dangerRed)
                                 }
                             }
                         }
                         if let n = cust.notes, !n.isEmpty {
                             Text(n)
-                                .font(.system(size: 11))
+                                .font(.system(.caption))
                                 .foregroundColor(SalfordTheme.goldLight)
                         }
                     }

@@ -35,29 +35,29 @@ struct SetsManagementView: View {
             VStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(editingSetId == nil ? "إنشاء طقم مجوهرات جديد" : "تعديل الطقم")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.silverLight)
 
                     TextField("اسم الطقم الملكي", text: $setName)
                         .padding(10)
                         .background(SalfordTheme.bgElevated)
-                        .foregroundColor(.white)
+                        .foregroundColor(SalfordTheme.textPrimary)
                         .cornerRadius(10)
 
                     TextField("وصف ومكونات الطقم", text: $setDesc)
                         .padding(10)
                         .background(SalfordTheme.bgElevated)
-                        .foregroundColor(.white)
+                        .foregroundColor(SalfordTheme.textPrimary)
                         .cornerRadius(10)
 
                     Text("قطع الطقم")
-                        .font(.system(size: 12.5, weight: .bold))
+                        .font(.system(.footnote, weight: .bold))
                         .foregroundColor(SalfordTheme.goldLight)
 
                     TextField("ابحث عن قطعة لإضافتها", text: $pieceSearch)
                         .padding(9)
                         .background(SalfordTheme.bgElevated)
-                        .foregroundColor(.white)
+                        .foregroundColor(SalfordTheme.textPrimary)
                         .cornerRadius(9)
 
                     ForEach(pickerProducts) { prod in
@@ -65,10 +65,10 @@ struct SetsManagementView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(prod.name)
-                                    .font(.system(size: 12.5, weight: qty > 0 ? .bold : .regular))
+                                    .font(.system(.footnote, weight: qty > 0 ? .bold : .regular))
                                     .foregroundColor(qty > 0 ? .white : SalfordTheme.silverLight)
                                 Text(String(format: "%@ • %@ د.ل • المتوفر %d", prod.sku, Money.plain(prod.sellPrice), prod.stock))
-                                    .font(.system(size: 10.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                             }
                             Spacer()
@@ -76,8 +76,8 @@ struct SetsManagementView: View {
                                 get: { pieceQuantities[prod.id] ?? 0 },
                                 set: { pieceQuantities[prod.id] = $0 }
                             ), in: 0...20)
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.white)
+                            .font(.system(.footnote, weight: .bold))
+                            .foregroundColor(SalfordTheme.textPrimary)
                             .fixedSize()
                         }
                         .padding(.vertical, 2)
@@ -87,13 +87,13 @@ struct SetsManagementView: View {
                         .numericInput($setDiscount, .decimal)
                         .padding(10)
                         .background(SalfordTheme.bgElevated)
-                        .foregroundColor(.white)
+                        .foregroundColor(SalfordTheme.textPrimary)
                         .cornerRadius(10)
 
                     let list = store.listPrice(of: draftSet)
                     if list > 0 {
                         Text(String(format: "مجموع الأسعار %@ د.ل − الخصم %@ = سعر الطقم %@ د.ل", Money.plain(list), Money.plain(draftSet.discount), Money.plain(store.bundlePrice(of: draftSet))))
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(.footnote, weight: .bold))
                             .foregroundColor(SalfordTheme.emeraldSuccess)
                     }
 
@@ -108,23 +108,23 @@ struct SetsManagementView: View {
                             }
                         } label: {
                             Label(editingSetId == nil ? "إضافة الطقم للقائمة" : "حفظ التعديلات", systemImage: "checkmark.circle.fill")
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(.subheadline, weight: .bold))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 11)
                                 .background(SalfordTheme.silverGradient)
-                                .foregroundColor(SalfordTheme.bgPrimary)
+                                .foregroundColor(SalfordTheme.onPrimary)
                                 .cornerRadius(10)
                         }
                         if editingSetId != nil {
                             Button("إلغاء") { resetForm() }
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(.subheadline, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverLight)
                         }
                     }
 
                     if !formMessage.isEmpty {
                         Text(formMessage)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.system(.footnote, weight: .bold))
                             .foregroundColor(SalfordTheme.dangerRed)
                     }
                 }
@@ -136,24 +136,24 @@ struct SetsManagementView: View {
                             Image(systemName: "sparkles")
                                 .foregroundColor(SalfordTheme.goldLight)
                             Text(jset.name)
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
+                                .font(.system(.subheadline, weight: .bold))
+                                .foregroundColor(SalfordTheme.textPrimary)
                             Spacer()
                             Text(Money.lyd(store.bundlePrice(of: jset)))
-                                .font(.system(size: 13, weight: .heavy))
+                                .font(.system(.subheadline, weight: .heavy))
                                 .foregroundColor(SalfordTheme.silverLight)
                             Button {
                                 edit(jset)
                             } label: {
                                 Image(systemName: "pencil")
-                                    .font(.system(size: 12))
+                                    .font(.system(.footnote))
                                     .foregroundColor(SalfordTheme.silverAccent)
                             }
                             Button(role: .destructive) {
                                 setToDelete = jset
                             } label: {
                                 Image(systemName: "trash")
-                                    .font(.system(size: 12))
+                                    .font(.system(.footnote))
                                     .foregroundColor(SalfordTheme.dangerRed)
                             }
                         }
@@ -161,19 +161,19 @@ struct SetsManagementView: View {
                             let name = store.products.first { $0.id == item.productId }?.name ?? "قطعة محذوفة"
                             return item.quantity > 1 ? "\(name) ×\(item.quantity)" : name
                         }.joined(separator: " + "))
-                            .font(.system(size: 12))
+                            .font(.system(.footnote))
                             .foregroundColor(SalfordTheme.silverAccent)
                         Text(String(format: "بدلاً من %@ د.ل • خصم %@ د.ل • متاح للبيع: %d طقم", Money.plain(store.listPrice(of: jset)), Money.plain(jset.discount), store.availableBundles(jset)))
-                            .font(.system(size: 11))
+                            .font(.system(.caption))
                             .foregroundColor(SalfordTheme.textMuted)
                         if jset.items.isEmpty {
                             Label("هذا الطقم بلا قطع (أُنشئ بنسخة سابقة) — اضغط تعديل لإضافة القطع", systemImage: "exclamationmark.triangle.fill")
-                                .font(.system(size: 11, weight: .bold))
+                                .font(.system(.caption, weight: .bold))
                                 .foregroundColor(SalfordTheme.warningAmber)
                         }
                         if let desc = jset.description, !desc.isEmpty {
                             Text(desc)
-                                .font(.system(size: 12))
+                                .font(.system(.footnote))
                                 .foregroundColor(SalfordTheme.textMuted)
                         }
                     }

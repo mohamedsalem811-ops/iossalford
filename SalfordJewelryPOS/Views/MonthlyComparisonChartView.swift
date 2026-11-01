@@ -34,7 +34,7 @@ struct MonthlyComparisonChartView: View {
 
                 VStack(alignment: .leading, spacing: 12) {
                     Text("منحنى الأداء الشهري للمبيعات وصافي الربح")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.silverLight)
 
                     Chart {
@@ -64,20 +64,20 @@ struct MonthlyComparisonChartView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack {
                             Text("شهر \(item.month)")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
+                                .font(.system(.subheadline, weight: .bold))
+                                .foregroundColor(SalfordTheme.textPrimary)
                             Spacer()
                             Text(String(format: "المبيعات: %@ \(unitLabel)", Money.plain(item.sales)))
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(.subheadline, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverLight)
                         }
                         HStack {
                             Text(String(format: "إجمالي الربح: %@ \(unitLabel)", Money.plain(item.profit)))
-                                .font(.system(size: 12))
+                                .font(.system(.footnote))
                                 .foregroundColor(SalfordTheme.goldLight)
                             Spacer()
                             Text(String(format: "صافي الربح: %@ \(unitLabel)", Money.plain(item.netProfit)))
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(.footnote, weight: .bold))
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                         }
                     }

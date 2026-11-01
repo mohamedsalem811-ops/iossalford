@@ -9,7 +9,7 @@ struct SalesHistoryView: View {
             LazyVStack(spacing: 10) {
                 if store.sales.isEmpty {
                     Text("لا توجد عمليات بيع مسجلة حتى الآن")
-                        .font(.system(size: 13))
+                        .font(.system(.subheadline))
                         .foregroundColor(SalfordTheme.textMuted)
                         .padding(.top, 40)
                 }
@@ -17,11 +17,11 @@ struct SalesHistoryView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("#\(sale.id) \(sale.productName)")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.white)
+                                .font(.system(.subheadline, weight: .bold))
+                                .foregroundColor(SalfordTheme.textPrimary)
                             Spacer()
                             Text(Money.lyd(sale.totalSell))
-                                .font(.system(size: 14, weight: .heavy))
+                                .font(.system(.subheadline, weight: .heavy))
                                 .foregroundColor(SalfordTheme.silverLight)
                         }
 
@@ -37,16 +37,16 @@ struct SalesHistoryView: View {
                                     .foregroundColor(SalfordTheme.warningAmber)
                             }
                         }
-                        .font(.system(size: 11.5))
+                        .font(.system(.caption))
                         .foregroundColor(SalfordTheme.textMuted)
 
                         HStack {
                             HStack(spacing: 8) {
                                 Text(String(format: "الربح: %@ د.ل", Money.plain(sale.profit)))
-                                    .font(.system(size: 11.5, weight: .bold))
+                                    .font(.system(.caption, weight: .bold))
                                     .foregroundColor(SalfordTheme.emeraldSuccess)
                                 Text(String(format: "المعادل: %.1f دولار", sale.totalSellUSD))
-                                    .font(.system(size: 11.5, weight: .semibold))
+                                    .font(.system(.caption, weight: .semibold))
                                     .foregroundColor(SalfordTheme.goldLight)
                             }
                             Spacer()
@@ -54,7 +54,7 @@ struct SalesHistoryView: View {
                                 store.openReceiptForSale(sale)
                             } label: {
                                 Label("فاتورة", systemImage: "printer.fill")
-                                    .font(.system(size: 11.5, weight: .bold))
+                                    .font(.system(.caption, weight: .bold))
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 6)
                                     .background(SalfordTheme.royalNavyMid)
@@ -66,7 +66,7 @@ struct SalesHistoryView: View {
                                 saleToDelete = sale
                             } label: {
                                 Image(systemName: "trash.fill")
-                                    .font(.system(size: 12))
+                                    .font(.system(.footnote))
                                     .padding(7)
                                     .background(SalfordTheme.dangerRed.opacity(0.18))
                                     .foregroundColor(SalfordTheme.dangerRed)

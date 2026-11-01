@@ -13,15 +13,15 @@ struct MoreManagementHubView: View {
                             .fill(SalfordTheme.royalNavyMid)
                             .frame(width: 48, height: 48)
                         Image(systemName: "crown.fill")
-                            .font(.system(size: 20))
+                            .font(.system(.title3))
                             .foregroundColor(SalfordTheme.goldLight)
                     }
                     VStack(alignment: .leading, spacing: 4) {
                         Text("مركز الإدارة والتقارير المالية")
-                            .font(.system(size: 15, weight: .heavy))
-                            .foregroundColor(.white)
+                            .font(.system(.callout, weight: .heavy))
+                            .foregroundColor(SalfordTheme.textPrimary)
                         Text("إدارة المبيعات والزبائن والأطقم والمقارنات الشهرية")
-                            .font(.system(size: 12))
+                            .font(.system(.footnote))
                             .foregroundColor(SalfordTheme.textMuted)
                     }
                     Spacer()
@@ -31,7 +31,7 @@ struct MoreManagementHubView: View {
                 // Section 1: Sales, Customers & Sets
                 VStack(alignment: .leading, spacing: 10) {
                     Text("المبيعات والزبائن والأطقم")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.goldLight)
                         .padding(.horizontal, 4)
 
@@ -99,7 +99,7 @@ struct MoreManagementHubView: View {
                 // Section 2: Financial Reports & Comparisons
                 VStack(alignment: .leading, spacing: 10) {
                     Text("التقارير المالية والمقارنات")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.goldLight)
                         .padding(.horizontal, 4)
 
@@ -143,7 +143,7 @@ struct MoreManagementHubView: View {
                 // Section 3: Settings & Backup
                 VStack(alignment: .leading, spacing: 10) {
                     Text("إعدادات النظام والأمان")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.system(.subheadline, weight: .bold))
                         .foregroundColor(SalfordTheme.goldLight)
                         .padding(.horizontal, 4)
 
@@ -182,17 +182,17 @@ struct ManagementRowCard: View {
                     .fill(SalfordTheme.royalNavyMid)
                     .frame(width: 44, height: 44)
                 Image(systemName: icon)
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(.headline, weight: .bold))
                     .foregroundColor(accent)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(.white)
+                    .font(.system(.subheadline, weight: .bold))
+                    .foregroundColor(SalfordTheme.textPrimary)
                     .multilineTextAlignment(.leading)
                 Text(subtitle)
-                    .font(.system(size: 11.5))
+                    .font(.system(.caption))
                     .foregroundColor(SalfordTheme.textMuted)
                     .multilineTextAlignment(.leading)
                     .lineLimit(2)
@@ -202,7 +202,7 @@ struct ManagementRowCard: View {
 
             VStack(alignment: .trailing, spacing: 6) {
                 Text(badgeText)
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(.caption, weight: .bold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(accent.opacity(0.16))
@@ -210,7 +210,7 @@ struct ManagementRowCard: View {
                     .clipShape(Capsule())
 
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.system(.caption, weight: .bold))
                     .foregroundColor(SalfordTheme.textMuted)
             }
         }

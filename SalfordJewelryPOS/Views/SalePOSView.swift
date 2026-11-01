@@ -31,7 +31,7 @@ struct SalePOSView: View {
                         Image(systemName: "sparkles")
                             .foregroundColor(SalfordTheme.silverAccent)
                         Text("اختيار القطعة وتفاصيل السعر")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .foregroundColor(SalfordTheme.silverLight)
                         Spacer()
                     }
@@ -59,41 +59,41 @@ struct SalePOSView: View {
                             SalfordProductThumbnailView(image: ProductImageHelper.image(for: prod), size: 60, cornerRadius: 12)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("الكود: \(prod.sku)")
-                                    .font(.system(size: 11.5, weight: .semibold))
+                                    .font(.system(.caption, weight: .semibold))
                                     .foregroundColor(SalfordTheme.silverAccent)
                                 Text("اللون: \(prod.color ?? "غير محدد") • المتوفر: \(prod.stock)" + (store.cartQuantity(for: prod.id) > 0 ? " (منها \(store.cartQuantity(for: prod.id)) في السلة)" : ""))
-                                    .font(.system(size: 11.5))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                             }
                             Spacer()
                             Stepper("الكمية: \(quantity)", value: $quantity, in: 1...max(1, prod.stock - store.cartQuantity(for: prod.id)))
-                                .font(.system(size: 12.5, weight: .bold))
-                                .foregroundColor(.white)
+                                .font(.system(.footnote, weight: .bold))
+                                .foregroundColor(SalfordTheme.textPrimary)
                         }
                     }
 
                     HStack(spacing: 10) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("سعر البيع الفعلي (د.ل)")
-                                .font(.system(size: 11.5, weight: .semibold))
+                                .font(.system(.caption, weight: .semibold))
                                 .foregroundColor(SalfordTheme.textMuted)
                             TextField("السعر", text: $unitPriceText)
                                 .numericInput($unitPriceText, .decimal)
                                 .padding(10)
                                 .background(SalfordTheme.bgElevated)
-                                .foregroundColor(.white)
+                                .foregroundColor(SalfordTheme.textPrimary)
                                 .cornerRadius(10)
                         }
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text("سعر صرف الدولار الآن بالدينار *")
-                                .font(.system(size: 11.5, weight: .bold))
+                                .font(.system(.caption, weight: .bold))
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                             TextField("7.00", text: $liveRateText)
                                 .numericInput($liveRateText, .decimal)
                                 .padding(10)
                                 .background(SalfordTheme.bgElevated)
-                                .foregroundColor(.white)
+                                .foregroundColor(SalfordTheme.textPrimary)
                                 .cornerRadius(10)
                         }
                     }
@@ -109,19 +109,19 @@ struct SalePOSView: View {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text("الإجمالي: \(Money.lyd(totalSell))")
-                                    .font(.system(size: 13, weight: .heavy))
-                                    .foregroundColor(.white)
+                                    .font(.system(.subheadline, weight: .heavy))
+                                    .foregroundColor(SalfordTheme.textPrimary)
                                 Text(String(format: "المعادل بالدولار: %.2f دولار", rate > 0 ? totalSell / rate : 0))
-                                    .font(.system(size: 11))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.silverAccent)
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
                                 Text(String(format: "الربح: %@ د.ل", Money.plain(profit)))
-                                    .font(.system(size: 13, weight: .heavy))
+                                    .font(.system(.subheadline, weight: .heavy))
                                     .foregroundColor(profit >= 0 ? SalfordTheme.emeraldSuccess : SalfordTheme.dangerRed)
                                 Text(String(format: "ربح الدولار: %.2f دولار", profitUSD))
-                                    .font(.system(size: 11, weight: .bold))
+                                    .font(.system(.caption, weight: .bold))
                                     .foregroundColor(SalfordTheme.emeraldSuccess)
                             }
                         }
@@ -136,7 +136,7 @@ struct SalePOSView: View {
                             addToCart()
                         } label: {
                             Label("إضافة للسلة (\(store.cart.count))", systemImage: "cart.badge.plus")
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(.subheadline, weight: .bold))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
                                 .background(SalfordTheme.royalNavyMid)
@@ -152,11 +152,11 @@ struct SalePOSView: View {
                             completeDirectSale()
                         } label: {
                             Label("بيع فوري + فاتورة", systemImage: "checkmark.circle.fill")
-                                .font(.system(size: 13, weight: .heavy))
+                                .font(.system(.subheadline, weight: .heavy))
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
                                 .background(SalfordTheme.silverGradient)
-                                .foregroundColor(SalfordTheme.bgPrimary)
+                                .foregroundColor(SalfordTheme.onPrimary)
                                 .cornerRadius(11)
                         }
                     }
@@ -171,7 +171,7 @@ struct SalePOSView: View {
                             Image(systemName: "sparkles")
                                 .foregroundColor(SalfordTheme.goldLight)
                             Text("بيع طقم كامل")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.system(.subheadline, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverLight)
                             Spacer()
                         }
@@ -184,14 +184,14 @@ struct SalePOSView: View {
                                     } label: {
                                         VStack(alignment: .leading, spacing: 4) {
                                             Text(jset.name)
-                                                .font(.system(size: 12.5, weight: .bold))
-                                                .foregroundColor(.white)
+                                                .font(.system(.footnote, weight: .bold))
+                                                .foregroundColor(SalfordTheme.textPrimary)
                                                 .lineLimit(1)
                                             Text(String(format: "%@ د.ل بدلاً من %@", Money.plain(store.bundlePrice(of: jset)), Money.plain(store.listPrice(of: jset))))
-                                                .font(.system(size: 11, weight: .bold))
+                                                .font(.system(.caption, weight: .bold))
                                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                                             Text(available > 0 ? "متاح: \(available)" : "غير متوفر")
-                                                .font(.system(size: 10.5))
+                                                .font(.system(.caption))
                                                 .foregroundColor(available > 0 ? SalfordTheme.textMuted : SalfordTheme.dangerRed)
                                         }
                                         .padding(10)
@@ -215,13 +215,13 @@ struct SalePOSView: View {
                             Image(systemName: "bag.fill")
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                             Text("سلة البيعة الموحدة (\(store.cart.reduce(0) { $0 + $1.quantity }) قطع)")
-                                .font(.system(size: 14, weight: .bold))
+                                .font(.system(.subheadline, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverLight)
                             Spacer()
                             Button("إفراغ السلة") {
                                 confirmClearCart = true
                             }
-                            .font(.system(size: 11.5, weight: .bold))
+                            .font(.system(.caption, weight: .bold))
                             .foregroundColor(SalfordTheme.dangerRed)
                         }
 
@@ -229,25 +229,25 @@ struct SalePOSView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(item.product.name)
-                                        .font(.system(size: 13, weight: .bold))
-                                        .foregroundColor(.white)
+                                        .font(.system(.subheadline, weight: .bold))
+                                        .foregroundColor(SalfordTheme.textPrimary)
                                     Text("\(item.product.sku) • \(item.quantity) × \(Money.lyd(item.unitPrice))")
-                                        .font(.system(size: 11))
+                                        .font(.system(.caption))
                                         .foregroundColor(SalfordTheme.textMuted)
                                     if let setName = item.setName {
                                         Label("ضمن طقم: \(setName)", systemImage: "sparkles")
-                                            .font(.system(size: 10.5, weight: .bold))
+                                            .font(.system(.caption, weight: .bold))
                                             .foregroundColor(SalfordTheme.goldLight)
                                     }
                                     if let warning = stockWarning(for: item) {
                                         Label(warning, systemImage: "exclamationmark.triangle.fill")
-                                            .font(.system(size: 11, weight: .bold))
+                                            .font(.system(.caption, weight: .bold))
                                             .foregroundColor(SalfordTheme.dangerRed)
                                     }
                                 }
                                 Spacer()
                                 Text(Money.lyd(item.subtotal))
-                                    .font(.system(size: 13, weight: .bold))
+                                    .font(.system(.subheadline, weight: .bold))
                                     .foregroundColor(SalfordTheme.silverLight)
                                 Button {
                                     // Removing a piece of a bundle removes the whole bundle.
@@ -268,12 +268,12 @@ struct SalePOSView: View {
                             HStack {
                                 Image(systemName: "printer.fill")
                                 Text("اعتماد السلة وإصدار فاتورة موحدة (\(Money.lyd(cartTotal)))")
-                                    .font(.system(size: 13.5, weight: .heavy))
+                                    .font(.system(.subheadline, weight: .heavy))
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 13)
                             .background(SalfordTheme.emeraldSuccess)
-                            .foregroundColor(.black)
+                            .foregroundColor(SalfordTheme.onColored)
                             .cornerRadius(12)
                         }
                     }
@@ -286,7 +286,7 @@ struct SalePOSView: View {
                         Image(systemName: "person.crop.circle.badge.plus")
                             .foregroundColor(SalfordTheme.silverAccent)
                         Text("بيانات الزبون وطريقة الدفع (تُحفظ تلقائياً)")
-                            .font(.system(size: 13.5, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .foregroundColor(SalfordTheme.silverLight)
                         Spacer()
                     }
@@ -301,14 +301,14 @@ struct SalePOSView: View {
                     if POSDataStore.isCredit(paymentMethod) {
                         Label("بيع آجل: يُسجل المبلغ ديناً على الزبون — أدخل اسمه أو رقم هاتفه. التحصيل من الإدارة ← الديون والتحصيل.",
                               systemImage: "creditcard.trianglebadge.exclamationmark")
-                            .font(.system(size: 11.5, weight: .bold))
+                            .font(.system(.caption, weight: .bold))
                             .foregroundColor(SalfordTheme.warningAmber)
                     }
 
                     TextField("اسم الزبون (اختياري — يظهر في الفاتورة)", text: $customerName)
                         .padding(10)
                         .background(SalfordTheme.bgElevated)
-                        .foregroundColor(.white)
+                        .foregroundColor(SalfordTheme.textPrimary)
                         .cornerRadius(10)
 
                     // Existing customers matching the name or phone: tap to fill in their details,
@@ -326,9 +326,9 @@ struct SalePOSView: View {
                                     } label: {
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(c.name)
-                                                .font(.system(size: 12, weight: .bold))
+                                                .font(.system(.footnote, weight: .bold))
                                             Text(c.phone ?? "بدون هاتف")
-                                                .font(.system(size: 10.5))
+                                                .font(.system(.caption))
                                                 .foregroundColor(SalfordTheme.textMuted)
                                         }
                                         .padding(.horizontal, 10)
@@ -347,20 +347,20 @@ struct SalePOSView: View {
                             .numericInput($customerPhone, .phone)
                             .padding(10)
                             .background(SalfordTheme.bgElevated)
-                            .foregroundColor(.white)
+                            .foregroundColor(SalfordTheme.textPrimary)
                             .cornerRadius(10)
 
                         TextField("المنطقة / المدينة", text: $customerArea)
                             .padding(10)
                             .background(SalfordTheme.bgElevated)
-                            .foregroundColor(.white)
+                            .foregroundColor(SalfordTheme.textPrimary)
                             .cornerRadius(10)
                     }
 
                     TextField("ملاحظات البيعة", text: $saleNote)
                         .padding(10)
                         .background(SalfordTheme.bgElevated)
-                        .foregroundColor(.white)
+                        .foregroundColor(SalfordTheme.textPrimary)
                         .cornerRadius(10)
                 }
                 .salfordCard()

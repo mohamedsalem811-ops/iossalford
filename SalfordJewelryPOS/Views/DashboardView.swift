@@ -61,11 +61,11 @@ struct DashboardView: View {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(SalfordTheme.warningAmber)
                             Text(stockAlertText)
-                                .font(.system(size: 12.5, weight: .bold))
-                                .foregroundColor(.white)
+                                .font(.system(.footnote, weight: .bold))
+                                .foregroundColor(SalfordTheme.textPrimary)
                             Spacer()
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 12, weight: .bold))
+                                .font(.system(.footnote, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverAccent)
                         }
                         .padding(12)
@@ -134,11 +134,11 @@ struct DashboardView: View {
                         selectedTab = 1
                     } label: {
                         Label("تسجيل بيعة جديدة", systemImage: "plus.circle.fill")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 11)
                             .background(SalfordTheme.silverGradient)
-                            .foregroundColor(SalfordTheme.bgPrimary)
+                            .foregroundColor(SalfordTheme.onPrimary)
                             .cornerRadius(12)
                     }
 
@@ -146,7 +146,7 @@ struct DashboardView: View {
                         store.openNewDraftReceipt(items: [])
                     } label: {
                         Label("إصدار فاتورة هدية", systemImage: "gift.fill")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 11)
                             .background(SalfordTheme.royalNavyMid)
@@ -165,17 +165,17 @@ struct DashboardView: View {
                         Image(systemName: "chart.bar.fill")
                             .foregroundColor(SalfordTheme.silverAccent)
                         Text("أداء المبيعات والربح للعمليات")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .foregroundColor(SalfordTheme.silverLight)
                         Spacer()
                         Text(activeMonth)
-                            .font(.system(size: 11.5, weight: .bold))
+                            .font(.system(.caption, weight: .bold))
                             .foregroundColor(SalfordTheme.goldLight)
                     }
 
                     if monthSales.isEmpty {
                         Text("لا توجد مبيعات مسجلة في هذا الشهر حتى الآن")
-                            .font(.system(size: 12))
+                            .font(.system(.footnote))
                             .foregroundColor(SalfordTheme.textMuted)
                             .frame(maxWidth: .infinity, minHeight: 140)
                     } else {
@@ -210,7 +210,7 @@ struct DashboardView: View {
                         Image(systemName: "chart.pie.fill")
                             .foregroundColor(SalfordTheme.silverAccent)
                         Text("توزيع المبيعات حسب الفئة")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .foregroundColor(SalfordTheme.silverLight)
                         Spacer()
                     }
@@ -219,11 +219,11 @@ struct DashboardView: View {
                     ForEach(catTotals, id: \.category) { item in
                         HStack {
                             Text(item.category)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(.white)
+                                .font(.system(.subheadline, weight: .semibold))
+                                .foregroundColor(SalfordTheme.textPrimary)
                             Spacer()
                             Text(Money.lyd(item.total))
-                                .font(.system(size: 13, weight: .bold))
+                                .font(.system(.subheadline, weight: .bold))
                                 .foregroundColor(SalfordTheme.silverLight)
                         }
                         .padding(.vertical, 4)
@@ -237,7 +237,7 @@ struct DashboardView: View {
                         Image(systemName: "clock.arrow.circlepath")
                             .foregroundColor(SalfordTheme.silverAccent)
                         Text("آخر المبيعات المسجلة")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.system(.subheadline, weight: .bold))
                             .foregroundColor(SalfordTheme.silverLight)
                         Spacer()
                     }
@@ -246,26 +246,26 @@ struct DashboardView: View {
                         HStack(spacing: 10) {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(sale.productName)
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(.white)
+                                    .font(.system(.subheadline, weight: .bold))
+                                    .foregroundColor(SalfordTheme.textPrimary)
                                 Text("\(sale.customerName ?? "زبون نقدي") • \(sale.paymentMethod) • الكمية \(sale.quantity)")
-                                    .font(.system(size: 11))
+                                    .font(.system(.caption))
                                     .foregroundColor(SalfordTheme.textMuted)
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 3) {
                                 Text(Money.lyd(sale.totalSell))
-                                    .font(.system(size: 13, weight: .heavy))
+                                    .font(.system(.subheadline, weight: .heavy))
                                     .foregroundColor(SalfordTheme.silverLight)
                                 Text(String(format: "الربح %@ د.ل", Money.plain(sale.profit)))
-                                    .font(.system(size: 10.5, weight: .bold))
+                                    .font(.system(.caption, weight: .bold))
                                     .foregroundColor(SalfordTheme.emeraldSuccess)
                             }
                             Button {
                                 store.openReceiptForSale(sale)
                             } label: {
                                 Image(systemName: "printer.fill")
-                                    .font(.system(size: 13))
+                                    .font(.system(.subheadline))
                                     .padding(8)
                                     .background(SalfordTheme.royalNavyMid)
                                     .foregroundColor(SalfordTheme.silverLight)
@@ -287,13 +287,13 @@ struct DashboardView: View {
             ToolbarItem(placement: .navigationBarLeading) {
                 HStack(spacing: 6) {
                     Text("SJ")
-                        .font(.system(size: 13, weight: .black, design: .serif))
+                        .font(.system(.subheadline, design: .serif, weight: .black))
                         .foregroundColor(SalfordTheme.silverLight)
                         .padding(5)
                         .background(SalfordTheme.bgPrimary.opacity(0.6))
                         .clipShape(Circle())
                     Text(String(format: "الدولار %.2f د.ل", store.exchangeRate))
-                        .font(.system(size: 11.5, weight: .bold))
+                        .font(.system(.caption, weight: .bold))
                         .foregroundColor(SalfordTheme.emeraldSuccess)
                 }
             }
