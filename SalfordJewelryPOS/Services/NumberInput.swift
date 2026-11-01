@@ -77,11 +77,24 @@ enum NumberInput {
 private struct NumericInputModifier: ViewModifier {
     @Binding var text: String
     let kind: NumberInput.Kind
+    @FocusState private var focused: Bool
 
     func body(content: Content) -> some View {
         content
             .keyboardType(keyboard)
             .autocorrectionDisabled()
+            .focused($focused)
+            // Number pads have no return key: add a "تم" (Done) button above the keyboard.
+            // Shown only for the focused field so several number fields don't add several buttons.
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    if focused {
+                        Spacer()
+                        Button("تم") { focused = false }
+                            .font(.system(.body, weight: .bold))
+                    }
+                }
+            }
             .onChange(of: text) { newValue in
                 let clean = NumberInput.sanitize(newValue, kind: kind)
                 if clean != newValue { text = clean }

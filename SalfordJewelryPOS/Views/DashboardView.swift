@@ -7,6 +7,7 @@ struct DashboardView: View {
     @EnvironmentObject var store: POSDataStore
     @Binding var selectedTab: AppTab
     @State private var selectedMonth: String = ""
+    @State private var showRateEditor: Bool = false
 
     private var activeMonth: String {
         selectedMonth.isEmpty ? store.currentMonthYear() : selectedMonth
@@ -56,12 +57,37 @@ struct DashboardView: View {
         .background(SalfordTheme.bgPrimary)
         .navigationTitle("الرئيسية")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showRateEditor) {
+            NavigationStack {
+                ScrollView {
+                    ExchangeRateEditor { showRateEditor = false }
+                        .padding(SalfordSpacing.l)
+                }
+                .background(SalfordTheme.bgPrimary)
+                .navigationTitle("سعر الدولار")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("إغلاق") { showRateEditor = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+            .environmentObject(store)
+            .environment(\.layoutDirection, .rightToLeft)
+        }
         .toolbar {
             ToolbarItem(placement: .navigationBarLeading) {
-                Label(String(format: "الدولار %.2f", store.exchangeRate), systemImage: "dollarsign.circle")
-                    .labelStyle(.titleAndIcon)
-                    .font(.system(.caption, weight: .bold))
-                    .foregroundColor(SalfordTheme.emeraldSuccess)
+                // Short text that fits the bar (the longer label was shortened to "…"); tap to change it.
+                Button {
+                    showRateEditor = true
+                } label: {
+                    Text(String(format: "$ %.2f", store.exchangeRate))
+                        .font(.system(.subheadline, weight: .bold))
+                        .foregroundColor(SalfordTheme.emeraldSuccess)
+                        .fixedSize()
+                }
+                .accessibilityLabel(String(format: "سعر الدولار %.2f دينار، اضغط للتعديل", store.exchangeRate))
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {

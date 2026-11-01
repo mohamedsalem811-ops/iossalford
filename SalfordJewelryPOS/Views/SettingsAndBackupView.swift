@@ -3,7 +3,6 @@ import UniformTypeIdentifiers
 
 struct SettingsAndBackupView: View {
     @EnvironmentObject var store: POSDataStore
-    @State private var rateText: String = ""
     @State private var currentPin: String = ""
     @State private var newPin: String = ""
     @State private var confirmPin: String = ""
@@ -17,23 +16,9 @@ struct SettingsAndBackupView: View {
         ScrollView {
             VStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("سعر صرف الدولار ورمز الدخول")
-                        .font(.system(.subheadline, weight: .bold))
-                        .foregroundColor(SalfordTheme.silverLight)
+                    ExchangeRateEditor()
 
-                    HStack {
-                        TextField("سعر الصرف بالدينار", text: $rateText)
-                            .numericInput($rateText, .decimal)
-                            .salfordField()
-                        Button("حفظ السعر") {
-                            if let r = NumberInput.decimal(rateText), r > 0 {
-                                store.exchangeRate = r
-                                store.saveToDisk()
-                                statusMsg = "تم تحديث سعر الصرف بنجاح"
-                            }
-                        }
-                        .buttonStyle(SalfordButtonStyle(kind: .success, fullWidth: false))
-                    }
+                    Divider()
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text("تغيير رمز الدخول")
@@ -101,7 +86,6 @@ struct SettingsAndBackupView: View {
         .navigationTitle("الإعدادات والنسخ الاحتياطي")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            rateText = NumberInput.editable(store.exchangeRate)
             backupURL = store.exportBackupJSON()
         }
         .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.json]) { result in
@@ -154,5 +138,74 @@ struct SettingsAndBackupView: View {
             pinStatusIsError = true
             pinStatusMsg = "تعذر حفظ الرمز في سلسلة المفاتيح الآمنة — حاول مرة أخرى"
         }
+    }
+}
+
+
+/// Edit the dollar exchange rate: "1 $ = [7.00] د.ل", save, and a confirmation right below.
+/// Used in Settings and as a quick sheet from the dashboard.
+struct ExchangeRateEditor: View {
+    @EnvironmentObject var store: POSDataStore
+    var onSaved: (() -> Void)? = nil
+
+    @State private var rateText: String = ""
+    @State private var message: String = ""
+    @State private var isError: Bool = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SalfordSpacing.s) {
+            SalfordSectionTitle(title: "سعر صرف الدولار", icon: "dollarsign.circle.fill")
+            HStack(spacing: SalfordSpacing.s) {
+                Text("1 $ =")
+                    .font(.system(.body, weight: .semibold))
+                    .foregroundColor(SalfordTheme.textPrimary)
+                TextField("7.00", text: $rateText)
+                    .numericInput($rateText, .decimal)
+                    .multilineTextAlignment(.center)
+                    .salfordField()
+                    .frame(maxWidth: 140)
+                    .accessibilityLabel("سعر الدولار بالدينار")
+                Text("د.ل")
+                    .font(.system(.body, weight: .semibold))
+                    .foregroundColor(SalfordTheme.textMuted)
+                Spacer(minLength: 0)
+            }
+            // Digits and the "1 $ =" line read left-to-right, like the number itself.
+            .environment(\.layoutDirection, .leftToRight)
+
+            Button {
+                save()
+            } label: {
+                Label("حفظ السعر", systemImage: "checkmark.circle.fill")
+            }
+            .buttonStyle(.salfordSuccess)
+
+            if !message.isEmpty {
+                Label(message, systemImage: isError ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
+                    .font(.system(.footnote, weight: .bold))
+                    .foregroundColor(isError ? SalfordTheme.dangerRed : SalfordTheme.emeraldSuccess)
+            }
+        }
+        .onAppear {
+            rateText = String(format: "%.2f", store.exchangeRate)
+        }
+    }
+
+    private func save() {
+        guard let r = NumberInput.decimal(rateText), r > 0, r < 1000 else {
+            isError = true
+            message = "أدخل سعراً صحيحاً، مثال: 7.25"
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            return
+        }
+        let rate = (r * 10_000).rounded() / 10_000
+        store.exchangeRate = rate
+        store.saveToDisk()
+        rateText = String(format: "%.2f", rate)
+        isError = false
+        message = "تم الحفظ: 1 $ = \(NumberInput.editable(rate)) د.ل"
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        onSaved?()
     }
 }
