@@ -515,7 +515,7 @@ struct ProductFormSheet: View {
                         }
 
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("كود القطعة (يُولّد تلقائياً إذا تُرك فارغاً)")
+                            Text("كود القطعة (يُولّد تلقائياً إذا تُرك فارغاً — لا يتكرر)")
                                 .font(.system(size: 11.5))
                                 .foregroundColor(SalfordTheme.textMuted)
                             TextField("RNG-SFD01", text: $sku)
@@ -716,7 +716,10 @@ struct ProductFormSheet: View {
             costUSD: costUSD,
             createdAt: product?.createdAt ?? store.nowTimestamp()
         )
-        store.saveProduct(newProd)
+        if let error = store.saveProduct(newProd) {
+            formError = error
+            return
+        }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()
     }

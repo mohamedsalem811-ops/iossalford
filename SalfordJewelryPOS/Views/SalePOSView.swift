@@ -253,6 +253,37 @@ struct SalePOSView: View {
                         .foregroundColor(.white)
                         .cornerRadius(10)
 
+                    // Existing customers matching the name or phone: tap to fill in their details,
+                    // so the sale is linked to them instead of creating a duplicate.
+                    let suggestions = store.customerSuggestions(for: customerName.isEmpty ? customerPhone : customerName)
+                        .filter { $0.name != customerName || ($0.phone ?? "") != customerPhone }
+                    if !suggestions.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 8) {
+                                ForEach(suggestions) { c in
+                                    Button {
+                                        customerName = c.name
+                                        customerPhone = c.phone ?? ""
+                                        customerArea = c.area ?? ""
+                                    } label: {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(c.name)
+                                                .font(.system(size: 12, weight: .bold))
+                                            Text(c.phone ?? "بدون هاتف")
+                                                .font(.system(size: 10.5))
+                                                .foregroundColor(SalfordTheme.textMuted)
+                                        }
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 6)
+                                        .background(SalfordTheme.royalNavyMid)
+                                        .foregroundColor(SalfordTheme.silverLight)
+                                        .cornerRadius(9)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     HStack(spacing: 10) {
                         TextField("رقم الهاتف", text: $customerPhone)
                             .numericInput($customerPhone, .phone)

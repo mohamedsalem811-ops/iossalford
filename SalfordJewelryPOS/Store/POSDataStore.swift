@@ -360,31 +360,57 @@ final class POSDataStore: ObservableObject {
         saveToDisk()
     }
 
-    func generateSKU(for category: String) -> String {
-        let prefixMap = ["خواتم": "RNG", "أساور": "BRC", "قلادات": "NCK", "أقراط": "EAR", "دبابيس": "PIN", "ساعات": "WCH", "أطقم": "SET"]
-        let prefix = prefixMap[category] ?? "PRD"
-        let rand = String(Int(Date().timeIntervalSince1970) % 100000, radix: 16).uppercased()
-        return "\(prefix)-\(rand)"
+    private static let skuPrefixes = ["خواتم": "RNG", "أساور": "BRC", "قلادات": "NCK", "أقراط": "EAR", "دبابيس": "PIN", "ساعات": "WCH", "أطقم": "SET"]
+
+    func skuInUse(_ sku: String, excludingProductId: Int? = nil) -> Bool {
+        let key = sku.trimmingCharacters(in: .whitespaces).uppercased()
+        return products.contains { $0.id != excludingProductId && $0.sku.uppercased() == key }
     }
 
-    // MARK: - Products CRUD
-    func saveProduct(_ prod: Product) {
+    /// Next free code for the category, e.g. RNG-0007. Sequential and guaranteed unique.
+    func generateSKU(for category: String) -> String {
+        let prefix = Self.skuPrefixes[category] ?? "PRD"
+        let used = products.compactMap { p -> Int? in
+            let parts = p.sku.uppercased().split(separator: "-")
+            guard parts.count == 2, parts[0] == Substring(prefix) else { return nil }
+            return Int(parts[1])
+        }
+        var n = (used.max() ?? 0) + 1
+        var sku = String(format: "%@-%04d", prefix, n)
+        while skuInUse(sku) {
+            n += 1
+            sku = String(format: "%@-%04d", prefix, n)
+        }
+        return sku
+    }
+
+    /// Saves a product. Returns an error message (and saves nothing) if the code belongs to another piece.
+    @discardableResult
+    func saveProduct(_ prod: Product) -> String? {
+        let typedSku = prod.sku.trimmingCharacters(in: .whitespaces).uppercased()
+        if !typedSku.isEmpty, skuInUse(typedSku, excludingProductId: prod.id) {
+            let other = products.first { $0.sku.uppercased() == typedSku && $0.id != prod.id }
+            return "الكود \(typedSku) مستخدم للقطعة «\(other?.name ?? "")». اختر كوداً آخر أو اتركه فارغاً ليُولّد تلقائياً."
+        }
         if let idx = products.firstIndex(where: { $0.id == prod.id }) {
             var updated = prod
+            updated.sku = typedSku
             // An existing piece must never end up without a code (receipts and returns use it).
-            if updated.sku.trimmingCharacters(in: .whitespaces).isEmpty {
+            if updated.sku.isEmpty {
                 updated.sku = products[idx].sku.isEmpty ? generateSKU(for: updated.category) : products[idx].sku
             }
             products[idx] = updated
         } else {
             var newProd = prod
+            newProd.sku = typedSku
             newProd.id = (products.map(\.id).max() ?? 0) + 1
-            if newProd.sku.trimmingCharacters(in: .whitespaces).isEmpty {
+            if newProd.sku.isEmpty {
                 newProd.sku = generateSKU(for: newProd.category)
             }
             products.insert(newProd, at: 0)
         }
         saveToDisk()
+        return nil
     }
 
     /// Deletes a product. Its sales and receipts keep their own copy of the name and price,
@@ -638,22 +664,82 @@ final class POSDataStore: ObservableObject {
         return []
     }
 
+    // MARK: - Customer matching
+
+    /// Phone number reduced to its national digits so "0912345678", "+218912345678" and
+    /// "00218 91 234 5678" are recognised as the same number.
+    static func phoneKey(_ phone: String?) -> String? {
+        guard let phone else { return nil }
+        var digits = NumberInput.sanitize(phone, kind: .integer)
+        if digits.hasPrefix("00218") { digits.removeFirst(5) }
+        else if digits.hasPrefix("218") && digits.count > 9 { digits.removeFirst(3) }
+        while digits.hasPrefix("0") { digits.removeFirst() }
+        return digits.count >= 6 ? digits : nil
+    }
+
+    /// Name compared without case or extra spaces.
+    static func nameKey(_ name: String) -> String {
+        name.lowercased().split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    func customer(withPhone phone: String) -> Customer? {
+        guard let key = Self.phoneKey(phone) else { return nil }
+        return customers.first { Self.phoneKey($0.phone) == key }
+    }
+
+    /// Customers whose name or phone contains the text (for suggestions while typing).
+    func customerSuggestions(for text: String, limit: Int = 4) -> [Customer] {
+        let q = Self.nameKey(NumberInput.latinDigits(text))
+        guard q.count >= 2 else { return [] }
+        let qDigits = NumberInput.sanitize(q, kind: .integer)
+        return customers.filter { c in
+            Self.nameKey(c.name).contains(q)
+                || (qDigits.count >= 3 && (c.phone.map { NumberInput.sanitize($0, kind: .integer).contains(qDigits) } ?? false))
+        }
+        .prefix(limit)
+        .map { $0 }
+    }
+
+    /// Finds the customer for a sale, or creates one.
+    /// The phone number decides first; the name is only used when there is no conflicting phone,
+    /// so two different customers with the same name are no longer merged.
     private func ensureCustomer(name: String, phone: String, area: String) -> Int? {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        if let existing = customers.first(where: { $0.name.lowercased() == trimmed.lowercased() }) {
-            return existing.id
+        let trimmedArea = area.trimmingCharacters(in: .whitespacesAndNewlines)
+        let phoneKey = Self.phoneKey(phone)
+        guard !trimmed.isEmpty || phoneKey != nil else { return nil }
+
+        func fillMissing(_ idx: Int) -> Int {
+            if customers[idx].phone == nil, phoneKey != nil { customers[idx].phone = phone }
+            if customers[idx].area == nil, !trimmedArea.isEmpty { customers[idx].area = trimmedArea }
+            return customers[idx].id
         }
+
+        // 1. Same phone number = same customer.
+        if let key = phoneKey, let idx = customers.firstIndex(where: { Self.phoneKey($0.phone) == key }) {
+            return fillMissing(idx)
+        }
+
+        // 2. Same name, and that customer has no different phone on file.
+        if !trimmed.isEmpty {
+            let nameKey = Self.nameKey(trimmed)
+            let sameName = customers.indices.filter { Self.nameKey(customers[$0].name) == nameKey }
+            let compatible = sameName.filter { customers[$0].phone == nil || phoneKey == nil }
+            if let idx = compatible.last {
+                return fillMissing(idx)
+            }
+        }
+
+        // 3. New customer.
         let newId = (customers.map(\.id).max() ?? 0) + 1
-        let c = Customer(
+        customers.append(Customer(
             id: newId,
-            name: trimmed,
-            phone: phone.isEmpty ? nil : phone,
-            area: area.isEmpty ? nil : area,
+            name: trimmed.isEmpty ? "زبون \(phone)" : trimmed,
+            phone: phoneKey == nil ? nil : phone,
+            area: trimmedArea.isEmpty ? nil : trimmedArea,
             notes: "تمت الإضافة تلقائياً من نافذة البيع",
             createdAt: nowTimestamp()
-        )
-        customers.append(c)
+        ))
         return newId
     }
 
@@ -906,9 +992,16 @@ final class POSDataStore: ObservableObject {
     }
 
     // MARK: - Customer Management
-    func addOrUpdateCustomer(id: Int = 0, name: String, phone: String, area: String, notes: String) {
+    /// Adds or edits a customer. Returns an error message (and changes nothing) if the phone
+    /// number already belongs to another customer.
+    @discardableResult
+    func addOrUpdateCustomer(id: Int = 0, name: String, phone: String, area: String, notes: String) -> String? {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty else { return "يرجى إدخال اسم الزبون" }
+        if let key = Self.phoneKey(phone),
+           let other = customers.first(where: { Self.phoneKey($0.phone) == key && $0.id != id }) {
+            return "رقم الهاتف مسجل مسبقاً للزبون «\(other.name)»"
+        }
         if id > 0, let idx = customers.firstIndex(where: { $0.id == id }) {
             customers[idx].name = trimmed
             customers[idx].phone = phone.isEmpty ? nil : phone
@@ -929,6 +1022,7 @@ final class POSDataStore: ObservableObject {
             )
         }
         saveToDisk()
+        return nil
     }
 
     func deleteCustomer(id: Int) {

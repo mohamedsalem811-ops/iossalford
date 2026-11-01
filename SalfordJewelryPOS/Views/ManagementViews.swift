@@ -389,6 +389,7 @@ struct CustomersManagementView: View {
     @State private var phone: String = ""
     @State private var area: String = ""
     @State private var notes: String = ""
+    @State private var formMessage: String = ""
 
     var body: some View {
         ScrollView {
@@ -427,8 +428,11 @@ struct CustomersManagementView: View {
                         .cornerRadius(10)
 
                     Button {
-                        guard !name.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-                        store.addOrUpdateCustomer(name: name, phone: phone, area: area, notes: notes)
+                        if let error = store.addOrUpdateCustomer(name: name, phone: phone, area: area, notes: notes) {
+                            formMessage = error
+                            return
+                        }
+                        formMessage = ""
                         name = ""
                         phone = ""
                         area = ""
@@ -441,6 +445,12 @@ struct CustomersManagementView: View {
                             .background(SalfordTheme.silverGradient)
                             .foregroundColor(SalfordTheme.bgPrimary)
                             .cornerRadius(10)
+                    }
+
+                    if !formMessage.isEmpty {
+                        Text(formMessage)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(SalfordTheme.dangerRed)
                     }
                 }
                 .salfordCard()
