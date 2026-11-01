@@ -1,143 +1,177 @@
 import SwiftUI
 import LocalAuthentication
 
+/// Login: 8-digit PIN on a built-in keypad (always digits 0-9, whatever the phone's region),
+/// Face ID / Touch ID, and an escalating lockout after wrong attempts.
 struct PinLoginView: View {
     @EnvironmentObject var store: POSDataStore
     @State private var pinInput: String = ""
     @State private var errorMessage: String = ""
     @State private var lockedUntil: Date? = PinVault.lockedUntil
-    @FocusState private var isPinFieldFocused: Bool
+    @State private var shake: CGFloat = 0
+    @State private var didAutoPromptBiometrics = false
 
     private let lockTimer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     private var isLockedOut: Bool { lockedUntil != nil }
+
+    private var biometryType: LABiometryType {
+        let context = LAContext()
+        _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+        return context.biometryType
+    }
+
+    private var biometryAvailable: Bool { biometryType != .none }
+
+    private var biometryIcon: String {
+        biometryType == .touchID ? "touchid" : "faceid"
+    }
 
     var body: some View {
         ZStack {
             SalfordTheme.bgGradient.ignoresSafeArea()
 
             ScrollView(showsIndicators: false) {
-                VStack(spacing: 18) {
-                    Spacer(minLength: 14)
+                VStack(spacing: SalfordSpacing.xl) {
+                    Spacer(minLength: SalfordSpacing.l)
 
                     SalfordMonogramLogoView(size: 84, showWordmark: true)
+                        .accessibilityHidden(true)
 
-                    Text("نظام إدارة المبيعات والمجوهرات المتكامل")
-                        .font(.system(.subheadline, weight: .medium))
-                        .foregroundColor(SalfordTheme.textMuted)
-                        .padding(.bottom, 4)
-
-                    // Native iOS NumberPad Input Card
-                    VStack(spacing: 12) {
-                        HStack {
-                            Image(systemName: "lock.shield.fill")
-                                .foregroundColor(SalfordTheme.silverAccent)
-                            Text("أدخل رمز الدخول (8 أرقام)")
-                                .font(.system(.subheadline, weight: .bold))
-                                .foregroundColor(SalfordTheme.silverLight)
-                            Spacer()
-                            Button {
-                                authenticateWithFaceID()
-                            } label: {
-                                Label("Face ID", systemImage: "faceid")
-                                    .font(.system(.footnote, weight: .bold))
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 5)
-                                    .background(SalfordTheme.royalNavyMid)
-                                    .foregroundColor(SalfordTheme.silverLight)
-                                    .clipShape(Capsule())
-                            }
-                        }
-
-                        // Native iOS SecureField with .numberPad keyboard
-                        SecureField("••••••••", text: $pinInput)
-                            .keyboardType(.numberPad)
-                            .focused($isPinFieldFocused)
-                            .font(.system(.title, design: .monospaced, weight: .heavy))
-                            .multilineTextAlignment(.center)
+                    VStack(spacing: SalfordSpacing.s) {
+                        Text("أدخل رمز الدخول")
+                            .font(.system(.title3, weight: .bold))
                             .foregroundColor(SalfordTheme.textPrimary)
-                            .padding(.vertical, 12)
-                            .padding(.horizontal, 16)
-                            .background(SalfordTheme.fieldBg)
-                            .cornerRadius(14)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14)
-                                    .stroke(SalfordTheme.silverAccent.opacity(0.45), lineWidth: 1.4)
-                            )
-                            .disabled(isLockedOut)
-                            .onChange(of: pinInput) { newVal in
-                                let filtered = String(PinVault.normalize(newVal).prefix(PinVault.pinLength))
-                                if filtered != newVal {
-                                    // onChange fires again with the cleaned value; handle it there.
-                                    pinInput = filtered
-                                    return
-                                }
-                                if !pinInput.isEmpty && !isLockedOut { errorMessage = "" }
-                                if pinInput.count == PinVault.pinLength {
-                                    attemptLogin()
-                                }
-                            }
-
-                        // 8 visual dots indicator
-                        HStack(spacing: 10) {
-                            ForEach(0..<8, id: \.self) { index in
-                                Circle()
-                                    .fill(index < pinInput.count ? SalfordTheme.silverLight : SalfordTheme.textMuted.opacity(0.3))
-                                    .frame(width: 11, height: 11)
-                                    .scaleEffect(index < pinInput.count ? 1.15 : 1.0)
-                                    .animation(.spring(response: 0.25), value: pinInput.count)
-                            }
-                        }
-                        .padding(.vertical, 4)
-
-                        if !errorMessage.isEmpty {
-                            Text(errorMessage)
-                                .font(.system(.footnote, weight: .bold))
-                                .foregroundColor(SalfordTheme.dangerRed)
-                        }
-
-                        // Primary Unlock Button
-                        Button {
-                            attemptLogin()
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "lock.open.fill")
-                                Text("دخول إلى النظام")
-                                    .font(.system(.callout, weight: .heavy))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 13)
-                            .background(SalfordTheme.silverGradient)
-                            .foregroundColor(SalfordTheme.onPrimary)
-                            .cornerRadius(12)
-                            .opacity(isLockedOut ? 0.4 : 1)
-                        }
-                        .disabled(isLockedOut)
-
+                        Text("8 أرقام")
+                            .font(.system(.subheadline))
+                            .foregroundColor(SalfordTheme.textMuted)
                     }
-                    .padding(18)
-                    .background(SalfordTheme.bgCard)
-                    .cornerRadius(20)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 20)
-                            .stroke(SalfordTheme.borderSubtle, lineWidth: 1)
-                    )
-                    .padding(.horizontal, 20)
 
-                    Spacer(minLength: 20)
+                    pinDots
+                        .modifier(ShakeEffect(animatableData: shake))
+
+                    Text(errorMessage.isEmpty ? " " : errorMessage)
+                        .font(.system(.footnote, weight: .semibold))
+                        .foregroundColor(isLockedOut ? SalfordTheme.warningAmber : SalfordTheme.dangerRed)
+                        .multilineTextAlignment(.center)
+                        .frame(minHeight: 36)
+                        .padding(.horizontal, SalfordSpacing.l)
+                        .accessibilityHidden(errorMessage.isEmpty)
+
+                    keypad
+
+                    Spacer(minLength: SalfordSpacing.l)
                 }
+                .frame(maxWidth: 420)
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, SalfordSpacing.xl)
             }
         }
+        // The keypad below always uses digits 0-9 and the left-to-right order of a phone dial pad.
+        .environment(\.layoutDirection, .leftToRight)
         .onAppear {
             refreshLockState()
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                isPinFieldFocused = true
+            // Offer Face ID / Touch ID straight away, once per appearance of the login screen.
+            if biometryAvailable && !isLockedOut && !didAutoPromptBiometrics {
+                didAutoPromptBiometrics = true
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { authenticateWithBiometrics() }
             }
         }
         .onReceive(lockTimer) { _ in
             if isLockedOut { refreshLockState() }
         }
     }
+
+    // MARK: PIN dots
+
+    private var pinDots: some View {
+        HStack(spacing: 14) {
+            ForEach(0..<PinVault.pinLength, id: \.self) { index in
+                Circle()
+                    .fill(index < pinInput.count ? SalfordTheme.gold : SalfordTheme.textMuted.opacity(0.25))
+                    .frame(width: 14, height: 14)
+                    .scaleEffect(index < pinInput.count ? 1.15 : 1.0)
+                    .animation(.spring(response: 0.25), value: pinInput.count)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("تم إدخال \(pinInput.count) من \(PinVault.pinLength) أرقام")
+    }
+
+    // MARK: Keypad
+
+    private var keypad: some View {
+        let rows: [[String]] = [["1", "2", "3"], ["4", "5", "6"], ["7", "8", "9"], ["bio", "0", "del"]]
+        return VStack(spacing: SalfordSpacing.m) {
+            ForEach(rows, id: \.self) { row in
+                HStack(spacing: SalfordSpacing.l) {
+                    ForEach(row, id: \.self) { key in
+                        keyButton(key)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func keyButton(_ key: String) -> some View {
+        let size: CGFloat = 76
+        switch key {
+        case "bio":
+            if biometryAvailable {
+                Button {
+                    authenticateWithBiometrics()
+                } label: {
+                    Image(systemName: biometryIcon)
+                        .font(.system(.title))
+                        .frame(width: size, height: size)
+                        .foregroundColor(SalfordTheme.gold)
+                }
+                .accessibilityLabel(biometryType == .touchID ? "الدخول بالبصمة" : "الدخول بالوجه")
+            } else {
+                Color.clear.frame(width: size, height: size)
+            }
+        case "del":
+            Button {
+                if !pinInput.isEmpty { pinInput.removeLast() }
+            } label: {
+                Image(systemName: "delete.left")
+                    .font(.system(.title2))
+                    .frame(width: size, height: size)
+                    .foregroundColor(SalfordTheme.textPrimary)
+            }
+            .disabled(pinInput.isEmpty)
+            .accessibilityLabel("حذف رقم")
+        default:
+            Button {
+                type(key)
+            } label: {
+                Text(key)
+                    .font(.system(.title, design: .rounded, weight: .semibold))
+                    .frame(width: size, height: size)
+                    .background(Circle().fill(SalfordTheme.bgCard))
+                    .overlay(Circle().stroke(SalfordTheme.borderSubtle, lineWidth: 1))
+                    .foregroundColor(SalfordTheme.textPrimary)
+            }
+            .buttonStyle(KeypadButtonStyle())
+            // Digits are blocked during a lockout; Face ID / Touch ID still works.
+            .disabled(isLockedOut)
+            .opacity(isLockedOut ? 0.4 : 1)
+            .accessibilityLabel(key)
+        }
+    }
+
+    private func type(_ digit: String) {
+        guard pinInput.count < PinVault.pinLength else { return }
+        if pinInput.isEmpty && !isLockedOut { errorMessage = "" }
+        pinInput.append(digit)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        if pinInput.count == PinVault.pinLength {
+            // Let the last dot fill before checking.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { attemptLogin() }
+        }
+    }
+
+    // MARK: Login
 
     private func refreshLockState() {
         lockedUntil = PinVault.lockedUntil
@@ -157,17 +191,19 @@ struct PinLoginView: View {
             errorMessage = ""
         case .wrong(let left):
             UINotificationFeedbackGenerator().notificationOccurred(.error)
+            withAnimation(.default) { shake += 1 }
             errorMessage = left > 0
-                ? "❌ الرمز غير صحيح — تبقّى \(left) محاولات قبل الإيقاف المؤقت"
-                : "❌ الرمز غير صحيح"
+                ? "الرمز غير صحيح — تبقّى \(left) محاولات قبل الإيقاف المؤقت"
+                : "الرمز غير صحيح"
         case .lockedOut:
             UINotificationFeedbackGenerator().notificationOccurred(.error)
+            withAnimation(.default) { shake += 1 }
             refreshLockState()
         }
         pinInput = ""
     }
 
-    private func authenticateWithFaceID() {
+    private func authenticateWithBiometrics() {
         let context = LAContext()
         context.localizedFallbackTitle = "استخدم الرمز الرقمي"
         var error: NSError?
@@ -182,5 +218,24 @@ struct PinLoginView: View {
                 }
             }
         }
+    }
+}
+
+/// Small press feedback for keypad digits.
+private struct KeypadButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1)
+            .opacity(configuration.isPressed ? 0.7 : 1)
+            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+    }
+}
+
+/// Horizontal shake for a wrong PIN.
+private struct ShakeEffect: GeometryEffect {
+    var animatableData: CGFloat
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(CGAffineTransform(translationX: 10 * sin(animatableData * .pi * 4), y: 0))
     }
 }
