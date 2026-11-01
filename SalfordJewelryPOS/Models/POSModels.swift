@@ -91,6 +91,8 @@ struct ReturnRecord: Identifiable, Codable, Equatable {
     var productName: String
     var quantity: Int
     var refundAmount: Double
+    /// Cost of the returned pieces (they go back into stock). Missing on returns recorded by older versions.
+    var costAmount: Double? = nil
     var reason: String?
     var returnDate: String
     var monthYear: String
@@ -107,6 +109,8 @@ struct ExpenseRecord: Identifiable, Codable, Equatable {
 struct QuarterlyClosing: Identifiable, Codable, Equatable {
     var id: Int
     var quarterKey: String
+    /// Machine key of the closed period, e.g. "2026-Q4". Missing on closings made by older versions.
+    var periodKey: String? = nil
     var totalSales: Double
     var totalCost: Double
     var totalExpenses: Double
@@ -191,4 +195,47 @@ extension POSDatabaseState {
         expenses = try c.decodeIfPresent([ExpenseRecord].self, forKey: .expenses) ?? []
         closings = try c.decodeIfPresent([QuarterlyClosing].self, forKey: .closings) ?? []
     }
+}
+
+/// A calendar quarter, e.g. Q4 2026 = months 2026-10, 2026-11, 2026-12.
+struct QuarterPeriod: Hashable, Identifiable {
+    var year: Int
+    var quarter: Int // 1...4
+
+    var id: String { key }
+    var key: String { "\(year)-Q\(quarter)" }
+
+    var monthKeys: [String] {
+        let first = (quarter - 1) * 3 + 1
+        return (first...(first + 2)).map { String(format: "%04d-%02d", year, $0) }
+    }
+
+    var title: String {
+        let names = ["الأول", "الثاني", "الثالث", "الرابع"]
+        return "الربع \(names[quarter - 1]) \(year)"
+    }
+
+    static func containing(_ date: Date = Date()) -> QuarterPeriod {
+        let cal = Calendar(identifier: .gregorian)
+        let comps = cal.dateComponents([.year, .month], from: date)
+        return QuarterPeriod(year: comps.year ?? 2026, quarter: ((comps.month ?? 1) - 1) / 3 + 1)
+    }
+}
+
+/// Financial totals for a set of months. Every report uses this so the numbers always agree.
+struct PeriodSummary: Equatable {
+    var grossSales: Double = 0      // sales before refunds
+    var costOfSales: Double = 0
+    var grossProfit: Double = 0     // sales profit before refunds and expenses
+    var refunds: Double = 0         // money given back to customers
+    var returnedCost: Double = 0    // cost of returned pieces (back in stock)
+    var expenses: Double = 0
+    var transactions: Int = 0
+    var itemsSold: Int = 0
+    var itemsReturned: Int = 0
+
+    var netSales: Double { grossSales - refunds }
+    /// Profit lost to returns: the refund, minus the cost of the piece that came back into stock.
+    var returnsProfitImpact: Double { refunds - returnedCost }
+    var netProfit: Double { grossProfit - returnsProfitImpact - expenses }
 }

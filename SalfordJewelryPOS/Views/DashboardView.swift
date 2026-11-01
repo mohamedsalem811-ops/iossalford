@@ -27,10 +27,12 @@ struct DashboardView: View {
     }
 
     var body: some View {
-        let revenue = monthSales.reduce(0.0) { $0 + $1.totalSell }
-        let grossProfit = monthSales.reduce(0.0) { $0 + $1.profit }
-        let totalExpenses = monthExpenses.reduce(0.0) { $0 + $1.amount }
-        let netProfit = grossProfit - totalExpenses
+        let monthSummary = store.summary(forMonth: activeMonth)
+        let revenue = monthSummary.grossSales
+        let grossProfit = monthSummary.grossProfit
+        let totalExpenses = monthSummary.expenses
+        // Net profit now also subtracts what returns cost the shop (refund minus the piece's cost).
+        let netProfit = monthSummary.netProfit
         let rate = store.exchangeRate > 0 ? store.exchangeRate : 7.0
         let totalStockUnits = store.products.reduce(0) { $0 + $1.stock }
         let stockCostValue = store.products.reduce(0.0) { $0 + ($1.costPrice * Double($1.stock)) }

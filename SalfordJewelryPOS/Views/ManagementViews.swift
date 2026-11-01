@@ -490,14 +490,12 @@ struct MonthlyComparisonChartView: View {
     }
 
     var summaries: [MonthSummary] {
-        let months = Array(Set(store.sales.map(\.monthYear) + [store.currentMonthYear()])).sorted()
+        let months = Array(Set(store.sales.map(\.monthYear) + store.returns.map(\.monthYear) + store.expenses.map(\.monthYear) + [store.currentMonthYear()])).sorted()
         let rate = store.exchangeRate > 0 ? store.exchangeRate : 7.0
         return months.map { m in
-            let s = store.sales.filter { $0.monthYear == m }.reduce(0.0) { $0 + $1.totalSell }
-            let p = store.sales.filter { $0.monthYear == m }.reduce(0.0) { $0 + $1.profit }
-            let e = store.expenses.filter { $0.monthYear == m }.reduce(0.0) { $0 + $1.amount }
+            let sum = store.summary(forMonth: m)
             let divisor = useUSD ? rate : 1.0
-            return MonthSummary(month: m, sales: s / divisor, profit: p / divisor, netProfit: (p - e) / divisor)
+            return MonthSummary(month: m, sales: sum.netSales / divisor, profit: sum.grossProfit / divisor, netProfit: sum.netProfit / divisor)
         }
     }
 
@@ -695,10 +693,26 @@ struct ExpensesAndReturnsView: View {
 
 struct QuarterlyClosingView: View {
     @EnvironmentObject var store: POSDataStore
-    @State private var quarterTitle: String = "الربع الرابع ٢٠٢٦"
+    @State private var selectedPeriod: QuarterPeriod = .containing()
     @State private var closingNotes: String = ""
+    @State private var confirmReplace: Bool = false
+    @State private var closingToDelete: QuarterlyClosing? = nil
+    @State private var statusMsg: String = ""
+
+    /// The current quarter and the 7 before it.
+    private var selectablePeriods: [QuarterPeriod] {
+        var list: [QuarterPeriod] = []
+        var p = QuarterPeriod.containing()
+        for _ in 0..<8 {
+            list.append(p)
+            p = p.quarter == 1 ? QuarterPeriod(year: p.year - 1, quarter: 4) : QuarterPeriod(year: p.year, quarter: p.quarter - 1)
+        }
+        return list
+    }
 
     var body: some View {
+        let sum = store.summary(for: selectedPeriod)
+
         ScrollView {
             VStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 10) {
@@ -706,11 +720,39 @@ struct QuarterlyClosingView: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(SalfordTheme.silverLight)
 
-                    TextField("عنوان الربع السنوي", text: $quarterTitle)
-                        .padding(10)
-                        .background(SalfordTheme.bgElevated)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
+                    Picker("الربع السنوي", selection: $selectedPeriod) {
+                        ForEach(selectablePeriods) { period in
+                            Text(period.title + (store.existingClosing(for: period) != nil ? " ✓" : "")).tag(period)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(SalfordTheme.bgElevated)
+                    .cornerRadius(10)
+
+                    Text("الأشهر المشمولة: " + selectedPeriod.monthKeys.joined(separator: " • "))
+                        .font(.system(size: 11))
+                        .foregroundColor(SalfordTheme.textMuted)
+
+                    // Live preview of exactly what will be saved
+                    VStack(spacing: 6) {
+                        closingRow("إجمالي المبيعات", sum.grossSales)
+                        closingRow("تكلفة البضاعة المباعة", -sum.costOfSales)
+                        closingRow("الربح الإجمالي", sum.grossProfit, bold: true)
+                        closingRow("المرتجعات (\(sum.itemsReturned) قطعة) — صافي أثرها على الربح", -sum.returnsProfitImpact)
+                        closingRow("المصاريف", -sum.expenses)
+                        Divider().background(SalfordTheme.borderSubtle)
+                        closingRow("صافي الربح", sum.netProfit, bold: true,
+                                   color: sum.netProfit >= 0 ? SalfordTheme.emeraldSuccess : SalfordTheme.dangerRed)
+                        Text("\(sum.transactions) عملية بيع • \(sum.itemsSold) قطعة مباعة • مبالغ مستردة \(String(format: "%.0f", sum.refunds)) د.ل")
+                            .font(.system(size: 11))
+                            .foregroundColor(SalfordTheme.textMuted)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(10)
+                    .background(SalfordTheme.royalNavyTop.opacity(0.55))
+                    .cornerRadius(10)
 
                     TextField("ملاحظات الجرد والإقفال", text: $closingNotes)
                         .padding(10)
@@ -719,17 +761,25 @@ struct QuarterlyClosingView: View {
                         .cornerRadius(10)
 
                     Button {
-                        guard !quarterTitle.isEmpty else { return }
-                        store.createQuarterlyClosing(quarterKey: quarterTitle, notes: closingNotes)
-                        closingNotes = ""
+                        if store.existingClosing(for: selectedPeriod) != nil {
+                            confirmReplace = true
+                        } else {
+                            saveClosing()
+                        }
                     } label: {
-                        Label("اعتماد وحفظ الإقفال الربع سنوي", systemImage: "checkmark.seal.fill")
+                        Label("اعتماد وحفظ إقفال \(selectedPeriod.title)", systemImage: "checkmark.seal.fill")
                             .font(.system(size: 13, weight: .bold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 11)
                             .background(SalfordTheme.emeraldSuccess)
                             .foregroundColor(.black)
                             .cornerRadius(10)
+                    }
+
+                    if !statusMsg.isEmpty {
+                        Text(statusMsg)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(SalfordTheme.emeraldSuccess)
                     }
                 }
                 .salfordCard()
@@ -745,12 +795,32 @@ struct QuarterlyClosingView: View {
                                 .font(.system(size: 13, weight: .heavy))
                                 .foregroundColor(SalfordTheme.emeraldSuccess)
                         }
-                        Text(String(format: "المبيعات: %.0f د.ل • المصاريف: %.0f د.ل • القطع المباعة: %d", cls.totalSales, cls.totalExpenses, cls.itemsSold))
+                        Text(String(format: "المبيعات: %.0f د.ل • المرتجعات: %.0f د.ل • المصاريف: %.0f د.ل • القطع المباعة: %d", cls.totalSales, cls.totalRefunds, cls.totalExpenses, cls.itemsSold))
                             .font(.system(size: 11.5))
                             .foregroundColor(SalfordTheme.textMuted)
-                        Text("تاريخ الإقفال: \(cls.closedAt)")
-                            .font(.system(size: 11))
-                            .foregroundColor(SalfordTheme.goldLight)
+                        if cls.periodKey == nil {
+                            Label("إقفال قديم — حُسب على كل المبيعات منذ البداية وليس على هذا الربع فقط. يُنصح بحذفه وإعادة الإقفال.", systemImage: "exclamationmark.triangle.fill")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(SalfordTheme.warningAmber)
+                        }
+                        if let notes = cls.notes {
+                            Text(notes)
+                                .font(.system(size: 11))
+                                .foregroundColor(SalfordTheme.textMuted)
+                        }
+                        HStack {
+                            Text("تاريخ الإقفال: \(cls.closedAt)")
+                                .font(.system(size: 11))
+                                .foregroundColor(SalfordTheme.goldLight)
+                            Spacer()
+                            Button(role: .destructive) {
+                                closingToDelete = cls
+                            } label: {
+                                Image(systemName: "trash.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(SalfordTheme.dangerRed)
+                            }
+                        }
                     }
                     .salfordCard()
                 }
@@ -760,6 +830,42 @@ struct QuarterlyClosingView: View {
         .background(SalfordTheme.bgPrimary)
         .navigationTitle("الإقفال الربع سنوي")
         .navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog("تم إقفال \(selectedPeriod.title) من قبل", isPresented: $confirmReplace, titleVisibility: .visible) {
+            Button("استبدال الإقفال القديم بالأرقام الحالية", role: .destructive) { saveClosing() }
+            Button("إلغاء", role: .cancel) {}
+        }
+        .confirmationDialog(
+            "حذف إقفال \(closingToDelete?.quarterKey ?? "")؟",
+            isPresented: Binding(get: { closingToDelete != nil }, set: { if !$0 { closingToDelete = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("حذف الإقفال", role: .destructive) {
+                if let c = closingToDelete { store.deleteClosing(id: c.id) }
+                closingToDelete = nil
+            }
+            Button("إلغاء", role: .cancel) { closingToDelete = nil }
+        } message: {
+            Text("يُحذف سجل الإقفال فقط؛ المبيعات والمصاريف لا تتأثر.")
+        }
+    }
+
+    private func saveClosing() {
+        store.createQuarterlyClosing(period: selectedPeriod, notes: closingNotes)
+        closingNotes = ""
+        statusMsg = "✅ تم حفظ إقفال \(selectedPeriod.title)"
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
+    private func closingRow(_ title: String, _ value: Double, bold: Bool = false, color: Color = .white) -> some View {
+        HStack {
+            Text(title)
+                .font(.system(size: 12, weight: bold ? .bold : .regular))
+                .foregroundColor(SalfordTheme.silverLight)
+            Spacer()
+            Text(String(format: "%.0f د.ل", value))
+                .font(.system(size: 12.5, weight: bold ? .heavy : .semibold))
+                .foregroundColor(color)
+        }
     }
 }
 

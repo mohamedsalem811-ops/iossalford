@@ -697,6 +697,7 @@ final class POSDataStore: ObservableObject {
                 productName: product.name,
                 quantity: quantity,
                 refundAmount: product.sellPrice * Double(quantity),
+                costAmount: product.costPrice * Double(quantity),
                 reason: reason.isEmpty ? nil : reason,
                 returnDate: nowTimestamp(),
                 monthYear: currentMonthYear()
@@ -759,31 +760,82 @@ final class POSDataStore: ObservableObject {
         saveToDisk()
     }
 
+    // MARK: - Reports
+
+    func summary(forMonths months: Set<String>) -> PeriodSummary {
+        var r = PeriodSummary()
+        for sale in sales where months.contains(sale.monthYear) {
+            r.grossSales += sale.totalSell
+            r.costOfSales += sale.totalCost
+            r.grossProfit += sale.profit
+            r.transactions += 1
+            r.itemsSold += sale.quantity
+        }
+        for ret in returns where months.contains(ret.monthYear) {
+            r.refunds += ret.refundAmount
+            r.itemsReturned += ret.quantity
+            if let cost = ret.costAmount {
+                r.returnedCost += cost
+            } else if let product = products.first(where: { $0.id == ret.productId }) {
+                // Older return without a stored cost: estimate with the product's current cost.
+                r.returnedCost += product.costPrice * Double(ret.quantity)
+            }
+            // Product deleted and no stored cost: treat the whole refund as lost profit (conservative).
+        }
+        for exp in expenses where months.contains(exp.monthYear) {
+            r.expenses += exp.amount
+        }
+        return r
+    }
+
+    func summary(forMonth month: String) -> PeriodSummary {
+        summary(forMonths: [month])
+    }
+
+    func summary(for period: QuarterPeriod) -> PeriodSummary {
+        summary(forMonths: Set(period.monthKeys))
+    }
+
     // MARK: - Quarterly Closing
-    func createQuarterlyClosing(quarterKey: String, notes: String) {
-        let totalSales = sales.reduce(0.0) { $0 + $1.totalSell }
-        let totalCost = sales.reduce(0.0) { $0 + $1.totalCost }
-        let totalExpenses = expenses.reduce(0.0) { $0 + $1.amount }
-        let totalRefunds = returns.reduce(0.0) { $0 + $1.refundAmount }
-        let grossProfit = sales.reduce(0.0) { $0 + $1.profit }
-        let netProfit = grossProfit - totalExpenses
-        let itemsSold = sales.reduce(0) { $0 + $1.quantity }
-        let newId = (closings.map(\.id).max() ?? 0) + 1
+
+    func existingClosing(for period: QuarterPeriod) -> QuarterlyClosing? {
+        closings.first { $0.periodKey == period.key }
+    }
+
+    /// Closes one calendar quarter using ONLY that quarter's sales, returns and expenses.
+    /// If the quarter was already closed, the old closing is replaced.
+    func createQuarterlyClosing(period: QuarterPeriod, notes: String) {
+        let sum = summary(for: period)
+        let id: Int
+        if let existing = existingClosing(for: period) {
+            id = existing.id
+            closings.removeAll { $0.id == existing.id }
+        } else {
+            id = (closings.map(\.id).max() ?? 0) + 1
+        }
 
         let closing = QuarterlyClosing(
-            id: newId,
-            quarterKey: quarterKey,
-            totalSales: totalSales,
-            totalCost: totalCost,
-            totalExpenses: totalExpenses,
-            totalRefunds: totalRefunds,
-            totalProfit: netProfit,
-            totalTransactions: sales.count,
-            itemsSold: itemsSold,
+            id: id,
+            quarterKey: period.title,
+            periodKey: period.key,
+            totalSales: sum.grossSales,
+            totalCost: sum.costOfSales,
+            totalExpenses: sum.expenses,
+            totalRefunds: sum.refunds,
+            totalProfit: sum.netProfit,
+            totalTransactions: sum.transactions,
+            itemsSold: sum.itemsSold,
             notes: notes.isEmpty ? nil : notes,
             closedAt: nowTimestamp()
         )
         closings.insert(closing, at: 0)
+        closings.sort { ($0.periodKey ?? "") > ($1.periodKey ?? "") }
+        saveToDisk()
+    }
+
+    func deleteClosing(id: Int) {
+        closings.removeAll { $0.id == id }
         saveToDisk()
     }
 }
+
