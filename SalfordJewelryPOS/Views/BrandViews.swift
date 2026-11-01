@@ -220,3 +220,88 @@ struct BrandsManagementView: View {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 }
+
+/// Brand filter pinned at the top of the selling and products screens: one tap shows only that
+/// brand's pieces, tapping it again goes back to all. Each brand shows how many items it has.
+struct BrandFilterBar: View {
+    @EnvironmentObject var store: POSDataStore
+    @Binding var selected: String
+
+    private var counts: [(name: String, count: Int)] {
+        store.brands
+            .map { b in (b, store.products.filter { $0.brand == b }.count) }
+            .filter { $0.1 > 0 }
+    }
+
+    private var noBrandCount: Int { store.products.filter { $0.brand == nil }.count }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            if counts.isEmpty {
+                Label("لتظهر الماركات هنا للفلترة: افتح القطعة واكتب ماركتها", systemImage: "seal")
+                    .font(.system(.caption, weight: .semibold))
+                    .foregroundColor(SalfordTheme.textMuted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, SalfordSpacing.l)
+                    .padding(.vertical, SalfordSpacing.s)
+            } else {
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: SalfordSpacing.s) {
+                            chip("الكل", count: store.products.count, icon: "square.grid.2x2")
+                            ForEach(counts, id: \.name) { item in
+                                chip(item.name, count: item.count, icon: "seal.fill")
+                            }
+                            if noBrandCount > 0 {
+                                chip(POSDataStore.noBrandLabel, count: noBrandCount, icon: nil)
+                            }
+                        }
+                        .padding(.horizontal, SalfordSpacing.l)
+                        .padding(.vertical, SalfordSpacing.s)
+                    }
+                    .onAppear { proxy.scrollTo(selected, anchor: .center) }
+                }
+            }
+            Divider()
+        }
+        .background(.bar)
+        // If the chosen brand no longer has pieces, go back to all.
+        .onChange(of: counts.map(\.name)) { names in
+            if selected != "الكل" && selected != POSDataStore.noBrandLabel && !names.contains(selected) {
+                selected = "الكل"
+            }
+        }
+    }
+
+    private func chip(_ name: String, count: Int, icon: String?) -> some View {
+        let isSelected = selected == name
+        return Button {
+            UISelectionFeedbackGenerator().selectionChanged()
+            // Tapping the selected brand again returns to all brands.
+            selected = (isSelected && name != "الكل") ? "الكل" : name
+        } label: {
+            HStack(spacing: 6) {
+                if let icon { Image(systemName: icon).font(.system(.caption)) }
+                Text(name)
+                    .font(.system(.subheadline, weight: .bold))
+                    .lineLimit(1)
+                Text("\(count)")
+                    .font(.system(.caption2, weight: .heavy))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 1)
+                    .background((isSelected ? Color.white : store.line.accent).opacity(isSelected ? 0.25 : 0.15))
+                    .clipShape(Capsule())
+            }
+            .padding(.horizontal, SalfordSpacing.m)
+            .frame(minHeight: 38)
+            .background(isSelected ? store.line.accent : SalfordTheme.bgCard)
+            .foregroundColor(isSelected ? .white : SalfordTheme.textPrimary)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(store.line.accent.opacity(isSelected ? 0 : 0.4), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .id(name)
+        .accessibilityLabel(name == "الكل" ? "كل الماركات، \(count) قطعة" : "\(name)، \(count) قطعة")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}

@@ -34,9 +34,6 @@ struct SalePOSView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: SalfordSpacing.l) {
-                if !store.brandsInUse.isEmpty {
-                    BrandChips(brands: store.brandsInUse, selected: $brand)
-                }
                 categoryChips
 
                 if !sellableSets.isEmpty && search.isEmpty {
@@ -75,6 +72,9 @@ struct SalePOSView: View {
         .background(SalfordTheme.bgPrimary)
         .navigationTitle("البيع")
         .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            BrandFilterBar(selected: $brand)
+        }
         .searchable(text: $search, prompt: "اسم القطعة أو الكود أو الماركة")
         .safeAreaInset(edge: .bottom) {
             if !store.cart.isEmpty {

@@ -50,9 +50,6 @@ struct ScarvesProductsView: View {
                 }
             } header: {
                 VStack(alignment: .leading, spacing: SalfordSpacing.s) {
-                    if !store.brandsInUse.isEmpty {
-                        BrandChips(brands: store.brandsInUse, selected: $brand)
-                    }
                     chipRow(["الكل"] + store.categories, selection: $category)
                     if !store.scarfSizesInUse.isEmpty {
                         chipRow(["الكل"] + store.scarfSizesInUse, selection: $size, icon: "square.dashed")
@@ -76,6 +73,9 @@ struct ScarvesProductsView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(SalfordTheme.bgPrimary)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            BrandFilterBar(selected: $brand)
+        }
         .searchable(text: $search, prompt: "التصميم أو الماركة أو اللون")
         .navigationTitle("الأوشحة")
         .navigationBarTitleDisplayMode(.inline)

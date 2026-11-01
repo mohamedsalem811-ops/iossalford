@@ -98,9 +98,6 @@ struct ProductsView: View {
                 }
             } header: {
                 VStack(alignment: .leading, spacing: SalfordSpacing.s) {
-                    if !store.brandsInUse.isEmpty {
-                        BrandChips(brands: store.brandsInUse, selected: $selectedBrand)
-                    }
                     categoryChips
                     Text(summaryText)
                         .font(.system(.footnote))
@@ -126,6 +123,9 @@ struct ProductsView: View {
         .listStyle(.insetGrouped)
         .scrollContentBackground(.hidden)
         .background(SalfordTheme.bgPrimary)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            BrandFilterBar(selected: $selectedBrand)
+        }
         .searchable(text: $searchText, prompt: "اسم القطعة أو الكود أو الماركة")
         .navigationTitle("المنتجات")
         .navigationBarTitleDisplayMode(.inline)
