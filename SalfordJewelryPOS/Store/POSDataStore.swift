@@ -31,6 +31,8 @@ final class POSDataStore: ObservableObject {
     /// Brand name -> photo file chosen by the shop.
     @Published var brandImages: [String: String] = [:]
     private var receiptCounter: Int = 0
+    /// Highest id ever handed out per record type (see nextId).
+    private var idCounters: [String: Int] = [:]
     @Published var activeReceiptCustomer: String = "Salford Libya"
     @Published var activeReceiptDate: String = ""
     @Published var activeReceiptTime: String = ""
@@ -236,6 +238,7 @@ final class POSDataStore: ObservableObject {
         self.brandImages = images
         // Never hand out a number that already exists, even if the counter was lost.
         self.receiptCounter = max(state.receiptCounter, state.receipts.count)
+        self.idCounters = state.idCounters ?? [:]
         imagesNeedSaving = migrateLegacyImages() || imagesNeedSaving
     }
 
@@ -392,7 +395,9 @@ final class POSDataStore: ObservableObject {
             payments: payments,
             receiptCounter: receiptCounter,
             brands: brands,
-            brandImages: brandImages
+            brandImages: brandImages,
+            idCounters: idCounters,
+            system: line.rawValue
         )
         do {
             let data = try JSONEncoder().encode(state)
@@ -441,7 +446,9 @@ final class POSDataStore: ObservableObject {
             brandImages: nil,
             brandImagesEmbedded: brandImages.compactMapValues { file in
                 (try? Data(contentsOf: ProductImageHelper.fileURL(file)))?.base64EncodedString()
-            }
+            },
+            idCounters: idCounters,
+            system: line.rawValue
         )
         do {
             let data = try JSONEncoder().encode(state)
@@ -453,22 +460,46 @@ final class POSDataStore: ObservableObject {
         }
     }
 
-    func importBackupJSON(from url: URL) -> Bool {
+    /// Replaces this system's data with a backup file. Returns an error message, or nil on success.
+    /// Refuses files that are not SALFORD backups (any JSON would otherwise read as an empty
+    /// database and wipe everything) and backups of the other system. The current data is copied
+    /// to Documents/Recovery before it is replaced.
+    func importBackupJSON(from url: URL) -> String? {
         let secured = url.startAccessingSecurityScopedResource()
         defer { if secured { url.stopAccessingSecurityScopedResource() } }
+        let data: Data
+        do {
+            data = try Data(contentsOf: url)
+        } catch {
+            Self.log.error("Failed to read backup: \(error.localizedDescription, privacy: .public)")
+            return "تعذر فتح الملف"
+        }
+        // Must look like a SALFORD database: a JSON object with the main sections.
+        guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              object["products"] != nil, object["sales"] != nil else {
+            return "هذا الملف ليس نسخة احتياطية من تطبيق SALFORD"
+        }
+        // Backups made before the scarves system existed are jewelry backups.
+        let fileSystem = (object["system"] as? String) ?? BusinessLine.jewelry.rawValue
+        guard fileSystem == line.rawValue else {
+            let other = BusinessLine(rawValue: fileSystem)?.title ?? fileSystem
+            return "هذه نسخة احتياطية لنظام \(other) — افتح نظام \(other) لاستعادتها"
+        }
         let decoded: POSDatabaseState
         do {
-            decoded = try decodeState(from: url)
+            decoded = try JSONDecoder().decode(POSDatabaseState.self, from: data)
         } catch {
             Self.log.error("Failed to import backup: \(error.localizedDescription, privacy: .public)")
-            return false
+            return "الملف تالف أو غير مكتمل"
         }
         // Keep a copy of the current data before replacing it with the imported backup.
         if FileManager.default.fileExists(atPath: dbFileURL.path) {
             refreshLastGoodCopy()
+            _ = copyDatabaseToRecovery(named: "before-import")
         }
+        cart.removeAll()
         apply(decoded)
-        return saveToDisk()
+        return saveToDisk() ? nil : "تعذر حفظ البيانات المستعادة"
     }
 
     // MARK: - Demo data cleanup
@@ -591,7 +622,7 @@ final class POSDataStore: ObservableObject {
         } else {
             var newProd = prod
             newProd.sku = typedSku
-            newProd.id = (products.map(\.id).max() ?? 0) + 1
+            newProd.id = nextId(.product)
             if newProd.sku.isEmpty {
                 newProd.sku = generateSKU(for: newProd.category)
             }
@@ -725,8 +756,38 @@ final class POSDataStore: ObservableObject {
         return problems
     }
 
-    private func nextSaleId() -> Int {
-        (sales.map(\.id).max() ?? 0) + 1
+    private func nextSaleId() -> Int { nextId(.sale) }
+
+    enum RecordKind: String {
+        case product, sale, customer, returnRecord, expense, set, closing, receipt, payment
+    }
+
+    /// Highest id in use for a kind — including ids that other records still point to after the
+    /// record itself was deleted (e.g. a deleted product that old sales still refer to).
+    private func highestKnownId(_ kind: RecordKind) -> Int {
+        switch kind {
+        case .product:
+            return ([0] + products.map(\.id) + sales.map(\.productId) + returns.map(\.productId)
+                    + sets.flatMap { $0.items.map(\.productId) }).max() ?? 0
+        case .sale:
+            return ([0] + sales.map(\.id) + returns.compactMap(\.saleId) + receipts.flatMap(\.saleIds)).max() ?? 0
+        case .customer:
+            return ([0] + customers.map(\.id) + sales.compactMap(\.customerId) + payments.map(\.customerId)).max() ?? 0
+        case .returnRecord: return returns.map(\.id).max() ?? 0
+        case .expense: return expenses.map(\.id).max() ?? 0
+        case .set: return ([0] + sets.map(\.id) + sales.compactMap(\.setId)).max() ?? 0
+        case .closing: return closings.map(\.id).max() ?? 0
+        case .receipt: return receipts.map(\.id).max() ?? 0
+        case .payment: return payments.map(\.id).max() ?? 0
+        }
+    }
+
+    /// A new id that has never been used for this kind, even if the newest record was deleted.
+    /// Ids only go up, so old sales, returns and payments can never attach to a new record.
+    private func nextId(_ kind: RecordKind) -> Int {
+        let n = max(idCounters[kind.rawValue] ?? 0, highestKnownId(kind)) + 1
+        idCounters[kind.rawValue] = n
+        return n
     }
 
     private func makeSaleRecord(
@@ -976,7 +1037,7 @@ final class POSDataStore: ObservableObject {
         }
 
         // 3. New customer.
-        let newId = (customers.map(\.id).max() ?? 0) + 1
+        let newId = nextId(.customer)
         customers.append(Customer(
             id: newId,
             name: trimmed.isEmpty ? "زبون \(phone)" : trimmed,
@@ -1029,7 +1090,7 @@ final class POSDataStore: ObservableObject {
     private func issueSaleReceipt(saleIds: [Int], items: [ReceiptLineItem], customer: String) {
         let dt = receiptDateTime()
         let r = IssuedReceipt(
-            id: (receipts.map(\.id).max() ?? 0) + 1,
+            id: nextId(.receipt),
             receiptNo: takeNextReceiptNo(),
             date: dt.date,
             time: dt.time,
@@ -1099,7 +1160,7 @@ final class POSDataStore: ObservableObject {
         }
 
         let r = IssuedReceipt(
-            id: (receipts.map(\.id).max() ?? 0) + 1,
+            id: nextId(.receipt),
             receiptNo: takeNextReceiptNo(),
             date: activeReceiptDate.isEmpty ? receiptDateTime().date : activeReceiptDate,
             time: activeReceiptTime.isEmpty ? receiptDateTime().time : activeReceiptTime,
@@ -1130,7 +1191,7 @@ final class POSDataStore: ObservableObject {
     }
 
     func addExpense(description: String, amount: Double, monthYear: String) {
-        let newId = (expenses.map(\.id).max() ?? 0) + 1
+        let newId = nextId(.expense)
         expenses.insert(
             ExpenseRecord(id: newId, description: description, amount: Money.round(amount), monthYear: monthYear, expenseDate: nowTimestamp()),
             at: 0
@@ -1176,7 +1237,7 @@ final class POSDataStore: ObservableObject {
         }
         returns.insert(
             ReturnRecord(
-                id: (returns.map(\.id).max() ?? 0) + 1,
+                id: nextId(.returnRecord),
                 productId: sale.productId,
                 productName: sale.productName,
                 quantity: quantity,
@@ -1205,7 +1266,7 @@ final class POSDataStore: ObservableObject {
         products[pIdx].stock += quantity
         returns.insert(
             ReturnRecord(
-                id: (returns.map(\.id).max() ?? 0) + 1,
+                id: nextId(.returnRecord),
                 productId: current.id,
                 productName: current.name,
                 quantity: quantity,
@@ -1253,7 +1314,7 @@ final class POSDataStore: ObservableObject {
             customers[idx].area = area.isEmpty ? nil : area
             customers[idx].notes = notes.isEmpty ? nil : notes
         } else {
-            let newId = (customers.map(\.id).max() ?? 0) + 1
+            let newId = nextId(.customer)
             customers.insert(
                 Customer(
                     id: newId,
@@ -1337,7 +1398,7 @@ final class POSDataStore: ObservableObject {
         }
         payments.insert(
             CustomerPayment(
-                id: (payments.map(\.id).max() ?? 0) + 1,
+                id: nextId(.payment),
                 customerId: customerId,
                 amount: amount,
                 method: method,
@@ -1466,7 +1527,7 @@ final class POSDataStore: ObservableObject {
                 products[idx].lowStockAlert = NumberInput.integer(r.lowStockAlert) ?? 2
                 products[idx].designId = designId
             } else {
-                let newId = (products.map(\.id).max() ?? 0) + 1
+                let newId = nextId(.product)
                 products.insert(Product(
                     id: newId,
                     sku: generateSKU(for: category),
@@ -1652,7 +1713,7 @@ final class POSDataStore: ObservableObject {
         } else {
             sets.insert(
                 JewelrySet(
-                    id: (sets.map(\.id).max() ?? 0) + 1,
+                    id: nextId(.set),
                     name: trimmed,
                     description: description.isEmpty ? nil : description,
                     discount: discount,
@@ -1722,7 +1783,7 @@ final class POSDataStore: ObservableObject {
             id = existing.id
             closings.removeAll { $0.id == existing.id }
         } else {
-            id = (closings.map(\.id).max() ?? 0) + 1
+            id = nextId(.closing)
         }
 
         let closing = QuarterlyClosing(

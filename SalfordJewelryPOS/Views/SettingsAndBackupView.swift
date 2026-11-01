@@ -10,6 +10,9 @@ struct SettingsAndBackupView: View {
     @State private var pinStatusIsError: Bool = false
     @State private var showFileImporter: Bool = false
     @State private var statusMsg: String = ""
+    @State private var statusIsError: Bool = false
+    /// Backup file picked, waiting for the user to confirm replacing the data.
+    @State private var pendingImportURL: URL? = nil
     @State private var backupURL: URL? = nil
 
     var body: some View {
@@ -73,9 +76,9 @@ struct SettingsAndBackupView: View {
                     .buttonStyle(.salfordSecondary)
 
                     if !statusMsg.isEmpty {
-                        Text(statusMsg)
+                        Label(statusMsg, systemImage: statusIsError ? "exclamationmark.circle.fill" : "checkmark.circle.fill")
                             .font(.system(.footnote, weight: .bold))
-                            .foregroundColor(SalfordTheme.emeraldSuccess)
+                            .foregroundColor(statusIsError ? SalfordTheme.dangerRed : SalfordTheme.emeraldSuccess)
                     }
                 }
                 .salfordCard()
@@ -90,13 +93,29 @@ struct SettingsAndBackupView: View {
         }
         .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.json]) { result in
             if case .success(let url) = result {
-                if store.importBackupJSON(from: url) {
+                pendingImportURL = url
+            }
+        }
+        .confirmationDialog(
+            "استعادة النسخة الاحتياطية؟",
+            isPresented: Binding(get: { pendingImportURL != nil }, set: { if !$0 { pendingImportURL = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("استبدال بيانات \(store.line.title) بالنسخة", role: .destructive) {
+                guard let url = pendingImportURL else { return }
+                pendingImportURL = nil
+                if let error = store.importBackupJSON(from: url) {
+                    statusIsError = true
+                    statusMsg = error
+                } else {
+                    statusIsError = false
                     statusMsg = "تمت استعادة النسخة الاحتياطية بنجاح"
                     backupURL = store.exportBackupJSON()
-                } else {
-                    statusMsg = "تعذر قراءة ملف النسخة الاحتياطية"
                 }
             }
+            Button("إلغاء", role: .cancel) { pendingImportURL = nil }
+        } message: {
+            Text("ستُستبدل كل بيانات نظام \(store.line.title) الحالية (القطع، المبيعات، الزبائن…) بمحتوى الملف. تُحفظ نسخة من البيانات الحالية في مجلد Recovery قبل الاستبدال.")
         }
     }
 

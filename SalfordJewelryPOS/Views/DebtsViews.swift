@@ -92,9 +92,12 @@ struct CustomerAccountView: View {
                     Text(customer?.name ?? "زبون")
                         .font(.system(.callout, weight: .heavy))
                         .foregroundColor(SalfordTheme.textPrimary)
-                    Text(String(format: "المتبقي عليه: %@ د.ل", Money.plain(owed)))
+                    // Negative = the customer paid more than they owe (e.g. a paid credit sale was deleted).
+                    Text(owed < 0
+                         ? String(format: "له رصيد: %@ د.ل (دفع أكثر من المستحق)", Money.plain(-owed))
+                         : String(format: "المتبقي عليه: %@ د.ل", Money.plain(owed)))
                         .font(.system(.subheadline, weight: .heavy))
-                        .foregroundColor(owed > 0 ? SalfordTheme.dangerRed : SalfordTheme.emeraldSuccess)
+                        .foregroundColor(owed > 0 ? SalfordTheme.dangerRed : (owed < 0 ? SalfordTheme.warningAmber : SalfordTheme.emeraldSuccess))
 
                     if owed > 0 {
                         HStack(spacing: 8) {

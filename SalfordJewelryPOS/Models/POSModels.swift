@@ -243,6 +243,10 @@ struct POSDatabaseState: Codable {
     var brandImages: [String: String]? = nil
     /// Backups only: brand name -> the brand photo itself (Base64), so restoring brings photos back.
     var brandImagesEmbedded: [String: String]? = nil
+    /// Highest id handed out per record type, so ids are never reused after a delete.
+    var idCounters: [String: Int]? = nil
+    /// Which system the file belongs to ("jewelry" / "scarves"). Missing in files from older versions.
+    var system: String? = nil
 }
 
 /// Money a customer paid toward what they owe from credit (آجل) sales.
@@ -277,7 +281,7 @@ struct IssuedReceipt: Identifiable, Codable, Equatable {
 extension POSDatabaseState {
     enum CodingKeys: String, CodingKey {
         case pin, exchangeRate, products, customers, sets, sales, returns, expenses, closings
-        case receipts, receiptCounter, payments, brands, brandImages, brandImagesEmbedded
+        case receipts, receiptCounter, payments, brands, brandImages, brandImagesEmbedded, idCounters, system
     }
 
     static let defaultExchangeRate = 7.0
@@ -309,6 +313,8 @@ extension POSDatabaseState {
         brands = try c.decodeIfPresent([String].self, forKey: .brands)
         brandImages = try c.decodeIfPresent([String: String].self, forKey: .brandImages)
         brandImagesEmbedded = try c.decodeIfPresent([String: String].self, forKey: .brandImagesEmbedded)
+        idCounters = try c.decodeIfPresent([String: Int].self, forKey: .idCounters)
+        system = try c.decodeIfPresent(String.self, forKey: .system)
     }
 }
 

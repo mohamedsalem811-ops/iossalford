@@ -96,6 +96,15 @@ struct CustomersManagementView: View {
                                 Text(String(format: "عليه %@ د.ل", Money.plain(owed)))
                                     .font(.system(.caption, weight: .heavy))
                                     .foregroundColor(SalfordTheme.dangerRed)
+                            } else if owed < 0 {
+                                // Paid more than owed: keep the record so the credit isn't lost.
+                                NavigationLink {
+                                    CustomerAccountView(customerId: cust.id)
+                                } label: {
+                                    Text(String(format: "له %@ د.ل", Money.plain(-owed)))
+                                        .font(.system(.caption, weight: .heavy))
+                                        .foregroundColor(SalfordTheme.warningAmber)
+                                }
                             } else {
                                 Button(role: .destructive) {
                                     customerToDelete = cust
