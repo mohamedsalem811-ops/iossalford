@@ -5,10 +5,14 @@ struct BrandTag: View {
     let name: String
 
     var body: some View {
-        Text(name)
-            .font(.system(.caption2, weight: .bold))
-            .lineLimit(1)
-            .padding(.horizontal, 7)
+        HStack(spacing: 4) {
+            BrandBadgeView(brand: name, size: 16)
+            Text(name)
+                .font(.system(.caption2, weight: .bold))
+                .lineLimit(1)
+        }
+            .padding(.leading, 2)
+            .padding(.trailing, 7)
             .padding(.vertical, 2)
             .background(SalfordTheme.gold.opacity(0.15))
             .foregroundColor(SalfordTheme.goldLight)
@@ -135,7 +139,7 @@ struct BrandsManagementView: View {
                         .disabled(newBrand.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             } footer: {
-                Text("يمكنك أيضاً كتابة أي ماركة مباشرة عند إضافة قطعة، وستُضاف هنا تلقائياً.")
+                Text("يمكنك أيضاً كتابة أي ماركة مباشرة عند إضافة قطعة، وستُضاف هنا تلقائياً. اضغط على صورة الماركة لتغييرها.")
             }
             .listRowBackground(SalfordTheme.bgCard)
 
@@ -144,9 +148,8 @@ struct BrandsManagementView: View {
                     SalfordEmptyState(icon: "seal", title: "لا توجد ماركات بعد")
                 }
                 ForEach(store.brands, id: \.self) { b in
-                    HStack {
-                        Image(systemName: "seal.fill")
-                            .foregroundColor(SalfordTheme.gold)
+                    HStack(spacing: SalfordSpacing.m) {
+                        BrandPhotoMenu(brand: b)
                         Text(b)
                             .font(.system(.body, weight: .semibold))
                             .foregroundColor(SalfordTheme.textPrimary)
@@ -250,7 +253,7 @@ struct BrandFilterBar: View {
                         HStack(spacing: SalfordSpacing.s) {
                             chip("الكل", count: store.products.count, icon: "square.grid.2x2")
                             ForEach(counts, id: \.name) { item in
-                                chip(item.name, count: item.count, icon: "seal.fill")
+                                chip(item.name, count: item.count, icon: nil, badge: true)
                             }
                             if noBrandCount > 0 {
                                 chip(POSDataStore.noBrandLabel, count: noBrandCount, icon: nil)
@@ -273,7 +276,7 @@ struct BrandFilterBar: View {
         }
     }
 
-    private func chip(_ name: String, count: Int, icon: String?) -> some View {
+    private func chip(_ name: String, count: Int, icon: String?, badge: Bool = false) -> some View {
         let isSelected = selected == name
         return Button {
             UISelectionFeedbackGenerator().selectionChanged()
@@ -281,7 +284,11 @@ struct BrandFilterBar: View {
             selected = (isSelected && name != "الكل") ? "الكل" : name
         } label: {
             HStack(spacing: 6) {
-                if let icon { Image(systemName: icon).font(.system(.caption)) }
+                if badge {
+                    BrandBadgeView(brand: name, size: 26)
+                } else if let icon {
+                    Image(systemName: icon).font(.system(.caption))
+                }
                 Text(name)
                     .font(.system(.subheadline, weight: .bold))
                     .lineLimit(1)
@@ -292,7 +299,8 @@ struct BrandFilterBar: View {
                     .background((isSelected ? Color.white : store.line.accent).opacity(isSelected ? 0.25 : 0.15))
                     .clipShape(Capsule())
             }
-            .padding(.horizontal, SalfordSpacing.m)
+            .padding(.leading, badge ? 4 : SalfordSpacing.m)
+            .padding(.trailing, SalfordSpacing.m)
             .frame(minHeight: 38)
             .background(isSelected ? store.line.accent : SalfordTheme.bgCard)
             .foregroundColor(isSelected ? .white : SalfordTheme.textPrimary)
@@ -303,5 +311,113 @@ struct BrandFilterBar: View {
         .id(name)
         .accessibilityLabel(name == "الكل" ? "كل الماركات، \(count) قطعة" : "\(name)، \(count) قطعة")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+/// Round brand picture: the shop's own photo if set, otherwise a built-in badge
+/// (original lettering in the brand's colours, not the official logo files), otherwise initials.
+struct BrandBadgeView: View {
+    @EnvironmentObject var store: POSDataStore
+    let brand: String
+    var size: CGFloat = 32
+
+    private struct Style {
+        let background: Color
+        let foreground: Color
+        let text: String
+        let serif: Bool
+    }
+
+    /// Built-in looks for the main brands, recognised by name.
+    private var builtIn: Style? {
+        let n = brand.lowercased()
+        if n.contains("swarovski") {
+            return Style(background: .black, foreground: .white, text: "SWAROVSKI", serif: false)
+        }
+        if n.contains("tiffany") {
+            return Style(background: Color(red: 129/255, green: 216/255, blue: 208/255), foreground: .black, text: "T&Co.", serif: true)
+        }
+        if n.contains("pandora") {
+            return Style(background: .white, foreground: .black, text: "PANDORA", serif: true)
+        }
+        return nil
+    }
+
+    /// A stable colour per brand name for the initials badge.
+    private var initialsColor: Color {
+        let palette: [Color] = [.indigo, .teal, .orange, .pink, .purple, .brown, .mint, .cyan, .red, .blue]
+        let sum = brand.unicodeScalars.reduce(0) { $0 + Int($1.value) }
+        return palette[sum % palette.count]
+    }
+
+    private var initials: String {
+        let words = brand.split(separator: " ").filter { !$0.isEmpty }
+        let letters = words.prefix(2).compactMap { $0.first }.map { String($0) }
+        return letters.joined().uppercased()
+    }
+
+    var body: some View {
+        ZStack {
+            if let file = store.brandImages[brand], let img = ProductImageHelper.image(named: file) {
+                Image(uiImage: img).resizable().scaledToFill()
+            } else if let style = builtIn {
+                style.background
+                Text(style.text)
+                    .font(.system(size: size * (style.text.count > 6 ? 0.17 : 0.3), weight: .bold, design: style.serif ? .serif : .default))
+                    .kerning(style.text.count > 6 ? 0.3 : 0)
+                    .foregroundColor(style.foreground)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+                    .padding(.horizontal, size * 0.08)
+            } else {
+                initialsColor.gradient
+                Text(initials)
+                    .font(.system(size: size * 0.38, weight: .bold))
+                    .foregroundColor(.white)
+                    .minimumScaleFactor(0.5)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .overlay(Circle().stroke(Color.black.opacity(0.12), lineWidth: 1))
+        .accessibilityHidden(true)
+    }
+}
+
+/// Lets the shop set its own photo for a brand (e.g. a picture of the logo from the box).
+struct BrandPhotoMenu: View {
+    @EnvironmentObject var store: POSDataStore
+    let brand: String
+    @State private var showCamera = false
+    @State private var showLibrary = false
+
+    var body: some View {
+        Menu {
+            Button { showLibrary = true } label: { Label("اختيار صورة من الألبوم", systemImage: "photo.on.rectangle") }
+            Button { showCamera = true } label: { Label("تصوير بالكاميرا", systemImage: "camera") }
+            if store.brandImages[brand] != nil {
+                Button(role: .destructive) { store.removeBrandImage(for: brand) } label: {
+                    Label("إزالة الصورة (الرجوع للشارة)", systemImage: "trash")
+                }
+            }
+        } label: {
+            ZStack(alignment: .bottomTrailing) {
+                BrandBadgeView(brand: brand, size: 44)
+                Image(systemName: "camera.circle.fill")
+                    .font(.system(.footnote))
+                    .foregroundColor(store.line.accent)
+                    .background(Circle().fill(SalfordTheme.bgCard))
+                    .offset(x: 3, y: 3)
+            }
+        }
+        .accessibilityLabel("صورة ماركة \(brand)")
+        .sheet(isPresented: $showLibrary) {
+            NativeImagePickerSheet(sourceType: .photoLibrary) { img in store.setBrandImage(img, for: brand) }
+                .ignoresSafeArea()
+        }
+        .sheet(isPresented: $showCamera) {
+            NativeImagePickerSheet(sourceType: .camera) { img in store.setBrandImage(img, for: brand) }
+                .ignoresSafeArea()
+        }
     }
 }

@@ -28,6 +28,8 @@ final class POSDataStore: ObservableObject {
     @Published var payments: [CustomerPayment] = []
     /// Brands the shop works with, alphabetical.
     @Published var brands: [String] = []
+    /// Brand name -> photo file chosen by the shop.
+    @Published var brandImages: [String: String] = [:]
     private var receiptCounter: Int = 0
     @Published var activeReceiptCustomer: String = "Salford Libya"
     @Published var activeReceiptDate: String = ""
@@ -219,6 +221,7 @@ final class POSDataStore: ObservableObject {
             list.append(b)
         }
         self.brands = list.sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        self.brandImages = state.brandImages ?? [:]
         // Never hand out a number that already exists, even if the counter was lost.
         self.receiptCounter = max(state.receiptCounter, state.receipts.count)
         imagesNeedSaving = migrateLegacyImages() || imagesNeedSaving
@@ -261,13 +264,10 @@ final class POSDataStore: ObservableObject {
                 storageAlertMessage = "لم يتم العثور على قاعدة البيانات الرئيسية، وتمت استعادة آخر نسخة سليمة محفوظة تلقائياً."
                 return
             }
-            if line == .jewelry {
-                seedDemoData()
-            } else {
-                // A new system starts empty (no demo pieces).
-                apply(POSDatabaseState.empty)
-                saveToDisk()
-            }
+            // A new system starts empty — no sample pieces.
+            apply(POSDatabaseState.empty)
+            saveToDisk()
+            UserDefaults.standard.set(true, forKey: demoCleanupKey)
             return
         }
 
@@ -288,9 +288,12 @@ final class POSDataStore: ObservableObject {
                 saveToDisk()
                 imagesNeedSaving = false
             }
+            removeDemoDataIfNeeded()
             refreshLastGoodCopy()
             // Delete photo files left behind by cancelled edits or deleted products.
-            ProductImageHelper.removeUnusedImages(keeping: Set(products.compactMap(\.imageFile)), prefix: line.imagePrefix)
+            ProductImageHelper.removeUnusedImages(
+                keeping: Set(products.compactMap(\.imageFile)).union(brandImages.values),
+                prefix: line.imagePrefix)
         } catch {
             Self.log.error("Failed to load database: \(error.localizedDescription, privacy: .public)")
             guard let recoveryName = preserveUnreadableDatabase() else {
@@ -376,7 +379,8 @@ final class POSDataStore: ObservableObject {
             receipts: receipts,
             payments: payments,
             receiptCounter: receiptCounter,
-            brands: brands
+            brands: brands,
+            brandImages: brandImages
         )
         do {
             let data = try JSONEncoder().encode(state)
@@ -421,7 +425,8 @@ final class POSDataStore: ObservableObject {
             receipts: receipts,
             payments: payments,
             receiptCounter: receiptCounter,
-            brands: brands
+            brands: brands,
+            brandImages: brandImages
         )
         do {
             let data = try JSONEncoder().encode(state)
@@ -451,46 +456,69 @@ final class POSDataStore: ObservableObject {
         return saveToDisk()
     }
 
-    func seedDemoData() {
-        let now = nowTimestamp()
-        let curMY = currentMonthYear()
+    // MARK: - Demo data cleanup
 
-        self.exchangeRate = 7.00
-        self.customers = [
-            Customer(id: 1, name: "سارة المهدي", phone: "0912345678", area: "طرابلس — حي الأندلس", notes: "عميلة مميزة — تفضل الذهب الأبيض والألماس", createdAt: now),
-            Customer(id: 2, name: "نور الهدى العبيدي", phone: "0923456789", area: "بنغازي — فينيسيا", notes: "مهتمة بالأطقم الملكية والهدايا", createdAt: now),
-            Customer(id: 3, name: "مريم السنوسي", phone: "0918765432", area: "مصراتة", notes: "خواتم وأساور", createdAt: now)
-        ]
-        self.products = [
-            Product(id: 1, sku: "RNG-SFD01", name: "خاتم سوليتير ألماس ملكي", category: "خواتم", costPrice: 850, sellPrice: 1250, stock: 8, lowStockAlert: 3, size: "7", color: "ذهبي أبيض", imageBase64: nil, costRate: 7.0, costUSD: 121.43, createdAt: now),
-            Product(id: 2, sku: "BRC-SFD02", name: "سوار تنس كريستال فاخر", category: "أساور", costPrice: 620, sellPrice: 950, stock: 6, lowStockAlert: 3, size: "M", color: "فضي", imageBase64: nil, costRate: 7.0, costUSD: 88.57, createdAt: now),
-            Product(id: 3, sku: "NCK-SFD03", name: "قلادة اللؤلؤ والذهب الوردي", category: "قلادات", costPrice: 700, sellPrice: 1100, stock: 5, lowStockAlert: 2, size: nil, color: "روز جولد", imageBase64: nil, costRate: 7.0, costUSD: 100.00, createdAt: now),
-            Product(id: 4, sku: "EAR-SFD04", name: "أقراط قطرة الماس الكلاسيكية", category: "أقراط", costPrice: 420, sellPrice: 680, stock: 2, lowStockAlert: 3, size: nil, color: "فضي", imageBase64: nil, costRate: 7.0, costUSD: 60.00, createdAt: now),
-            Product(id: 5, sku: "WCH-SFD05", name: "ساعة سالفورد الملكية المرصعة", category: "ساعات", costPrice: 1400, sellPrice: 2100, stock: 4, lowStockAlert: 2, size: nil, color: "ذهبي", imageBase64: nil, costRate: 7.0, costUSD: 200.00, createdAt: now),
-            Product(id: 6, sku: "PIN-SFD06", name: "بروش التاج المرصع بالزركون", category: "دبابيس", costPrice: 280, sellPrice: 450, stock: 10, lowStockAlert: 3, size: nil, color: "ذهبي", imageBase64: nil, costRate: 7.0, costUSD: 40.00, createdAt: now)
-        ]
-        self.sets = [
-            JewelrySet(id: 1, name: "طقم العروس الملكي الكامل", description: "خاتم سوليتير + سوار تنس + قلادة اللؤلؤ بخصم خاص", discount: 200, items: [
-                SetItem(id: 1, productId: 1, quantity: 1),
-                SetItem(id: 2, productId: 2, quantity: 1)
-            ], createdAt: now),
-            JewelrySet(id: 2, name: "طقم السهرة الماسي", description: "قلادة اللؤلؤ + أقراط قطرة الماس", discount: 100, items: [
-                SetItem(id: 3, productId: 3, quantity: 1),
-                SetItem(id: 4, productId: 4, quantity: 1)
-            ], createdAt: now)
-        ]
-        self.sales = [
-            SaleRecord(id: 1, productId: 1, productName: "خاتم سوليتير ألماس ملكي", sku: "RNG-SFD01", color: "ذهبي أبيض", quantity: 1, costPrice: 850, sellPrice: 1250, actualPrice: 1250, totalSell: 1250, totalCost: 850, profit: 400, saleRate: 7.0, totalSellUSD: 178.57, totalCostUSD: 121.43, profitUSD: 57.14, paymentMethod: "كاش", customerId: 1, customerName: "سارة المهدي", setId: nil, note: "تغليف هدايا فاخر", saleDate: now, monthYear: curMY),
-            SaleRecord(id: 2, productId: 5, productName: "ساعة سالفورد الملكية المرصعة", sku: "WCH-SFD05", color: "ذهبي", quantity: 1, costPrice: 1400, sellPrice: 2100, actualPrice: 2050, totalSell: 2050, totalCost: 1400, profit: 650, saleRate: 7.0, totalSellUSD: 292.86, totalCostUSD: 200.00, profitUSD: 92.86, paymentMethod: "بطاقة", customerId: 2, customerName: "نور الهدى العبيدي", setId: nil, note: "خصم خاص للعميلة", saleDate: now, monthYear: curMY),
-            SaleRecord(id: 3, productId: 3, productName: "قلادة اللؤلؤ والذهب الوردي", sku: "NCK-SFD03", color: "روز جولد", quantity: 1, costPrice: 700, sellPrice: 1100, actualPrice: 1100, totalSell: 1100, totalCost: 700, profit: 400, saleRate: 7.0, totalSellUSD: 157.14, totalCostUSD: 100.00, profitUSD: 57.14, paymentMethod: "تحويل", customerId: 3, customerName: "مريم السنوسي", setId: nil, note: nil, saleDate: now, monthYear: curMY)
-        ]
-        self.returns = []
-        self.expenses = [
-            ExpenseRecord(id: 1, description: "علب مخملية وأكياس تغليف سالفورد", amount: 180, monthYear: curMY, expenseDate: now),
-            ExpenseRecord(id: 2, description: "إعلانات ممولة وتصوير منتجات", amount: 220, monthYear: curMY, expenseDate: now)
-        ]
-        self.closings = []
+    /// Codes of the 6 sample pieces older versions added on first launch.
+    private static let demoSKUs: Set<String> = ["RNG-SFD01", "BRC-SFD02", "NCK-SFD03", "EAR-SFD04", "WCH-SFD05", "PIN-SFD06"]
+    private static let demoCustomers: [(name: String, phone: String)] = [
+        ("سارة المهدي", "0912345678"), ("نور الهدى العبيدي", "0923456789"), ("مريم السنوسي", "0918765432")
+    ]
+    private static let demoExpenses: [(text: String, amount: Double)] = [
+        ("علب مخملية وأكياس تغليف سالفورد", 180), ("إعلانات ممولة وتصوير منتجات", 220)
+    ]
+    private static let demoSetNames: Set<String> = ["طقم العروس الملكي الكامل", "طقم السهرة الماسي"]
+
+    private var demoCleanupKey: String { "demoDataRemoved.v1.\(line.rawValue)" }
+
+    /// Once per system: removes the sample pieces older versions added by themselves (and the sample
+    /// customers, sales, expenses, bundles and receipts that came with them). Only those exact sample
+    /// records are removed — everything the shop entered stays. A copy is kept in Recovery first.
+    private func removeDemoDataIfNeeded() {
+        guard !UserDefaults.standard.bool(forKey: demoCleanupKey) else { return }
+        defer { UserDefaults.standard.set(true, forKey: demoCleanupKey) }
+
+        let demoProductIds = Set(products.filter { Self.demoSKUs.contains($0.sku.uppercased()) }.map(\.id))
+        let demoSaleIds = Set(sales.filter { Self.demoSKUs.contains(($0.sku ?? "").uppercased()) }.map(\.id))
+        let hasDemoCustomers = customers.contains { c in Self.demoCustomers.contains { $0.name == c.name && $0.phone == c.phone } }
+        let hasDemoExpenses = expenses.contains { e in Self.demoExpenses.contains { $0.text == e.description && abs($0.amount - e.amount) < 0.001 } }
+        let hasDemoSets = sets.contains { Self.demoSetNames.contains($0.name) }
+        guard !demoProductIds.isEmpty || !demoSaleIds.isEmpty || hasDemoCustomers || hasDemoExpenses || hasDemoSets else { return }
+
+        _ = copyDatabaseToRecovery(named: "before-demo-cleanup")
+
+        for id in demoProductIds { deleteProduct(id: id) }
+        sales.removeAll { demoSaleIds.contains($0.id) }
+        returns.removeAll { r in r.saleId.map(demoSaleIds.contains) ?? demoProductIds.contains(r.productId) }
+        receipts.removeAll { r in !r.saleIds.isEmpty && r.saleIds.allSatisfy(demoSaleIds.contains) }
+        sets.removeAll { Self.demoSetNames.contains($0.name) }
+        expenses.removeAll { e in Self.demoExpenses.contains { $0.text == e.description && abs($0.amount - e.amount) < 0.001 } }
+        // Sample customers, unless the shop has since used them for a real sale or payment.
+        customers.removeAll { c in
+            Self.demoCustomers.contains { $0.name == c.name && $0.phone == c.phone }
+                && !sales.contains { $0.customerId == c.id }
+                && !payments.contains { $0.customerId == c.id }
+        }
+        cart.removeAll { demoProductIds.contains($0.product.id) }
         saveToDisk()
+        Self.log.info("Removed demo data")
+    }
+
+    /// Copies the current database into Documents/Recovery. Returns the file name.
+    private func copyDatabaseToRecovery(named prefix: String) -> String? {
+        let fm = FileManager.default
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.dateFormat = "yyyyMMdd-HHmmss"
+        let name = "\(prefix)-\(line.rawValue)-\(df.string(from: Date())).json"
+        do {
+            try fm.createDirectory(at: recoveryFolderURL, withIntermediateDirectories: true)
+            let dest = recoveryFolderURL.appendingPathComponent(name)
+            try fm.copyItem(at: dbFileURL, to: dest)
+            protect(dest)
+            return name
+        } catch {
+            return nil
+        }
     }
 
     private static let skuPrefixes = ["خواتم": "RNG", "أساور": "BRC", "قلادات": "NCK", "أقراط": "EAR", "دبابيس": "PIN", "ساعات": "WCH", "أطقم": "SET"]
@@ -1484,6 +1512,7 @@ final class POSDataStore: ObservableObject {
            brands.contains(where: { $0.caseInsensitiveCompare(new) == .orderedSame }) {
             return "الماركة «\(new)» موجودة بالفعل"
         }
+        if let img = brandImages.removeValue(forKey: old) { brandImages[new] = img }
         brands = brands.map { $0 == old ? new : $0 }
             .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
         for i in products.indices where products[i].brand == old { products[i].brand = new }
@@ -1493,8 +1522,22 @@ final class POSDataStore: ObservableObject {
 
     /// Removes a brand from the list; pieces that had it become "no brand". Past sales keep their name.
     func deleteBrand(_ name: String) {
+        if let img = brandImages.removeValue(forKey: name) { ProductImageHelper.deleteImage(named: img) }
         brands.removeAll { $0 == name }
         for i in products.indices where products[i].brand == name { products[i].brand = nil }
+        saveToDisk()
+    }
+
+    /// Sets (or replaces) the shop's own photo for a brand.
+    func setBrandImage(_ image: UIImage, for brand: String) {
+        guard let file = ProductImageHelper.storeImage(image, prefix: line.imagePrefix + "brand-") else { return }
+        if let old = brandImages[brand] { ProductImageHelper.deleteImage(named: old) }
+        brandImages[brand] = file
+        saveToDisk()
+    }
+
+    func removeBrandImage(for brand: String) {
+        if let old = brandImages.removeValue(forKey: brand) { ProductImageHelper.deleteImage(named: old) }
         saveToDisk()
     }
 
