@@ -3,18 +3,25 @@ name: Build Native iOS App (SwiftUI)
 on:
   push:
     branches: [ main, master ]
+  pull_request:
   workflow_dispatch:
 
 jobs:
   build-ios:
     name: Compile 100% Native SwiftUI iOS App on macOS
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout Source Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Select Xcode 15.4
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+      # App Store uploads must be built with a recent iOS SDK, so use the newest
+      # stable (non-beta) Xcode installed on the runner instead of a pinned old one.
+      - name: Select newest stable Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
 
       - name: Build Unsigned .app & Package .ipa
         run: |

@@ -1,0 +1,17 @@
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+project.xcworkspace/xcuserdata/
+
+# Build output (local and CI)
+DerivedData/
+build/
+build_output/
+Payload/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# macOS
+.DS_Store
