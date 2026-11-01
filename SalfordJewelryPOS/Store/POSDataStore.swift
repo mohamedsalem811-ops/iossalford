@@ -663,10 +663,14 @@ final class POSDataStore: ObservableObject {
         self.showGiftReceiptStudio = true
     }
 
+    /// Deletes a sale (e.g. entered by mistake). Its returns are deleted with it, and only the pieces
+    /// that had not already come back through a return are put back into stock.
     func deleteSale(_ sale: SaleRecord) {
+        let alreadyReturned = returnedQuantity(forSale: sale.id)
         if let pIdx = products.firstIndex(where: { $0.id == sale.productId }) {
-            products[pIdx].stock += sale.quantity
+            products[pIdx].stock += max(0, sale.quantity - alreadyReturned)
         }
+        returns.removeAll { $0.saleId == sale.id }
         sales.removeAll { $0.id == sale.id }
         saveToDisk()
     }
@@ -685,19 +689,46 @@ final class POSDataStore: ObservableObject {
         saveToDisk()
     }
 
-    func addReturn(product: Product, quantity: Int, reason: String) {
-        if let pIdx = products.firstIndex(where: { $0.id == product.id }) {
+    // MARK: - Returns
+
+    func returnedQuantity(forSale saleId: Int) -> Int {
+        returns.filter { $0.saleId == saleId }.reduce(0) { $0 + $1.quantity }
+    }
+
+    func returnableQuantity(for sale: SaleRecord) -> Int {
+        max(0, sale.quantity - returnedQuantity(forSale: sale.id))
+    }
+
+    /// Records a return against the sale it came from: the refund defaults to what the customer
+    /// actually paid, and the cost comes from the sale, so profit reports stay exact.
+    /// Returns an error message, or nil on success.
+    func addReturn(for sale: SaleRecord, quantity: Int, refundAmount: Double?, reason: String) -> String? {
+        let returnable = returnableQuantity(for: sale)
+        guard quantity > 0 else { return "الكمية يجب أن تكون 1 على الأقل" }
+        guard quantity <= returnable else {
+            return returnable == 0
+                ? "كل قطع هذه البيعة مُرتجعة بالفعل"
+                : "يمكن إرجاع \(returnable) قطعة فقط من هذه البيعة"
+        }
+        let maxRefund = sale.actualPrice * Double(quantity)
+        let refund = refundAmount ?? maxRefund
+        guard refund >= 0 else { return "مبلغ الاسترداد غير صحيح" }
+        guard refund <= maxRefund + 0.001 else {
+            return String(format: "لا يمكن أن يتجاوز الاسترداد ما دفعه الزبون (%.0f د.ل)", maxRefund)
+        }
+
+        if let pIdx = products.firstIndex(where: { $0.id == sale.productId }) {
             products[pIdx].stock += quantity
         }
-        let newId = (returns.map(\.id).max() ?? 0) + 1
         returns.insert(
             ReturnRecord(
-                id: newId,
-                productId: product.id,
-                productName: product.name,
+                id: (returns.map(\.id).max() ?? 0) + 1,
+                productId: sale.productId,
+                productName: sale.productName,
                 quantity: quantity,
-                refundAmount: product.sellPrice * Double(quantity),
-                costAmount: product.costPrice * Double(quantity),
+                refundAmount: refund,
+                costAmount: sale.costPrice * Double(quantity),
+                saleId: sale.id,
                 reason: reason.isEmpty ? nil : reason,
                 returnDate: nowTimestamp(),
                 monthYear: currentMonthYear()
@@ -705,6 +736,50 @@ final class POSDataStore: ObservableObject {
             at: 0
         )
         saveToDisk()
+        return nil
+    }
+
+    /// Return of a piece sold before it was recorded in the app (no invoice to link to).
+    /// The refund must be entered; cost is taken from the product.
+    func addReturnWithoutSale(product: Product, quantity: Int, refundAmount: Double, reason: String) -> String? {
+        guard quantity > 0 else { return "الكمية يجب أن تكون 1 على الأقل" }
+        guard refundAmount >= 0 else { return "مبلغ الاسترداد غير صحيح" }
+        guard let pIdx = products.firstIndex(where: { $0.id == product.id }) else {
+            return "القطعة غير موجودة في المخزون"
+        }
+        let current = products[pIdx]
+        products[pIdx].stock += quantity
+        returns.insert(
+            ReturnRecord(
+                id: (returns.map(\.id).max() ?? 0) + 1,
+                productId: current.id,
+                productName: current.name,
+                quantity: quantity,
+                refundAmount: refundAmount,
+                costAmount: current.costPrice * Double(quantity),
+                saleId: nil,
+                reason: reason.isEmpty ? "مرتجع بدون فاتورة" : reason,
+                returnDate: nowTimestamp(),
+                monthYear: currentMonthYear()
+            ),
+            at: 0
+        )
+        saveToDisk()
+        return nil
+    }
+
+    /// Undoes a return recorded by mistake: the pieces leave stock again.
+    /// Refused if those pieces are no longer in stock (they were sold again).
+    func deleteReturn(_ ret: ReturnRecord) -> String? {
+        if let pIdx = products.firstIndex(where: { $0.id == ret.productId }) {
+            guard products[pIdx].stock >= ret.quantity else {
+                return "لا يمكن إلغاء المرتجع: القطع المرتجعة لم تعد في المخزون (ربما بيعت مرة أخرى)"
+            }
+            products[pIdx].stock -= ret.quantity
+        }
+        returns.removeAll { $0.id == ret.id }
+        saveToDisk()
+        return nil
     }
 
     // MARK: - Customer Management

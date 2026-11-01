@@ -93,6 +93,8 @@ struct ReturnRecord: Identifiable, Codable, Equatable {
     var refundAmount: Double
     /// Cost of the returned pieces (they go back into stock). Missing on returns recorded by older versions.
     var costAmount: Double? = nil
+    /// The sale this return belongs to. nil for returns without an invoice (or recorded by older versions).
+    var saleId: Int? = nil
     var reason: String?
     var returnDate: String
     var monthYear: String
