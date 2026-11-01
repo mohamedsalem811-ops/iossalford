@@ -74,6 +74,17 @@ struct SalfordJewelryPOSApp: App {
             .environment(\.layoutDirection, .rightToLeft)
             .environment(\.locale, Locale(identifier: "ar_LY"))
             .preferredColorScheme(.dark)
+            .alert(
+                "تنبيه حفظ البيانات",
+                isPresented: Binding(
+                    get: { store.storageAlertMessage != nil },
+                    set: { if !$0 { store.storageAlertMessage = nil } }
+                )
+            ) {
+                Button("حسناً", role: .cancel) {}
+            } message: {
+                Text(store.storageAlertMessage ?? "")
+            }
         }
     }
 }

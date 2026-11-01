@@ -159,3 +159,35 @@ struct POSDatabaseState: Codable {
     var expenses: [ExpenseRecord]
     var closings: [QuarterlyClosing]
 }
+
+extension POSDatabaseState {
+    enum CodingKeys: String, CodingKey {
+        case pin, exchangeRate, products, customers, sets, sales, returns, expenses, closings
+    }
+
+    static let defaultPin = "01020304"
+    static let defaultExchangeRate = 7.0
+
+    static var empty: POSDatabaseState {
+        POSDatabaseState(
+            pin: defaultPin,
+            exchangeRate: defaultExchangeRate,
+            products: [], customers: [], sets: [], sales: [], returns: [], expenses: [], closings: []
+        )
+    }
+
+    /// Tolerant decoding: a section that is missing from the file (older/newer app version)
+    /// falls back to its default instead of making the whole database unreadable.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        pin = try c.decodeIfPresent(String.self, forKey: .pin) ?? Self.defaultPin
+        exchangeRate = try c.decodeIfPresent(Double.self, forKey: .exchangeRate) ?? Self.defaultExchangeRate
+        products = try c.decodeIfPresent([Product].self, forKey: .products) ?? []
+        customers = try c.decodeIfPresent([Customer].self, forKey: .customers) ?? []
+        sets = try c.decodeIfPresent([JewelrySet].self, forKey: .sets) ?? []
+        sales = try c.decodeIfPresent([SaleRecord].self, forKey: .sales) ?? []
+        returns = try c.decodeIfPresent([ReturnRecord].self, forKey: .returns) ?? []
+        expenses = try c.decodeIfPresent([ExpenseRecord].self, forKey: .expenses) ?? []
+        closings = try c.decodeIfPresent([QuarterlyClosing].self, forKey: .closings) ?? []
+    }
+}

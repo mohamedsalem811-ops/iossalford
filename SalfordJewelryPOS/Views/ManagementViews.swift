@@ -769,6 +769,7 @@ struct SettingsAndBackupView: View {
     @State private var newPin: String = ""
     @State private var showFileImporter: Bool = false
     @State private var statusMsg: String = ""
+    @State private var backupURL: URL? = nil
 
     var body: some View {
         ScrollView {
@@ -831,8 +832,8 @@ struct SettingsAndBackupView: View {
                         .font(.system(size: 14, weight: .bold))
                         .foregroundColor(SalfordTheme.silverLight)
 
-                    if let backupURL = store.exportBackupJSON() {
-                        ShareLink(item: backupURL, preview: SharePreview("SALFORD_Jewelry_Backup.json")) {
+                    if let backupURL {
+                        ShareLink(item: backupURL, preview: SharePreview(backupURL.lastPathComponent)) {
                             Label("تصدير نسخة احتياطية كاملة إلى الملفات", systemImage: "externaldrive.fill.badge.checkmark")
                                 .font(.system(size: 13, weight: .bold))
                                 .frame(maxWidth: .infinity)
@@ -841,6 +842,10 @@ struct SettingsAndBackupView: View {
                                 .foregroundColor(.white)
                                 .cornerRadius(11)
                         }
+                    } else {
+                        Text("تعذر تجهيز ملف النسخة الاحتياطية — تحقق من مساحة التخزين")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(SalfordTheme.dangerRed)
                     }
 
                     Button {
@@ -871,11 +876,13 @@ struct SettingsAndBackupView: View {
         .onAppear {
             rateText = String(format: "%.2f", store.exchangeRate)
             newPin = store.pin
+            backupURL = store.exportBackupJSON()
         }
         .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.json]) { result in
             if case .success(let url) = result {
                 if store.importBackupJSON(from: url) {
                     statusMsg = "تمت استعادة النسخة الاحتياطية بنجاح"
+                    backupURL = store.exportBackupJSON()
                 } else {
                     statusMsg = "تعذر قراءة ملف النسخة الاحتياطية"
                 }

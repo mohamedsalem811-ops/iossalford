@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import os
 
 @MainActor
 final class POSDataStore: ObservableObject {
@@ -30,9 +31,30 @@ final class POSDataStore: ObservableObject {
 
     static let categories = ["خواتم", "أساور", "قلادات", "أقراط", "دبابيس", "ساعات", "أطقم", "أخرى"]
 
+    /// Set when loading or saving the database had a problem; shown to the user as an alert.
+    @Published var storageAlertMessage: String? = nil
+
+    /// True when an unreadable database could not be copied to safety; saving is then refused
+    /// so the original file is never overwritten.
+    private var savingBlocked = false
+
+    private static let log = Logger(subsystem: "com.salfordjewelry.pos", category: "storage")
+
+    private var documentsURL: URL {
+        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+    }
+
     private var dbFileURL: URL {
-        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        return docs.appendingPathComponent("salford_jewelry_native_db_v610.json")
+        documentsURL.appendingPathComponent("salford_jewelry_native_db_v610.json")
+    }
+
+    /// Copy of the last database file that was loaded successfully (refreshed on every launch).
+    private var lastGoodFileURL: URL {
+        documentsURL.appendingPathComponent("salford_jewelry_native_db_v610.lastgood.json")
+    }
+
+    private var recoveryFolderURL: URL {
+        documentsURL.appendingPathComponent("Recovery", isDirectory: true)
     }
 
     init() {
@@ -63,24 +85,115 @@ final class POSDataStore: ObservableObject {
         return df.string(from: Date())
     }
 
-    func loadFromDisk() {
-        if let data = try? Data(contentsOf: dbFileURL),
-           let decoded = try? JSONDecoder().decode(POSDatabaseState.self, from: data) {
-            self.pin = decoded.pin
-            self.exchangeRate = decoded.exchangeRate
-            self.products = decoded.products
-            self.customers = decoded.customers
-            self.sets = decoded.sets
-            self.sales = decoded.sales
-            self.returns = decoded.returns
-            self.expenses = decoded.expenses
-            self.closings = decoded.closings
-            return
-        }
-        seedDemoData()
+    // MARK: - Persistence
+
+    private func decodeState(from url: URL) throws -> POSDatabaseState {
+        let data = try Data(contentsOf: url)
+        return try JSONDecoder().decode(POSDatabaseState.self, from: data)
     }
 
-    func saveToDisk() {
+    private func apply(_ state: POSDatabaseState) {
+        self.pin = state.pin
+        self.exchangeRate = state.exchangeRate
+        self.products = state.products
+        self.customers = state.customers
+        self.sets = state.sets
+        self.sales = state.sales
+        self.returns = state.returns
+        self.expenses = state.expenses
+        self.closings = state.closings
+    }
+
+    /// Loads the database. Demo data is only created on a true first launch (no database file at all).
+    /// An existing file that cannot be read is NEVER overwritten: it is copied to Documents/Recovery first,
+    /// and the app falls back to the last good copy if one exists.
+    func loadFromDisk() {
+        let fm = FileManager.default
+
+        guard fm.fileExists(atPath: dbFileURL.path) else {
+            // First launch, or upgrading from a build that had no database: also check the last good copy.
+            if fm.fileExists(atPath: lastGoodFileURL.path), let state = try? decodeState(from: lastGoodFileURL) {
+                apply(state)
+                saveToDisk()
+                storageAlertMessage = "لم يتم العثور على قاعدة البيانات الرئيسية، وتمت استعادة آخر نسخة سليمة محفوظة تلقائياً."
+                return
+            }
+            seedDemoData()
+            return
+        }
+
+        do {
+            let state = try decodeState(from: dbFileURL)
+            apply(state)
+            refreshLastGoodCopy()
+        } catch {
+            Self.log.error("Failed to load database: \(error.localizedDescription, privacy: .public)")
+            guard let recoveryName = preserveUnreadableDatabase() else {
+                // Could not make a safe copy: leave the original file untouched and refuse all saves.
+                savingBlocked = true
+                apply(POSDatabaseState.empty)
+                storageAlertMessage = """
+                تعذّرت قراءة قاعدة البيانات وتعذّر حفظ نسخة منها. لحماية بياناتك تم إيقاف الحفظ تماماً — \
+                لا تسجّل أي عمليات الآن. حرّر مساحة على الجهاز ثم أعد تشغيل التطبيق، أو تواصل مع الدعم.
+                """
+                return
+            }
+
+            if fm.fileExists(atPath: lastGoodFileURL.path), let state = try? decodeState(from: lastGoodFileURL) {
+                apply(state)
+                saveToDisk()
+                storageAlertMessage = """
+                تعذّرت قراءة قاعدة البيانات، فتمت استعادة آخر نسخة سليمة (من آخر تشغيل ناجح للتطبيق). \
+                قد تكون آخر العمليات مفقودة. حُفظ الملف الأصلي دون حذف في: Recovery/\(recoveryName)
+                """
+            } else {
+                // Start empty (not demo data) so nothing fake mixes with the shop's records.
+                apply(POSDatabaseState.empty)
+                saveToDisk()
+                storageAlertMessage = """
+                تعذّرت قراءة قاعدة البيانات ولا توجد نسخة سليمة سابقة. لم يُحذف شيء: \
+                حُفظ الملف الأصلي في Recovery/\(recoveryName). \
+                يمكنك استعادة نسخة احتياطية من الإعدادات، أو التواصل مع الدعم لاسترجاع الملف.
+                """
+            }
+        }
+    }
+
+    /// Copies the unreadable database into Documents/Recovery with a timestamp. Returns the file name.
+    private func preserveUnreadableDatabase() -> String? {
+        let fm = FileManager.default
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.dateFormat = "yyyyMMdd-HHmmss"
+        let name = "unreadable-db-\(df.string(from: Date())).json"
+        do {
+            try fm.createDirectory(at: recoveryFolderURL, withIntermediateDirectories: true)
+            try fm.copyItem(at: dbFileURL, to: recoveryFolderURL.appendingPathComponent(name))
+            return name
+        } catch {
+            Self.log.error("Failed to preserve unreadable database: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    private func refreshLastGoodCopy() {
+        let fm = FileManager.default
+        do {
+            if fm.fileExists(atPath: lastGoodFileURL.path) {
+                try fm.removeItem(at: lastGoodFileURL)
+            }
+            try fm.copyItem(at: dbFileURL, to: lastGoodFileURL)
+        } catch {
+            Self.log.error("Failed to refresh last good copy: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    @discardableResult
+    func saveToDisk() -> Bool {
+        guard !savingBlocked else {
+            storageAlertMessage = "الحفظ متوقف لحماية قاعدة البيانات الأصلية. أعد تشغيل التطبيق بعد تحرير مساحة على الجهاز."
+            return false
+        }
         let state = POSDatabaseState(
             pin: pin,
             exchangeRate: exchangeRate,
@@ -92,34 +205,54 @@ final class POSDataStore: ObservableObject {
             expenses: expenses,
             closings: closings
         )
-        if let data = try? JSONEncoder().encode(state) {
-            try? data.write(to: dbFileURL, options: .atomic)
+        do {
+            let data = try JSONEncoder().encode(state)
+            try data.write(to: dbFileURL, options: .atomic)
+            return true
+        } catch {
+            Self.log.error("Failed to save database: \(error.localizedDescription, privacy: .public)")
+            storageAlertMessage = "⚠️ فشل حفظ البيانات على الجهاز: \(error.localizedDescription). تأكد من توفر مساحة تخزين، ولا تغلق التطبيق قبل أخذ نسخة احتياطية."
+            return false
         }
     }
 
+    /// Saves, then writes a dated copy of the database to a temporary file for sharing.
+    /// The live database file itself is never handed to the share sheet.
     func exportBackupJSON() -> URL? {
-        saveToDisk()
-        return dbFileURL
+        guard saveToDisk() else { return nil }
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.dateFormat = "yyyy-MM-dd_HHmm"
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SALFORD_Jewelry_Backup_\(df.string(from: Date())).json")
+        do {
+            if FileManager.default.fileExists(atPath: url.path) {
+                try FileManager.default.removeItem(at: url)
+            }
+            try FileManager.default.copyItem(at: dbFileURL, to: url)
+            return url
+        } catch {
+            Self.log.error("Failed to prepare backup: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
     }
 
     func importBackupJSON(from url: URL) -> Bool {
         let secured = url.startAccessingSecurityScopedResource()
         defer { if secured { url.stopAccessingSecurityScopedResource() } }
-        guard let data = try? Data(contentsOf: url),
-              let decoded = try? JSONDecoder().decode(POSDatabaseState.self, from: data) else {
+        let decoded: POSDatabaseState
+        do {
+            decoded = try decodeState(from: url)
+        } catch {
+            Self.log.error("Failed to import backup: \(error.localizedDescription, privacy: .public)")
             return false
         }
-        self.pin = decoded.pin
-        self.exchangeRate = decoded.exchangeRate
-        self.products = decoded.products
-        self.customers = decoded.customers
-        self.sets = decoded.sets
-        self.sales = decoded.sales
-        self.returns = decoded.returns
-        self.expenses = decoded.expenses
-        self.closings = decoded.closings
-        saveToDisk()
-        return true
+        // Keep a copy of the current data before replacing it with the imported backup.
+        if FileManager.default.fileExists(atPath: dbFileURL.path) {
+            refreshLastGoodCopy()
+        }
+        apply(decoded)
+        return saveToDisk()
     }
 
     func seedDemoData() {

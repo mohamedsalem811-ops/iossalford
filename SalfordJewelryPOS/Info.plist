@@ -36,6 +36,10 @@
 	<string>UIStatusBarStyleLightContent</string>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>NSFaceIDUsageDescription</key>
 	<string>يستخدم تطبيق SALFORD Jewelry بصمة الوجه (Face ID) للدخول السريع والآمن إلى المنظومة.</string>
 	<key>NSCameraUsageDescription</key>
