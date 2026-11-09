@@ -6,6 +6,8 @@ import { useColorScheme } from 'react-native';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { KeyboardBar } from '@/components/keyboard-bar';
+import { PrivacyCover } from '@/components/privacy-cover';
+import { LockProvider } from '@/state/lock';
 import { ThemeProvider } from '@/theme';
 import { fontAssets } from '@/theme/font-assets';
 
@@ -26,8 +28,14 @@ export default function RootLayout() {
     <KeyboardProvider>
       <NavigationTheme value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
         <ThemeProvider system={null}>
-          <Stack screenOptions={{ headerShown: false }} />
-          <KeyboardBar />
+          <LockProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              {/* Back to the start screen locks the system; no slide, so the login never shows. */}
+              <Stack.Screen name="index" options={{ animation: 'none' }} />
+            </Stack>
+            <KeyboardBar />
+            <PrivacyCover />
+          </LockProvider>
         </ThemeProvider>
       </NavigationTheme>
     </KeyboardProvider>

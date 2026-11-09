@@ -1,0 +1,19 @@
+# Types a PIN that is wrong for both systems.
+appId: com.salford.pos
+---
+- tapOn:
+    id: 'pin-key-1'
+- tapOn:
+    id: 'pin-key-0'
+- tapOn:
+    id: 'pin-key-2'
+- tapOn:
+    id: 'pin-key-9'
+- tapOn:
+    id: 'pin-key-3'
+- tapOn:
+    id: 'pin-key-8'
+- tapOn:
+    id: 'pin-key-4'
+- tapOn:
+    id: 'pin-key-7'

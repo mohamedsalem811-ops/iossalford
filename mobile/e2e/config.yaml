@@ -1,0 +1,3 @@
+# Only the flows at the top of this folder run; subflows/ holds steps they share.
+flows:
+  - '*'

@@ -361,5 +361,8 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - Design approved: Mix B + C with the centred logo, light and dark (`docs/DESIGN.md`). Logos redrawn as lettering.
 - Everything kept up to date: newest stable Xcode on `macos-26`, latest GitHub Actions, Node LTS, and the newest package versions the Expo SDK supports.
 - The old SwiftUI app keeps its minimum iOS 16 (no effect on the owner's devices; it is being replaced).
+- PINs: 8 digits, salted SHA-256 in the Keychain (this device only, never backed up). Easy PINs (one digit repeated, straight runs) are refused. First-launch setup only asks for a system that has no PIN yet, so an interrupted setup can't be used to replace a saved PIN.
+- Locking: going to the background locks; the app switcher and the Face ID prompt only hide the screen behind the logos. The start screen always locks, so entering any system needs its PIN (or Face ID for jewelry).
+- The design gallery is opened only by its link (`salfordpos://gallery`), not from the start screen.
 
-Nothing has been started. Phase 0 begins when the owner says go.
+Status: Phases 0 to 2 are merged; Phase 3 is in progress.

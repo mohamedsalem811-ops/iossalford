@@ -1,30 +1,39 @@
 import Constants from 'expo-constants';
-import { router } from 'expo-router';
-import { View } from 'react-native';
+import { Redirect, router } from 'expo-router';
+import { useEffect, useState } from 'react';
 
-import { Button, Screen, SystemCard, Text } from '@/components';
-import { spacing } from '@/theme';
+import { ChooserScreen } from '@/screens/chooser';
+import { lastSystem, pinVault } from '@/security/device';
+import { useLock } from '@/state/lock';
 
-/** Phase 1 placeholder: the two system cards and a way into the design gallery. Replaced in Phase 3. */
+/**
+ * The start screen. Being here means no system is open: it locks on arrival, so going back into
+ * a system always asks for its PIN (or Face ID). First launch goes to PIN setup.
+ */
 export default function Index() {
-  const version = Constants.expoConfig?.version ?? '';
+  const { lock } = useLock();
+  const [ready, setReady] = useState<boolean | null>(null);
+  const [last] = useState(lastSystem);
+
+  useEffect(() => {
+    lock();
+    let cancelled = false;
+    pinVault.ready().then(
+      (v) => !cancelled && setReady(v),
+      () => !cancelled && setReady(false),
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [lock]);
+
+  if (ready === null) return null;
+  if (!ready) return <Redirect href="/setup" />;
   return (
-    <Screen contentStyle={{ gap: spacing.lg }}>
-      <View style={{ gap: spacing.xs, paddingTop: spacing.lg }}>
-        <Text variant="largeTitle">SALFORD POS</Text>
-        <Text variant="subhead" tone="secondary">
-          النسخة الجديدة قيد الإنشاء · {version}
-        </Text>
-      </View>
-      <SystemCard system="jewelry" selected onPress={() => router.push('/gallery')} />
-      <SystemCard system="scarves" onPress={() => router.push('/gallery')} />
-      <Button
-        title="معرض التصميم"
-        icon="paintpalette"
-        size="lg"
-        fullWidth
-        onPress={() => router.push('/gallery')}
-      />
-    </Screen>
+    <ChooserScreen
+      last={last}
+      version={Constants.expoConfig?.version ?? ''}
+      onChoose={(system) => router.replace({ pathname: '/[system]', params: { system } })}
+    />
   );
 }

@@ -1,0 +1,26 @@
+# Phase 3: create both PINs, a wrong PIN, the right PIN, then every tab.
+appId: com.salford.pos
+---
+- runFlow: subflows/fresh-launch.yaml
+- runFlow: subflows/setup-pins.yaml
+- takeScreenshot: ${DEVICE}-chooser
+- tapOn: 'نظام المجوهرات'
+- assertVisible: 'أدخل رمز الدخول'
+- takeScreenshot: ${DEVICE}-login-jewelry
+- runFlow: subflows/pin-wrong.yaml
+- assertVisible: 'رمز خاطئ، بقيت 4 محاولات قبل القفل المؤقت'
+- runFlow: subflows/pin-jewelry.yaml
+- assertVisible: 'مبيعات اليوم'
+- takeScreenshot: ${DEVICE}-dashboard-jewelry
+- tapOn: 'بيع'
+- assertVisible: 'قريباً'
+- tapOn: 'المنتجات'
+- assertVisible: 'قريباً'
+- tapOn: 'الإيصالات'
+- assertVisible: 'قريباً'
+- tapOn: 'الإدارة'
+- assertVisible: 'قفل النظام'
+- takeScreenshot: ${DEVICE}-management-jewelry
+# The lock button shows the login again in place of the screens.
+- tapOn: 'قفل النظام'
+- assertVisible: 'أدخل رمز الدخول'
