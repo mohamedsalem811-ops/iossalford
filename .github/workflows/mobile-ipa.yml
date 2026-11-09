@@ -21,7 +21,7 @@ concurrency:
 jobs:
   ipa:
     name: Build unsigned .ipa
-    runs-on: macos-15
+    runs-on: macos-26
     defaults:
       run:
         working-directory: mobile
@@ -40,6 +40,9 @@ jobs:
           echo "Using $XCODE"
           sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version
+          # Expo SDK 58 needs Xcode 26.4 or newer.
+          VER=$(xcodebuild -version | awk 'NR==1{print $2}')
+          python3 -c "import sys; v=tuple(int(x) for x in '$VER'.split('.')); sys.exit(0 if v >= (26,4) else 'Xcode $VER is older than 26.4, which Expo SDK 58 needs')"
 
       - name: Install
         run: npm ci
@@ -59,7 +62,7 @@ jobs:
             -derivedDataPath build_output \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO | tail -n 80
+            CODE_SIGNING_ALLOWED=NO | xcbeautify --renderer github-actions
 
       - name: Package .ipa
         run: |
