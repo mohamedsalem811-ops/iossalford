@@ -71,7 +71,18 @@ jobs:
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build_output \
-            CODE_SIGNING_ALLOWED=NO | xcbeautify --renderer github-actions
+            CODE_SIGN_IDENTITY=- \
+            CODE_SIGNING_ALLOWED=YES | xcbeautify --renderer github-actions
+
+      # The app keeps its PINs in the Keychain. On the simulator an unsigned app has no
+      # entitlements and every Keychain call fails, so the app is signed to run locally ("-",
+      # no Apple account needed). The job stops here if the app is not signed; the entitlements
+      # are printed for diagnosis (the Maestro flows are what prove the Keychain works).
+      - name: Check the app is signed
+        run: |
+          APP=build_output/Build/Products/Release-iphonesimulator/SALFORDPOS.app
+          codesign --verify --verbose=2 "$APP"
+          codesign -d --entitlements - "$APP" 2>&1 || true
 
       - name: Install Maestro
         working-directory: .
