@@ -9,7 +9,10 @@ appId: com.salford.pos
       visible: 'Open'
     commands:
       - tapOn: 'Open'
-- assertVisible: 'مبيعات اليوم'
+# The CI simulator has taken 19 seconds to hand the link to the app after "Open".
+- extendedWaitUntil:
+    visible: 'مبيعات اليوم'
+    timeout: 90000
 - assertVisible: 'SALFORD jewelry'
 - takeScreenshot: ${DEVICE}-gallery-jewelry-light
 - waitForAnimationToEnd
