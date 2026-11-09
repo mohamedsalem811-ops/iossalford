@@ -11,5 +11,6 @@ export { Screen, TAB_BAR_CLEARANCE } from './screen';
 export { EmptyState, SectionHeader } from './section';
 export { Segmented } from './segmented';
 export { Sheet } from './sheet';
+export { SystemCard } from './system-card';
 export { Text } from './text';
 export type { TextTone } from './text';

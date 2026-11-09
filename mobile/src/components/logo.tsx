@@ -22,15 +22,19 @@ const BASE_H = 230;
  * The SALFORD logos redrawn as lettering (docs/DESIGN.md): SJ + SALFORD + stars + "jewelry",
  * or SS + stars + divider + SALFORD + "scarfs". Drawn at 260×230 and scaled to `width`.
  * Ink follows the theme's text colour; the accent colours "jewelry", "scarfs" and the divider.
+ * `backdrop` is the colour behind the logo (the J is cut out of the S with it); it defaults to
+ * the page background, so pass the card colour when the logo sits on a card.
  */
 export function Logo({
   system,
   width = 120,
   markOnly = false,
+  backdrop,
 }: {
   system: SystemId;
   width?: number;
   markOnly?: boolean;
+  backdrop?: string;
 }) {
   const { colors } = useTheme();
   const scale = width / BASE_W;
@@ -51,7 +55,12 @@ export function Logo({
           transformOrigin: 'top left',
         }}>
         {system === 'jewelry' ? (
-          <JewelryMark ink={ink} accent={accent} gap={colors.background} markOnly={markOnly} />
+          <JewelryMark
+            ink={ink}
+            accent={accent}
+            gap={backdrop ?? colors.background}
+            markOnly={markOnly}
+          />
         ) : (
           <ScarvesMark ink={ink} accent={accent} markOnly={markOnly} />
         )}
@@ -71,63 +80,86 @@ function JewelryMark({
   gap: string;
   markOnly: boolean;
 }) {
-  const top = markOnly ? 52 : 0;
+  const top = markOnly ? 50 : 4;
+  // A thin outline in the backdrop colour separates the J from the S, as in the original mark.
+  const cut = {
+    textShadowColor: gap,
+    textShadowRadius: 2.5,
+    textShadowOffset: { width: 0, height: 0 },
+  };
   return (
     <>
-      <View style={{ position: 'absolute', left: 70, top, width: 120, height: 128 }}>
-        <Text
-          allowFontScaling={false}
-          style={{
-            position: 'absolute',
-            left: 22,
-            top: -14,
-            fontFamily: fonts.logoJewelry,
-            fontSize: 128,
-            lineHeight: 150,
-            color: ink,
-          }}>
-          S
-        </Text>
-        <Text
-          allowFontScaling={false}
-          style={{
-            position: 'absolute',
-            left: 47,
-            top: -2,
-            fontFamily: fonts.logoJewelryLight,
-            fontSize: 104,
-            lineHeight: 124,
-            color: ink,
-            textShadowColor: gap,
-            textShadowRadius: 3,
-            textShadowOffset: { width: 0, height: 0 },
-          }}>
-          J
-        </Text>
+      <View
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          top,
+          height: 124,
+          alignItems: 'center',
+        }}>
+        <View style={{ width: 96, height: 124 }}>
+          <Text
+            allowFontScaling={false}
+            numberOfLines={1}
+            style={{
+              position: 'absolute',
+              left: 6,
+              top: -18,
+              width: 90,
+              textAlign: 'center',
+              fontFamily: fonts.logoJewelry,
+              fontSize: 128,
+              lineHeight: 150,
+              color: ink,
+            }}>
+            S
+          </Text>
+          <Text
+            allowFontScaling={false}
+            numberOfLines={1}
+            style={{
+              position: 'absolute',
+              left: 8,
+              top: -6,
+              width: 90,
+              textAlign: 'center',
+              fontFamily: fonts.logoJewelryLight,
+              fontSize: 104,
+              lineHeight: 124,
+              color: ink,
+              ...cut,
+            }}>
+            J
+          </Text>
+        </View>
       </View>
       {markOnly ? null : (
-        <View style={{ position: 'absolute', left: 0, right: 0, top: 136, alignItems: 'center' }}>
-          <View style={{ paddingHorizontal: 22 }}>
-            <Star size={14} color={ink} style={{ position: 'absolute', left: 0, top: 2 }} />
+        <View style={{ position: 'absolute', left: 0, right: 0, top: 138, alignItems: 'center' }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+            <Star size={13} color={ink} style={{ marginTop: 4, marginRight: 4 }} />
             <Text
               allowFontScaling={false}
+              numberOfLines={1}
               style={{
                 fontFamily: fonts.logoJewelryText,
-                fontSize: 50,
-                lineHeight: 58,
+                fontSize: 42,
+                lineHeight: 50,
                 letterSpacing: 0.5,
                 color: ink,
               }}>
               SALFORD
             </Text>
-            <Star size={24} color={ink} style={{ position: 'absolute', right: -4, top: -10 }} />
+            <Star size={22} color={ink} style={{ marginTop: -10, marginLeft: -2 }} />
           </View>
           <Text
             allowFontScaling={false}
+            numberOfLines={1}
             style={{
               fontFamily: fonts.logoJewelryLight,
               fontSize: 18,
               lineHeight: 22,
+              marginTop: 2,
               color: accent,
             }}>
             jewelry
@@ -201,9 +233,10 @@ function ScarvesMark({
           </View>
           <Text
             allowFontScaling={false}
+            numberOfLines={1}
             style={{
               fontFamily: fonts.logoScarvesText,
-              fontSize: 42,
+              fontSize: 40,
               lineHeight: 48,
               letterSpacing: 9,
               marginRight: -9,
@@ -213,6 +246,7 @@ function ScarvesMark({
           </Text>
           <Text
             allowFontScaling={false}
+            numberOfLines={1}
             style={{
               fontFamily: fonts.logoScarvesItalic,
               fontSize: 19,

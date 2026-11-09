@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 
 import { palettes, ThemeProvider, type SystemId } from '@/theme';
 
-import { Button, ListGroup, ListRow, Logo, NumberField, Stat, Text } from '.';
+import { Button, ListGroup, ListRow, Logo, NumberField, Stat, SystemCard, Text } from '.';
 
 jest.mock('expo-haptics', () => ({ selectionAsync: jest.fn(() => Promise.resolve()) }));
 jest.mock('expo-symbols', () => ({ SymbolView: () => null }));
@@ -105,5 +105,30 @@ describe('Logo', () => {
   it('hides the wordmark in the mark-only version', async () => {
     await wrap(<Logo system="jewelry" markOnly />);
     expect(screen.queryByText('SALFORD')).toBeNull();
+  });
+});
+
+describe('SystemCard', () => {
+  it('is a button named after its system, drawn in its own colours', async () => {
+    const onPress = jest.fn();
+    await wrap(<SystemCard system="scarves" onPress={onPress} />);
+    const card = screen.getByRole('button', { name: 'نظام الأوشحة' });
+    expect(card).toHaveStyle({ borderColor: palettes.scarves.light.accent });
+    await fireEvent.press(card);
+    expect(onPress).toHaveBeenCalled();
+  });
+
+  it('marks the last used system as selected with a stronger edge', async () => {
+    await wrap(<SystemCard system="jewelry" selected onPress={() => {}} />);
+    const card = screen.getByRole('button', { name: 'نظام المجوهرات' });
+    expect(card).toBeSelected();
+    expect(card).toHaveStyle({ borderWidth: 2 });
+  });
+});
+
+describe('Logo wordmark', () => {
+  it('keeps SALFORD on one line', async () => {
+    await wrap(<Logo system="jewelry" />);
+    expect(screen.getByText('SALFORD').props.numberOfLines).toBe(1);
   });
 });
