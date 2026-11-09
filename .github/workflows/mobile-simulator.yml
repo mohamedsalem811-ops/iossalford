@@ -2,19 +2,13 @@ name: Expo app simulator tests
 
 # Builds the app for the iOS simulator, runs the Maestro tap-through tests on an
 # iPhone and an iPad simulator, and uploads the screenshots.
+#
+# Started by hand only (Actions -> "Expo app simulator tests" -> Run workflow), once per
+# phase before the owner merges. Every push runs the fast checks and the .ipa build instead:
+# GitHub's macOS simulators are slow and sometimes do not start, and each run takes about an
+# hour.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/mobile-simulator.yml'
-  # Heavy build: runs once a phase PR is ready (not on every step pushed to a draft).
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/mobile-simulator.yml'
   workflow_dispatch:
 
 concurrency:
@@ -26,7 +20,6 @@ jobs:
     # One job per device, side by side: a second simulator in the same job often could not start
     # Maestro's driver while the first device's driver was still holding the host side.
     name: Maestro on ${{ matrix.device }} simulator
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     strategy:
       fail-fast: false
       matrix:
