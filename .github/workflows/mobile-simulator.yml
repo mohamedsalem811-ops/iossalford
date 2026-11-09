@@ -23,8 +23,14 @@ concurrency:
 
 jobs:
   simulator:
-    name: Maestro on iPhone and iPad simulators
+    # One job per device, side by side: a second simulator in the same job often could not start
+    # Maestro's driver while the first device's driver was still holding the host side.
+    name: Maestro on ${{ matrix.device }} simulator
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iPhone, iPad]
     runs-on: macos-26
     timeout-minutes: 60
     defaults:
@@ -82,7 +88,7 @@ jobs:
           done
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
-      - name: Run tests on iPhone and iPad
+      - name: Run tests on the ${{ matrix.device }} simulator
         env:
           # A freshly booted simulator is slow on its first launch; the default driver
           # start-up timeout was too short for the iPad run. A hung driver is retried once below.
@@ -100,7 +106,8 @@ jobs:
           pro = [d for d in names if 'Pro' in d['name']] or names
           print(pro[-1]['udid'])" "$1"
           }
-          for KIND in iPhone iPad; do
+          KIND='${{ matrix.device }}'
+          {
             UDID=$(pick "$KIND")
             echo "== $KIND: $UDID"
             xcrun simctl boot "$UDID" || true
@@ -124,7 +131,7 @@ jobs:
               exit "$STATUS"
             done
             xcrun simctl shutdown "$UDID"
-          done
+          }
           # Maestro may save screenshots next to the flow or in its output folder; collect them all.
           find e2e maestro-output . -maxdepth 4 -name '*.png' -not -path './node_modules/*' -not -path './screenshots/*' -exec cp {} screenshots/ \; 2>/dev/null || true
           ls -l screenshots
@@ -134,7 +141,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: simulator-screenshots
+          name: simulator-screenshots-${{ matrix.device }}
           path: |
             mobile/screenshots
             mobile/maestro-output
