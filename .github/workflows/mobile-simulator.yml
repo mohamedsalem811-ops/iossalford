@@ -32,7 +32,10 @@ jobs:
       matrix:
         device: [iPhone, iPad]
     runs-on: macos-26
-    timeout-minutes: 60
+    # Room for the warm-up wait in the test step if the warm-up is still running.
+    timeout-minutes: 75
+    env:
+      MAESTRO_CLI_NO_ANALYTICS: '1'
     defaults:
       run:
         working-directory: mobile
@@ -55,6 +58,74 @@ jobs:
           VER=$(xcodebuild -version | awk 'NR==1{print $2}')
           python3 -c "import sys; v=tuple(int(x) for x in '$VER'.split('.')); sys.exit(0 if v >= (26,4) else 'Xcode $VER is older than 26.4, which Expo SDK 58 needs')"
 
+      - name: Install Maestro
+        working-directory: .
+        run: |
+          # The installer exits 0 even when its download fails (a 504 from the download server
+          # did this once), so retry and confirm the binary runs before going on.
+          for ATTEMPT in 1 2 3; do
+            curl -fsSL "https://get.maestro.mobile.dev" | bash || true
+            if "$HOME/.maestro/bin/maestro" --version; then break; fi
+            [ "$ATTEMPT" -eq 3 ] && { echo "Maestro could not be installed"; exit 1; }
+            echo "Maestro download failed; retrying in 20 s"
+            rm -rf "$HOME/.maestro"
+            sleep 20
+          done
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Boot the ${{ matrix.device }} simulator and start Maestro's driver in the background
+        # A freshly booted simulator spends minutes on data migration and first-launch work, and
+        # Maestro's XCTest driver then sometimes did not start within 5 minutes. All of that now
+        # happens in the background while the app builds (about 30 minutes). The driver is left
+        # running, and the test step reuses it.
+        run: |
+          set -e
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          kind = sys.argv[1]
+          devs = [d for rt, ds in json.load(sys.stdin)['devices'].items() if 'iOS' in rt for d in ds]
+          names = [d for d in devs if d['name'].startswith(kind)]
+          pro = [d for d in names if 'Pro' in d['name']] or names
+          print(pro[-1]['udid'])" '${{ matrix.device }}')
+          echo "== ${{ matrix.device }}: $UDID"
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+          # No hardware keyboard, so the software keyboard behaves as on a device.
+          defaults write com.apple.iphonesimulator ConnectHardwareKeyboard -bool false
+          cat > "$RUNNER_TEMP/warm-up.sh" <<'EOF'
+          set -u
+          UDID=$1
+          OUT=$2
+          say() { echo "== $(date +%T) $*"; }
+          say "booting"
+          xcrun simctl boot "$UDID" || true
+          # Waits for the boot-time data migration and the system apps.
+          xcrun simctl bootstatus "$UDID" -b
+          # Skip the keyboard's first-use "slide to type" prompt.
+          xcrun simctl spawn "$UDID" defaults write com.apple.keyboard.preferences DidShowContinuousPathIntroduction -bool true || true
+          # Open and close a system app once, so SpringBoard's first-launch work is done.
+          xcrun simctl launch "$UDID" com.apple.Preferences && sleep 10
+          xcrun simctl terminate "$UDID" com.apple.Preferences || true
+          sleep 30
+          # Start Maestro's XCTest driver and leave it running (--no-reinstall-driver keeps it alive
+          # after this command ends). Time spent here is hidden behind the app build.
+          for ATTEMPT in 1 2 3; do
+            say "starting Maestro's driver (attempt $ATTEMPT)"
+            if MAESTRO_DRIVER_STARTUP_TIMEOUT=480000 "$HOME/.maestro/bin/maestro" --device "$UDID" hierarchy --no-reinstall-driver --compact > "$OUT/warm-up-hierarchy.txt" 2>&1; then
+              say "driver is running"
+              echo 0 > "$OUT/warm-up.status"
+              exit 0
+            fi
+            tail -5 "$OUT/warm-up-hierarchy.txt"
+            say "driver did not start; stopping it before trying again"
+            pkill -f 'xcodebuild test-without-building' || true
+            xcrun simctl terminate "$UDID" dev.mobile.maestro-driver-iosUITests.xctrunner || true
+            sleep 10
+          done
+          echo 1 > "$OUT/warm-up.status"
+          EOF
+          nohup bash "$RUNNER_TEMP/warm-up.sh" "$UDID" "$RUNNER_TEMP" > "$RUNNER_TEMP/warm-up.log" 2>&1 < /dev/null &
+          echo "Warm-up started in the background (pid $!)"
+
       - name: Install
         run: npm ci
 
@@ -73,69 +144,67 @@ jobs:
             -derivedDataPath build_output \
             CODE_SIGNING_ALLOWED=NO | xcbeautify --renderer github-actions
 
-      - name: Install Maestro
-        working-directory: .
-        run: |
-          # The installer exits 0 even when its download fails (a 504 from the download server
-          # did this once), so retry and confirm the binary runs before going on.
-          for ATTEMPT in 1 2 3; do
-            curl -fsSL "https://get.maestro.mobile.dev" | bash || true
-            if "$HOME/.maestro/bin/maestro" --version; then break; fi
-            [ "$ATTEMPT" -eq 3 ] && { echo "Maestro could not be installed"; exit 1; }
-            echo "Maestro download failed; retrying in 20 s"
-            rm -rf "$HOME/.maestro"
-            sleep 20
-          done
-          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
-
       - name: Run tests on the ${{ matrix.device }} simulator
         env:
-          # A freshly booted simulator is slow on its first launch; the default driver
-          # start-up timeout was too short for the iPad run. A hung driver is retried once below.
+          # Normally the driver is already running from the warm-up. If it has to be started
+          # here, a freshly booted simulator can be slow, so allow 5 minutes; a hung driver is
+          # retried once below.
           MAESTRO_DRIVER_STARTUP_TIMEOUT: '300000'
         run: |
           set -e
           APP=build_output/Build/Products/Release-iphonesimulator/SALFORDPOS.app
           mkdir -p screenshots
-          pick() {
-            xcrun simctl list devices available -j | python3 -c "
-          import json, sys
-          kind = sys.argv[1]
-          devs = [d for rt, ds in json.load(sys.stdin)['devices'].items() if 'iOS' in rt for d in ds]
-          names = [d for d in devs if d['name'].startswith(kind)]
-          pro = [d for d in names if 'Pro' in d['name']] or names
-          print(pro[-1]['udid'])" "$1"
-          }
           KIND='${{ matrix.device }}'
-          {
-            UDID=$(pick "$KIND")
-            echo "== $KIND: $UDID"
-            xcrun simctl boot "$UDID" || true
-            xcrun simctl bootstatus "$UDID" -b
-            xcrun simctl install "$UDID" "$APP"
-            # If Maestro's driver fails to start (a runner simulator hang, not a test result),
-            # restart the simulator and try once more. Any other failure fails the job at once.
-            for ATTEMPT in 1 2; do
-              set +e
-              maestro --device "$UDID" test -e DEVICE="$KIND" --test-output-dir "maestro-output/$KIND" e2e 2>&1 | tee "maestro-$KIND.log"
-              STATUS=${PIPESTATUS[0]}
-              set -e
-              [ "$STATUS" -eq 0 ] && break
-              if [ "$ATTEMPT" -eq 1 ] && grep -q "iOS driver not ready in time" "maestro-$KIND.log"; then
-                echo "== Driver did not start on $KIND; restarting the simulator and retrying once"
-                xcrun simctl shutdown "$UDID" || true
-                xcrun simctl boot "$UDID"
-                xcrun simctl bootstatus "$UDID" -b
-                continue
-              fi
-              exit "$STATUS"
-            done
-            xcrun simctl shutdown "$UDID"
-          }
+          UDID="$SIM_UDID"
+          echo "== $KIND: $UDID"
+          # Wait for the background warm-up (it normally finished long before the build).
+          for _ in $(seq 180); do [ -f "$RUNNER_TEMP/warm-up.status" ] && break; sleep 5; done
+          echo "::group::Simulator warm-up log"; cat "$RUNNER_TEMP/warm-up.log" || true; echo "::endgroup::"
+          if [ "$(cat "$RUNNER_TEMP/warm-up.status" 2>/dev/null)" != 0 ]; then
+            echo "::warning::The warm-up did not leave Maestro's driver running; the test run starts it."
+            pkill -f warm-up.sh || true
+            pkill -f 'xcodebuild test-without-building' || true
+          fi
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl install "$UDID" "$APP"
+          # Launch the app once so its first launch (registration, caches) is not inside a test.
+          xcrun simctl launch "$UDID" com.salford.pos && sleep 15
+          xcrun simctl terminate "$UDID" com.salford.pos || true
+          if curl -fsS -o /dev/null --max-time 10 http://127.0.0.1:22087/status; then
+            echo "== Maestro's driver is already running; the tests reuse it"
+          fi
+          # --no-reinstall-driver reuses the running driver (it is started if it is not running).
+          # If Maestro's driver fails to start (a runner simulator hang, not a test result),
+          # restart the simulator and try once more. Any other failure fails the job at once.
+          for ATTEMPT in 1 2; do
+            set +e
+            maestro --device "$UDID" test --no-reinstall-driver -e DEVICE="$KIND" --test-output-dir "maestro-output/$KIND" e2e 2>&1 | tee "maestro-$KIND.log"
+            STATUS=${PIPESTATUS[0]}
+            set -e
+            [ "$STATUS" -eq 0 ] && break
+            if [ "$ATTEMPT" -eq 1 ] && grep -q "iOS driver not ready in time" "maestro-$KIND.log"; then
+              echo "== Driver did not start on $KIND; restarting the simulator and retrying once"
+              pkill -f 'xcodebuild test-without-building' || true
+              xcrun simctl shutdown "$UDID" || true
+              xcrun simctl boot "$UDID"
+              xcrun simctl bootstatus "$UDID" -b
+              continue
+            fi
+            exit "$STATUS"
+          done
+          xcrun simctl shutdown "$UDID"
           # Maestro may save screenshots next to the flow or in its output folder; collect them all.
           find e2e maestro-output . -maxdepth 4 -name '*.png' -not -path './node_modules/*' -not -path './screenshots/*' -exec cp {} screenshots/ \; 2>/dev/null || true
           ls -l screenshots
           test -n "$(ls screenshots)" || { echo "No screenshots were taken"; exit 1; }
+
+      - name: Collect Maestro's logs
+        if: always()
+        run: |
+          # Maestro's own logs, including the XCTest driver's, for diagnosing a driver that hangs.
+          mkdir -p maestro-logs
+          cp -R "$HOME/.maestro/tests/." maestro-logs/ 2>/dev/null || true
+          cp "$RUNNER_TEMP"/warm-up*.log "$RUNNER_TEMP"/warm-up-hierarchy.txt maestro-logs/ 2>/dev/null || true
 
       - name: Upload screenshots
         if: always()
@@ -145,3 +214,4 @@ jobs:
           path: |
             mobile/screenshots
             mobile/maestro-output
+            mobile/maestro-logs
