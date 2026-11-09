@@ -15,3 +15,13 @@ Payload/
 
 # macOS
 .DS_Store
+
+# Expo app (mobile/)
+node_modules/
+.expo/
+mobile/ios/
+mobile/dist/
+mobile/web-build/
+*.tsbuildinfo
+.env*.local
+npm-debug.*
