@@ -32,7 +32,7 @@ jobs:
       matrix:
         device: [iPhone, iPad]
     runs-on: macos-26
-    # Room for the warm-up wait in the test step if the warm-up is still running.
+    # Room for the driver warm-up (up to 10 minutes) and the driver retry.
     timeout-minutes: 75
     env:
       MAESTRO_CLI_NO_ANALYTICS: '1'
@@ -73,11 +73,11 @@ jobs:
           done
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
-      - name: Boot the ${{ matrix.device }} simulator and start Maestro's driver in the background
+      - name: Boot the ${{ matrix.device }} simulator in the background
         # A freshly booted simulator spends minutes on data migration and first-launch work, and
-        # Maestro's XCTest driver then sometimes did not start within 5 minutes. All of that now
-        # happens in the background while the app builds (about 30 minutes). The driver is left
-        # running, and the test step reuses it.
+        # Maestro's XCTest driver then sometimes did not start within 5 minutes. The simulator now
+        # boots and settles in the background while the app builds (about 30 minutes). The driver
+        # itself is started after the build: while the build runs it could not start at all.
         run: |
           set -e
           UDID=$(xcrun simctl list devices available -j | python3 -c "
@@ -105,23 +105,8 @@ jobs:
           # Open and close a system app once, so SpringBoard's first-launch work is done.
           xcrun simctl launch "$UDID" com.apple.Preferences && sleep 10
           xcrun simctl terminate "$UDID" com.apple.Preferences || true
-          sleep 30
-          # Start Maestro's XCTest driver and leave it running (--no-reinstall-driver keeps it alive
-          # after this command ends). Time spent here is hidden behind the app build.
-          for ATTEMPT in 1 2 3; do
-            say "starting Maestro's driver (attempt $ATTEMPT)"
-            if MAESTRO_DRIVER_STARTUP_TIMEOUT=480000 "$HOME/.maestro/bin/maestro" --device "$UDID" hierarchy --no-reinstall-driver --compact > "$OUT/warm-up-hierarchy.txt" 2>&1; then
-              say "driver is running"
-              echo 0 > "$OUT/warm-up.status"
-              exit 0
-            fi
-            tail -5 "$OUT/warm-up-hierarchy.txt"
-            say "driver did not start; stopping it before trying again"
-            pkill -f 'xcodebuild test-without-building' || true
-            xcrun simctl terminate "$UDID" dev.mobile.maestro-driver-iosUITests.xctrunner || true
-            sleep 10
-          done
-          echo 1 > "$OUT/warm-up.status"
+          say "simulator is ready"
+          echo 0 > "$OUT/warm-up.status"
           EOF
           nohup bash "$RUNNER_TEMP/warm-up.sh" "$UDID" "$RUNNER_TEMP" > "$RUNNER_TEMP/warm-up.log" 2>&1 < /dev/null &
           echo "Warm-up started in the background (pid $!)"
@@ -146,9 +131,8 @@ jobs:
 
       - name: Run tests on the ${{ matrix.device }} simulator
         env:
-          # Normally the driver is already running from the warm-up. If it has to be started
-          # here, a freshly booted simulator can be slow, so allow 5 minutes; a hung driver is
-          # retried once below.
+          # Normally the driver is already running from the warm-up below. If the test run has
+          # to start it, allow 5 minutes; a hung driver is retried once below.
           MAESTRO_DRIVER_STARTUP_TIMEOUT: '300000'
         run: |
           set -e
@@ -157,21 +141,27 @@ jobs:
           KIND='${{ matrix.device }}'
           UDID="$SIM_UDID"
           echo "== $KIND: $UDID"
-          # Wait for the background warm-up (it normally finished long before the build).
-          for _ in $(seq 180); do [ -f "$RUNNER_TEMP/warm-up.status" ] && break; sleep 5; done
+          # Wait for the background boot (it normally finished long before the build).
+          for _ in $(seq 60); do [ -f "$RUNNER_TEMP/warm-up.status" ] && break; sleep 5; done
           echo "::group::Simulator warm-up log"; cat "$RUNNER_TEMP/warm-up.log" || true; echo "::endgroup::"
           if [ "$(cat "$RUNNER_TEMP/warm-up.status" 2>/dev/null)" != 0 ]; then
-            echo "::warning::The warm-up did not leave Maestro's driver running; the test run starts it."
+            echo "::warning::The simulator warm-up did not finish."
             pkill -f warm-up.sh || true
-            pkill -f 'xcodebuild test-without-building' || true
           fi
           xcrun simctl bootstatus "$UDID" -b
           xcrun simctl install "$UDID" "$APP"
           # Launch the app once so its first launch (registration, caches) is not inside a test.
           xcrun simctl launch "$UDID" com.salford.pos && sleep 15
           xcrun simctl terminate "$UDID" com.salford.pos || true
-          if curl -fsS -o /dev/null --max-time 10 http://127.0.0.1:22087/status; then
-            echo "== Maestro's driver is already running; the tests reuse it"
+          # Start Maestro's XCTest driver on its own, with more time than the test run allows,
+          # and leave it running (--no-reinstall-driver keeps it alive after this command ends).
+          echo "== $(date +%T) starting Maestro's driver"
+          if MAESTRO_DRIVER_STARTUP_TIMEOUT=600000 maestro --device "$UDID" hierarchy --no-reinstall-driver --compact > warm-up-hierarchy.txt 2>&1; then
+            echo "== $(date +%T) Maestro's driver is running; the tests reuse it"
+          else
+            tail -20 warm-up-hierarchy.txt
+            echo "::warning::Maestro's driver did not start in the warm-up; the test run starts it."
+            pkill -f 'xcodebuild test-without-building' || true
           fi
           # --no-reinstall-driver reuses the running driver (it is started if it is not running).
           # If Maestro's driver fails to start (a runner simulator hang, not a test result),
@@ -204,7 +194,7 @@ jobs:
           # Maestro's own logs, including the XCTest driver's, for diagnosing a driver that hangs.
           mkdir -p maestro-logs
           cp -R "$HOME/.maestro/tests/." maestro-logs/ 2>/dev/null || true
-          cp "$RUNNER_TEMP"/warm-up*.log "$RUNNER_TEMP"/warm-up-hierarchy.txt maestro-logs/ 2>/dev/null || true
+          cp "$RUNNER_TEMP"/warm-up.log warm-up-hierarchy.txt maestro-logs/ 2>/dev/null || true
 
       - name: Upload screenshots
         if: always()
