@@ -34,7 +34,7 @@ Redrawn as lettering, not photos, so they work on any background:
 | surface (cell)  | #FFFFFF       | #1C1C1E      | #FFFFFF       | #1C1C1E      |
 | text            | #111114       | #F5F5F7      | #14120E       | #F5F3EE      |
 | secondary text  | #6C6C74       | #98989F      | #716B5C       | #A19B8C      |
-| accent          | #3A43A0       | #A9B0FF      | #8A6A2E       | #D9B977      |
+| accent          | #3A43A0       | #A9B0FF      | #806229       | #D9B977      |
 | accent soft     | #E7E8F7       | #272A52      | #F2E9D6       | #3A3221      |
 | on accent       | #FFFFFF       | #0B0C22      | #FFFFFF       | #14120E      |
 | separator       | #ECECF0       | #2C2C2E      | #EEEBE4       | #2C2C2E      |
@@ -56,3 +56,5 @@ Card shadow (light only): `0 6px 18px rgba(18,20,46,0.06)` (jewelry), `rgba(30,2
 
 - Spacing on a 4-point grid: 4, 8, 12, 16, 20, 24, 32, 48. Screen edge padding 16.
 - Corners: 8 (small), 12, 16, 22–24 (cards), 28 (hero), capsule for pills and the tab bar.
+
+Scarves light accent darkened from #8A6A2E to #806229 so gold text on the soft gold fill reaches 4.5:1 contrast.
