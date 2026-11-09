@@ -18,6 +18,10 @@ appId: com.salford.pos
     element: 'الأزرار'
     direction: DOWN
 - takeScreenshot: ${DEVICE}-gallery-scarves-light-components
+- scrollUntilVisible:
+    element:
+      id: 'gallery-open-sheet'
+    direction: DOWN
 - tapOn:
     id: 'gallery-open-sheet'
 - assertVisible: 'نافذة منبثقة'
