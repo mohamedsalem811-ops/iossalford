@@ -71,6 +71,10 @@ jobs:
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
       - name: Run tests on iPhone and iPad
+        env:
+          # A freshly booted simulator is slow on its first launch; the default driver
+          # start-up timeout was too short for the iPad run.
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: '600000'
         run: |
           set -e
           APP=build_output/Build/Products/Release-iphonesimulator/SALFORDPOS.app
