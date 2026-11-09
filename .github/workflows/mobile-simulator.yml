@@ -90,13 +90,19 @@ jobs:
             xcrun simctl boot "$UDID" || true
             xcrun simctl bootstatus "$UDID" -b
             xcrun simctl install "$UDID" "$APP"
-            (cd screenshots && maestro --device "$UDID" test -e DEVICE="$KIND" ../e2e)
+            maestro --device "$UDID" test -e DEVICE="$KIND" --test-output-dir "maestro-output/$KIND" e2e
             xcrun simctl shutdown "$UDID"
           done
+          # Maestro may save screenshots next to the flow or in its output folder; collect them all.
+          find e2e maestro-output . -maxdepth 4 -name '*.png' -not -path './node_modules/*' -not -path './screenshots/*' -exec cp {} screenshots/ \; 2>/dev/null || true
+          ls -l screenshots
+          test -n "$(ls screenshots)" || { echo "No screenshots were taken"; exit 1; }
 
       - name: Upload screenshots
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: simulator-screenshots
-          path: mobile/screenshots
+          path: |
+            mobile/screenshots
+            mobile/maestro-output
