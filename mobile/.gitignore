@@ -44,3 +44,4 @@ example
 screenshots/
 build_output/
 maestro-output/
+maestro-*.log

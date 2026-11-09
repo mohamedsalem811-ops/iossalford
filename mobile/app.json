@@ -54,6 +54,13 @@
             "image": "./assets/images/icon.png"
           }
         }
+      ],
+      [
+        "expo-localization",
+        {
+          "forcesRTL": true,
+          "supportedLocales": ["ar"]
+        }
       ]
     ],
     "experiments": {

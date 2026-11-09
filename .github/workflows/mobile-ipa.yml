@@ -8,7 +8,9 @@ on:
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-ipa.yml'
+  # Heavy build: runs once a phase PR is ready (not on every step pushed to a draft).
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-ipa.yml'
@@ -21,6 +23,7 @@ concurrency:
 jobs:
   ipa:
     name: Build unsigned .ipa
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: macos-26
     defaults:
       run:
