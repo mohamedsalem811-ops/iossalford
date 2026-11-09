@@ -3,7 +3,9 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationTheme } from
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 
+import { KeyboardBar } from '@/components/keyboard-bar';
 import { ThemeProvider } from '@/theme';
 import { fontAssets } from '@/theme/font-assets';
 
@@ -21,10 +23,13 @@ export default function RootLayout() {
   if (!loaded && !error) return null;
 
   return (
-    <NavigationTheme value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <ThemeProvider system={null}>
-        <Stack screenOptions={{ headerShown: false }} />
-      </ThemeProvider>
-    </NavigationTheme>
+    <KeyboardProvider>
+      <NavigationTheme value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+        <ThemeProvider system={null}>
+          <Stack screenOptions={{ headerShown: false }} />
+          <KeyboardBar />
+        </ThemeProvider>
+      </NavigationTheme>
+    </KeyboardProvider>
   );
 }
