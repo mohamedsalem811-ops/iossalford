@@ -56,6 +56,22 @@ describe('LockProvider', () => {
     expect(screen.getByTestId('state')).toHaveTextContent('locked shown');
   });
 
+  it('shows the screen at launch even if iOS still reports "inactive"', async () => {
+    const appState = AppState as { currentState: unknown };
+    const original = appState.currentState;
+    appState.currentState = 'inactive';
+    try {
+      await render(
+        <LockProvider>
+          <Probe />
+        </LockProvider>,
+      );
+      expect(screen.getByTestId('state')).toHaveTextContent('locked shown');
+    } finally {
+      appState.currentState = original;
+    }
+  });
+
   it('locks on request', async () => {
     await render(
       <LockProvider>

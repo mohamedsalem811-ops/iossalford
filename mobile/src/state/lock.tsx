@@ -34,7 +34,10 @@ export function isShown(state: string | null | undefined) {
 
 export function LockProvider({ children }: { children: ReactNode }) {
   const [unlocked, setUnlocked] = useState<SystemId | null>(null);
-  const [active, setActive] = useState(() => isShown(AppState.currentState));
+  // Starts shown: iOS can report the launch-time state as "inactive" before the app becomes
+  // active, and no change event follows, which left the cover up. Hiding is only needed when
+  // the app leaves the screen, and iOS always reports that.
+  const [active, setActive] = useState(true);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
