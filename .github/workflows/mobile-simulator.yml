@@ -76,8 +76,8 @@ jobs:
       - name: Run tests on iPhone and iPad
         env:
           # A freshly booted simulator is slow on its first launch; the default driver
-          # start-up timeout was too short for the iPad run.
-          MAESTRO_DRIVER_STARTUP_TIMEOUT: '600000'
+          # start-up timeout was too short for the iPad run. A hung driver is retried once below.
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: '300000'
         run: |
           set -e
           APP=build_output/Build/Products/Release-iphonesimulator/SALFORDPOS.app
@@ -97,7 +97,23 @@ jobs:
             xcrun simctl boot "$UDID" || true
             xcrun simctl bootstatus "$UDID" -b
             xcrun simctl install "$UDID" "$APP"
-            maestro --device "$UDID" test -e DEVICE="$KIND" --test-output-dir "maestro-output/$KIND" e2e
+            # If Maestro's driver fails to start (a runner simulator hang, not a test result),
+            # restart the simulator and try once more. Any other failure fails the job at once.
+            for ATTEMPT in 1 2; do
+              set +e
+              maestro --device "$UDID" test -e DEVICE="$KIND" --test-output-dir "maestro-output/$KIND" e2e 2>&1 | tee "maestro-$KIND.log"
+              STATUS=${PIPESTATUS[0]}
+              set -e
+              [ "$STATUS" -eq 0 ] && break
+              if [ "$ATTEMPT" -eq 1 ] && grep -q "iOS driver not ready in time" "maestro-$KIND.log"; then
+                echo "== Driver did not start on $KIND; restarting the simulator and retrying once"
+                xcrun simctl shutdown "$UDID" || true
+                xcrun simctl boot "$UDID"
+                xcrun simctl bootstatus "$UDID" -b
+                continue
+              fi
+              exit "$STATUS"
+            done
             xcrun simctl shutdown "$UDID"
           done
           # Maestro may save screenshots next to the flow or in its output folder; collect them all.
