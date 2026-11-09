@@ -357,6 +357,7 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - The owner merges every pull request.
 - Keep every receipt template, including Swarovski London; digits 0-9 only.
 - After every step or task: test, check, push to the pull request.
+- Design approved: Mix B + C with the centred logo, light and dark (`docs/DESIGN.md`). Logos redrawn as lettering.
 - Everything kept up to date: newest stable Xcode on `macos-26`, latest GitHub Actions, Node LTS, and the newest package versions the Expo SDK supports.
 - The old SwiftUI app keeps its minimum iOS 16 (no effect on the owner's devices; it is being replaced).
 
