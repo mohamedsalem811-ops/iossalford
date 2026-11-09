@@ -1,0 +1,7 @@
+# Phase 0 smoke test: the app opens and shows its name.
+appId: com.salford.pos
+---
+- launchApp:
+    clearState: true
+- assertVisible: 'SALFORD POS'
+- takeScreenshot: ${DEVICE}-launch

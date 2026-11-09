@@ -28,6 +28,9 @@
         "UIFileSharingEnabled": true,
         "LSSupportsOpeningDocumentsInPlace": true,
         "ITSAppUsesNonExemptEncryption": false
+      },
+      "runtimeVersion": {
+        "policy": "sdkVersion"
       }
     },
     "plugins": [
@@ -56,6 +59,16 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "owner": "mohamesalem811",
+    "extra": {
+      "eas": {
+        "projectId": "8b20cf4a-56f8-4b7c-9d5b-a103460c54f4"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/8b20cf4a-56f8-4b7c-9d5b-a103460c54f4",
+      "enabled": false
     }
   }
 }

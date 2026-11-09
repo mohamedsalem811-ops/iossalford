@@ -1,0 +1,44 @@
+name: Expo app checks
+
+on:
+  push:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-checks.yml'
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-checks.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Types, lint, format, tests, iOS bundle
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Typecheck, lint, format, unit tests
+        run: npm run check
+
+      - name: Expo doctor
+        run: npx expo-doctor
+
+      - name: Export iOS JavaScript bundle
+        run: npx expo export --platform ios --output-dir dist

@@ -1,0 +1,99 @@
+name: Expo app simulator tests
+
+# Builds the app for the iOS simulator, runs the Maestro tap-through tests on an
+# iPhone and an iPad simulator, and uploads the screenshots.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-simulator.yml'
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-simulator.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: mobile-simulator-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  simulator:
+    name: Maestro on iPhone and iPad simulators
+    runs-on: macos-15
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Select newest stable Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Install
+        run: npm ci
+
+      - name: Generate the iOS project
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Build for the simulator (Release, JavaScript embedded)
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace ios/SALFORDPOS.xcworkspace \
+            -scheme SALFORDPOS \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build_output \
+            CODE_SIGNING_ALLOWED=NO | tail -n 80
+
+      - name: Install Maestro
+        working-directory: .
+        run: |
+          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Run tests on iPhone and iPad
+        run: |
+          set -e
+          APP=build_output/Build/Products/Release-iphonesimulator/SALFORDPOS.app
+          mkdir -p screenshots
+          pick() {
+            xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          kind = sys.argv[1]
+          devs = [d for rt, ds in json.load(sys.stdin)['devices'].items() if 'iOS' in rt for d in ds]
+          names = [d for d in devs if d['name'].startswith(kind)]
+          pro = [d for d in names if 'Pro' in d['name']] or names
+          print(pro[-1]['udid'])" "$1"
+          }
+          for KIND in iPhone iPad; do
+            UDID=$(pick "$KIND")
+            echo "== $KIND: $UDID"
+            xcrun simctl boot "$UDID" || true
+            xcrun simctl bootstatus "$UDID" -b
+            xcrun simctl install "$UDID" "$APP"
+            (cd screenshots && maestro --device "$UDID" test -e DEVICE="$KIND" ../e2e)
+            xcrun simctl shutdown "$UDID"
+          done
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simulator-screenshots
+          path: mobile/screenshots
