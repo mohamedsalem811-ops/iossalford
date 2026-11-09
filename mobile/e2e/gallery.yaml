@@ -1,9 +1,14 @@
-# Phase 1: the design gallery in both systems and both modes.
+# Phase 1: the design gallery in both systems and both modes. Opened by its link only.
 appId: com.salford.pos
 ---
-- launchApp:
-    clearState: true
-- tapOn: 'معرض التصميم'
+- runFlow: subflows/fresh-launch.yaml
+- openLink: salfordpos://gallery
+# iOS may ask before opening the app's own link.
+- runFlow:
+    when:
+      visible: 'Open'
+    commands:
+      - tapOn: 'Open'
 - assertVisible: 'مبيعات اليوم'
 - assertVisible: 'SALFORD jewelry'
 - takeScreenshot: ${DEVICE}-gallery-jewelry-light

@@ -1,7 +1,7 @@
-# Phase 0 smoke test: the app opens and shows its name.
+# The app opens on first-launch PIN setup: there is no default PIN.
 appId: com.salford.pos
 ---
-- launchApp:
-    clearState: true
-- assertVisible: 'SALFORD POS'
-- takeScreenshot: ${DEVICE}-launch
+- runFlow: subflows/fresh-launch.yaml
+- assertVisible: 'الخطوة 1 من 2'
+- assertVisible: 'أنشئ رمز نظام المجوهرات'
+- takeScreenshot: ${DEVICE}-launch-setup

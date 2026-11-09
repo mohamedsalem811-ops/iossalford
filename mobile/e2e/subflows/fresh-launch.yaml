@@ -1,0 +1,6 @@
+# Starts from a new install: app data and Keychain (where the PINs live) are both cleared.
+appId: com.salford.pos
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true

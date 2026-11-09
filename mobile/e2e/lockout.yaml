@@ -1,0 +1,21 @@
+# Phase 3: five wrong PINs lock the system for 30 seconds; it opens again after the wait.
+appId: com.salford.pos
+---
+- runFlow: subflows/fresh-launch.yaml
+- runFlow: subflows/setup-pins.yaml
+- tapOn: 'نظام الأوشحة'
+- assertVisible: 'أدخل رمز الدخول'
+- repeat:
+    times: 4
+    commands:
+      - runFlow: subflows/pin-wrong.yaml
+- assertVisible: 'رمز خاطئ، بقيت محاولة واحدة قبل القفل المؤقت'
+- runFlow: subflows/pin-wrong.yaml
+- assertVisible: '.*محاولات خاطئة كثيرة.*'
+- takeScreenshot: ${DEVICE}-lockout
+- extendedWaitUntil:
+    visible: 'أدخل رمز الدخول'
+    timeout: 60000
+- runFlow: subflows/pin-scarves.yaml
+- assertVisible: 'مبيعات اليوم'
+- takeScreenshot: ${DEVICE}-dashboard-scarves

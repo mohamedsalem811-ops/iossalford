@@ -1,0 +1,24 @@
+# Phase 3: switching system from the dashboard and from Management; each asks for its PIN again.
+appId: com.salford.pos
+---
+- runFlow: subflows/fresh-launch.yaml
+- runFlow: subflows/setup-pins.yaml
+- tapOn: 'نظام المجوهرات'
+- runFlow: subflows/pin-jewelry.yaml
+- assertVisible: 'مبيعات اليوم'
+- scrollUntilVisible:
+    element: 'تبديل النظام'
+    direction: DOWN
+- tapOn: 'تبديل النظام'
+- assertVisible: 'اختر النظام'
+- tapOn: 'نظام الأوشحة'
+- assertVisible: 'أدخل رمز الدخول'
+- runFlow: subflows/pin-scarves.yaml
+- assertVisible: 'مبيعات اليوم'
+- tapOn: 'الإدارة'
+- tapOn: 'تبديل النظام'
+- assertVisible: 'اختر النظام'
+- takeScreenshot: ${DEVICE}-chooser-after-switch
+# Going back into the system used before still needs its PIN.
+- tapOn: 'نظام المجوهرات'
+- assertVisible: 'أدخل رمز الدخول'
