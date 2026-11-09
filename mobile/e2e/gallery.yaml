@@ -7,12 +7,21 @@ appId: com.salford.pos
 - assertVisible: 'مبيعات اليوم'
 - assertVisible: 'SALFORD jewelry'
 - takeScreenshot: ${DEVICE}-gallery-jewelry-light
-- tapOn: 'داكن'
+- waitForAnimationToEnd
+- tapOn:
+    text: 'داكن'
+    retryTapIfNoChange: true
 - takeScreenshot: ${DEVICE}-gallery-jewelry-dark
-- tapOn: 'الأوشحة'
+- waitForAnimationToEnd
+- tapOn:
+    text: 'الأوشحة'
+    retryTapIfNoChange: true
 - assertVisible: 'SALFORD scarfs'
 - takeScreenshot: ${DEVICE}-gallery-scarves-dark
-- tapOn: 'فاتح'
+- waitForAnimationToEnd
+- tapOn:
+    text: 'فاتح'
+    retryTapIfNoChange: true
 - takeScreenshot: ${DEVICE}-gallery-scarves-light
 - scrollUntilVisible:
     element: 'الأزرار'

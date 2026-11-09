@@ -1,0 +1,123 @@
+import { formatDinars } from '@/lib/money';
+
+import { clean, nowMonth, nowStamp, RuleError, type Ctx } from './context';
+import { getCustomer, type Customer } from './customers';
+
+/**
+ * What a customer still owes: their credit (آجل) sales, minus refunds on returns of those sales,
+ * minus payments received. Negative means the shop owes the customer ("له رصيد").
+ */
+export function balance(ctx: Ctx, customerId: number): number {
+  const r = ctx.db.get<{ owed: number; refunded: number; paid: number }>(
+    `SELECT
+       coalesce((SELECT sum(total) FROM sales WHERE customer_id = ?1 AND payment_method = 'credit'), 0) AS owed,
+       coalesce((SELECT sum(r.refund) FROM returns r JOIN sale_lines l ON l.id = r.sale_line_id
+                  JOIN sales s ON s.id = l.sale_id
+                 WHERE s.customer_id = ?1 AND s.payment_method = 'credit'), 0) AS refunded,
+       coalesce((SELECT sum(amount) FROM payments WHERE customer_id = ?1), 0) AS paid`,
+    [customerId],
+  )!;
+  return r.owed - r.refunded - r.paid;
+}
+
+export type Debtor = { customer: Customer; balance: number };
+
+/** Customers who owe money, largest balance first. */
+export function debtors(ctx: Ctx): Debtor[] {
+  const ids = ctx.db.all<{ customer_id: number }>(
+    `SELECT DISTINCT customer_id FROM sales WHERE payment_method = 'credit' AND customer_id IS NOT NULL`,
+  );
+  return ids
+    .map(({ customer_id }) => ({
+      customer: getCustomer(ctx, customer_id)!,
+      balance: balance(ctx, customer_id),
+    }))
+    .filter((d) => d.customer && d.balance > 0)
+    .sort((a, b) => b.balance - a.balance);
+}
+
+export const totalOutstanding = (ctx: Ctx) => debtors(ctx).reduce((t, d) => t + d.balance, 0);
+
+/** Customers the shop owes money to (they paid more than they owe after returns). */
+export function creditBalances(ctx: Ctx): Debtor[] {
+  return ctx.db
+    .all<{ id: number }>('SELECT id FROM customers')
+    .map(({ id }) => ({ customer: getCustomer(ctx, id)!, balance: balance(ctx, id) }))
+    .filter((d) => d.balance < 0);
+}
+
+export type Payment = {
+  id: number;
+  customerId: number;
+  amount: number;
+  method: string;
+  note: string | null;
+  createdAt: string;
+  month: string;
+};
+
+/** Records money received from a customer; it can't be more than they owe. */
+export function recordPayment(
+  ctx: Ctx,
+  input: { customerId: number; amount: number; method: string; note?: string },
+): number {
+  if (!getCustomer(ctx, input.customerId)) throw new RuleError('الزبون غير موجود');
+  if (!Number.isInteger(input.amount) || input.amount <= 0)
+    throw new RuleError('يرجى إدخال مبلغ الدفعة');
+  const owed = balance(ctx, input.customerId);
+  if (input.amount > owed)
+    throw new RuleError(
+      `المبلغ أكبر من المستحق على الزبون (${formatDinars(Math.max(0, owed))} د.ل)`,
+    );
+  return ctx.db.run(
+    'INSERT INTO payments (customer_id, amount, method, note, created_at, month) VALUES (?, ?, ?, ?, ?, ?)',
+    [input.customerId, input.amount, input.method, clean(input.note), nowStamp(ctx), nowMonth(ctx)],
+  ).lastInsertRowId;
+}
+
+export function deletePayment(ctx: Ctx, id: number) {
+  ctx.db.run('DELETE FROM payments WHERE id = ?', [id]);
+}
+
+export function payments(ctx: Ctx, customerId: number): Payment[] {
+  return ctx.db
+    .all<{
+      id: number;
+      customer_id: number;
+      amount: number;
+      method: string;
+      note: string | null;
+      created_at: string;
+      month: string;
+    }>('SELECT * FROM payments WHERE customer_id = ? ORDER BY id DESC', [customerId])
+    .map((p) => ({
+      id: p.id,
+      customerId: p.customer_id,
+      amount: p.amount,
+      method: p.method,
+      note: p.note,
+      createdAt: p.created_at,
+      month: p.month,
+    }));
+}
+
+/**
+ * Deletes a customer. Refused while they owe money or are owed money, and while they have credit
+ * sales or payments on record (deleting them would lose who owes what). Their cash sales keep
+ * the customer's name.
+ */
+export function deleteCustomer(ctx: Ctx, id: number) {
+  ctx.db.transaction(() => {
+    const c = getCustomer(ctx, id);
+    if (!c) return;
+    const b = balance(ctx, id);
+    if (b > 0) throw new RuleError(`لا يمكن حذف «${c.name}»: عليه ${formatDinars(b)} د.ل`);
+    if (b < 0) throw new RuleError(`لا يمكن حذف «${c.name}»: له رصيد ${formatDinars(-b)} د.ل`);
+    const credit = ctx.db.get(
+      `SELECT 1 FROM sales WHERE customer_id = ?1 AND payment_method = 'credit' UNION ALL SELECT 1 FROM payments WHERE customer_id = ?1 LIMIT 1`,
+      [id],
+    );
+    if (credit) throw new RuleError(`لا يمكن حذف «${c.name}»: له تعاملات آجلة مسجلة`);
+    ctx.db.run('DELETE FROM customers WHERE id = ?', [id]);
+  });
+}

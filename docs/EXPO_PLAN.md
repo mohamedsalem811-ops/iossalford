@@ -58,20 +58,20 @@ mobile/
 
 **Libraries:**
 
-| Area             | Choice                                                                  |
-| ---------------- | ----------------------------------------------------------------------- |
-| Screens and tabs | Expo Router with native Liquid Glass tabs                               |
-| Native controls  | `@expo/ui` (SwiftUI menus, pickers, sheets, forms)                      |
-| Database         | `expo-sqlite` + Drizzle ORM. **NEW:** replaces the single JSON file     |
-| Cart state       | Zustand                                                                 |
-| Lists            | FlashList                                                               |
-| Photos           | `expo-image`, `expo-image-picker`, `expo-image-manipulator`             |
-| Security         | `expo-secure-store`, `expo-crypto`, `expo-local-authentication`         |
-| Receipts         | HTML → `expo-print` and `expo-sharing`                                  |
-| Charts           | Victory Native                                                          |
-| Motion           | Reanimated 4, Gesture Handler, `expo-haptics`                           |
-| Tests            | Jest + Maestro. **NEW**                                                 |
-| Previews         | EAS Update opened in Expo Go, through the owner's Expo account. **NEW** |
+| Area             | Choice                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| Screens and tabs | Expo Router with native Liquid Glass tabs                                                  |
+| Native controls  | `@expo/ui` (SwiftUI menus, pickers, sheets, forms)                                         |
+| Database         | `expo-sqlite`, plain SQL (same SQL tested on Node SQLite). **NEW:** replaces the JSON file |
+| Cart state       | Zustand                                                                                    |
+| Lists            | FlashList                                                                                  |
+| Photos           | `expo-image`, `expo-image-picker`, `expo-image-manipulator`                                |
+| Security         | `expo-secure-store`, `expo-crypto`, `expo-local-authentication`                            |
+| Receipts         | HTML → `expo-print` and `expo-sharing`                                                     |
+| Charts           | Victory Native                                                                             |
+| Motion           | Reanimated 4, Gesture Handler, `expo-haptics`                                              |
+| Tests            | Jest + Maestro. **NEW**                                                                    |
+| Previews         | EAS Update opened in Expo Go, through the owner's Expo account. **NEW**                    |
 
 **Database:** one file per system.
 
@@ -357,6 +357,7 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - The owner merges every pull request.
 - Keep every receipt template, including Swarovski London; digits 0-9 only.
 - After every step or task: test, check, push to the pull request.
+- Database: plain SQL instead of Drizzle, so every rule is tested against a real SQLite database with the exact SQL the app runs.
 - Design approved: Mix B + C with the centred logo, light and dark (`docs/DESIGN.md`). Logos redrawn as lettering.
 - Everything kept up to date: newest stable Xcode on `macos-26`, latest GitHub Actions, Node LTS, and the newest package versions the Expo SDK supports.
 - The old SwiftUI app keeps its minimum iOS 16 (no effect on the owner's devices; it is being replaced).

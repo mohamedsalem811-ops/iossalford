@@ -61,7 +61,8 @@
           "forcesRTL": true,
           "supportedLocales": ["ar"]
         }
-      ]
+      ],
+      "expo-sqlite"
     ],
     "experiments": {
       "typedRoutes": true,
