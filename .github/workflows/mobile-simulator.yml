@@ -175,8 +175,9 @@ jobs:
             done
             xcrun simctl shutdown "$UDID"
           }
-          # Maestro may save screenshots next to the flow or in its output folder; collect them all.
-          find e2e maestro-output . -maxdepth 4 -name '*.png' -not -path './node_modules/*' -not -path './screenshots/*' -exec cp {} screenshots/ \; 2>/dev/null || true
+          # The flows' named screenshots (takeScreenshot) are saved in Maestro's output folder, under
+          # <device>/<run>/<flow>/takeScreenshot/. Failure screenshots stay in maestro-output.
+          find maestro-output -path '*/takeScreenshot/*.png' -exec cp {} screenshots/ \;
           ls -l screenshots
           test -n "$(ls screenshots)" || { echo "No screenshots were taken"; exit 1; }
 
