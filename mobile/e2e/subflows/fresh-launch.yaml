@@ -4,3 +4,7 @@ appId: com.salford.pos
 - launchApp:
     clearState: true
     clearKeychain: true
+# The CI simulator can take 20 seconds or more to start the app after a reinstall.
+- extendedWaitUntil:
+    visible: 'أنشئ رمز نظام المجوهرات'
+    timeout: 90000

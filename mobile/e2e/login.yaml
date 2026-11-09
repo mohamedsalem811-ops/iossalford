@@ -8,9 +8,14 @@ appId: com.salford.pos
 - assertVisible: 'أدخل رمز الدخول'
 - takeScreenshot: ${DEVICE}-login-jewelry
 - runFlow: subflows/pin-wrong.yaml
-- assertVisible: 'رمز خاطئ، بقيت 4 محاولات قبل القفل المؤقت'
+# The first Face ID check on a fresh CI simulator can hold the PIN check for 30 seconds or more.
+- extendedWaitUntil:
+    visible: 'رمز خاطئ، بقيت 4 محاولات قبل القفل المؤقت'
+    timeout: 90000
 - runFlow: subflows/pin-jewelry.yaml
-- assertVisible: 'مبيعات اليوم'
+- extendedWaitUntil:
+    visible: 'مبيعات اليوم'
+    timeout: 90000
 - takeScreenshot: ${DEVICE}-dashboard-jewelry
 - tapOn: 'بيع'
 - assertVisible: 'قريباً'
