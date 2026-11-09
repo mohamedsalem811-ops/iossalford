@@ -5,11 +5,12 @@ appId: com.salford.pos
     clearState: true
 - tapOn: 'معرض التصميم'
 - assertVisible: 'مبيعات اليوم'
+- assertVisible: 'SALFORD jewelry'
 - takeScreenshot: ${DEVICE}-gallery-jewelry-light
 - tapOn: 'داكن'
 - takeScreenshot: ${DEVICE}-gallery-jewelry-dark
 - tapOn: 'الأوشحة'
-- assertVisible: 'scarfs'
+- assertVisible: 'SALFORD scarfs'
 - takeScreenshot: ${DEVICE}-gallery-scarves-dark
 - tapOn: 'فاتح'
 - takeScreenshot: ${DEVICE}-gallery-scarves-light
