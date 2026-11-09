@@ -33,7 +33,7 @@ describe('Button', () => {
   it('calls onPress', async () => {
     const onPress = jest.fn();
     await wrap(<Button title="بيع" onPress={onPress} />);
-    fireEvent.press(screen.getByRole('button', { name: 'بيع' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'بيع' }));
     expect(onPress).toHaveBeenCalledTimes(1);
   });
 
@@ -45,8 +45,8 @@ describe('Button', () => {
         <Button title="إرسال" onPress={onPress} loading />
       </>,
     );
-    fireEvent.press(screen.getByRole('button', { name: 'حفظ' }));
-    fireEvent.press(screen.getByRole('button', { name: 'إرسال' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'حفظ' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'إرسال' }));
     expect(onPress).not.toHaveBeenCalled();
   });
 });
@@ -55,14 +55,14 @@ describe('NumberField', () => {
   it('turns Arabic digits into 0-9 as they are typed', async () => {
     const onChange = jest.fn();
     await wrap(<NumberField label="السعر" value="" onChangeText={onChange} />);
-    fireEvent.changeText(screen.getByLabelText('السعر'), '١٢٫٥');
+    await fireEvent.changeText(screen.getByLabelText('السعر'), '١٢٫٥');
     expect(onChange).toHaveBeenCalledWith('12.5');
   });
 
   it('keeps whole numbers for quantities', async () => {
     const onChange = jest.fn();
     await wrap(<NumberField label="الكمية" kind="integer" value="" onChangeText={onChange} />);
-    fireEvent.changeText(screen.getByLabelText('الكمية'), '3.5 قطع');
+    await fireEvent.changeText(screen.getByLabelText('الكمية'), '3.5 قطع');
     expect(onChange).toHaveBeenCalledWith('35');
   });
 });
@@ -78,7 +78,7 @@ describe('ListGroup and ListRow', () => {
     );
     expect(screen.getByText('اليوم')).toBeOnTheScreen();
     expect(screen.getByText('1,120 د.ل')).toBeOnTheScreen();
-    fireEvent.press(screen.getByRole('button', { name: 'ديون العملاء، 2,400 د.ل' }));
+    await fireEvent.press(screen.getByRole('button', { name: 'ديون العملاء، 2,400 د.ل' }));
     expect(onPress).toHaveBeenCalled();
   });
 });

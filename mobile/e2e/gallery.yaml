@@ -1,0 +1,23 @@
+# Phase 1: the design gallery in both systems and both modes.
+appId: com.salford.pos
+---
+- launchApp:
+    clearState: true
+- tapOn: 'معرض التصميم'
+- assertVisible: 'مبيعات اليوم'
+- takeScreenshot: ${DEVICE}-gallery-jewelry-light
+- tapOn: 'داكن'
+- takeScreenshot: ${DEVICE}-gallery-jewelry-dark
+- tapOn: 'الأوشحة'
+- assertVisible: 'scarfs'
+- takeScreenshot: ${DEVICE}-gallery-scarves-dark
+- tapOn: 'فاتح'
+- takeScreenshot: ${DEVICE}-gallery-scarves-light
+- scrollUntilVisible:
+    element: 'الأزرار'
+    direction: DOWN
+- takeScreenshot: ${DEVICE}-gallery-scarves-light-components
+- tapOn:
+    id: 'gallery-open-sheet'
+- assertVisible: 'نافذة منبثقة'
+- takeScreenshot: ${DEVICE}-gallery-sheet
