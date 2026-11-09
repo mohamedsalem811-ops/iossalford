@@ -70,7 +70,16 @@ jobs:
       - name: Install Maestro
         working-directory: .
         run: |
-          curl -fsSL "https://get.maestro.mobile.dev" | bash
+          # The installer exits 0 even when its download fails (a 504 from the download server
+          # did this once), so retry and confirm the binary runs before going on.
+          for ATTEMPT in 1 2 3; do
+            curl -fsSL "https://get.maestro.mobile.dev" | bash || true
+            if "$HOME/.maestro/bin/maestro" --version; then break; fi
+            [ "$ATTEMPT" -eq 3 ] && { echo "Maestro could not be installed"; exit 1; }
+            echo "Maestro download failed; retrying in 20 s"
+            rm -rf "$HOME/.maestro"
+            sleep 20
+          done
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
       - name: Run tests on iPhone and iPad
