@@ -21,14 +21,17 @@ Every feature of the current app is kept. Items marked **NEW** don't exist in th
 
 ## 2. How each step works
 
+**Owner's rule: after every step or task, test it, check it, and push it to the pull request.** No step is reported done until its checks pass and it is pushed.
+
 1. I build the step on a work branch.
-2. I check it myself: TypeScript, the linter, the automatic tests **(NEW)**, and an iOS bundle export.
-3. GitHub Actions builds:
+2. I test and check it myself before pushing: `npm run check` (TypeScript, lint, formatting, automatic tests **NEW**), `expo-doctor`, and an iOS bundle export.
+3. I push it to the phase's open pull request right away, so every step shows up there with its CI results.
+4. GitHub Actions builds:
    - the `.ipa` for your iPhone and iPad (as today);
    - a simulator run that taps through the app on an iPhone and an iPad simulator and takes screenshots for me to review. **NEW**
-4. **NEW: Expo Go preview.** The stage is published to the owner's Expo account; open it in Expo Go on the iPhone or iPad from the link or QR code. Before that, Claude checks it on Expo's cloud iPhone and iPad simulators through the Expo connection (only within what the Expo plan allows; nothing paid without asking).
-5. You install the build (Expo Go preview, or the `.ipa` at key stages) and go through a short checklist.
-6. Each finished phase is a pull request into `main`, **merged by you**.
+5. **NEW: Expo Go preview.** The stage is published to the owner's Expo account; open it in Expo Go on the iPhone or iPad from the link or QR code. Before that, Claude checks it on Expo's cloud iPhone and iPad simulators through the Expo connection (only within what the Expo plan allows; nothing paid without asking).
+6. You install the build (Expo Go preview, or the `.ipa` at key stages) and go through a short checklist.
+7. Each phase is one pull request into `main`, **merged by you** once all its steps are pushed and green.
 
 **Expo Go rule:** the app uses only libraries that Expo Go already includes, so every stage can be previewed in Expo Go. In Expo Go the app shows Expo Go's name and icon, and its data is separate from the installed app (test only).
 
@@ -55,40 +58,40 @@ mobile/
 
 **Libraries:**
 
-| Area | Choice |
-|---|---|
-| Screens and tabs | Expo Router with native Liquid Glass tabs |
-| Native controls | `@expo/ui` (SwiftUI menus, pickers, sheets, forms) |
-| Database | `expo-sqlite` + Drizzle ORM. **NEW:** replaces the single JSON file |
-| Cart state | Zustand |
-| Lists | FlashList |
-| Photos | `expo-image`, `expo-image-picker`, `expo-image-manipulator` |
-| Security | `expo-secure-store`, `expo-crypto`, `expo-local-authentication` |
-| Receipts | HTML → `expo-print` and `expo-sharing` |
-| Charts | Victory Native |
-| Motion | Reanimated 4, Gesture Handler, `expo-haptics` |
-| Tests | Jest + Maestro. **NEW** |
-| Previews | EAS Update opened in Expo Go, through the owner's Expo account. **NEW** |
+| Area             | Choice                                                                  |
+| ---------------- | ----------------------------------------------------------------------- |
+| Screens and tabs | Expo Router with native Liquid Glass tabs                               |
+| Native controls  | `@expo/ui` (SwiftUI menus, pickers, sheets, forms)                      |
+| Database         | `expo-sqlite` + Drizzle ORM. **NEW:** replaces the single JSON file     |
+| Cart state       | Zustand                                                                 |
+| Lists            | FlashList                                                               |
+| Photos           | `expo-image`, `expo-image-picker`, `expo-image-manipulator`             |
+| Security         | `expo-secure-store`, `expo-crypto`, `expo-local-authentication`         |
+| Receipts         | HTML → `expo-print` and `expo-sharing`                                  |
+| Charts           | Victory Native                                                          |
+| Motion           | Reanimated 4, Gesture Handler, `expo-haptics`                           |
+| Tests            | Jest + Maestro. **NEW**                                                 |
+| Previews         | EAS Update opened in Expo Go, through the owner's Expo account. **NEW** |
 
 **Database:** one file per system.
 
 - **Money as whole dirhams. NEW** No rounding errors.
 - **Record numbers are never reused.** Same rule as today.
 
-| Table | Holds |
-|---|---|
-| `settings` | Exchange rate, receipt counter and year |
-| `brands` | Name, photo |
-| `products` | SKU, name, brand, category, scarf design id, size, colour, cost (LYD, USD and rate), price, stock, low-stock alert, photo, **archived flag (NEW)** |
-| `customers` | Name, phone, area, notes |
-| `sales` + `sale_lines` | **NEW:** one checkout = one sale with several lines. Each line keeps a copy of name, brand, size, cost, price and rate |
-| `payments` | Debt payments |
-| `returns` | Linked to the sale line or none, quantity, refund, cost, reason |
-| `expenses` | Description, amount, month |
-| `sets` + `set_items` | Name, discount, pieces |
-| `receipts` + `receipt_items` | Number, template, price mode, customer, sale link, items |
-| `closings` | Quarter totals |
-| `stock_moves` | **NEW:** stock adjustments with a reason |
+| Table                        | Holds                                                                                                                                              |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `settings`                   | Exchange rate, receipt counter and year                                                                                                            |
+| `brands`                     | Name, photo                                                                                                                                        |
+| `products`                   | SKU, name, brand, category, scarf design id, size, colour, cost (LYD, USD and rate), price, stock, low-stock alert, photo, **archived flag (NEW)** |
+| `customers`                  | Name, phone, area, notes                                                                                                                           |
+| `sales` + `sale_lines`       | **NEW:** one checkout = one sale with several lines. Each line keeps a copy of name, brand, size, cost, price and rate                             |
+| `payments`                   | Debt payments                                                                                                                                      |
+| `returns`                    | Linked to the sale line or none, quantity, refund, cost, reason                                                                                    |
+| `expenses`                   | Description, amount, month                                                                                                                         |
+| `sets` + `set_items`         | Name, discount, pieces                                                                                                                             |
+| `receipts` + `receipt_items` | Number, template, price mode, customer, sale link, items                                                                                           |
+| `closings`                   | Quarter totals                                                                                                                                     |
+| `stock_moves`                | **NEW:** stock adjustments with a reason                                                                                                           |
 
 ## 4. Phases and steps
 
@@ -325,23 +328,23 @@ mobile/
 
 Done **after the project is finished**, one step at a time; none of it changes the project before then. All **NEW**:
 
-| # | Step | What it adds |
-|---|---|---|
-| L1 | Sign the app with the developer account | Installs last 1 year instead of 7 days; no weekly Sideloadly re-signing |
-| L2 | **iCloud backup** (iCloud Drive or private iCloud storage, owner's choice) | Automatic copy off the device; restore on a new iPhone or iPad |
-| L3 | Choose where each backup goes | On device only, iCloud only, or both |
-| L4 | Stronger file protection | Data stays locked while the device is locked |
-| L5 | TestFlight installs | Install and update from TestFlight instead of Sideloadly |
-| L6 | Instant updates (EAS Update in the real app) | Small fixes reach the installed app without reinstalling |
-| L7 | App Store (optional) | Only if wanted; it can stay private |
+| #   | Step                                                                       | What it adds                                                            |
+| --- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| L1  | Sign the app with the developer account                                    | Installs last 1 year instead of 7 days; no weekly Sideloadly re-signing |
+| L2  | **iCloud backup** (iCloud Drive or private iCloud storage, owner's choice) | Automatic copy off the device; restore on a new iPhone or iPad          |
+| L3  | Choose where each backup goes                                              | On device only, iCloud only, or both                                    |
+| L4  | Stronger file protection                                                   | Data stays locked while the device is locked                            |
+| L5  | TestFlight installs                                                        | Install and update from TestFlight instead of Sideloadly                |
+| L6  | Instant updates (EAS Update in the real app)                               | Small fixes reach the installed app without reinstalling                |
+| L7  | App Store (optional)                                                       | Only if wanted; it can stay private                                     |
 
 ## 5. Summary
 
-| | Count |
-|---|---|
-| Current features kept | All. Nothing is removed. |
-| New features | 17: iPad layout, automatic backups and reminder, archived products, one sale per checkout, stock reasons, stock filters and sorting, long-press add, receipt item reordering, receipt filters, payment-method and top-product breakdowns, cash vs credit today, appearance setting, no default PIN, remembering the last system, keyboard shortcuts, animations and haptics, Liquid Glass |
-| New under the hood | SQLite database, money as whole dirhams, automatic tests, tap-through tests with screenshots |
+|                       | Count                                                                                                                                                                                                                                                                                                                                                                                     |
+| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Current features kept | All. Nothing is removed.                                                                                                                                                                                                                                                                                                                                                                  |
+| New features          | 17: iPad layout, automatic backups and reminder, archived products, one sale per checkout, stock reasons, stock filters and sorting, long-press add, receipt item reordering, receipt filters, payment-method and top-product breakdowns, cash vs credit today, appearance setting, no default PIN, remembering the last system, keyboard shortcuts, animations and haptics, Liquid Glass |
+| New under the hood    | SQLite database, money as whole dirhams, automatic tests, tap-through tests with screenshots                                                                                                                                                                                                                                                                                              |
 
 ## 6. Decisions on record
 
@@ -353,5 +356,8 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - Backups on the device only; iCloud backup postponed to step L2.
 - The owner merges every pull request.
 - Keep every receipt template, including Swarovski London; digits 0-9 only.
+- After every step or task: test, check, push to the pull request.
+- Everything kept up to date: newest stable Xcode on `macos-26`, latest GitHub Actions, Node LTS, and the newest package versions the Expo SDK supports.
+- The old SwiftUI app keeps its minimum iOS 16 (no effect on the owner's devices; it is being replaced).
 
 Nothing has been started. Phase 0 begins when the owner says go.

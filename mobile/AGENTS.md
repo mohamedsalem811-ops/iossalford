@@ -39,3 +39,12 @@ Docs: https://docs.expo.dev/eas/index.md
 - If `ios/` and `android/` directories do not exist, they are generated (Continuous Native Generation). Never create or edit them by hand — configure native behavior in `app.json` and config plugins.
 - Expo Go only includes its bundled native modules. After adding a library with native code, the app needs a development build: `npx expo run:ios|android` locally, or `eas build --profile development`.
 - Prefer recommended Expo modules over third-party libraries, and check your available skills before adding dependencies. Docs: https://docs.expo.dev/versions/latest/index.md
+
+## SALFORD POS project rules
+
+- Plan: `../docs/EXPO_PLAN.md`. Follow it phase by phase.
+- **After every step or task: test, check, and push to the open pull request.** Run `npm run check` (typecheck, lint, format, tests) and `npx expo-doctor` before each push. A step is done only when its checks pass and it is pushed.
+- The owner merges every pull request. Never merge.
+- Only use libraries Expo Go already includes, so every stage previews in Expo Go.
+- Keep everything up to date: newest packages the Expo SDK supports (`npx expo install --check`), latest GitHub Actions, newest stable Xcode.
+- Arabic, right-to-left, digits 0-9 only. Backups stay on the device; no iCloud until the Apple Developer step L2.
