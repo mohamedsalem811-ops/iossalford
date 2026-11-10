@@ -4,11 +4,14 @@ import type { SystemId } from '@/theme';
 import { clean, nowStamp, RuleError, type Ctx } from './context';
 import { getSetting, setSetting } from './settings';
 
-/** The five receipt designs (all kept, including Swarovski London); each system offers its own. */
+/**
+ * The five receipt designs; each system offers its own. "swarovski" is SALFORD's own receipt for
+ * the Swarovski pieces it sells (it does not imitate a Swarovski store receipt).
+ */
 export const TEMPLATES = {
   salford_dark: { system: 'jewelry', name: 'SALFORD الملكي', store: 'SALFORD Jewelry — Libya' },
   salford_light: { system: 'jewelry', name: 'SALFORD الرسمي', store: 'SALFORD Jewelry — Libya' },
-  swarovski: { system: 'jewelry', name: 'Swarovski London', store: 'Swarovski London' },
+  swarovski: { system: 'jewelry', name: 'SALFORD • Swarovski', store: 'SALFORD Jewelry — Libya' },
   scarves_libya: { system: 'scarves', name: 'SALFORD Libya', store: 'SALFORD Libya' },
   scarves_salford: { system: 'scarves', name: 'SALFORD Scarves', store: 'SALFORD Scarves' },
 } as const;

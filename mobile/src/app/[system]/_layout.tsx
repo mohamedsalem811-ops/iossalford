@@ -70,7 +70,7 @@ function SystemDb({ system }: { system: SystemId }) {
 }
 
 /**
- * The tabs, with forms, photos, the cart and checkout opening over them as iOS sheets with their
+ * The tabs, with forms, photos, the cart, checkout and receipts opening over them as iOS sheets with their
  * own header, and management screens (brands, sets) pushed over them with a back button.
  */
 function SystemStack() {
@@ -112,6 +112,7 @@ function SystemStack() {
       <Stack.Screen name="cart" options={sheet} />
       <Stack.Screen name="checkout" options={sheet} />
       <Stack.Screen name="sold/[id]" options={{ ...sheet, gestureEnabled: false }} />
+      <Stack.Screen name="receipt/[id]" options={sheet} />
       <Stack.Screen name="add/[id]" options={halfSheet} />
       <Stack.Screen name="sizes/[id]" options={halfSheet} />
     </Stack>

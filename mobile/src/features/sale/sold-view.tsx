@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
-import { Button, Card, EmptyState, Icon, Text } from '@/components';
+import { Button, EmptyState, Icon, Text } from '@/components';
 import { PAYMENT_LABELS } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
 import { receiptForSale } from '@/domain/receipts';
@@ -11,22 +11,24 @@ import { formatLyd } from '@/lib/money';
 import { spacing, useTheme } from '@/theme';
 
 /**
- * After checkout: the sale is saved and its receipt issued. Shows the receipt number and what
- * was sold; "بيع جديد" goes back to selling.
+ * After checkout: the sale is saved and its receipt issued. Shows the total and the receipt
+ * number; "الإيصال" opens it to print or share, "بيع جديد" goes back to selling.
  */
 export function SoldView({
   ctx,
   saleId,
   onNewSale,
+  onReceipt,
 }: {
   ctx: Ctx;
   saleId: number;
   onNewSale: () => void;
+  /** Opens the sale's receipt in the receipt studio (print, share, edit). */
+  onReceipt: (receiptId: number) => void;
 }) {
   const { colors } = useTheme();
   const [sale] = useState(() => getSale(ctx, saleId));
   const [receipt] = useState(() => receiptForSale(ctx, saleId));
-  const [showReceipt, setShowReceipt] = useState(false);
   if (!sale) return <EmptyState icon="cart" title="البيع غير موجود" />;
 
   return (
@@ -60,58 +62,13 @@ export function SoldView({
           </Text>
         </View>
 
-        {showReceipt && receipt ? (
-          <Card testID="sold-receipt">
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text variant="headline">{receipt.receiptNo}</Text>
-              <Text variant="subhead" tone="secondary">
-                {`${receipt.date} ${receipt.time}`}
-              </Text>
-            </View>
-            <Text variant="subhead" tone="secondary">
-              {receipt.customer}
-            </Text>
-            {receipt.items.map((it, i) => (
-              <View
-                key={i}
-                style={{
-                  flexDirection: 'row',
-                  justifyContent: 'space-between',
-                  gap: spacing.sm,
-                  paddingTop: spacing.sm,
-                  borderTopWidth: 1,
-                  borderTopColor: colors.separator,
-                }}>
-                <View style={{ flex: 1 }}>
-                  <Text variant="body">{`${it.name} × ${it.quantity}`}</Text>
-                  {it.brand || it.code ? (
-                    <Text variant="caption" tone="secondary">
-                      {[it.brand, it.code].filter(Boolean).join(' • ')}
-                    </Text>
-                  ) : null}
-                </View>
-                <Text variant="body">{formatLyd(it.price * it.quantity)}</Text>
-              </View>
-            ))}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text variant="headline">المجموع</Text>
-              <Text variant="headline" tone="accent">
-                {formatLyd(receipt.total)}
-              </Text>
-            </View>
-            <Text variant="caption" tone="secondary">
-              الطباعة ومشاركة الإيصال PDF تأتي في مرحلة الإيصالات.
-            </Text>
-          </Card>
-        ) : null}
-
         {receipt ? (
           <Button
-            title={showReceipt ? 'إخفاء الإيصال' : 'الإيصال'}
+            title="الإيصال: طباعة ومشاركة"
             icon="doc.text"
             variant="secondary"
             fullWidth
-            onPress={() => setShowReceipt((v) => !v)}
+            onPress={() => onReceipt(receipt.id)}
             testID="sold-show-receipt"
           />
         ) : null}

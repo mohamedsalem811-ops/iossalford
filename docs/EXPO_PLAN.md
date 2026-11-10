@@ -240,7 +240,7 @@ mobile/
 
 - **6.1** Receipt engine: A4 pages with page breaks, long names wrapped, mixed Arabic and English, logos. **NEW:** built from HTML templates.
 - **6.2** The 5 templates:
-  - jewelry: Salford Royal, Salford White, Swarovski London;
+  - jewelry: Salford Royal, Salford White, SALFORD • Swarovski (SALFORD's own receipt for Swarovski pieces; see the decisions);
   - scarves: SALFORD Libya, SALFORD Scarves.
 - **6.3** Receipt studio:
   - number, date, time;
@@ -355,7 +355,7 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - Previews in Expo Go through the owner's Expo account; only Expo Go-compatible libraries.
 - Backups on the device only; iCloud backup postponed to step L2.
 - The owner merges every pull request.
-- Keep every receipt template, including Swarovski London; digits 0-9 only.
+- Keep every receipt template; digits 0-9 only. The Swarovski London design is not rebuilt as it was: it copied a Swarovski store's name, address, phone and thanks, which makes it a receipt from a real company that did not make the sale. Its place is SALFORD's own receipt for the Swarovski pieces it sells (owner to confirm in Phase 6).
 - After every step or task: test, check, push to the pull request.
 - Database: plain SQL instead of Drizzle, so every rule is tested against a real SQLite database with the exact SQL the app runs.
 - Design approved: Mix B + C with the centred logo, light and dark (`docs/DESIGN.md`). Logos redrawn as lettering.
@@ -373,6 +373,7 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - The exchange-rate editor is on the dashboard from Phase 4 (tap "سعر الصرف"), because dollar costs need the real rate; Phase 7 adds it to Settings too.
 - Selling: while a sale is open, the cart bar sits above the tabs on iPhone (the iOS 26 tab bar accessory, as in Apple Music) and the Sale tab shows the number of pieces; on iPad the cart is always beside the products, on the right. The cart is kept until checkout, also while the app is locked; fully closing the app empties it (nothing is sold until checkout).
 - Sets management (create, edit, delete; item 7.7) was brought forward into Phase 5 so a set can be sold and tested now. It is under Management → Sets and from the sets button on the sale screen.
-- After checkout the success screen shows the receipt number and its lines; printing and sharing the receipt come in Phase 6.
+- After checkout the success screen shows the total and the receipt number; "الإيصال" opens the receipt studio to print, share or edit it.
+- Receipts: printing makes an A6 PDF (105 × 148 mm, the shop's receipt paper, with narrower side margins and tighter spacing so a usual receipt fits on one sheet); sharing and Files use A4. Both run edge to edge: every size is a fraction of the paper's width, so the receipt fills the page whatever scale iOS prints at. Printing or sharing saves the receipt first, so the PDF has its number. iOS's web printing cannot put "page 1 / 2" on each page; instead each continued page repeats the table header with the receipt number. Saved PDFs go to the app's Receipts folder (Files → On My iPhone/iPad → SALFORD POS → Receipts); in Expo Go they stay inside Expo Go.
 
-Status: Phases 0 to 4 are merged; Phase 5 is in progress.
+Status: Phases 0 to 5 are merged; Phase 6 is in progress.
