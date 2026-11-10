@@ -4,6 +4,12 @@ import { View } from 'react-native';
 
 import { Button, Logo, Screen, Text } from '@/components';
 import { PinPad } from '@/components/pin-pad';
+import {
+  faceIdFailure,
+  faceIdNote,
+  type FaceIdResult,
+  type FaceIdStatus,
+} from '@/security/face-id';
 import type { VerifyResult } from '@/security/pin';
 import { spacing, type SystemId } from '@/theme';
 
@@ -25,15 +31,16 @@ export function attemptsLeftText(n: number): string {
 export type LoginDeps = {
   verify: (system: SystemId, pin: string) => Promise<VerifyResult>;
   lockedUntil: (system: SystemId) => Promise<number>;
-  faceIdAvailable: (system: SystemId) => Promise<boolean>;
-  askFaceId: () => Promise<boolean>;
+  faceIdStatus: (system: SystemId) => Promise<FaceIdStatus>;
+  askFaceId: () => Promise<FaceIdResult>;
   clearFailures: (system: SystemId) => Promise<void>;
   now?: () => number;
 };
 
 /**
  * Opens a system. Jewelry asks for Face ID first when it is set up on the device; the PIN always
- * works. Wrong PINs show how many attempts are left; a lockout disables the keypad and counts down.
+ * works. When Face ID can't be used (Expo Go, not set up, locked by iOS) a line says why.
+ * Wrong PINs show how many attempts are left; a lockout disables the keypad and counts down.
  */
 export function LoginScreen({
   system,
@@ -54,14 +61,17 @@ export function LoginScreen({
   const [message, setMessage] = useState<string | null>(null);
   const [until, setUntil] = useState(0);
   const [left, setLeft] = useState(0);
-  const [faceId, setFaceId] = useState(false);
+  const [faceId, setFaceId] = useState<FaceIdStatus>('none');
+  const [faceMessage, setFaceMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const tryFaceId = useCallback(async () => {
-    if (await deps.askFaceId()) {
+    setFaceMessage(null);
+    const r = await deps.askFaceId();
+    if (r.ok) {
       await deps.clearFailures(system);
       onUnlock();
-    }
+    } else setFaceMessage(faceIdFailure(r.error));
   }, [deps, onUnlock, system]);
 
   // Read the lockout and whether Face ID is set up.
@@ -71,8 +81,8 @@ export function LoginScreen({
       const lockedUntil = await deps.lockedUntil(system);
       if (cancelled) return;
       setUntil(lockedUntil);
-      const available = await deps.faceIdAvailable(system);
-      if (!cancelled) setFaceId(available);
+      const status = await deps.faceIdStatus(system);
+      if (!cancelled) setFaceId(status);
     })();
     return () => {
       cancelled = true;
@@ -83,7 +93,7 @@ export function LoginScreen({
   // the background after an auto-lock; asking then would fail). Never again on a re-render.
   const asked = useRef(false);
   useEffect(() => {
-    if (!faceId || !active || asked.current) return;
+    if (faceId !== 'ready' || !active || asked.current) return;
     asked.current = true;
     tryFaceId();
   }, [faceId, active, tryFaceId]);
@@ -128,6 +138,7 @@ export function LoginScreen({
   };
 
   const locked = until > 0;
+  const faceLine = faceId === 'ready' ? faceMessage : faceIdNote(faceId);
   return (
     <Screen contentStyle={{ alignItems: 'center', gap: spacing.lg }}>
       <View style={{ alignSelf: 'stretch' }}>
@@ -161,8 +172,13 @@ export function LoginScreen({
         disabled={locked || busy}
         error={!!message && !locked}
       />
-      {faceId && !locked ? (
+      {faceId === 'ready' && !locked ? (
         <Button title="الدخول بـ Face ID" icon="faceid" variant="secondary" onPress={tryFaceId} />
+      ) : null}
+      {faceLine ? (
+        <Text variant="subhead" tone="secondary" center testID="face-id-message">
+          {faceLine}
+        </Text>
       ) : null}
     </Screen>
   );

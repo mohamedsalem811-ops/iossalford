@@ -206,7 +206,11 @@ export function saveProduct(ctx: Ctx, input: ProductInput): number {
     if (input.id) {
       const old = requireProduct(ctx, input.id);
       const sku = typed || old.sku;
-      const costChanged = cost !== old.cost || usd !== old.costUsd;
+      // The same dollar cost as before keeps the rate it was bought at: editing the name or the
+      // price must not reprice the cost at today's rate.
+      const sameUsd = usd !== null && usd === old.costUsd && old.costRate !== null;
+      const finalCost = sameUsd ? old.cost : cost;
+      const costChanged = !sameUsd && (cost !== old.cost || usd !== old.costUsd);
       ctx.db.run(
         `UPDATE products SET sku = ?, name = ?, brand_id = ?, category = ?, size = ?, color = ?, cost = ?,
            cost_usd = ?, cost_rate = ?, price = ?, stock = ?, low_stock = ?, image_file = ?, design_id = ?, updated_at = ?
@@ -218,7 +222,7 @@ export function saveProduct(ctx: Ctx, input: ProductInput): number {
           input.category,
           size,
           clean(input.color),
-          cost,
+          finalCost,
           usd,
           costChanged ? (usd !== null ? rate : null) : old.costRate,
           input.price,
@@ -324,6 +328,16 @@ function hasHistory(ctx: Ctx, id: number): boolean {
     'SELECT 1 FROM sale_lines WHERE product_id = ? UNION ALL SELECT 1 FROM returns WHERE product_id = ? LIMIT 1',
     [id, id],
   );
+}
+
+/** How many sales (checkouts) included this product, and how many sets contain it. */
+export function productUsage(ctx: Ctx, id: number): { sales: number; sets: number } {
+  const r = ctx.db.get<{ sales: number; sets: number }>(
+    `SELECT (SELECT count(DISTINCT sale_id) FROM sale_lines WHERE product_id = ?) AS sales,
+            (SELECT count(*) FROM set_items WHERE product_id = ?) AS sets`,
+    [id, id],
+  );
+  return { sales: r?.sales ?? 0, sets: r?.sets ?? 0 };
 }
 
 /**

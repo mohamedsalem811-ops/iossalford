@@ -16,12 +16,15 @@ export function DashboardScreen({
   today,
   rate,
   onSwitch,
+  onEditRate,
 }: {
   system: SystemId;
   date: Date;
   today: Today;
   rate: number;
   onSwitch: () => void;
+  /** Opens the rate editor; the dollar costs of new pieces use it. */
+  onEditRate?: () => void;
 }) {
   return (
     <Screen tabBar contentStyle={{ gap: spacing.lg }}>
@@ -49,7 +52,13 @@ export function DashboardScreen({
         </View>
       </HeroCard>
       <ListGroup>
-        <ListRow icon="dollarsign.circle" title="سعر الصرف" value={formatRate(rate)} />
+        <ListRow
+          icon="dollarsign.circle"
+          title="سعر الصرف"
+          value={formatRate(rate)}
+          onPress={onEditRate}
+          testID="rate-row"
+        />
       </ListGroup>
       <Button
         title="تبديل النظام"

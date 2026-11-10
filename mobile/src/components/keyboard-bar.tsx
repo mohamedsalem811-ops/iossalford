@@ -31,3 +31,9 @@ export function KeyboardBar() {
     </KeyboardToolbar>
   );
 }
+
+/**
+ * Space kept between a focused field and the keyboard, so the "تم" bar above the keyboard
+ * never covers it: forms scroll the field being typed in above both.
+ */
+export const KEYBOARD_GAP = 72;

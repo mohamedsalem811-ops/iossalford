@@ -1,10 +1,12 @@
 /** The PIN vault and Face ID wired to the device (Keychain, SHA-256, LocalAuthentication). */
+import { isRunningInExpoGo } from 'expo';
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
 
 import type { SystemId } from '@/theme';
 
+import type { FaceIdResult, FaceIdStatus } from './face-id';
 import { PinVault, type SecureKv } from './pin';
 
 /** Kept in the Keychain, readable only while the device is unlocked, never synced or backed up. */
@@ -27,31 +29,35 @@ export const pinVault = new PinVault(
   () => toHex(Crypto.getRandomBytes(16)),
 );
 
-/** Face ID is offered for the jewelry system only, and only when it is set up on the device. */
-export async function faceIdAvailable(system: SystemId): Promise<boolean> {
-  if (system !== 'jewelry') return false;
+/**
+ * Face ID is offered for the jewelry system only, and only when it is set up on the device. In
+ * Expo Go it cannot work on iOS, so the login says so instead.
+ */
+export async function faceIdStatus(system: SystemId): Promise<FaceIdStatus> {
+  if (system !== 'jewelry') return 'none';
   try {
-    return (
-      (await LocalAuthentication.hasHardwareAsync()) &&
-      (await LocalAuthentication.isEnrolledAsync())
-    );
+    if (!(await LocalAuthentication.hasHardwareAsync())) return 'none';
+    if (isRunningInExpoGo()) return 'expo-go';
+    return (await LocalAuthentication.isEnrolledAsync()) ? 'ready' : 'not-enrolled';
   } catch {
-    return false;
+    return 'none';
   }
 }
 
-/** Asks for Face ID. True only on success; cancelling or failing falls back to the PIN. */
-export async function askFaceId(): Promise<boolean> {
+/** Asks for Face ID. Cancelling or failing falls back to the PIN; the error says why. */
+export async function askFaceId(): Promise<FaceIdResult> {
   try {
     const r = await LocalAuthentication.authenticateAsync({
       promptMessage: 'افتح نظام المجوهرات',
       cancelLabel: 'استخدم رمز PIN',
+      // After a failed scan iOS offers no "Enter Password" button: the PIN is on screen.
+      fallbackLabel: '',
       // The shop's own PIN is the fallback, not the device passcode.
       disableDeviceFallback: true,
     });
-    return r.success;
+    return r.success ? { ok: true } : { ok: false, error: r.error };
   } catch {
-    return false;
+    return { ok: false, error: 'unknown' };
   }
 }
 

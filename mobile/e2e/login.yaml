@@ -20,7 +20,9 @@ appId: com.salford.pos
 - tapOn: 'بيع'
 - assertVisible: 'قريباً'
 - tapOn: 'المنتجات'
-- assertVisible: 'قريباً'
+- extendedWaitUntil:
+    visible: 'لا توجد قطع بعد'
+    timeout: 30000
 - tapOn: 'الإيصالات'
 - assertVisible: 'قريباً'
 - tapOn: 'الإدارة'

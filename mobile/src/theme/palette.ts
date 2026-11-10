@@ -118,3 +118,35 @@ export const neutral: Record<Mode, Palette> = {
   light: { ...palettes.jewelry.light, background: '#F2F2F5' },
   dark: { ...palettes.jewelry.dark },
 };
+
+/**
+ * Brand badges: the built-in look of the main brands (original lettering in the brand's colours,
+ * not their logo files) and the colours an initials badge picks from, by brand name.
+ */
+export const brandBadge = {
+  builtIn: [
+    {
+      match: 'swarovski',
+      background: '#000000',
+      text: '#FFFFFF',
+      label: 'SWAROVSKI',
+      serif: false,
+    },
+    { match: 'tiffany', background: '#81D8D0', text: '#000000', label: 'T&Co.', serif: true },
+    { match: 'pandora', background: '#FFFFFF', text: '#000000', label: 'PANDORA', serif: true },
+  ],
+  initials: [
+    '#5856D6',
+    '#30B0C7',
+    '#FF9500',
+    '#FF2D55',
+    '#AF52DE',
+    '#A2845E',
+    '#00C7BE',
+    '#32ADE6',
+    '#FF3B30',
+    '#007AFF',
+  ],
+  initialsText: '#FFFFFF',
+  edge: 'rgba(0,0,0,0.12)',
+} as const;

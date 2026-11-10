@@ -45,8 +45,8 @@ jest.mock('@/security/device', () => {
       async (t: string) => `h:${t}`,
       () => 'salt',
     ),
-    faceIdAvailable: async () => false,
-    askFaceId: async () => false,
+    faceIdStatus: async () => 'none',
+    askFaceId: async () => ({ ok: false, error: 'user_cancel' }),
     lastSystem: () => last,
     rememberSystem: (s: string) => (last = s),
   };
@@ -92,6 +92,8 @@ it('sets up both PINs, opens a system, switches, and locks in the background', a
     '[system]/(tabs)/_layout': TabsLayout,
     '[system]/(tabs)/index': Dashboard,
     '[system]/(tabs)/more': More,
+    '[system]/product/[id]': () => null,
+    '[system]/photo/[id]': () => null,
   });
 
   // First launch goes to setup: there is no default PIN.

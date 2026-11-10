@@ -36,4 +36,20 @@ describe('DashboardScreen', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'تبديل النظام' }));
     expect(onSwitch).toHaveBeenCalled();
   });
+
+  it('opens the rate editor from the rate row', async () => {
+    const onEditRate = jest.fn();
+    await renderScreen(
+      <DashboardScreen
+        system="jewelry"
+        date={new Date(2026, 10, 9)}
+        today={today}
+        rate={7_000}
+        onSwitch={() => {}}
+        onEditRate={onEditRate}
+      />,
+    );
+    await fireEvent.press(screen.getByTestId('rate-row'));
+    expect(onEditRate).toHaveBeenCalled();
+  });
 });

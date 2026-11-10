@@ -23,8 +23,6 @@
           "UIInterfaceOrientationLandscapeRight"
         ],
         "NSFaceIDUsageDescription": "يستخدم التطبيق Face ID لفتح نظام المجوهرات بسرعة وأمان.",
-        "NSPhotoLibraryUsageDescription": "يحتاج التطبيق إلى الصور لإضافة صور المنتجات والعلامات التجارية.",
-        "NSCameraUsageDescription": "يحتاج التطبيق إلى الكاميرا لتصوير المنتجات.",
         "UIFileSharingEnabled": true,
         "LSSupportsOpeningDocumentsInPlace": true,
         "ITSAppUsesNonExemptEncryption": false
@@ -63,7 +61,15 @@
         }
       ],
       "expo-sqlite",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "يحتاج التطبيق إلى الصور لإضافة صور المنتجات والعلامات التجارية.",
+          "cameraPermission": "يحتاج التطبيق إلى الكاميرا لتصوير المنتجات.",
+          "microphonePermission": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
