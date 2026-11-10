@@ -21,6 +21,7 @@ appId: com.salford.pos
 - tapOn:
     id: 'design-name'
 - inputText: 'Silk Classic'
+- hideKeyboard
 # A new design starts with a 90×90 row.
 - scrollUntilVisible:
     element:
@@ -29,9 +30,15 @@ appId: com.salford.pos
 - tapOn:
     id: 'size-price-0'
 - inputText: '90'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'size-cost-0'
+    direction: DOWN
 - tapOn:
     id: 'size-cost-0'
 - inputText: '30'
+- hideKeyboard
 - scrollUntilVisible:
     element:
       id: 'add-size-120×120'
@@ -45,9 +52,15 @@ appId: com.salford.pos
 - tapOn:
     id: 'size-price-1'
 - inputText: '120'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'size-cost-1'
+    direction: DOWN
 - tapOn:
     id: 'size-cost-1'
 - inputText: '40'
+- hideKeyboard
 - takeScreenshot: ${DEVICE}-design-form
 - scrollUntilVisible:
     element:

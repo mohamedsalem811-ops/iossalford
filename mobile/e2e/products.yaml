@@ -23,9 +23,11 @@ appId: com.salford.pos
 - tapOn:
     id: 'product-name'
 - inputText: 'Ring Zircon'
+- hideKeyboard
 - tapOn:
     id: 'product-brand'
 - inputText: 'Pandora'
+- hideKeyboard
 - assertVisible: 'ماركة جديدة — ستُضاف للقائمة عند الحفظ'
 - scrollUntilVisible:
     element:
@@ -34,10 +36,18 @@ appId: com.salford.pos
 - tapOn:
     id: 'product-price'
 - inputText: '350'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'product-cost'
+    direction: DOWN
 - tapOn:
     id: 'product-cost'
 - inputText: '200'
-- assertVisible: '150 د.ل • 43٪'
+- hideKeyboard
+- scrollUntilVisible:
+    element: '150 د.ل • 43٪'
+    direction: DOWN
 - takeScreenshot: ${DEVICE}-product-form
 - scrollUntilVisible:
     element:

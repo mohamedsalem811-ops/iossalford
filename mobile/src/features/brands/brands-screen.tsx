@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { Pressable, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
-import { Button, Card, EmptyState, Icon, Text, TextField } from '@/components';
+import { Button, Card, EmptyState, Icon, Text, TextField, KEYBOARD_GAP } from '@/components';
 import type { Brand } from '@/domain/brands';
 import type { Ctx } from '@/domain/context';
 import { BrandBadge } from '@/features/products/brand-badge';
@@ -30,7 +31,8 @@ export function BrandsScreen({ ctx, brands }: { ctx: Ctx; brands: Brand[] }) {
   };
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollView
+      bottomOffset={KEYBOARD_GAP}
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={{
         padding: spacing.md,
@@ -80,7 +82,7 @@ export function BrandsScreen({ ctx, brands }: { ctx: Ctx; brands: Brand[] }) {
           ))}
         </Card>
       )}
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 

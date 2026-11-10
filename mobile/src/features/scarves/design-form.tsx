@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import {
   Button,
@@ -12,6 +13,7 @@ import {
   NumberField,
   Text,
   TextField,
+  KEYBOARD_GAP,
 } from '@/components';
 import { listBrands } from '@/domain/brands';
 import { RuleError, type Ctx } from '@/domain/context';
@@ -110,7 +112,8 @@ export function DesignFormView({
         onCancel={onDone}
         onSave={save}
       />
-      <ScrollView
+      <KeyboardAwareScrollView
+        bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
         contentContainerStyle={{
           padding: spacing.md,
@@ -203,7 +206,7 @@ export function DesignFormView({
           onPress={save}
           testID="design-save"
         />
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </>
   );
 }

@@ -1,7 +1,8 @@
 import * as Haptics from 'expo-haptics';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import {
   Button,
@@ -12,6 +13,7 @@ import {
   Segmented,
   Text,
   TextField,
+  KEYBOARD_GAP,
 } from '@/components';
 import { RuleError, type Ctx } from '@/domain/context';
 import { adjustStock, displayName, getProduct, stockHistory } from '@/domain/products';
@@ -76,7 +78,8 @@ export function StockSheet({
           حفظ
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
-      <ScrollView
+      <KeyboardAwareScrollView
+        bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
         contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}
         contentInsetAdjustmentBehavior="automatic"
@@ -178,7 +181,7 @@ export function StockSheet({
             })
           )}
         </Card>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </>
   );
 }
