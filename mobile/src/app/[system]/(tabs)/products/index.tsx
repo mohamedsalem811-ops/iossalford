@@ -1,5 +1,7 @@
 import { router, Stack, useFocusEffect } from 'expo-router';
-import { useCallback, useState, type Dispatch, type SetStateAction } from 'react';
+import { useHeaderHeight } from 'expo-router/react-navigation';
+import { useCallback, useState, type Dispatch, type ReactNode, type SetStateAction } from 'react';
+import { View } from 'react-native';
 
 import { EmptyState, SplitView } from '@/components';
 import { listBrands } from '@/domain/brands';
@@ -35,6 +37,16 @@ export default function ProductsRoute() {
 type Filters = Pick<ListQuery, 'search' | 'brand' | 'sort' | 'stock'>;
 
 const everyProduct = (products: Product[]) => products;
+
+/**
+ * On iOS 26 the header (title, search bar, buttons) floats over the screen. A scroll view as
+ * the first child is inset by iOS itself, but this screen starts with the pinned brand bar, so
+ * it leaves the header's height free at the top.
+ */
+function BelowHeader({ children }: { children: ReactNode }) {
+  const headerHeight = useHeaderHeight();
+  return <View style={{ flex: 1, paddingTop: headerHeight }}>{children}</View>;
+}
 
 const adjustSheet = (system: SystemId, id: number) =>
   router.push({ pathname: '/[system]/stock/[id]', params: { system, id: String(id) } });
@@ -186,32 +198,34 @@ function JewelryProducts({ ctx }: { ctx: Ctx }) {
         setQuery={setQuery}
         onAdd={add}
       />
-      {split ? (
-        <SplitView
-          list={list}
-          detail={
-            shown === null ? (
-              <EmptyState
-                icon="shippingbox"
-                title="اختر قطعة من القائمة"
-                message="تظهر هنا لتعديلها، أو أضف قطعة جديدة."
-                action="إضافة قطعة"
-                onAction={add}
-              />
-            ) : (
-              <ProductFormView
-                key={String(shown)}
-                ctx={ctx}
-                productId={shown === 'new' ? undefined : shown}
-                embedded
-                onDone={() => setOpen(null)}
-              />
-            )
-          }
-        />
-      ) : (
-        list
-      )}
+      <BelowHeader>
+        {split ? (
+          <SplitView
+            list={list}
+            detail={
+              shown === null ? (
+                <EmptyState
+                  icon="shippingbox"
+                  title="اختر قطعة من القائمة"
+                  message="تظهر هنا لتعديلها، أو أضف قطعة جديدة."
+                  action="إضافة قطعة"
+                  onAction={add}
+                />
+              ) : (
+                <ProductFormView
+                  key={String(shown)}
+                  ctx={ctx}
+                  productId={shown === 'new' ? undefined : shown}
+                  embedded
+                  onDone={() => setOpen(null)}
+                />
+              )
+            }
+          />
+        ) : (
+          list
+        )}
+      </BelowHeader>
     </>
   );
 }
@@ -262,32 +276,34 @@ function ScarvesProducts({ ctx }: { ctx: Ctx }) {
         setQuery={setQuery}
         onAdd={add}
       />
-      {split ? (
-        <SplitView
-          list={list}
-          detail={
-            shown === null ? (
-              <EmptyState
-                icon="wind"
-                title="اختر تصميماً من القائمة"
-                message="يظهر هنا بكل مقاساته لتعديله، أو أضف تصميماً جديداً."
-                action="تصميم جديد"
-                onAction={add}
-              />
-            ) : (
-              <DesignFormView
-                key={shown}
-                ctx={ctx}
-                designId={shown === 'new' ? undefined : shown}
-                embedded
-                onDone={() => setOpen(null)}
-              />
-            )
-          }
-        />
-      ) : (
-        list
-      )}
+      <BelowHeader>
+        {split ? (
+          <SplitView
+            list={list}
+            detail={
+              shown === null ? (
+                <EmptyState
+                  icon="wind"
+                  title="اختر تصميماً من القائمة"
+                  message="يظهر هنا بكل مقاساته لتعديله، أو أضف تصميماً جديداً."
+                  action="تصميم جديد"
+                  onAction={add}
+                />
+              ) : (
+                <DesignFormView
+                  key={shown}
+                  ctx={ctx}
+                  designId={shown === 'new' ? undefined : shown}
+                  embedded
+                  onDone={() => setOpen(null)}
+                />
+              )
+            }
+          />
+        ) : (
+          list
+        )}
+      </BelowHeader>
     </>
   );
 }

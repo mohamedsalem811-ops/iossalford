@@ -69,6 +69,8 @@ export function DesignsList({
         keyExtractor={(d) => d.id}
         extraData={selectedId}
         keyboardDismissMode="on-drag"
+        // The space under the header is left by the route (BelowHeader); iOS adds nothing more.
+        contentInsetAdjustmentBehavior="never"
         contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE + spacing.lg }}
         ItemSeparatorComponent={() => (
           <View style={{ height: 1, marginStart: 92, backgroundColor: colors.separator }} />
