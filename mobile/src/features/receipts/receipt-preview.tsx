@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
+import { TEMPLATES } from '@/domain/receipts';
+import { logoFontCss } from '@/receipts/fonts';
 import { PAGE, receiptHtml, type ReceiptDoc } from '@/receipts/templates/html';
 import { radius, useTheme } from '@/theme';
 
@@ -9,6 +11,16 @@ import { radius, useTheme } from '@/theme';
 export function ReceiptPreview({ doc }: { doc: ReceiptDoc }) {
   const { colors } = useTheme();
   const [width, setWidth] = useState(0);
+  // The logo fonts, embedded as in the PDF (read once; the preview shows a fallback until then).
+  const system = TEMPLATES[doc.template].system;
+  const [fontCss, setFontCss] = useState<{ system: string; css: string } | null>(null);
+  useEffect(() => {
+    let live = true;
+    logoFontCss(system).then((css) => live && setFontCss({ system, css }));
+    return () => {
+      live = false;
+    };
+  }, [system]);
   return (
     <View
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
@@ -26,7 +38,12 @@ export function ReceiptPreview({ doc }: { doc: ReceiptDoc }) {
         <WebView
           testID="receipt-preview"
           originWhitelist={['*']}
-          source={{ html: receiptHtml(doc, { previewWidth: width }) }}
+          source={{
+            html: receiptHtml(doc, {
+              previewWidth: width,
+              fontCss: fontCss?.system === system ? fontCss.css : '',
+            }),
+          }}
           style={{ backgroundColor: '#fff' }}
           scrollEnabled
           bounces={false}

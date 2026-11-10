@@ -7,6 +7,9 @@ import { Directory, File, Paths } from 'expo-file-system';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 
+import { TEMPLATES } from '@/domain/receipts';
+
+import { logoFontCss } from './fonts';
 import { PAGE, receiptHtml, type ReceiptDoc } from './templates/html';
 
 /** Room the printer needs at the page edges; the designs' banners start just below it. */
@@ -20,8 +23,9 @@ export function pdfName(doc: Pick<ReceiptDoc, 'receiptNo'>): string {
 
 /** Makes the PDF (A4) in the app's cache, named after the receipt number. */
 export async function makePdf(doc: ReceiptDoc): Promise<{ file: File; pages: number }> {
+  const fontCss = await logoFontCss(TEMPLATES[doc.template].system);
   const r = await Print.printToFileAsync({
-    html: receiptHtml(doc),
+    html: receiptHtml(doc, { fontCss }),
     width: PAGE.width,
     height: PAGE.height,
     margins: MARGINS,

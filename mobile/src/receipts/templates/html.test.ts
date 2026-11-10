@@ -5,6 +5,7 @@ import {
   itemTitle,
   linePrice,
   receiptHtml,
+  receiptMoney,
   receiptTotal,
   type ReceiptDoc,
 } from './html';
@@ -13,6 +14,7 @@ import { pdfName } from '../output';
 jest.mock('expo-print', () => ({}));
 jest.mock('expo-sharing', () => ({}));
 jest.mock('expo-file-system', () => ({}));
+jest.mock('expo-asset', () => ({}));
 
 const doc = (over: Partial<ReceiptDoc> = {}): ReceiptDoc => ({
   template: 'salford_dark',
@@ -44,8 +46,8 @@ describe('receipt text', () => {
   });
 
   it('shows prices on an official receipt and XXX on a gift receipt', () => {
-    expect(receiptTotal(doc())).toBe('1,950.5 LYD');
-    expect(linePrice(doc(), { price: 350_000, quantity: 2 })).toBe('700');
+    expect(receiptTotal(doc())).toBe('1,950.50 LYD');
+    expect(linePrice(doc(), { price: 350_000, quantity: 2 })).toBe('700.00');
     expect(receiptTotal(doc({ showPrices: false }))).toBe('XXX');
     expect(linePrice(doc({ showPrices: false }), { price: 1, quantity: 1 })).toBe('XXX');
     expect(linePrice(doc(), { price: 0, quantity: 1 })).toBe('XXX');
@@ -59,7 +61,27 @@ describe('receipt text', () => {
   });
 });
 
+describe('receiptMoney', () => {
+  it('shows two decimals like the current receipts, three only when needed', () => {
+    expect(receiptMoney(550_000)).toBe('550.00');
+    expect(receiptMoney(1_250_500)).toBe('1,250.50');
+    expect(receiptMoney(12_125)).toBe('12.125');
+  });
+});
+
 describe('receiptHtml', () => {
+  it("draws the app's own logo in each system's design, with the embedded fonts", () => {
+    const j = receiptHtml(doc(), { fontCss: '@font-face{font-family:x}' });
+    expect(j).toContain('aria-label="SALFORD jewelry"');
+    expect(j).toContain('PlayfairDisplay_800ExtraBold');
+    expect(j).toContain('@font-face{font-family:x}');
+    const s = receiptHtml(doc({ template: 'scarves_salford' }));
+    expect(s).toContain('aria-label="SALFORD scarfs"');
+    expect(s).toContain('CormorantGaramond_600SemiBold');
+    // The banner grows with its content: nothing is cut off at its bottom.
+    expect(j).not.toMatch(/class="banner" style="height/);
+  });
+
   it('has the number, date, items and total, on A4', () => {
     const html = receiptHtml(doc());
     expect(html).toContain('OFFICIAL INVOICE / RECEIPT');
@@ -68,7 +90,7 @@ describe('receiptHtml', () => {
     expect(html).toContain('Pandora — Ring (Gold)');
     expect(html).toContain('Item Code: RNG-0001');
     expect(html).toContain('سلسلة ذهب');
-    expect(html).toContain('1,950.5 LYD');
+    expect(html).toContain('1,950.50 LYD');
     expect(html).toContain('width=595');
     // Rows never split across pages, and the header repeats on each page.
     expect(html).toContain('break-inside: avoid');
