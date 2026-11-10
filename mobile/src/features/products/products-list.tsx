@@ -23,6 +23,8 @@ export function ProductsList({
   editHref,
   actions,
   onAdd,
+  onOpen,
+  selectedId,
 }: {
   system: SystemId;
   /** All of the system's (not archived) products. */
@@ -33,6 +35,9 @@ export function ProductsList({
   editHref: (p: Product) => Href;
   actions: ProductActions;
   onAdd: () => void;
+  /** iPad split view: tapping a row opens it beside the list. */
+  onOpen?: (p: Product) => void;
+  selectedId?: number;
 }) {
   const { colors } = useTheme();
   const counts = brandCounts(products);
@@ -56,6 +61,7 @@ export function ProductsList({
       <FlashList
         data={shown}
         keyExtractor={(p) => String(p.id)}
+        extraData={selectedId}
         keyboardDismissMode="on-drag"
         contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE + spacing.lg }}
         ItemSeparatorComponent={() => (
@@ -98,6 +104,8 @@ export function ProductsList({
             editHref={editHref(item)}
             brandImage={item.brandId !== null ? (brandImages.get(item.brandId) ?? null) : null}
             actions={actions}
+            onOpen={onOpen ? () => onOpen(item) : undefined}
+            selected={item.id === selectedId}
           />
         )}
       />

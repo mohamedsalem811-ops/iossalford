@@ -28,6 +28,8 @@ export function DesignsList({
   onDelete,
   onAdjust,
   onAdd,
+  onOpen,
+  selectedId,
 }: {
   system: SystemId;
   products: Product[];
@@ -38,6 +40,9 @@ export function DesignsList({
   onDelete: (d: ScarfDesign) => void;
   onAdjust: (productId: number) => void;
   onAdd: () => void;
+  /** iPad split view: tapping a design opens it beside the list. */
+  onOpen?: (d: ScarfDesign) => void;
+  selectedId?: string;
 }) {
   const { colors } = useTheme();
   // The brand bar counts designs, not sizes.
@@ -62,6 +67,7 @@ export function DesignsList({
       <FlashList
         data={shown}
         keyExtractor={(d) => d.id}
+        extraData={selectedId}
         keyboardDismissMode="on-drag"
         contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE + spacing.lg }}
         ItemSeparatorComponent={() => (
@@ -116,6 +122,8 @@ export function DesignsList({
             }
             onDelete={onDelete}
             onAdjust={onAdjust}
+            onOpen={onOpen ? () => onOpen(item) : undefined}
+            selected={item.id === selectedId}
           />
         )}
       />

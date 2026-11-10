@@ -55,6 +55,15 @@ jest.mock('expo-router/build/link/preview/native', () => ({
   NativeLinkPreviewContent: () => null,
 }));
 // Already unlocked: the PIN screens have their own tests.
+// An iPhone-sized window unless a test sets an iPad width.
+let mockWidth = 390;
+jest.mock('@/hooks/use-layout', () => {
+  const actual = jest.requireActual('@/hooks/use-layout');
+  return {
+    ...actual,
+    useLayout: () => ({ split: actual.layoutClass(mockWidth) !== 'compact' }),
+  };
+});
 let mockUnlocked = 'jewelry';
 jest.mock('@/state/lock', () => ({
   LockProvider: ({ children }: { children: React.ReactNode }) => children,
@@ -298,4 +307,27 @@ it('adds stock with a reason from the stock sheet and shows it in the history', 
   expect(screen.getByText(/^توريد جديد • /)).toBeOnTheScreen();
   expect(screen.getAllByText('تعديل يدوي').length).toBeGreaterThan(0);
   expect(screen.getByText('المخزون الأول')).toBeOnTheScreen();
+});
+
+it('on iPad, edits a piece beside the list and updates the list', async () => {
+  mockUnlocked = 'jewelry';
+  mockWidth = 1180;
+  const app = await renderRouter(routes, { initialUrl: '/jewelry/products' });
+
+  expect(await screen.findByText('اختر قطعة من القائمة')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByText('بروش'));
+  // The form opens beside the list; the address does not change.
+  expect(await screen.findByDisplayValue('بروش')).toBeOnTheScreen();
+  expect(app.getPathname()).toBe('/jewelry/products');
+
+  await fireEvent.changeText(screen.getByTestId('product-price'), '95');
+  await fireEvent.press(screen.getByRole('button', { name: 'حفظ' }));
+  expect(await screen.findByText('95 د.ل')).toBeOnTheScreen();
+  expect(screen.getByText('اختر قطعة من القائمة')).toBeOnTheScreen();
+
+  // A new piece also opens beside the list.
+  await fireEvent.press(screen.getByRole('button', { name: 'إضافة قطعة' }));
+  expect(await screen.findByText('قطعة جديدة')).toBeOnTheScreen();
+  expect(app.getPathname()).toBe('/jewelry/products');
+  mockWidth = 390;
 });

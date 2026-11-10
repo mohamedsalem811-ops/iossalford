@@ -1,9 +1,18 @@
 import * as Haptics from 'expo-haptics';
-import { Stack } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 
-import { Button, Card, ChipRow, Icon, NumberField, Segmented, Text, TextField } from '@/components';
+import {
+  Button,
+  Card,
+  ChipRow,
+  FormHeader,
+  Icon,
+  NumberField,
+  Segmented,
+  Text,
+  TextField,
+} from '@/components';
 import { listBrands } from '@/domain/brands';
 import type { Ctx } from '@/domain/context';
 import { RuleError } from '@/domain/context';
@@ -35,11 +44,14 @@ export function ProductFormView({
   ctx,
   productId,
   onDone,
+  embedded = false,
 }: {
   ctx: Ctx;
   /** undefined: a new piece. */
   productId?: number;
   onDone: () => void;
+  /** Shown beside the list on iPad, with its own title bar. */
+  embedded?: boolean;
 }) {
   const { colors } = useTheme();
   const [initial] = useState(() => {
@@ -98,15 +110,13 @@ export function ProductFormView({
 
   return (
     <>
-      <Stack.Title>{productId ? 'تعديل القطعة' : 'قطعة جديدة'}</Stack.Title>
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button onPress={onDone}>إلغاء</Stack.Toolbar.Button>
-      </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button variant="done" onPress={save}>
-          حفظ
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+      <FormHeader
+        title={productId ? 'تعديل القطعة' : 'قطعة جديدة'}
+        embedded={embedded}
+        cancelLabel={embedded ? 'إغلاق' : 'إلغاء'}
+        onCancel={onDone}
+        onSave={save}
+      />
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.background }}
         contentContainerStyle={{

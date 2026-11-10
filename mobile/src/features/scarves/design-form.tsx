@@ -1,5 +1,4 @@
 import * as Haptics from 'expo-haptics';
-import { Stack } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 
@@ -8,6 +7,7 @@ import {
   Card,
   ChipRow,
   FilterChip,
+  FormHeader,
   Icon,
   NumberField,
   Text,
@@ -41,11 +41,14 @@ export function DesignFormView({
   ctx,
   designId,
   onDone,
+  embedded = false,
 }: {
   ctx: Ctx;
   /** undefined: a new design. */
   designId?: string;
   onDone: () => void;
+  /** Shown beside the list on iPad, with its own title bar. */
+  embedded?: boolean;
 }) {
   const { colors } = useTheme();
   const [initial] = useState(() => {
@@ -100,15 +103,13 @@ export function DesignFormView({
 
   return (
     <>
-      <Stack.Title>{initial.design ? 'تعديل التصميم' : 'تصميم جديد'}</Stack.Title>
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button onPress={onDone}>إلغاء</Stack.Toolbar.Button>
-      </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button variant="done" onPress={save}>
-          حفظ
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+      <FormHeader
+        title={initial.design ? 'تعديل التصميم' : 'تصميم جديد'}
+        embedded={embedded}
+        cancelLabel={embedded ? 'إغلاق' : 'إلغاء'}
+        onCancel={onDone}
+        onSave={save}
+      />
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.background }}
         contentContainerStyle={{

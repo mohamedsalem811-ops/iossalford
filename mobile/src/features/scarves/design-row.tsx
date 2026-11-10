@@ -1,7 +1,7 @@
 import type { Href } from 'expo-router';
 import { Link, router } from 'expo-router';
 import { useRef } from 'react';
-import { Pressable, View } from 'react-native';
+import { ActionSheetIOS, Pressable, View } from 'react-native';
 import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
@@ -23,6 +23,8 @@ export function DesignRow({
   brandImage,
   onDelete,
   onAdjust,
+  onOpen,
+  selected = false,
 }: {
   system: SystemId;
   design: ScarfDesign;
@@ -31,12 +33,103 @@ export function DesignRow({
   onDelete: (d: ScarfDesign) => void;
   /** Opens the stock sheet for one size. */
   onAdjust: (productId: number) => void;
+  /** iPad split view: tapping selects the design instead of navigating. */
+  onOpen?: () => void;
+  selected?: boolean;
 }) {
   const { colors } = useTheme();
   const swipe = useRef<SwipeableMethods>(null);
   const first = d.sizes[0];
   const photo = d.sizes.find((s) => s.imageFile)?.imageFile ?? null;
   const details = designDetails(d);
+  const menu = () => {
+    const items = [
+      ...d.sizes.map((s) => ({
+        title: `تعديل مخزون ${s.size ?? '—'} (${s.stock})`,
+        run: () => onAdjust(s.id),
+      })),
+      { title: 'حذف التصميم', run: () => onDelete(d) },
+    ];
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        title: d.name,
+        options: [...items.map((i) => i.title), 'إلغاء'],
+        cancelButtonIndex: items.length,
+        destructiveButtonIndex: items.length - 1,
+      },
+      (index) => items[index]?.run(),
+    );
+  };
+
+  const body = (
+    <Pressable
+      testID={`design-${first.name}`}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      accessibilityHint="اضغط لتعديل التصميم ومقاساته"
+      onPress={onOpen}
+      onLongPress={onOpen ? menu : undefined}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.ms,
+        paddingVertical: spacing.sm,
+        paddingHorizontal: spacing.md,
+        backgroundColor: pressed || selected ? colors.accentSoft : colors.surface,
+      })}>
+      <ProductPhoto system={system} imageFile={photo} size={64} />
+      <View style={{ flex: 1, gap: 3 }}>
+        {first.brand && first.brandId !== null ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <BrandBadge name={first.brand} imageFile={brandImage} system={system} size={16} />
+            <Text variant="caption" tone="accent" numberOfLines={1}>
+              {first.brand}
+            </Text>
+          </View>
+        ) : null}
+        <Text variant="bodyStrong" numberOfLines={2}>
+          {first.name}
+        </Text>
+        {details ? (
+          <Text variant="caption" tone="secondary" numberOfLines={1}>
+            {details}
+          </Text>
+        ) : null}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+          {d.sizes.map((s) => {
+            const state = stockState(s);
+            return (
+              <View
+                key={s.id}
+                style={{
+                  paddingHorizontal: 6,
+                  paddingVertical: 1,
+                  borderRadius: radius.full,
+                  backgroundColor: colors.accentSoft,
+                }}>
+                <Text
+                  variant="caption"
+                  style={{ color: state === 'ok' ? colors.accent : colors.warning }}>
+                  {`${s.size ?? '—'}: ${s.stock}`}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+        <Text variant="subhead" tone="accent">
+          {priceRange(d)}
+        </Text>
+      </View>
+      <View style={{ alignItems: 'center', minWidth: 48 }}>
+        <Text variant="headline" center tone={d.totalStock > 0 ? 'primary' : 'warning'}>
+          {d.totalStock}
+        </Text>
+        <Text variant="caption" tone="secondary" center>
+          {d.totalStock > 0 ? 'قطعة' : 'نفد'}
+        </Text>
+      </View>
+    </Pressable>
+  );
 
   return (
     <ReanimatedSwipeable
@@ -64,96 +157,35 @@ export function DesignRow({
           </Text>
         </Pressable>
       )}>
-      <Link href={href} asChild>
-        <Link.Trigger>
-          <Pressable
-            testID={`design-${first.name}`}
-            accessibilityRole="button"
-            accessibilityHint="اضغط لتعديل التصميم ومقاساته"
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: spacing.ms,
-              paddingVertical: spacing.sm,
-              paddingHorizontal: spacing.md,
-              backgroundColor: pressed ? colors.accentSoft : colors.surface,
-            })}>
-            <ProductPhoto system={system} imageFile={photo} size={64} />
-            <View style={{ flex: 1, gap: 3 }}>
-              {first.brand && first.brandId !== null ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <BrandBadge name={first.brand} imageFile={brandImage} system={system} size={16} />
-                  <Text variant="caption" tone="accent" numberOfLines={1}>
-                    {first.brand}
-                  </Text>
-                </View>
-              ) : null}
-              <Text variant="bodyStrong" numberOfLines={2}>
-                {first.name}
-              </Text>
-              {details ? (
-                <Text variant="caption" tone="secondary" numberOfLines={1}>
-                  {details}
-                </Text>
-              ) : null}
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-                {d.sizes.map((s) => {
-                  const state = stockState(s);
-                  return (
-                    <View
-                      key={s.id}
-                      style={{
-                        paddingHorizontal: 6,
-                        paddingVertical: 1,
-                        borderRadius: radius.full,
-                        backgroundColor: colors.accentSoft,
-                      }}>
-                      <Text
-                        variant="caption"
-                        style={{ color: state === 'ok' ? colors.accent : colors.warning }}>
-                        {`${s.size ?? '—'}: ${s.stock}`}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-              <Text variant="subhead" tone="accent">
-                {priceRange(d)}
-              </Text>
-            </View>
-            <View style={{ alignItems: 'center', minWidth: 48 }}>
-              <Text variant="headline" center tone={d.totalStock > 0 ? 'primary' : 'warning'}>
-                {d.totalStock}
-              </Text>
-              <Text variant="caption" tone="secondary" center>
-                {d.totalStock > 0 ? 'قطعة' : 'نفد'}
-              </Text>
-            </View>
-          </Pressable>
-        </Link.Trigger>
-        <Link.Menu>
-          <Link.MenuAction
-            title="تعديل التصميم والمقاسات"
-            icon="pencil"
-            onPress={() => router.push(href)}
-          />
-          <Link.Menu title="تعديل المخزون" icon="shippingbox">
-            {d.sizes.map((s) => (
-              <Link.MenuAction
-                key={s.id}
-                title={`${s.size ?? '—'} (${s.stock})`}
-                onPress={() => onAdjust(s.id)}
-              />
-            ))}
+      {onOpen ? (
+        body
+      ) : (
+        <Link href={href} asChild>
+          <Link.Trigger>{body}</Link.Trigger>
+          <Link.Menu>
+            <Link.MenuAction
+              title="تعديل التصميم والمقاسات"
+              icon="pencil"
+              onPress={() => router.push(href)}
+            />
+            <Link.Menu title="تعديل المخزون" icon="shippingbox">
+              {d.sizes.map((s) => (
+                <Link.MenuAction
+                  key={s.id}
+                  title={`${s.size ?? '—'} (${s.stock})`}
+                  onPress={() => onAdjust(s.id)}
+                />
+              ))}
+            </Link.Menu>
+            <Link.MenuAction
+              title="حذف التصميم"
+              icon="trash"
+              destructive
+              onPress={() => onDelete(d)}
+            />
           </Link.Menu>
-          <Link.MenuAction
-            title="حذف التصميم"
-            icon="trash"
-            destructive
-            onPress={() => onDelete(d)}
-          />
-        </Link.Menu>
-      </Link>
+        </Link>
+      )}
     </ReanimatedSwipeable>
   );
 }

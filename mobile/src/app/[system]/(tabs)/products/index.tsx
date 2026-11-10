@@ -1,6 +1,7 @@
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState, type Dispatch, type SetStateAction } from 'react';
 
+import { EmptyState, SplitView } from '@/components';
 import { listBrands } from '@/domain/brands';
 import type { Ctx } from '@/domain/context';
 import { groupDesigns, listProducts, type Product, type ScarfDesign } from '@/domain/products';
@@ -14,10 +15,13 @@ import {
   type BrandFilter,
   type ListQuery,
 } from '@/features/products/model';
+import { ProductFormView } from '@/features/products/product-form';
 import { ProductsList } from '@/features/products/products-list';
 import { confirmDeleteDesign } from '@/features/scarves/actions';
+import { DesignFormView } from '@/features/scarves/design-form';
 import { DesignsList } from '@/features/scarves/designs-list';
 import { DEFAULT_DESIGN_QUERY, type DesignQuery } from '@/features/scarves/model';
+import { useLayout } from '@/hooks/use-layout';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import type { SystemId } from '@/theme';
@@ -131,11 +135,46 @@ function Header<Q extends Filters>({
 function JewelryProducts({ ctx }: { ctx: Ctx }) {
   const [query, setQuery] = useState<ListQuery>(DEFAULT_QUERY);
   const data = useProducts(ctx, setQuery);
+  const { split } = useLayout();
+  // iPad: the piece open beside the list ('new' for a new one).
+  const [open, setOpen] = useState<number | 'new' | null>(null);
   const system = ctx.system;
   const editHref = (p: Product) =>
     ({ pathname: '/[system]/product/[id]', params: { system, id: String(p.id) } }) as const;
   const add = () =>
-    router.push({ pathname: '/[system]/product/[id]', params: { system, id: 'new' } });
+    split
+      ? setOpen('new')
+      : router.push({ pathname: '/[system]/product/[id]', params: { system, id: 'new' } });
+  // A piece deleted while open closes its form.
+  const shown = open === 'new' || data.products.some((p) => p.id === open) ? open : null;
+
+  const list = (
+    <ProductsList
+      system={system}
+      products={data.products}
+      brandImages={data.brandImages}
+      query={query}
+      onQuery={setQuery}
+      editHref={editHref}
+      onAdd={add}
+      onOpen={split ? (p) => setOpen(p.id) : undefined}
+      selectedId={typeof shown === 'number' ? shown : undefined}
+      actions={{
+        onPhoto: (p) =>
+          p.imageFile
+            ? router.push({
+                pathname: '/[system]/photo/[id]',
+                params: { system, id: String(p.id) },
+              })
+            : split
+              ? setOpen(p.id)
+              : router.push(editHref(p)),
+        onStep: (p, delta) => stepStock(ctx, p, delta),
+        onAdjust: (p) => adjustSheet(system, p.id),
+        onDelete: (p) => confirmDelete(ctx, p),
+      }}
+    />
+  );
 
   return (
     <>
@@ -147,27 +186,32 @@ function JewelryProducts({ ctx }: { ctx: Ctx }) {
         setQuery={setQuery}
         onAdd={add}
       />
-      <ProductsList
-        system={system}
-        products={data.products}
-        brandImages={data.brandImages}
-        query={query}
-        onQuery={setQuery}
-        editHref={editHref}
-        onAdd={add}
-        actions={{
-          onPhoto: (p) =>
-            p.imageFile
-              ? router.push({
-                  pathname: '/[system]/photo/[id]',
-                  params: { system, id: String(p.id) },
-                })
-              : router.push(editHref(p)),
-          onStep: (p, delta) => stepStock(ctx, p, delta),
-          onAdjust: (p) => adjustSheet(system, p.id),
-          onDelete: (p) => confirmDelete(ctx, p),
-        }}
-      />
+      {split ? (
+        <SplitView
+          list={list}
+          detail={
+            shown === null ? (
+              <EmptyState
+                icon="shippingbox"
+                title="اختر قطعة من القائمة"
+                message="تظهر هنا لتعديلها، أو أضف قطعة جديدة."
+                action="إضافة قطعة"
+                onAction={add}
+              />
+            ) : (
+              <ProductFormView
+                key={String(shown)}
+                ctx={ctx}
+                productId={shown === 'new' ? undefined : shown}
+                embedded
+                onDone={() => setOpen(null)}
+              />
+            )
+          }
+        />
+      ) : (
+        list
+      )}
     </>
   );
 }
@@ -178,11 +222,35 @@ const firstOfEachDesign = (products: Product[]) => groupDesigns(products).map((d
 function ScarvesProducts({ ctx }: { ctx: Ctx }) {
   const [query, setQuery] = useState<DesignQuery>(DEFAULT_DESIGN_QUERY);
   const data = useProducts(ctx, setQuery, firstOfEachDesign);
+  const { split } = useLayout();
+  // iPad: the design open beside the list ('new' for a new one).
+  const [open, setOpen] = useState<string | null>(null);
   const system = ctx.system;
   const href = (d: ScarfDesign) =>
     ({ pathname: '/[system]/design/[id]', params: { system, id: d.id } }) as const;
   const add = () =>
-    router.push({ pathname: '/[system]/design/[id]', params: { system, id: 'new' } });
+    split
+      ? setOpen('new')
+      : router.push({ pathname: '/[system]/design/[id]', params: { system, id: 'new' } });
+  // A design deleted while open closes its form.
+  const shown =
+    open === 'new' || groupDesigns(data.products).some((d) => d.id === open) ? open : null;
+
+  const list = (
+    <DesignsList
+      system={system}
+      products={data.products}
+      brandImages={data.brandImages}
+      query={query}
+      onQuery={setQuery}
+      href={href}
+      onDelete={(d) => confirmDeleteDesign(ctx, d)}
+      onAdjust={(id) => adjustSheet(system, id)}
+      onAdd={add}
+      onOpen={split ? (d) => setOpen(d.id) : undefined}
+      selectedId={shown ?? undefined}
+    />
+  );
 
   return (
     <>
@@ -194,17 +262,32 @@ function ScarvesProducts({ ctx }: { ctx: Ctx }) {
         setQuery={setQuery}
         onAdd={add}
       />
-      <DesignsList
-        system={system}
-        products={data.products}
-        brandImages={data.brandImages}
-        query={query}
-        onQuery={setQuery}
-        href={href}
-        onDelete={(d) => confirmDeleteDesign(ctx, d)}
-        onAdjust={(id) => adjustSheet(system, id)}
-        onAdd={add}
-      />
+      {split ? (
+        <SplitView
+          list={list}
+          detail={
+            shown === null ? (
+              <EmptyState
+                icon="wind"
+                title="اختر تصميماً من القائمة"
+                message="يظهر هنا بكل مقاساته لتعديله، أو أضف تصميماً جديداً."
+                action="تصميم جديد"
+                onAction={add}
+              />
+            ) : (
+              <DesignFormView
+                key={shown}
+                ctx={ctx}
+                designId={shown === 'new' ? undefined : shown}
+                embedded
+                onDone={() => setOpen(null)}
+              />
+            )
+          }
+        />
+      ) : (
+        list
+      )}
     </>
   );
 }
