@@ -6,6 +6,8 @@ import { useCtx } from '@/state/system-db';
 import type { SystemId } from '@/theme';
 
 const ROUTES: Record<ManageTarget, (system: SystemId) => Href> = {
+  sales: (system) => ({ pathname: '/[system]/sales', params: { system } }),
+  returns: (system) => ({ pathname: '/[system]/returns', params: { system } }),
   brands: (system) => ({ pathname: '/[system]/brands', params: { system } }),
   sets: (system) => ({ pathname: '/[system]/manage-sets', params: { system } }),
   settings: (system) => ({ pathname: '/[system]/settings', params: { system } }),
