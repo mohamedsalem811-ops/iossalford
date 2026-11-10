@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { useReducer } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 import { Button, Card, EmptyState, Icon, Stepper, Text } from '@/components';
@@ -9,6 +10,7 @@ import { getRate } from '@/domain/settings';
 import { parseThousandths } from '@/lib/digits';
 import { editableDinars, formatLyd, formatRate, formatUsd } from '@/lib/money';
 import { useCart } from '@/state/cart';
+import { useOnDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
 import { showCartProblem } from './actions';
@@ -30,6 +32,9 @@ export function CartView({
 }) {
   const { colors } = useTheme();
   const { cart, setCart } = useCart(ctx.system);
+  // Stock or prices changed elsewhere (a delivery, an edit): check the lines again.
+  const [, recheck] = useReducer((n: number) => n + 1, 0);
+  useOnDataChanged(recheck);
   const rate = getRate(ctx);
   const totals = cartTotals(cart, rate);
   const warnings = stockWarnings(cart, (id) => getProduct(ctx, id));

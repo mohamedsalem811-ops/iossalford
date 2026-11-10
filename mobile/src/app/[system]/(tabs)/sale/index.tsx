@@ -1,3 +1,4 @@
+import * as Haptics from 'expo-haptics';
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
 
@@ -29,13 +30,15 @@ export default function SaleRoute() {
     router.push({ pathname: '/[system]/sizes/[id]', params: { system, id: designId } });
   const onTap = (item: SaleItem) =>
     item.kind === 'design' ? openSizes(item.design.id) : addPiece(ctx, item.product);
-  const onLongPress = (item: SaleItem) =>
-    item.kind === 'design'
+  const onLongPress = (item: SaleItem) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    return item.kind === 'design'
       ? openSizes(item.design.id)
       : router.push({
           pathname: '/[system]/add/[id]',
           params: { system, id: String(item.product.id) },
         });
+  };
   const checkout = () => router.push({ pathname: '/[system]/checkout', params: { system } });
 
   const grid = (
@@ -55,7 +58,11 @@ export default function SaleRoute() {
     <>
       <Stack.Title>بيع</Stack.Title>
       <Stack.SearchBar
-        placeholder="اسم القطعة أو الكود أو الماركة"
+        placeholder={
+          system === 'scarves'
+            ? 'التصميم أو الماركة أو اللون أو الكود'
+            : 'اسم القطعة أو الكود أو الماركة'
+        }
         cancelButtonText="إلغاء"
         hideWhenScrolling={false}
         onChangeText={(e) => setQuery((q) => ({ ...q, search: e.nativeEvent.text }))}

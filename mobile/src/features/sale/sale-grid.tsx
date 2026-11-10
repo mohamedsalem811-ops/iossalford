@@ -57,7 +57,8 @@ export function SaleGrid({
     system === 'scarves' ? groupDesigns(products).map((d) => d.sizes[0]) : products,
   );
   const items = saleItems(system, products, query);
-  const columns = gridColumns(width || 390, 150, GAP, PADDING);
+  // 2 on iPhone, up to 5 on iPad.
+  const columns = Math.min(5, gridColumns(width || 390, 150, GAP, PADDING));
   const cell = width ? (width - PADDING * 2 + GAP) / columns : 0;
   const categories = [
     { value: '', label: 'الكل' },

@@ -20,7 +20,7 @@ import SetsRoute from '@/app/[system]/sets';
 import SizesRoute from '@/app/[system]/sizes/[id]';
 import SoldRoute from '@/app/[system]/sold/[id]';
 import type { Ctx } from '@/domain/context';
-import { getProduct, saveProduct, saveScarfDesign } from '@/domain/products';
+import { adjustStock, getProduct, saveProduct, saveScarfDesign } from '@/domain/products';
 import { listSales } from '@/domain/sales';
 import { saveSet } from '@/domain/sets';
 import { getCart, putCart } from '@/state/cart';
@@ -71,10 +71,11 @@ jest.mock('@expo/ui/community/segmented-control', () => ({
     );
   },
 }));
-// An iPhone-sized window: the cart opens as a sheet.
+// An iPhone-sized window (the cart opens as a sheet) unless a test sets an iPad.
+let mockIpad = false;
 jest.mock('@/hooks/use-layout', () => ({
   ...jest.requireActual('@/hooks/use-layout'),
-  useLayout: () => ({ split: false, cartBeside: false }),
+  useLayout: () => ({ split: mockIpad, cartBeside: mockIpad }),
 }));
 // Already unlocked: the PIN screens have their own tests.
 let mockUnlocked = 'jewelry';
@@ -139,6 +140,7 @@ async function layoutGrid() {
 // pieces, and starts with empty carts.
 beforeEach(() => {
   mockUnlocked = 'jewelry';
+  mockIpad = false;
   putCart('jewelry', []);
   putCart('scarves', []);
 });
@@ -274,4 +276,34 @@ it('adds with a chosen quantity and a negotiated price from the long-press sheet
   expect(screen.getByTestId('add-total')).toHaveTextContent('المجموع: 600 د.ل');
   await fireEvent.press(screen.getByTestId('add-confirm'));
   expect(getCart('jewelry')).toMatchObject([{ quantity: 2, unitPrice: 300_000 }]);
+});
+
+it('on iPad keeps the cart beside the products', async () => {
+  mockIpad = true;
+  const ctx = ctxOf('jewelry');
+  saveProduct(ctx, { name: 'Pearl', category: 'أقراط', price: 120_000, stock: 1 });
+  await renderRouter(routes, { initialUrl: '/jewelry/sale' });
+  expect(await screen.findByText('السلة فارغة')).toBeOnTheScreen();
+  await layoutGrid();
+  await fireEvent.press(screen.getByTestId('sale-tile-Pearl'));
+  expect(await screen.findByText('السلة (1)')).toBeOnTheScreen();
+  expect(screen.getByTestId('cart-total')).toHaveTextContent('120 د.ل');
+});
+
+it('warns about a piece whose stock went down while it was in the cart, and blocks checkout', async () => {
+  const ctx = ctxOf('jewelry');
+  const id = saveProduct(ctx, { name: 'Bangle', category: 'أساور', price: 80_000, stock: 2 });
+  await renderRouter(routes, { initialUrl: '/jewelry/sale' });
+  await layoutGrid();
+  await fireEvent.press(screen.getByTestId('sale-tile-Bangle'));
+  await fireEvent.press(screen.getByTestId('sale-tile-Bangle'));
+  adjustStock(ctx, id, -1, 'كسر');
+  await act(() => router.push('/jewelry/cart'));
+  expect(await screen.findByTestId('cart-warning')).toHaveTextContent(
+    '«Bangle»: المطلوب 2 والمتوفر 1 فقط',
+  );
+  expect(screen.getByTestId('cart-checkout')).toBeDisabled();
+  await fireEvent.press(screen.getByTestId('cart-qty-Bangle-minus'));
+  expect(screen.queryByTestId('cart-warning')).toBeNull();
+  expect(screen.getByTestId('cart-checkout')).toBeEnabled();
 });

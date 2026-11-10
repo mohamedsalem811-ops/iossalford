@@ -371,5 +371,8 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - iPad: the list is on the leading side (the right, in Arabic, as in iOS's own apps) and the open piece beside it.
 - Face ID works only in the installed `.ipa`: Expo Go cannot use Face ID on iOS (Expo's own limitation). In Expo Go the login says so and the PIN is used; in the app, a failed or blocked Face ID says why.
 - The exchange-rate editor is on the dashboard from Phase 4 (tap "سعر الصرف"), because dollar costs need the real rate; Phase 7 adds it to Settings too.
+- Selling: while a sale is open, the cart bar sits above the tabs on iPhone (the iOS 26 tab bar accessory, as in Apple Music) and the Sale tab shows the number of pieces; on iPad the cart is always beside the products, on the right. The cart is kept until checkout, also while the app is locked; fully closing the app empties it (nothing is sold until checkout).
+- Sets management (create, edit, delete; item 7.7) was brought forward into Phase 5 so a set can be sold and tested now. It is under Management → Sets and from the sets button on the sale screen.
+- After checkout the success screen shows the receipt number and its lines; printing and sharing the receipt come in Phase 6.
 
 Status: Phases 0 to 4 are merged; Phase 5 is in progress.

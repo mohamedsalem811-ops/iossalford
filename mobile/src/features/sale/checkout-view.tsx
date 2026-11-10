@@ -16,10 +16,9 @@ import {
   TextField,
 } from '@/components';
 import { checkout, PAYMENT_LABELS, PAYMENT_METHODS, type PaymentMethod } from '@/domain/checkout';
-import type { Ctx } from '@/domain/context';
+import { RuleError, type Ctx } from '@/domain/context';
 import { customerByPhone, customerSuggestions, type Customer } from '@/domain/customers';
 import { getRate } from '@/domain/settings';
-import { showError } from '@/features/products/actions';
 import { formatLyd, formatRate, formatUsd } from '@/lib/money';
 import { putCart, useCart } from '@/state/cart';
 import { notifyDataChanged } from '@/state/data-events';
@@ -87,8 +86,12 @@ export function CheckoutView({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       onSold(r.saleId);
     } catch (error) {
+      // Nothing was sold: stock is checked again here (it may have changed since it was added).
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      showError(error);
+      Alert.alert(
+        'لم يتم البيع',
+        error instanceof RuleError ? error.message : 'حدث خطأ غير متوقع، لم يُبَع أي شيء.',
+      );
       setBusy(false);
     }
   };
