@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { NativeTabs } from 'expo-router/native-tabs';
+import { I18nManager } from 'react-native';
 
 import { cartPieces, cartTotal } from '@/domain/cart';
 import { CartAccessory } from '@/features/sale/cart-accessory';
@@ -20,7 +21,12 @@ export default function TabsLayout() {
   const { cartBeside } = useLayout();
   const pieces = cartPieces(cart);
   return (
-    <NativeTabs tintColor={colors.accent} minimizeBehavior="onScrollDown">
+    <NativeTabs
+      tintColor={colors.accent}
+      minimizeBehavior="onScrollDown"
+      // iOS lays the tab bar out in the device's own direction, not the app's forced Arabic
+      // direction (Expo Go, or a device set to English): الرئيسية must be on the right.
+      unstable_nativeProps={{ direction: I18nManager.isRTL ? 'rtl' : 'ltr' }}>
       {pieces > 0 && !cartBeside ? (
         <NativeTabs.BottomAccessory>
           <CartAccessory
@@ -37,7 +43,7 @@ export default function TabsLayout() {
       <NativeTabs.Trigger name="sale">
         <NativeTabs.Trigger.Label>بيع</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'cart', selected: 'cart.fill' }} />
-        <NativeTabs.Trigger.Badge hidden={pieces === 0}>{String(pieces)}</NativeTabs.Trigger.Badge>
+        {pieces > 0 ? <NativeTabs.Trigger.Badge>{String(pieces)}</NativeTabs.Trigger.Badge> : null}
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="products">
         <NativeTabs.Trigger.Label>المنتجات</NativeTabs.Trigger.Label>
