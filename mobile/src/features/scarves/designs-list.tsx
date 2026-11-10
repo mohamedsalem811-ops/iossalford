@@ -26,6 +26,7 @@ export function DesignsList({
   onQuery,
   href,
   onDelete,
+  onAdjust,
   onAdd,
 }: {
   system: SystemId;
@@ -35,6 +36,7 @@ export function DesignsList({
   onQuery: (q: DesignQuery) => void;
   href: (d: ScarfDesign) => Href;
   onDelete: (d: ScarfDesign) => void;
+  onAdjust: (productId: number) => void;
   onAdd: () => void;
 }) {
   const { colors } = useTheme();
@@ -113,6 +115,7 @@ export function DesignsList({
                 : null
             }
             onDelete={onDelete}
+            onAdjust={onAdjust}
           />
         )}
       />

@@ -14,6 +14,7 @@ import Products from '@/app/[system]/(tabs)/products/index';
 import BrandsRoute from '@/app/[system]/brands';
 import DesignRoute from '@/app/[system]/design/[id]';
 import ProductRoute from '@/app/[system]/product/[id]';
+import StockRoute from '@/app/[system]/stock/[id]';
 
 jest.mock('expo-haptics', () => ({
   selectionAsync: jest.fn(() => Promise.resolve()),
@@ -87,6 +88,7 @@ const routes = {
   '[system]/product/[id]': ProductRoute,
   '[system]/design/[id]': DesignRoute,
   '[system]/brands': BrandsRoute,
+  '[system]/stock/[id]': StockRoute,
 };
 
 afterEach(() => jest.restoreAllMocks());
@@ -263,4 +265,37 @@ it('changes stock and deletes from the swipe buttons', async () => {
   await act(async () => buttons.find((b) => b.text === 'حذف')?.onPress?.());
   expect(screen.queryByText('خاتم زركون')).not.toBeOnTheScreen();
   expect(summary()).toHaveTextContent('1 صنف • 0 قطعة في المخزن');
+});
+
+it('adds stock with a reason from the stock sheet and shows it in the history', async () => {
+  mockUnlocked = 'jewelry';
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  const app = await renderRouter(routes, { initialUrl: '/jewelry/products' });
+
+  // بروش is the only piece left, with nothing in stock.
+  expect(await screen.findByText('بروش')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'مخزون' }));
+  expect(app.getPathname()).toMatch(/^\/jewelry\/stock\/\d+$/);
+  expect(await screen.findByText(/المتوفر الآن: 0 قطعة/)).toBeOnTheScreen();
+
+  // A reason is needed.
+  await fireEvent.press(screen.getByTestId('stock-save'));
+  expect(alert).toHaveBeenLastCalledWith('لم يتم الحفظ', 'اختر أو اكتب سبب تعديل المخزون');
+
+  await fireEvent.press(screen.getByRole('button', { name: 'توريد جديد' }));
+  await fireEvent.changeText(screen.getByTestId('stock-quantity'), '٣');
+  expect(screen.getByTestId('stock-after')).toHaveTextContent('سيصبح المخزون: 3 قطعة');
+  await fireEvent.press(screen.getByTestId('stock-save'));
+
+  expect(await screen.findByTestId('products-summary')).toHaveTextContent(
+    '1 صنف • 3 قطعة في المخزن',
+  );
+
+  // The history lists the delivery with its reason, newest first.
+  await fireEvent.press(screen.getByRole('button', { name: 'مخزون' }));
+  expect(await screen.findByText(/المتوفر الآن: 3 قطعة/)).toBeOnTheScreen();
+  expect(screen.getByText('+3')).toBeOnTheScreen();
+  expect(screen.getByText(/^توريد جديد • /)).toBeOnTheScreen();
+  expect(screen.getAllByText('تعديل يدوي').length).toBeGreaterThan(0);
+  expect(screen.getByText('المخزون الأول')).toBeOnTheScreen();
 });

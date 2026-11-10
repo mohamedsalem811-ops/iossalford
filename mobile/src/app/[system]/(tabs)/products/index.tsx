@@ -20,6 +20,7 @@ import { DesignsList } from '@/features/scarves/designs-list';
 import { DEFAULT_DESIGN_QUERY, type DesignQuery } from '@/features/scarves/model';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import type { SystemId } from '@/theme';
 
 /** Jewelry lists pieces; scarves list designs with all their sizes. */
 export default function ProductsRoute() {
@@ -30,6 +31,9 @@ export default function ProductsRoute() {
 type Filters = Pick<ListQuery, 'search' | 'brand' | 'sort' | 'stock'>;
 
 const everyProduct = (products: Product[]) => products;
+
+const adjustSheet = (system: SystemId, id: number) =>
+  router.push({ pathname: '/[system]/stock/[id]', params: { system, id: String(id) } });
 
 /**
  * The system's products, read again whenever the tab comes back into view or data changes. A
@@ -160,6 +164,7 @@ function JewelryProducts({ ctx }: { ctx: Ctx }) {
                 })
               : router.push(editHref(p)),
           onStep: (p, delta) => stepStock(ctx, p, delta),
+          onAdjust: (p) => adjustSheet(system, p.id),
           onDelete: (p) => confirmDelete(ctx, p),
         }}
       />
@@ -197,6 +202,7 @@ function ScarvesProducts({ ctx }: { ctx: Ctx }) {
         onQuery={setQuery}
         href={href}
         onDelete={(d) => confirmDeleteDesign(ctx, d)}
+        onAdjust={(id) => adjustSheet(system, id)}
         onAdd={add}
       />
     </>

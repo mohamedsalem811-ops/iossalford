@@ -22,12 +22,15 @@ export function DesignRow({
   href,
   brandImage,
   onDelete,
+  onAdjust,
 }: {
   system: SystemId;
   design: ScarfDesign;
   href: Href;
   brandImage: string | null;
   onDelete: (d: ScarfDesign) => void;
+  /** Opens the stock sheet for one size. */
+  onAdjust: (productId: number) => void;
 }) {
   const { colors } = useTheme();
   const swipe = useRef<SwipeableMethods>(null);
@@ -134,6 +137,15 @@ export function DesignRow({
             icon="pencil"
             onPress={() => router.push(href)}
           />
+          <Link.Menu title="تعديل المخزون" icon="shippingbox">
+            {d.sizes.map((s) => (
+              <Link.MenuAction
+                key={s.id}
+                title={`${s.size ?? '—'} (${s.stock})`}
+                onPress={() => onAdjust(s.id)}
+              />
+            ))}
+          </Link.Menu>
           <Link.MenuAction
             title="حذف التصميم"
             icon="trash"

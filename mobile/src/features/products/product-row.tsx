@@ -18,12 +18,14 @@ import { ProductPhoto } from './product-photo';
 export type ProductActions = {
   onPhoto: (p: Product) => void;
   onStep: (p: Product, delta: 1 | -1) => void;
+  /** Opens the stock sheet: any amount, with a reason. */
+  onAdjust: (p: Product) => void;
   onDelete: (p: Product) => void;
 };
 
 /**
- * One product in the list. Tap to edit. Swipe from the right for +1 / −1 stock, from the left for
- * edit and delete. A long press shows the same actions as a menu.
+ * One product in the list. Tap to edit. Swipe from the right for +1 / −1 stock or the stock sheet,
+ * from the left for edit and delete. A long press shows the same actions as a menu.
  */
 export function ProductRow({
   system,
@@ -65,6 +67,12 @@ export function ProductRow({
             color={colors.warning}
             disabled={p.stock <= 0}
             onPress={() => run(() => actions.onStep(p, -1))}
+          />
+          <SwipeAction
+            label="مخزون"
+            icon="shippingbox"
+            color={colors.textSecondary}
+            onPress={() => run(() => actions.onAdjust(p))}
           />
         </View>
       )}
@@ -140,6 +148,11 @@ export function ProductRow({
             icon="minus"
             disabled={p.stock <= 0}
             onPress={() => actions.onStep(p, -1)}
+          />
+          <Link.MenuAction
+            title="تعديل المخزون مع السبب"
+            icon="shippingbox"
+            onPress={() => actions.onAdjust(p)}
           />
           <Link.MenuAction
             title="حذف القطعة"
@@ -219,7 +232,7 @@ function SwipeAction({
   disabled = false,
 }: {
   label: string;
-  icon: 'plus' | 'minus' | 'pencil' | 'trash';
+  icon: 'plus' | 'minus' | 'pencil' | 'trash' | 'shippingbox';
   color: string;
   onPress?: () => void;
   disabled?: boolean;
