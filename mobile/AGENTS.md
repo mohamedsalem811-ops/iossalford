@@ -48,4 +48,5 @@ Docs: https://docs.expo.dev/eas/index.md
 - Only use libraries Expo Go already includes, so every stage previews in Expo Go.
 - Keep everything up to date: newest packages the Expo SDK supports (`npx expo install --check`), latest GitHub Actions, newest stable Xcode.
 - Arabic, right-to-left, digits 0-9 only. Backups stay on the device; no iCloud until the Apple Developer step L2.
+- End of every phase: re-check the whole phase against `docs/EXPO_PLAN.md` and real use (what the owner will need to test it), and fix or add anything missed or wrong before handing it over, without waiting to be asked. List the findings in the pull request.
 - One pull request per phase, kept as a draft while steps are pushed (only the fast checks run). Mark it ready for review when the phase is complete: the `.ipa` build then runs on every push. Publish the Expo Go preview each phase (`eas update --branch preview`); the owner tests it and the `.ipa`. The simulator tests (`mobile-simulator.yml`) run only at the end of the project or for a critical change (security and PINs, saving data, backups), and only after telling the owner why.
