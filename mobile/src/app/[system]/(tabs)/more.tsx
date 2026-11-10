@@ -2,7 +2,7 @@ import { router, useFocusEffect, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 
 import { copyReminder } from '@/backup/model';
-import { firstBackup, lastCopied } from '@/backup/store';
+import { firstBackup, lastCopied, saveBackup } from '@/backup/store';
 
 import { ManagementScreen, type ManageTarget } from '@/screens/management';
 import { useLock } from '@/state/lock';
@@ -32,13 +32,27 @@ export default function More() {
     [ctx, system],
   );
   const [reminder, setReminder] = useState(read);
+  /** Leaving the system by hand saves a backup too (skipped when nothing changed). */
+  const backupNow = () => {
+    try {
+      saveBackup(ctx, 'auto');
+    } catch {
+      // Never block locking or switching; the next backup tries again.
+    }
+  };
   useFocusEffect(useCallback(() => setReminder(read()), [read]));
   return (
     <ManagementScreen
       reminder={reminder}
       onOpen={(t) => router.push(ROUTES[t](system))}
-      onSwitch={() => router.replace('/')}
-      onLock={lock}
+      onSwitch={() => {
+        backupNow();
+        router.replace('/');
+      }}
+      onLock={() => {
+        backupNow();
+        lock();
+      }}
     />
   );
 }

@@ -6,6 +6,7 @@ import { ActionSheetIOS, Alert, View } from 'react-native';
 import { Button, Card, ListGroup, ListRow, Page, Text } from '@/components';
 import { backupContents } from '@/domain/backup';
 import { RuleError, type Ctx } from '@/domain/context';
+import { canExcludeFromBackup, isAppDataExcluded } from '@/backup/exclusion';
 import { agoText, copyReminder, KIND_LABELS, type BackupInfo } from '@/backup/model';
 import {
   deleteBackup,
@@ -238,9 +239,15 @@ export function BackupScreen({
             ? 'في Expo Go تُحفظ النسخ داخل Expo Go للتجربة فقط. في التطبيق المثبّت تجدها في الملفات ← على الـ iPhone (أو الـ iPad) ← SALFORD POS ← Backups.'
             : 'تجد النسخ في تطبيق الملفات ← على الـ iPhone (أو الـ iPad) ← SALFORD POS ← Backups، وعلى الكمبيوتر عبر الكابل (Finder ← الجهاز ← الملفات ← SALFORD POS).'}
         </Text>
+        <Text variant="caption" tone="secondary" testID="backup-icloud">
+          {canExcludeFromBackup()
+            ? isAppDataExcluded()
+              ? 'لا يُرفع شيء إلى iCloud: بيانات التطبيق ونسخه مستثناة من نسخة الجهاز الاحتياطية في iCloud.'
+              : 'لا يُرفع شيء إلى iCloud.'
+            : 'لا يُرفع شيء إلى iCloud. (استثناء البيانات من نسخة iCloud للجهاز يعمل في التطبيق المثبّت.)'}
+        </Text>
         <Text variant="caption" tone="secondary">
-          لا يُرفع شيء إلى iCloud. حذف التطبيق يحذف بياناته ونسخه، لذا احتفظ بنسخة على الجهاز الآخر
-          أو على كمبيوتر.
+          حذف التطبيق يحذف بياناته ونسخه، لذا احتفظ بنسخة على الجهاز الآخر أو على كمبيوتر.
         </Text>
       </View>
     </Page>
