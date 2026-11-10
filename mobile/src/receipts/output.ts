@@ -1,6 +1,6 @@
 /**
- * Receipt output on the device: one PDF made from the receipt's HTML, then printed (AirPrint),
- * shared (WhatsApp, Mail...) or saved in the Files app under On My iPhone / On My iPad → SALFORD
+ * Receipt output on the device: a PDF made from the receipt's HTML, A6 for the printer
+ * (AirPrint) and A4 to share (WhatsApp, Mail...) or save in the Files app under On My iPhone / On My iPad → SALFORD
  * POS → Receipts. Nothing goes to iCloud or any server.
  */
 import { Directory, File, Paths } from 'expo-file-system';
@@ -10,10 +10,10 @@ import * as Sharing from 'expo-sharing';
 import { TEMPLATES } from '@/domain/receipts';
 
 import { logoFontCss } from './fonts';
-import { PAGE, receiptHtml, type ReceiptDoc } from './templates/html';
+import { PAPERS, receiptHtml, type Paper, type ReceiptDoc } from './templates/html';
 
-/** Room the printer needs at the page edges; the designs' banners start just below it. */
-const MARGINS = { top: 18, bottom: 36, left: 0, right: 0 };
+/** The designs run edge to edge; the printer keeps its own small border on A6. */
+const MARGINS = { top: 0, bottom: 0, left: 0, right: 0 };
 
 /** "SALFORD-Receipt-GR-2026-0007.pdf" */
 export function pdfName(doc: Pick<ReceiptDoc, 'receiptNo'>): string {
@@ -21,24 +21,32 @@ export function pdfName(doc: Pick<ReceiptDoc, 'receiptNo'>): string {
   return `SALFORD-Receipt-${no}.pdf`;
 }
 
-/** Makes the PDF (A4) in the app's cache, named after the receipt number. */
-export async function makePdf(doc: ReceiptDoc): Promise<{ file: File; pages: number }> {
+/**
+ * Makes the PDF in the app's cache, named after the receipt number: A4 to share or keep, A6 for
+ * the printer.
+ */
+export async function makePdf(
+  doc: ReceiptDoc,
+  paper: Paper = 'a4',
+): Promise<{ file: File; pages: number }> {
   const fontCss = await logoFontCss(TEMPLATES[doc.template].system);
+  const size = PAPERS[paper];
   const r = await Print.printToFileAsync({
-    html: receiptHtml(doc, { fontCss }),
-    width: PAGE.width,
-    height: PAGE.height,
+    html: receiptHtml(doc, { paper, fontCss }),
+    width: size.width,
+    height: size.height,
     margins: MARGINS,
   });
-  const file = new File(Paths.cache, pdfName(doc));
+  const name = paper === 'a4' ? pdfName(doc) : pdfName(doc).replace('.pdf', '-A6.pdf');
+  const file = new File(Paths.cache, name);
   if (file.exists) file.delete();
   await new File(r.uri).move(file);
   return { file, pages: r.numberOfPages };
 }
 
-/** Opens the AirPrint window with the receipt (the same PDF that is shared). */
+/** Opens the AirPrint window with the receipt on A6 paper. */
 export async function printReceipt(doc: ReceiptDoc): Promise<void> {
-  const { file } = await makePdf(doc);
+  const { file } = await makePdf(doc, 'a6');
   try {
     await Print.printAsync({ uri: file.uri });
   } catch {

@@ -7,6 +7,7 @@ import {
   receiptHtml,
   receiptMoney,
   receiptTotal,
+  toCss,
   type ReceiptDoc,
 } from './html';
 import { pdfName } from '../output';
@@ -91,17 +92,28 @@ describe('receiptHtml', () => {
     expect(html).toContain('Item Code: RNG-0001');
     expect(html).toContain('سلسلة ذهب');
     expect(html).toContain('1,950.50 LYD');
-    expect(html).toContain('width=595');
     // Rows never split across pages, and the header repeats on each page.
     expect(html).toContain('break-inside: avoid');
     expect(html).toContain('table-header-group');
   });
 
-  it('scales the page to the preview width on screen; the PDF stays A4', () => {
-    const html = receiptHtml(doc(), { previewWidth: 297.5 });
-    expect(html).toContain('zoom: 0.5;');
-    expect(html).toContain('width=device-width');
-    expect(receiptHtml(doc())).toContain('zoom: 1;');
+  it('sizes everything from the paper width, so it fills A4 and A6 edge to edge', () => {
+    const a4 = receiptHtml(doc());
+    expect(a4).toContain('@page { size: A4; margin: 0; }');
+    expect(a4).toContain('--u: calc(100cqw / 595)');
+    expect(a4).toContain('container-type: inline-size');
+    expect(a4).toContain('font-size: calc(11.5 * var(--u))');
+    expect(a4).not.toMatch(/\d+u[;" ]/);
+    const a6 = receiptHtml(doc(), { paper: 'a6' });
+    expect(a6).toContain('@page { size: A6; margin: 0; }');
+    expect(a6).toContain('--u: calc(100cqw / 420)');
+  });
+
+  it('turns receipt units into CSS lengths, and nothing else', () => {
+    expect(toCss('margin: 0 96u; padding: -4.5u .3u')).toBe(
+      'margin: 0 calc(96 * var(--u)); padding: calc(-4.5 * var(--u)) calc(.3 * var(--u))',
+    );
+    expect(toCss('color:#0B0B18; url(a.png) 3px')).toBe('color:#0B0B18; url(a.png) 3px');
   });
 
   it('says a gift receipt and that the number comes on save', () => {

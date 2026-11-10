@@ -1,6 +1,7 @@
 /**
  * The SALFORD logos as HTML for the receipts: the same lettering, sizes and positions as the
- * logo in the centre of the app (components/logo.tsx), drawn at 260×230 and scaled. The logo
+ * logo in the centre of the app (components/logo.tsx), drawn at 260×230 and scaled. Sizes are
+ * written in receipt units ("12u", see html.ts) so the logo scales with the paper. The logo
  * fonts are embedded in the page (fonts.ts), so the PDF uses the exact same letters.
  */
 import type { SystemId } from '@/theme';
@@ -17,7 +18,7 @@ const BASE_W = 260;
 const BASE_H = 230;
 
 const star = (size: number, color: string, style = '') =>
-  `<svg width="${size}" height="${size}" viewBox="0 0 24 24" style="flex:none;${style}"><path d="M12 0C13 8 16 11 24 12C16 13 13 16 12 24C11 16 8 13 0 12C8 11 11 8 12 0Z" fill="${color}"/></svg>`;
+  `<svg viewBox="0 0 24 24" style="flex:none;width:${size}px;height:${size}px;${style}"><path d="M12 0C13 8 16 11 24 12C16 13 13 16 12 24C11 16 8 13 0 12C8 11 11 8 12 0Z" fill="${color}"/></svg>`;
 
 const font = (family: string) => `font-family:'${family}',Georgia,serif;font-weight:normal`;
 
@@ -61,12 +62,20 @@ function scarves(c: LogoColors) {
   </div>`;
 }
 
-/** The system's logo at `width` points wide (the height follows the 260×230 drawing). */
+/** Every "12px" of the 260×230 drawing becomes receipt units at the logo's scale. */
+function toUnits(markup: string, scale: number): string {
+  return markup.replace(
+    /(-?\d+(?:\.\d+)?)px/g,
+    (_, n: string) => `${+(Number(n) * scale).toFixed(3)}u`,
+  );
+}
+
+/** The system's logo `width` receipt units wide (the height follows the 260×230 drawing). */
 export function logoHtml(system: SystemId, width: number, colors: LogoColors): string {
   const scale = width / BASE_W;
-  return `<div role="img" aria-label="SALFORD ${system === 'jewelry' ? 'jewelry' : 'scarfs'}" style="width:${width}px;height:${(BASE_H * scale).toFixed(2)}px;margin:0 auto;direction:ltr;overflow:visible">
-  <div style="position:relative;width:${BASE_W}px;height:${BASE_H}px;transform:scale(${scale.toFixed(4)});transform-origin:top left">
-    ${system === 'jewelry' ? jewelry(colors) : scarves(colors)}
-  </div>
-</div>`;
+  const inner = toUnits(
+    `<div style="position:relative;width:${BASE_W}px;height:${BASE_H}px">${system === 'jewelry' ? jewelry(colors) : scarves(colors)}</div>`,
+    scale,
+  );
+  return `<div role="img" aria-label="SALFORD ${system === 'jewelry' ? 'jewelry' : 'scarfs'}" style="width:${width}u;height:${+(BASE_H * scale).toFixed(3)}u;margin:0 auto;direction:ltr">${inner}</div>`;
 }

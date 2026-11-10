@@ -7,7 +7,7 @@ import { logoFontCss } from '@/receipts/fonts';
 import { PAGE, receiptHtml, type ReceiptDoc } from '@/receipts/templates/html';
 import { radius, useTheme } from '@/theme';
 
-/** The receipt as it will print: the first A4 page, scaled to the width; scroll for more. */
+/** The receipt as it is shared: the first A4 page, filling the width; scroll for more. */
 export function ReceiptPreview({ doc }: { doc: ReceiptDoc }) {
   const { colors } = useTheme();
   const [width, setWidth] = useState(0);
@@ -39,10 +39,7 @@ export function ReceiptPreview({ doc }: { doc: ReceiptDoc }) {
           testID="receipt-preview"
           originWhitelist={['*']}
           source={{
-            html: receiptHtml(doc, {
-              previewWidth: width,
-              fontCss: fontCss?.system === system ? fontCss.css : '',
-            }),
+            html: receiptHtml(doc, { fontCss: fontCss?.system === system ? fontCss.css : '' }),
           }}
           style={{ backgroundColor: '#fff' }}
           scrollEnabled

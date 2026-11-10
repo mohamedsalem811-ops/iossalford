@@ -1,8 +1,12 @@
 /**
- * The receipt as an HTML document on A4 pages, printed to PDF by iOS (expo-print). Same
- * designs and wording as the current app's receipts (English, digits 0-9), with the app's own
- * logo. Long names wrap; a row never splits across pages; on every new page the table header
- * repeats; the total, customer and thank-you block stays together.
+ * The receipt as an HTML document, printed to PDF by iOS (expo-print): A4 for sharing and Files,
+ * A6 for the printer. Same designs and wording as the current app's receipts (English, digits
+ * 0-9), with the app's own logo. Long names wrap; a row never splits across pages; on every new
+ * page the table header repeats; the total, customer and thank-you block stays together.
+ *
+ * Every size is in receipt units ("11.5u"): a fraction of the paper's width, measured on the page
+ * box iOS actually prints into (CSS container units). So the receipt always fills the paper,
+ * whatever scale the print engine uses.
  */
 import type { TemplateId } from '@/domain/receipts';
 import { formatDinars } from '@/lib/money';
@@ -28,8 +32,25 @@ export type ReceiptDoc = {
   }[];
 };
 
-/** A4 in points, as the current app draws it. */
-export const PAGE = { width: 595, height: 842 } as const;
+/** Paper sizes in points, and how wide the design is on each (in receipt units). */
+export const PAPERS = {
+  /** Shared and saved in Files. */
+  a4: { width: 595, height: 842, units: 595, side: 96, outdent: 48, logo: 150, css: 'A4', gap: 1 },
+  /**
+   * Printed: narrower side margins so the text stays readable on the small paper, and half the
+   * vertical space so a usual receipt fits on one sheet.
+   */
+  a6: { width: 298, height: 420, units: 420, side: 24, outdent: 0, logo: 110, css: 'A6', gap: 0.5 },
+} as const;
+export type Paper = keyof typeof PAPERS;
+
+/** A4, the size the preview shows. */
+export const PAGE = PAPERS.a4;
+
+/** "11.5u" → a CSS length that is 11.5 / units of the paper's width. */
+export function toCss(css: string): string {
+  return css.replace(/(?<![\w.#])(-?(?:\d+(?:\.\d+)?|\.\d+))u\b/g, 'calc($1 * var(--u))');
+}
 
 /** "Pandora — Ring (Gold)": brand, name and colour, as on the current receipts. */
 export function itemTitle(i: Pick<ReceiptDoc['items'][number], 'name' | 'brand' | 'color'>) {
@@ -79,11 +100,9 @@ type Look = {
 const ICE = '#C8D8F0';
 const BLUSH = '#F0BED0';
 const INK = '#111114';
-/** The logo's width on the receipt, in points. */
-const LOGO_W = 150;
-
-const jewelryLogo = (c: LogoColors) => logoHtml('jewelry', LOGO_W, c);
-const scarvesLogo = (c: LogoColors) => logoHtml('scarves', LOGO_W, c);
+/** Where a design puts its logo; replaced by the logo at the paper's size. */
+const jewelryLogo = (c: LogoColors) => `<!--logo:jewelry:${JSON.stringify(c)}-->`;
+const scarvesLogo = (c: LogoColors) => `<!--logo:scarves:${JSON.stringify(c)}-->`;
 const onWhite = (system: 'jewelry' | 'scarves'): LogoColors => ({
   ink: INK,
   accent: palettes[system].light.accent,
@@ -148,17 +167,15 @@ const LOOKS: Record<TemplateId, Look> = {
 };
 
 /**
- * `previewWidth`: shown on screen at this width (points). The page is scaled down to fit it
- * exactly; the printed PDF is always real A4.
+ * The receipt on `paper` (A4 unless told). On screen the page fills the view's width.
  */
 export function receiptHtml(
   doc: ReceiptDoc,
-  opts: { previewWidth?: number; fontCss?: string } = {},
+  opts: { paper?: Paper; fontCss?: string } = {},
 ): string {
-  const zoom = opts.previewWidth ? Math.min(1, opts.previewWidth / PAGE.width) : 1;
-  const viewport = opts.previewWidth
-    ? 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
-    : `width=${PAGE.width}`;
+  const paper = PAPERS[opts.paper ?? 'a4'];
+  /** Vertical space, tighter on A6. */
+  const v = (n: number) => +(n * paper.gap).toFixed(2);
   const look = LOOKS[doc.template] ?? LOOKS.salford_light;
   const no = doc.receiptNo ?? '— (assigned on save)';
   const e = escapeHtml;
@@ -171,43 +188,49 @@ export function receiptHtml(
     )
     .join('');
 
-  return `<!DOCTYPE html>
+  const header = look.header.replace(/<!--logo:(jewelry|scarves):(.*?)-->/g, (_, system, c) =>
+    logoHtml(system, paper.logo, JSON.parse(c) as LogoColors),
+  );
+  return toCss(`<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="${viewport}">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   ${opts.fontCss ?? ''}
-  @page { size: A4; margin: 0; }
+  @page { size: ${paper.css}; margin: 0; }
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   html, body { margin: 0; padding: 0; background: #fff; color: #000; }
-  body { width: ${PAGE.width}px; zoom: ${zoom}; font-family: -apple-system, "Helvetica Neue", "Geeza Pro", sans-serif; font-size: 11.5px; }
+  body { width: 100%; font-family: -apple-system, "Helvetica Neue", "Geeza Pro", sans-serif; }
+  /* The page box: its width defines the receipt unit for everything inside. */
+  .page { width: 100%; container-type: inline-size; }
+  .r { --u: calc(100cqw / ${paper.units}); font-size: 11.5u; }
   .banner, .plain { text-align: center; }
-  .banner { padding: 22px 0 16px; }
-  .plain { padding-top: 30px; }
-  .tag { font-size: 9.5px; font-weight: 500; margin-top: 12px; letter-spacing: .3px; }
-  .line { font-size: 11px; margin-top: 10px; }
-  h1 { font-size: 13px; text-align: center; margin: 26px 0 22px; letter-spacing: .5px; }
-  .meta { margin: 0 96px; border-collapse: collapse; }
-  .meta td { padding: 2px 0; }
-  .meta td:first-child { width: 114px; }
-  table.items { width: ${PAGE.width - 192}px; margin: 18px 96px 0; border-collapse: collapse; table-layout: fixed; }
+  .banner { padding: ${v(22)}u 0 ${v(16)}u; }
+  .plain { padding-top: ${v(30)}u; }
+  .tag { font-size: 9.5u; font-weight: 500; margin-top: ${v(12)}u; letter-spacing: .3u; padding: 0 8u; }
+  .line { font-size: 11u; margin-top: ${v(10)}u; }
+  h1 { font-size: 13u; text-align: center; margin: ${v(26)}u 0 ${v(22)}u; letter-spacing: .5u; }
+  .meta { margin: 0 ${paper.side}u; border-collapse: collapse; }
+  .meta td { padding: 2u 0; font-size: 11.5u; }
+  .meta td:first-child { width: 114u; }
+  table.items { width: calc(100% - ${paper.side * 2}u); margin: ${v(18)}u ${paper.side}u 0; border-collapse: collapse; table-layout: fixed; }
   table.items col.c1 { width: 65%; } table.items col.c2 { width: 15%; } table.items col.c3 { width: 20%; }
-  table.items td, table.items th { border: 1px solid #8a8a8a; padding: 4px 8px; font-size: 11px; vertical-align: top; text-align: left; }
+  table.items td, table.items th { border: 1u solid #8a8a8a; padding: 4u 8u; font-size: 11u; vertical-align: top; text-align: left; }
   table.items thead { display: table-header-group; }
-  table.items th { background: ${look.head.bg}; color: ${look.head.fg}; font-size: 11px; }
+  table.items th { background: ${look.head.bg}; color: ${look.head.fg}; }
   tbody.item { break-inside: avoid; page-break-inside: avoid; }
   td.name { overflow-wrap: anywhere; unicode-bidi: plaintext; }
-  td.code { color: #555; font-size: 10.5px; overflow-wrap: anywhere; }
+  td.code { color: #555; font-size: 10.5u; overflow-wrap: anywhere; }
   td.qty { text-align: center; }
-  .end { break-inside: avoid; page-break-inside: avoid; margin: 14px 96px 0; }
-  .total { display: flex; justify-content: space-between; border-top: 1.2px solid #000; padding: 8px 8px 0; font-weight: 700; font-size: 12px; }
-  .customer { margin: 30px -48px 0; font-weight: 700; unicode-bidi: plaintext; }
-  .note { margin: 14px -48px 0; color: #777; font-size: 10px; line-height: 1.5; }
-  .thanks { text-align: center; margin-top: 34px; }
-  .motto { text-align: center; margin-top: 6px; font-weight: 700; font-size: 10.5px; color: #555; }
-  .bottom { height: 40px; }
+  .end { break-inside: avoid; page-break-inside: avoid; margin: ${v(14)}u ${paper.side}u 0; }
+  .total { display: flex; justify-content: space-between; border-top: 1.2u solid #000; padding: 8u 8u 0; font-weight: 700; font-size: 12u; }
+  .customer { margin: ${v(30)}u -${paper.outdent}u 0; font-weight: 700; unicode-bidi: plaintext; }
+  .note { margin: ${v(14)}u -${paper.outdent}u 0; color: #777; font-size: 10u; line-height: 1.5; }
+  .thanks { text-align: center; margin-top: ${v(34)}u; }
+  .motto { text-align: center; margin-top: 6u; font-weight: 700; font-size: 10.5u; color: #555; }
+  .bottom { height: ${v(40)}u; }
 </style></head>
-<body>
-  ${look.header}
+<body><div class="page"><div class="r">
+  ${header}
   <h1>${doc.showPrices ? 'OFFICIAL INVOICE / RECEIPT' : 'GIFT RECEIPT'}</h1>
   <table class="meta">
     <tr><td>Date:</td><td>${e(doc.date)}</td></tr>
@@ -230,5 +253,5 @@ export function receiptHtml(
     ${look.motto ? `<div class="motto">${look.motto}</div>` : ''}
   </div>
   <div class="bottom"></div>
-</body></html>`;
+</div></div></body></html>`);
 }
