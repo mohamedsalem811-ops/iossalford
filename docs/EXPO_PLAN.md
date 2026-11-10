@@ -28,10 +28,10 @@ Every feature of the current app is kept. Items marked **NEW** don't exist in th
 3. I push it to the phase's open pull request right away, so every step shows up there with its CI results.
 4. GitHub Actions builds:
    - the `.ipa` for your iPhone and iPad (as today);
-   - a simulator run that taps through the app on an iPhone and an iPad simulator and takes screenshots for me to review. **NEW**
+   - a simulator run that taps through the app on an iPhone and an iPad simulator and takes screenshots for me to review. **NEW** Started by hand once per phase, before you merge (not on every push): GitHub's macOS simulators are slow and unreliable, and a run takes about an hour.
 5. **NEW: Expo Go preview.** The stage is published to the owner's Expo account; open it in Expo Go on the iPhone or iPad from the link or QR code. Before that, Claude checks it on Expo's cloud iPhone and iPad simulators through the Expo connection (only within what the Expo plan allows; nothing paid without asking).
 6. You install the build (Expo Go preview, or the `.ipa` at key stages) and go through a short checklist.
-7. Each phase is one pull request into `main`. While steps are pushed it stays a draft and only the fast checks run (about 1 minute). When the phase is complete it is marked ready: the `.ipa` and simulator builds run once (about 40 minutes), then it is **merged by you**.
+7. Each phase is one pull request into `main`. While steps are pushed it stays a draft and only the fast checks run (about 1 minute). Once it is marked ready, every push also builds the `.ipa` (about 20 minutes). When the phase is complete I start the simulator run once by hand (about an hour), then it is **merged by you**.
 
 **Expo Go rule:** the app uses only libraries that Expo Go already includes, so every stage can be previewed in Expo Go. In Expo Go the app shows Expo Go's name and icon, and its data is separate from the installed app (test only).
 

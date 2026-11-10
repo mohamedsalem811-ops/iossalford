@@ -2,19 +2,13 @@ name: Expo app simulator tests
 
 # Builds the app for the iOS simulator, runs the Maestro tap-through tests on an
 # iPhone and an iPad simulator, and uploads the screenshots.
+#
+# Started by hand only (Actions -> "Expo app simulator tests" -> Run workflow), once per
+# phase before the owner merges. Every push runs the fast checks and the .ipa build instead:
+# GitHub's macOS simulators are slow and sometimes do not start, and each run takes about an
+# hour.
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/mobile-simulator.yml'
-  # Heavy build: runs once a phase PR is ready (not on every step pushed to a draft).
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - 'mobile/**'
-      - '.github/workflows/mobile-simulator.yml'
   workflow_dispatch:
 
 concurrency:
@@ -26,13 +20,12 @@ jobs:
     # One job per device, side by side: a second simulator in the same job often could not start
     # Maestro's driver while the first device's driver was still holding the host side.
     name: Maestro on ${{ matrix.device }} simulator
-    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     strategy:
       fail-fast: false
       matrix:
         device: [iPhone, iPad]
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 75
     defaults:
       run:
         working-directory: mobile
@@ -55,6 +48,35 @@ jobs:
           VER=$(xcodebuild -version | awk 'NR==1{print $2}')
           python3 -c "import sys; v=tuple(int(x) for x in '$VER'.split('.')); sys.exit(0 if v >= (26,4) else 'Xcode $VER is older than 26.4, which Expo SDK 58 needs')"
 
+      - name: Boot the ${{ matrix.device }} simulator in the background
+        # A freshly booted simulator keeps doing first-boot work for minutes after it reports
+        # "booted"; Maestro's driver then sometimes never started. It now boots and settles while
+        # the app builds (about 25 minutes), at no extra time. Maestro is not started here.
+        run: |
+          set -e
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          kind = sys.argv[1]
+          devs = [d for rt, ds in json.load(sys.stdin)['devices'].items() if 'iOS' in rt for d in ds]
+          names = [d for d in devs if d['name'].startswith(kind)]
+          pro = [d for d in names if 'Pro' in d['name']] or names
+          print(pro[-1]['udid'])" '${{ matrix.device }}')
+          echo "== ${{ matrix.device }}: $UDID"
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+          cat > "$RUNNER_TEMP/warm-up.sh" <<'EOF'
+          UDID=$1
+          say() { echo "== $(date +%T) $*"; }
+          say "booting"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          # Open and close a system app once, so the first app launch is done before the tests.
+          xcrun simctl launch "$UDID" com.apple.Preferences && sleep 15
+          xcrun simctl terminate "$UDID" com.apple.Preferences || true
+          say "simulator is ready"
+          EOF
+          nohup bash "$RUNNER_TEMP/warm-up.sh" "$UDID" > "$RUNNER_TEMP/warm-up.log" 2>&1 < /dev/null &
+          echo "Warm-up started in the background"
+
       - name: Install
         run: npm ci
 
@@ -71,7 +93,18 @@ jobs:
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build_output \
-            CODE_SIGNING_ALLOWED=NO | xcbeautify --renderer github-actions
+            CODE_SIGN_IDENTITY=- \
+            CODE_SIGNING_ALLOWED=YES | xcbeautify --renderer github-actions
+
+      # The app keeps its PINs in the Keychain. On the simulator an unsigned app has no
+      # entitlements and every Keychain call fails, so the app is signed to run locally ("-",
+      # no Apple account needed). The job stops here if the app is not signed; the entitlements
+      # are printed for diagnosis (the Maestro flows are what prove the Keychain works).
+      - name: Check the app is signed
+        run: |
+          APP=build_output/Build/Products/Release-iphonesimulator/SALFORDPOS.app
+          codesign --verify --verbose=2 "$APP"
+          codesign -d --entitlements - "$APP" 2>&1 || true
 
       - name: Install Maestro
         working-directory: .
@@ -91,25 +124,22 @@ jobs:
       - name: Run tests on the ${{ matrix.device }} simulator
         env:
           # A freshly booted simulator is slow on its first launch; the default driver
-          # start-up timeout was too short for the iPad run. A hung driver is retried once below.
-          MAESTRO_DRIVER_STARTUP_TIMEOUT: '300000'
+          # start-up timeout was too short for the iPad run (5 minutes was not always enough
+          # either). A hung driver is retried once below.
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: '420000'
         run: |
           set -e
           APP=build_output/Build/Products/Release-iphonesimulator/SALFORDPOS.app
           mkdir -p screenshots
-          pick() {
-            xcrun simctl list devices available -j | python3 -c "
-          import json, sys
-          kind = sys.argv[1]
-          devs = [d for rt, ds in json.load(sys.stdin)['devices'].items() if 'iOS' in rt for d in ds]
-          names = [d for d in devs if d['name'].startswith(kind)]
-          pro = [d for d in names if 'Pro' in d['name']] or names
-          print(pro[-1]['udid'])" "$1"
-          }
           KIND='${{ matrix.device }}'
           {
-            UDID=$(pick "$KIND")
-            echo "== $KIND: $UDID"
+            UDID="$SIM_UDID"
+            # The warm-up started at the beginning of the job; wait for it if it is still going.
+            for _ in $(seq 1 60); do
+              grep -q "simulator is ready" "$RUNNER_TEMP/warm-up.log" && break
+              sleep 10
+            done
+            cat "$RUNNER_TEMP/warm-up.log"
             xcrun simctl boot "$UDID" || true
             xcrun simctl bootstatus "$UDID" -b
             xcrun simctl install "$UDID" "$APP"
@@ -123,17 +153,24 @@ jobs:
               [ "$STATUS" -eq 0 ] && break
               if [ "$ATTEMPT" -eq 1 ] && grep -q "iOS driver not ready in time" "maestro-$KIND.log"; then
                 echo "== Driver did not start on $KIND; restarting the simulator and retrying once"
+                # The first driver's xcodebuild keeps running after Maestro gives up and can stop
+                # the second one from starting; nothing else uses xcodebuild at this point.
+                pkill -f xcodebuild || true
+                # Start from a clean simulator: erase it, boot it and install the app again.
                 xcrun simctl shutdown "$UDID" || true
+                xcrun simctl erase "$UDID"
                 xcrun simctl boot "$UDID"
                 xcrun simctl bootstatus "$UDID" -b
+                xcrun simctl install "$UDID" "$APP"
                 continue
               fi
               exit "$STATUS"
             done
             xcrun simctl shutdown "$UDID"
           }
-          # Maestro may save screenshots next to the flow or in its output folder; collect them all.
-          find e2e maestro-output . -maxdepth 4 -name '*.png' -not -path './node_modules/*' -not -path './screenshots/*' -exec cp {} screenshots/ \; 2>/dev/null || true
+          # The flows' named screenshots (takeScreenshot) are saved in Maestro's output folder, under
+          # <device>/<run>/<flow>/takeScreenshot/. Failure screenshots stay in maestro-output.
+          find maestro-output -path '*/takeScreenshot/*.png' -exec cp {} screenshots/ \;
           ls -l screenshots
           test -n "$(ls screenshots)" || { echo "No screenshots were taken"; exit 1; }
 

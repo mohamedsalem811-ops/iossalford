@@ -5,7 +5,10 @@ appId: com.salford.pos
 - runFlow: subflows/setup-pins.yaml
 - tapOn: 'نظام المجوهرات'
 - runFlow: subflows/pin-jewelry.yaml
-- assertVisible: 'مبيعات اليوم'
+# The first Face ID check on a fresh CI simulator can hold the PIN check for 30 seconds or more.
+- extendedWaitUntil:
+    visible: 'مبيعات اليوم'
+    timeout: 90000
 - scrollUntilVisible:
     element: 'تبديل النظام'
     direction: DOWN
