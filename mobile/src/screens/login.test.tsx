@@ -1,5 +1,6 @@
 import { act, fireEvent, screen } from '@testing-library/react-native';
 
+import type { FaceIdResult, FaceIdStatus } from '@/security/face-id';
 import type { VerifyResult } from '@/security/pin';
 import { renderScreen } from '@/testing/render';
 
@@ -23,8 +24,8 @@ function makeDeps(over: Partial<LoginDeps> = {}) {
       pin === PIN ? { ok: true } : { ok: false, attemptsLeft: 4, lockedUntil: 0 },
     ),
     lockedUntil: jest.fn(async () => 0),
-    faceIdAvailable: jest.fn(async () => false),
-    askFaceId: jest.fn(async () => false),
+    faceIdStatus: jest.fn(async (): Promise<FaceIdStatus> => 'none'),
+    askFaceId: jest.fn(async (): Promise<FaceIdResult> => ({ ok: false, error: 'user_cancel' })),
     clearFailures: jest.fn(async () => {}),
     now: () => clock,
     ...over,
@@ -129,8 +130,8 @@ describe('LoginScreen', () => {
 
   it('asks for Face ID once when it is set up, and opens on success', async () => {
     const { deps } = makeDeps({
-      faceIdAvailable: jest.fn(async () => true),
-      askFaceId: jest.fn(async () => true),
+      faceIdStatus: jest.fn(async (): Promise<FaceIdStatus> => 'ready'),
+      askFaceId: jest.fn(async (): Promise<FaceIdResult> => ({ ok: true })),
     });
     const onUnlock = jest.fn();
     const ui = (fn: () => void) => (
@@ -150,8 +151,8 @@ describe('LoginScreen', () => {
 
   it('waits until the app is on screen before asking for Face ID', async () => {
     const { deps } = makeDeps({
-      faceIdAvailable: jest.fn(async () => true),
-      askFaceId: jest.fn(async () => true),
+      faceIdStatus: jest.fn(async (): Promise<FaceIdStatus> => 'ready'),
+      askFaceId: jest.fn(async (): Promise<FaceIdResult> => ({ ok: true })),
     });
     const onUnlock = jest.fn();
     const ui = (active: boolean) => (
@@ -174,8 +175,8 @@ describe('LoginScreen', () => {
 
   it('keeps the PIN when Face ID is cancelled, with a button to try again', async () => {
     const { deps } = makeDeps({
-      faceIdAvailable: jest.fn(async () => true),
-      askFaceId: jest.fn(async () => false),
+      faceIdStatus: jest.fn(async (): Promise<FaceIdStatus> => 'ready'),
+      askFaceId: jest.fn(async (): Promise<FaceIdResult> => ({ ok: false, error: 'user_cancel' })),
     });
     const onUnlock = jest.fn();
     await renderScreen(
@@ -197,6 +198,36 @@ describe('LoginScreen', () => {
     await act(async () => {});
     expect(deps.askFaceId).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'الدخول بـ Face ID' })).toBeNull();
+  });
+
+  it('says Face ID works only in the installed app when opened in Expo Go', async () => {
+    const { deps } = makeDeps({
+      faceIdStatus: jest.fn(async (): Promise<FaceIdStatus> => 'expo-go'),
+    });
+    await renderScreen(
+      <LoginScreen system="jewelry" deps={deps} onUnlock={() => {}} onBack={() => {}} />,
+    );
+    expect(await screen.findByTestId('face-id-message')).toHaveTextContent(
+      'Face ID لا يعمل داخل Expo Go. يعمل في التطبيق المثبّت.',
+    );
+    expect(deps.askFaceId).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'الدخول بـ Face ID' })).toBeNull();
+  });
+
+  it('says why Face ID did not open the system, and keeps the PIN', async () => {
+    const { deps } = makeDeps({
+      faceIdStatus: jest.fn(async (): Promise<FaceIdStatus> => 'ready'),
+      askFaceId: jest.fn(async (): Promise<FaceIdResult> => ({ ok: false, error: 'lockout' })),
+    });
+    const onUnlock = jest.fn();
+    await renderScreen(
+      <LoginScreen system="jewelry" deps={deps} onUnlock={onUnlock} onBack={() => {}} />,
+    );
+    expect(await screen.findByTestId('face-id-message')).toHaveTextContent(
+      /Face ID متوقف بعد محاولات كثيرة/,
+    );
+    await enter(PIN);
+    expect(onUnlock).toHaveBeenCalledTimes(1);
   });
 
   it('goes back to the system choice', async () => {

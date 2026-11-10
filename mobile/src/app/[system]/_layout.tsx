@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 
 import { DbErrorScreen } from '@/screens/db-error';
 import { LoginScreen, type LoginDeps } from '@/screens/login';
-import { askFaceId, faceIdAvailable, pinVault, rememberSystem } from '@/security/device';
+import { askFaceId, faceIdStatus, pinVault, rememberSystem } from '@/security/device';
 import { useLock } from '@/state/lock';
 import { CtxProvider, useSystemDb } from '@/state/system-db';
 import { fonts, ThemeProvider, useTheme, type SystemId } from '@/theme';
@@ -12,7 +12,7 @@ const loginDeps: LoginDeps = {
   verify: (system, pin) => pinVault.verify(system, pin),
   lockedUntil: (system) => pinVault.lockedUntil(system),
   clearFailures: (system) => pinVault.clearFailures(system),
-  faceIdAvailable,
+  faceIdStatus,
   askFaceId,
 };
 

@@ -45,8 +45,8 @@ jest.mock('@/security/device', () => {
       async (t: string) => `h:${t}`,
       () => 'salt',
     ),
-    faceIdAvailable: async () => false,
-    askFaceId: async () => false,
+    faceIdStatus: async () => 'none',
+    askFaceId: async () => ({ ok: false, error: 'user_cancel' }),
     lastSystem: () => last,
     rememberSystem: (s: string) => (last = s),
   };

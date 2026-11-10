@@ -368,5 +368,7 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - Photos: taken or chosen, resized to at most 1600 px, kept in the app's own folder per system (only the file name is in the database). A photo file is deleted only when no product, scarf size or brand shows it.
 - A cost entered in dollars keeps the rate it was bought at; editing a piece reprices it only when the dollar cost itself changes.
 - iPad: the list is on the leading side (the right, in Arabic, as in iOS's own apps) and the open piece beside it.
+- Face ID works only in the installed `.ipa`: Expo Go cannot use Face ID on iOS (Expo's own limitation). In Expo Go the login says so and the PIN is used; in the app, a failed or blocked Face ID says why.
+- The exchange-rate editor is on the dashboard from Phase 4 (tap "سعر الصرف"), because dollar costs need the real rate; Phase 7 adds it to Settings too.
 
 Status: Phases 0 to 3 are merged; Phase 4 is in progress.

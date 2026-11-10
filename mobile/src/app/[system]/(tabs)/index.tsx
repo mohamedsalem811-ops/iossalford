@@ -3,6 +3,7 @@ import { useCallback, useState } from 'react';
 
 import { today } from '@/domain/reports';
 import { getRate } from '@/domain/settings';
+import { promptRate } from '@/features/settings/rate';
 import { DashboardScreen } from '@/screens/dashboard';
 import { useCtx } from '@/state/system-db';
 
@@ -15,5 +16,12 @@ export default function Dashboard() {
   const [data, setData] = useState(read);
   // Fresh figures each time the tab comes back into view (after a sale, a return...).
   useFocusEffect(useCallback(() => setData(read()), [read]));
-  return <DashboardScreen system={ctx.system} {...data} onSwitch={() => router.replace('/')} />;
+  return (
+    <DashboardScreen
+      system={ctx.system}
+      {...data}
+      onSwitch={() => router.replace('/')}
+      onEditRate={() => promptRate(ctx, () => setData(read()))}
+    />
+  );
 }
