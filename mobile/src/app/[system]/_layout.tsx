@@ -66,7 +66,10 @@ function SystemDb({ system }: { system: SystemId }) {
   );
 }
 
-/** The tabs, with forms and photos opening over them as iOS sheets with their own header. */
+/**
+ * The tabs, with forms and photos opening over them as iOS sheets with their own header, and
+ * management screens (brands) pushed over them with a back button.
+ */
 function SystemStack() {
   const { colors } = useTheme();
   const sheet = {
@@ -78,8 +81,18 @@ function SystemStack() {
     headerTitleStyle: { fontFamily: fonts.semibold, color: colors.text },
     contentStyle: { backgroundColor: colors.background },
   };
+  const pushed = {
+    headerShown: true,
+    headerShadowVisible: false,
+    headerStyle: { backgroundColor: colors.background },
+    headerTintColor: colors.accent,
+    headerTitleStyle: { fontFamily: fonts.semibold, color: colors.text },
+    headerBackButtonDisplayMode: 'minimal' as const,
+    contentStyle: { backgroundColor: colors.background },
+  };
   return (
     <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="brands" options={pushed} />
       <Stack.Screen name="product/[id]" options={sheet} />
       <Stack.Screen name="photo/[id]" options={sheet} />
       <Stack.Screen name="design/[id]" options={sheet} />

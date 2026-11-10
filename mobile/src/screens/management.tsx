@@ -5,13 +5,18 @@ import { spacing } from '@/theme';
 export function ManagementScreen({
   onSwitch,
   onLock,
+  onBrands,
 }: {
   onSwitch: () => void;
   onLock: () => void;
+  onBrands: () => void;
 }) {
   return (
     <Screen tabBar contentStyle={{ gap: spacing.lg }}>
       <Text variant="largeTitle">الإدارة</Text>
+      <ListGroup header="المخزون">
+        <ListRow icon="seal" title="الماركات" onPress={onBrands} testID="manage-brands" />
+      </ListGroup>
       <ListGroup header="النظام">
         <ListRow icon="arrow.left.arrow.right" title="تبديل النظام" onPress={onSwitch} />
         <ListRow icon="lock" title="قفل النظام" onPress={onLock} />

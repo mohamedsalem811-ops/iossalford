@@ -11,6 +11,7 @@ import SystemLayout from '@/app/[system]/_layout';
 import TabsLayout from '@/app/[system]/(tabs)/_layout';
 import ProductsStack from '@/app/[system]/(tabs)/products/_layout';
 import Products from '@/app/[system]/(tabs)/products/index';
+import BrandsRoute from '@/app/[system]/brands';
 import DesignRoute from '@/app/[system]/design/[id]';
 import ProductRoute from '@/app/[system]/product/[id]';
 
@@ -26,10 +27,24 @@ jest.mock('expo-router/native-tabs', () => {
   const Trigger = Object.assign(() => null, { Label: () => null, Icon: () => null });
   return { NativeTabs: Object.assign(() => <Slot />, { Trigger }) };
 });
-// Swipes need the native gesture system; here the row is shown without them.
+// Swipes need the native gesture system; here the swipe buttons are shown next to the row.
 jest.mock('react-native-gesture-handler/ReanimatedSwipeable', () => ({
   __esModule: true,
-  default: ({ children }: { children: React.ReactNode }) => children,
+  default: ({
+    children,
+    renderLeftActions,
+    renderRightActions,
+  }: {
+    children: React.ReactNode;
+    renderLeftActions?: () => React.ReactNode;
+    renderRightActions?: () => React.ReactNode;
+  }) => (
+    <>
+      {renderRightActions?.()}
+      {children}
+      {renderLeftActions?.()}
+    </>
+  ),
 }));
 // A row with a long-press menu uses a native iOS view; here it shows the row as it is.
 jest.mock('expo-router/build/link/preview/native', () => ({
@@ -71,6 +86,7 @@ const routes = {
   '[system]/(tabs)/products/index': Products,
   '[system]/product/[id]': ProductRoute,
   '[system]/design/[id]': DesignRoute,
+  '[system]/brands': BrandsRoute,
 };
 
 afterEach(() => jest.restoreAllMocks());
@@ -173,4 +189,78 @@ it('adds a scarf design with its sizes and opens it again', async () => {
   expect(await screen.findByDisplayValue('120×120')).toBeOnTheScreen();
   expect(screen.getByDisplayValue('120')).toBeOnTheScreen();
   expect(screen.getByDisplayValue('وشاح حرير')).toBeOnTheScreen();
+});
+
+it('adds, refuses a duplicate, renames and deletes a brand', async () => {
+  mockUnlocked = 'jewelry';
+  type Button = { text?: string; onPress?: (value?: string) => void };
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  const prompt = jest.spyOn(Alert, 'prompt').mockImplementation(() => {});
+  await renderRouter(routes, { initialUrl: '/jewelry/brands' });
+
+  // Pandora was added through the first piece's form; Swarovski is added here.
+  expect(await screen.findByTestId('brand-row-Pandora')).toBeOnTheScreen();
+  await fireEvent.changeText(screen.getByTestId('brand-new-name'), 'Swarovski');
+  await fireEvent.press(screen.getByTestId('brand-add'));
+  expect(await screen.findByTestId('brand-row-Swarovski')).toBeOnTheScreen();
+  expect(screen.getByText('الماركات (2)')).toBeOnTheScreen();
+
+  // The same name in another case is not added twice.
+  await fireEvent.changeText(screen.getByTestId('brand-new-name'), 'pandora');
+  await fireEvent.press(screen.getByTestId('brand-add'));
+  expect(alert).toHaveBeenLastCalledWith('الماركة موجودة', '«Pandora» موجودة في القائمة بالفعل.');
+  expect(screen.getByText('الماركات (2)')).toBeOnTheScreen();
+
+  // Rename (a swipe action); the new name is shown.
+  await fireEvent.press(screen.getAllByRole('button', { name: 'تعديل' })[1]);
+  const renameButtons = prompt.mock.calls[0][2] as Button[];
+  await act(async () =>
+    renameButtons.find((b) => b.text === 'حفظ')?.onPress?.('Swarovski Crystal'),
+  );
+  expect(await screen.findByTestId('brand-row-Swarovski Crystal')).toBeOnTheScreen();
+
+  // Delete asks first and says how many pieces lose the brand.
+  await fireEvent.press(screen.getAllByRole('button', { name: 'حذف' })[0]);
+  expect(alert).toHaveBeenLastCalledWith(
+    'حذف الماركة «Pandora»؟',
+    '1 قطعة تحمل هذه الماركة وستصبح «بدون ماركة». المبيعات السابقة تحتفظ باسم الماركة.',
+    expect.any(Array),
+  );
+  const deleteButtons = alert.mock.lastCall![2] as Button[];
+  await act(async () => deleteButtons.find((b) => b.text === 'حذف')?.onPress?.());
+  expect(screen.queryByTestId('brand-row-Pandora')).not.toBeOnTheScreen();
+  expect(screen.getByText('الماركات (1)')).toBeOnTheScreen();
+});
+
+it('changes stock and deletes from the swipe buttons', async () => {
+  mockUnlocked = 'jewelry';
+  type Button = { text?: string; onPress?: () => void };
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  await renderRouter(routes, { initialUrl: '/jewelry/products' });
+
+  // The two pieces added above, by name: بروش then خاتم زركون, one in stock each.
+  expect(await screen.findByText('بروش')).toBeOnTheScreen();
+  const summary = () => screen.getByTestId('products-summary');
+  expect(summary()).toHaveTextContent('2 صنف • 2 قطعة في المخزن');
+
+  await fireEvent.press(screen.getAllByRole('button', { name: '+1' })[0]);
+  expect(summary()).toHaveTextContent('2 صنف • 3 قطعة في المخزن');
+  await fireEvent.press(screen.getAllByRole('button', { name: '−1' })[0]);
+  await fireEvent.press(screen.getAllByRole('button', { name: '−1' })[0]);
+  expect(summary()).toHaveTextContent('2 صنف • 1 قطعة في المخزن');
+  // At zero the −1 button is off: stock never goes below zero.
+  expect(screen.getAllByRole('button', { name: '−1' })[0]).toBeDisabled();
+
+  // Delete asks first, with the current stock; nothing is removed until confirmed.
+  await fireEvent.press(screen.getAllByRole('button', { name: 'حذف' })[1]);
+  expect(alert).toHaveBeenLastCalledWith(
+    'حذف «خاتم زركون»؟',
+    'المخزون الحالي: 1 قطعة.',
+    expect.any(Array),
+  );
+  expect(screen.getByText('خاتم زركون')).toBeOnTheScreen();
+  const buttons = alert.mock.lastCall![2] as Button[];
+  await act(async () => buttons.find((b) => b.text === 'حذف')?.onPress?.());
+  expect(screen.queryByText('خاتم زركون')).not.toBeOnTheScreen();
+  expect(summary()).toHaveTextContent('1 صنف • 0 قطعة في المخزن');
 });
