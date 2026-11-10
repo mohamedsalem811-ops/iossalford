@@ -3,8 +3,9 @@ name: Expo app simulator tests
 # Builds the app for the iOS simulator, runs the Maestro tap-through tests on an
 # iPhone and an iPad simulator, and uploads the screenshots.
 #
-# Started by hand only (Actions -> "Expo app simulator tests" -> Run workflow), once per
-# phase before the owner merges. Every push runs the fast checks and the .ipa build instead:
+# Started by hand only (Actions -> "Expo app simulator tests" -> Run workflow): at the end of
+# the project, or for a critical change. Every push runs the fast checks and the .ipa build, and
+# the owner tests the Expo Go preview and the .ipa on the devices:
 # GitHub's macOS simulators are slow and sometimes do not start, and each run takes about an
 # hour.
 
