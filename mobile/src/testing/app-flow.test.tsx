@@ -92,6 +92,8 @@ it('sets up both PINs, opens a system, switches, and locks in the background', a
     '[system]/(tabs)/_layout': TabsLayout,
     '[system]/(tabs)/index': Dashboard,
     '[system]/(tabs)/more': More,
+    '[system]/product/[id]': () => null,
+    '[system]/photo/[id]': () => null,
   });
 
   // First launch goes to setup: there is no default PIN.

@@ -13,6 +13,7 @@ import {
   groupDesigns,
   listProducts,
   moveStock,
+  productUsage,
   restoreProduct,
   saveProduct,
   saveScarfDesign,
@@ -20,6 +21,7 @@ import {
   stockHistory,
   type ProductInput,
 } from './products';
+import { saveSet } from './sets';
 import { DEFAULT_RATE, getRate, setRate } from './settings';
 import { makeCtx, type TestCtx } from './testing/ctx';
 
@@ -110,6 +112,18 @@ describe('products', () => {
     expect(p.costRate).toBe(7_125);
   });
 
+  it('keeps the bought-at rate when an edit leaves the dollar cost as it was', () => {
+    setRate(ctx, 7_000);
+    const id = saveProduct(ctx, ring({ cost: undefined, costUsd: 1_000 }));
+    setRate(ctx, 8_000);
+    saveProduct(ctx, ring({ id, name: 'خاتم جديد', cost: undefined, costUsd: 1_000 }));
+    expect(getProduct(ctx, id)).toMatchObject({ cost: 70_000, costUsd: 1_000, costRate: 7_000 });
+
+    // A new dollar cost uses today's rate.
+    saveProduct(ctx, ring({ id, cost: undefined, costUsd: 2_000 }));
+    expect(getProduct(ctx, id)).toMatchObject({ cost: 160_000, costUsd: 2_000, costRate: 8_000 });
+  });
+
   it('keeps an existing code when an edit leaves it empty', () => {
     const id = saveProduct(ctx, ring());
     saveProduct(ctx, ring({ id, sku: '', name: 'خاتم معدل' }));
@@ -159,6 +173,17 @@ describe('products', () => {
        VALUES (?, ?, 'خاتم', 'RNG-0050', 1, 200000, 350000, 350000, 350000, 200000)`,
       [saleId, sold],
     );
+    const other = saveProduct(ctx, ring({ sku: 'RNG-0051' }));
+    saveSet(ctx, {
+      name: 'طقم',
+      discount: 0,
+      items: [
+        { productId: sold, quantity: 1 },
+        { productId: other, quantity: 1 },
+      ],
+    });
+    expect(productUsage(ctx, sold)).toEqual({ sales: 1, sets: 1 });
+    expect(productUsage(ctx, unsold)).toEqual({ sales: 0, sets: 0 });
     expect(deleteProduct(ctx, sold)).toBe('archived');
     expect(listProducts(ctx).map((p) => p.id)).not.toContain(sold);
     expect(listProducts(ctx, { archived: true }).map((p) => p.id)).toEqual([sold]);

@@ -6,7 +6,7 @@ import { LoginScreen, type LoginDeps } from '@/screens/login';
 import { askFaceId, faceIdAvailable, pinVault, rememberSystem } from '@/security/device';
 import { useLock } from '@/state/lock';
 import { CtxProvider, useSystemDb } from '@/state/system-db';
-import { ThemeProvider, type SystemId } from '@/theme';
+import { fonts, ThemeProvider, useTheme, type SystemId } from '@/theme';
 
 const loginDeps: LoginDeps = {
   verify: (system, pin) => pinVault.verify(system, pin),
@@ -61,7 +61,27 @@ function SystemDb({ system }: { system: SystemId }) {
   }
   return (
     <CtxProvider db={result.db} system={system}>
-      <Stack screenOptions={{ headerShown: false }} />
+      <SystemStack />
     </CtxProvider>
+  );
+}
+
+/** The tabs, with forms and photos opening over them as iOS sheets with their own header. */
+function SystemStack() {
+  const { colors } = useTheme();
+  const sheet = {
+    presentation: 'modal' as const,
+    headerShown: true,
+    headerShadowVisible: false,
+    headerStyle: { backgroundColor: colors.background },
+    headerTintColor: colors.accent,
+    headerTitleStyle: { fontFamily: fonts.semibold, color: colors.text },
+    contentStyle: { backgroundColor: colors.background },
+  };
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="product/[id]" options={sheet} />
+      <Stack.Screen name="photo/[id]" options={sheet} />
+    </Stack>
   );
 }

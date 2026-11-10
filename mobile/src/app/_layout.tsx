@@ -3,6 +3,7 @@ import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationTheme } from
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { KeyboardBar } from '@/components/keyboard-bar';
@@ -25,19 +26,21 @@ export default function RootLayout() {
   if (!loaded && !error) return null;
 
   return (
-    <KeyboardProvider>
-      <NavigationTheme value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <ThemeProvider system={null}>
-          <LockProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              {/* Back to the start screen locks the system; no slide, so the login never shows. */}
-              <Stack.Screen name="index" options={{ animation: 'none' }} />
-            </Stack>
-            <KeyboardBar />
-            <PrivacyCover />
-          </LockProvider>
-        </ThemeProvider>
-      </NavigationTheme>
-    </KeyboardProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <KeyboardProvider>
+        <NavigationTheme value={scheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <ThemeProvider system={null}>
+            <LockProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                {/* Back to the start screen locks the system; no slide, so the login never shows. */}
+                <Stack.Screen name="index" options={{ animation: 'none' }} />
+              </Stack>
+              <KeyboardBar />
+              <PrivacyCover />
+            </LockProvider>
+          </ThemeProvider>
+        </NavigationTheme>
+      </KeyboardProvider>
+    </GestureHandlerRootView>
   );
 }
