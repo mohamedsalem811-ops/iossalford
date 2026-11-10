@@ -8,15 +8,18 @@ export function Card({
   children,
   padded = true,
   style,
+  testID,
 }: {
   children: ReactNode;
   /** Set false for cards that hold list rows with their own padding. */
   padded?: boolean;
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 }) {
   const { colors } = useTheme();
   return (
     <View
+      testID={testID}
       style={[
         {
           backgroundColor: colors.surface,

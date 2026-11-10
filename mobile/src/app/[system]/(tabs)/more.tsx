@@ -12,6 +12,7 @@ export default function More() {
       onSwitch={() => router.replace('/')}
       onLock={lock}
       onBrands={() => router.push({ pathname: '/[system]/brands', params: { system } })}
+      onSets={() => router.push({ pathname: '/[system]/manage-sets', params: { system } })}
     />
   );
 }
