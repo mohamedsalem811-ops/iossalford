@@ -28,8 +28,8 @@ export function useLayout() {
     layoutClass: cls,
     /** Show a list and its detail side by side. */
     split: cls !== 'compact',
-    /** The sale screen keeps the cart open beside the products. */
-    cartBeside: cls === 'wide' || (cls === 'regular' && width > height),
+    /** The sale screen keeps the cart open beside the products (iPad, as in the plan). */
+    cartBeside: cls !== 'compact',
     columns: (minTile?: number) => gridColumns(width, minTile),
     /** Dashboard cards per row. */
     dashboardColumns: cls === 'wide' ? 3 : cls === 'regular' ? 2 : 1,

@@ -18,6 +18,9 @@ const loginDeps: LoginDeps = {
 
 const toChooser = () => router.replace('/');
 
+/** A sheet opened from a link (or after a reload) still has the tabs under it. */
+export const unstable_settings = { anchor: '(tabs)' };
+
 /**
  * Everything inside one system: its colours, then its PIN (or Face ID), then its database.
  * Locking (background, switch, lock button) shows the login again in place of the screens.
@@ -67,8 +70,8 @@ function SystemDb({ system }: { system: SystemId }) {
 }
 
 /**
- * The tabs, with forms and photos opening over them as iOS sheets with their own header, and
- * management screens (brands) pushed over them with a back button.
+ * The tabs, with forms, photos, the cart and checkout opening over them as iOS sheets with their
+ * own header, and management screens (brands, sets) pushed over them with a back button.
  */
 function SystemStack() {
   const { colors } = useTheme();
@@ -90,21 +93,27 @@ function SystemStack() {
     headerBackButtonDisplayMode: 'minimal' as const,
     contentStyle: { backgroundColor: colors.background },
   };
+  const halfSheet = {
+    ...sheet,
+    presentation: 'formSheet' as const,
+    sheetGrabberVisible: true,
+    sheetAllowedDetents: [0.7, 1],
+  };
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="brands" options={pushed} />
       <Stack.Screen name="product/[id]" options={sheet} />
       <Stack.Screen name="photo/[id]" options={sheet} />
       <Stack.Screen name="design/[id]" options={sheet} />
-      <Stack.Screen
-        name="stock/[id]"
-        options={{
-          ...sheet,
-          presentation: 'formSheet',
-          sheetGrabberVisible: true,
-          sheetAllowedDetents: [0.7, 1],
-        }}
-      />
+      <Stack.Screen name="stock/[id]" options={halfSheet} />
+      <Stack.Screen name="manage-sets" options={pushed} />
+      <Stack.Screen name="set/[id]" options={sheet} />
+      <Stack.Screen name="sets" options={sheet} />
+      <Stack.Screen name="cart" options={sheet} />
+      <Stack.Screen name="checkout" options={sheet} />
+      <Stack.Screen name="sold/[id]" options={{ ...sheet, gestureEnabled: false }} />
+      <Stack.Screen name="add/[id]" options={halfSheet} />
+      <Stack.Screen name="sizes/[id]" options={halfSheet} />
     </Stack>
   );
 }

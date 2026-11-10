@@ -1,6 +1,6 @@
 # SALFORD POS: Expo rebuild execution plan (version 3)
 
-Status: **not started.** Work begins only when the owner says go.
+Status: **in progress** (see the end of this file).
 
 Every feature of the current app is kept. Items marked **NEW** don't exist in the current app. Unmarked items are the same as the current app, rebuilt with a new design.
 
@@ -364,11 +364,15 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - PINs: 8 digits, salted SHA-256 in the Keychain (this device only, never backed up). Easy PINs (one digit repeated, straight runs) are refused. First-launch setup only asks for a system that has no PIN yet, so an interrupted setup can't be used to replace a saved PIN.
 - Locking: going to the background locks; the app switcher and the Face ID prompt only hide the screen behind the logos. The start screen always locks, so entering any system needs its PIN (or Face ID for jewelry).
 - The design gallery is opened only by its link (`salfordpos://gallery`), not from the start screen.
+- End of every phase (owner's rule): before the phase is handed over, Claude re-checks the whole phase against this plan and against how the app is really used, and fixes or adds anything missed or done wrong, without waiting to be asked (as with the exchange-rate editor in Phase 4). What was found is listed in the pull request.
 - Testing: every push runs the fast checks (types, lint, unit and screen tests) and builds the `.ipa`; Claude publishes the Expo Go preview each phase. The owner tests on the iPhone and iPad and reports what needs fixing. The simulator tap-through (Maestro) runs only at the end of the project, or earlier for a critical change (security and PINs, saving data, backups).
 - Photos: taken or chosen, resized to at most 1600 px, kept in the app's own folder per system (only the file name is in the database). A photo file is deleted only when no product, scarf size or brand shows it.
 - A cost entered in dollars keeps the rate it was bought at; editing a piece reprices it only when the dollar cost itself changes.
 - iPad: the list is on the leading side (the right, in Arabic, as in iOS's own apps) and the open piece beside it.
 - Face ID works only in the installed `.ipa`: Expo Go cannot use Face ID on iOS (Expo's own limitation). In Expo Go the login says so and the PIN is used; in the app, a failed or blocked Face ID says why.
 - The exchange-rate editor is on the dashboard from Phase 4 (tap "سعر الصرف"), because dollar costs need the real rate; Phase 7 adds it to Settings too.
+- Selling: while a sale is open, the cart bar sits above the tabs on iPhone (the iOS 26 tab bar accessory, as in Apple Music) and the Sale tab shows the number of pieces; on iPad the cart is always beside the products, on the right. The cart is kept until checkout, also while the app is locked; fully closing the app empties it (nothing is sold until checkout).
+- Sets management (create, edit, delete; item 7.7) was brought forward into Phase 5 so a set can be sold and tested now. It is under Management → Sets and from the sets button on the sale screen.
+- After checkout the success screen shows the receipt number and its lines; printing and sharing the receipt come in Phase 6.
 
-Status: Phases 0 to 3 are merged; Phase 4 is in progress.
+Status: Phases 0 to 4 are merged; Phase 5 is in progress.

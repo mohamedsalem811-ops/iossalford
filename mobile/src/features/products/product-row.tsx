@@ -1,5 +1,5 @@
 import type { Href } from 'expo-router';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useRef } from 'react';
 import { ActionSheetIOS, Pressable, View } from 'react-native';
 import ReanimatedSwipeable, {
@@ -55,8 +55,13 @@ export function ProductRow({
     swipe.current?.close();
     fn();
   };
+  // Tap edits (on iPad it opens beside the list); a long press shows every action as a menu.
+  // A plain press is used rather than a native link preview: inside a swipeable list row the
+  // preview view lost the row's layout on device.
+  const open = onOpen ?? (() => router.push(editHref));
   const menu = () => {
     const items: { title: string; run: () => void; destructive?: boolean }[] = [
+      ...(onOpen ? [] : [{ title: 'تعديل', run: open }]),
       ...(p.imageFile ? [{ title: 'عرض الصورة', run: () => actions.onPhoto(p) }] : []),
       { title: '+1 مخزون', run: () => actions.onStep(p, 1) },
       ...(p.stock > 0 ? [{ title: '−1 مخزون', run: () => actions.onStep(p, -1) }] : []),
@@ -80,8 +85,8 @@ export function ProductRow({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityHint="اضغط للتعديل، أو اضغط مطولاً لمزيد من الخيارات"
-      onPress={onOpen}
-      onLongPress={onOpen ? menu : undefined}
+      onPress={open}
+      onLongPress={menu}
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
@@ -126,6 +131,9 @@ export function ProductRow({
       friction={2}
       overshootRight={false}
       overshootLeft={false}
+      // The row covers its swipe buttons until it is swiped.
+      containerStyle={{ backgroundColor: colors.surface, overflow: 'hidden' }}
+      childrenContainerStyle={{ backgroundColor: colors.surface }}
       renderRightActions={() => (
         <View style={{ flexDirection: 'row' }}>
           <SwipeAction
@@ -155,7 +163,7 @@ export function ProductRow({
             label="تعديل"
             icon="pencil"
             color={colors.accent}
-            onPress={() => run(onOpen ?? (() => router.push(editHref)))}
+            onPress={() => run(open)}
           />
           <SwipeAction
             label="حذف"
@@ -165,37 +173,7 @@ export function ProductRow({
           />
         </View>
       )}>
-      {onOpen ? (
-        body
-      ) : (
-        <Link href={editHref} asChild>
-          <Link.Trigger>{body}</Link.Trigger>
-          <Link.Menu>
-            <Link.MenuAction title="تعديل" icon="pencil" onPress={() => router.push(editHref)} />
-            {p.imageFile ? (
-              <Link.MenuAction title="عرض الصورة" icon="photo" onPress={() => actions.onPhoto(p)} />
-            ) : null}
-            <Link.MenuAction title="+1 مخزون" icon="plus" onPress={() => actions.onStep(p, 1)} />
-            <Link.MenuAction
-              title="−1 مخزون"
-              icon="minus"
-              disabled={p.stock <= 0}
-              onPress={() => actions.onStep(p, -1)}
-            />
-            <Link.MenuAction
-              title="تعديل المخزون مع السبب"
-              icon="shippingbox"
-              onPress={() => actions.onAdjust(p)}
-            />
-            <Link.MenuAction
-              title="حذف القطعة"
-              icon="trash"
-              destructive
-              onPress={() => actions.onDelete(p)}
-            />
-          </Link.Menu>
-        </Link>
-      )}
+      {body}
     </ReanimatedSwipeable>
   );
 }

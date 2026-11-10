@@ -11,6 +11,7 @@ export { Logo } from './logo';
 export { Screen, TAB_BAR_CLEARANCE } from './screen';
 export { EmptyState, SectionHeader } from './section';
 export { Segmented } from './segmented';
+export { Stepper } from './stepper';
 export { Sheet } from './sheet';
 export { LIST_PANE_WIDTH, SplitView } from './split-view';
 export { SystemCard } from './system-card';

@@ -1,5 +1,5 @@
 import type { Href } from 'expo-router';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 import { useRef } from 'react';
 import { ActionSheetIOS, Pressable, View } from 'react-native';
 import ReanimatedSwipeable, {
@@ -42,8 +42,11 @@ export function DesignRow({
   const first = d.sizes[0];
   const photo = d.sizes.find((s) => s.imageFile)?.imageFile ?? null;
   const details = designDetails(d);
+  // Tap edits (on iPad it opens beside the list); a long press shows every action as a menu.
+  const open = onOpen ?? (() => router.push(href));
   const menu = () => {
     const items = [
+      ...(onOpen ? [] : [{ title: 'تعديل التصميم والمقاسات', run: open }]),
       ...d.sizes.map((s) => ({
         title: `تعديل مخزون ${s.size ?? '—'} (${s.stock})`,
         run: () => onAdjust(s.id),
@@ -67,8 +70,8 @@ export function DesignRow({
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityHint="اضغط لتعديل التصميم ومقاساته"
-      onPress={onOpen}
-      onLongPress={onOpen ? menu : undefined}
+      onPress={open}
+      onLongPress={menu}
       style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
@@ -136,6 +139,9 @@ export function DesignRow({
       ref={swipe}
       friction={2}
       overshootLeft={false}
+      // The row covers its swipe button until it is swiped.
+      containerStyle={{ backgroundColor: colors.surface, overflow: 'hidden' }}
+      childrenContainerStyle={{ backgroundColor: colors.surface }}
       renderLeftActions={() => (
         <Pressable
           accessibilityRole="button"
@@ -157,35 +163,7 @@ export function DesignRow({
           </Text>
         </Pressable>
       )}>
-      {onOpen ? (
-        body
-      ) : (
-        <Link href={href} asChild>
-          <Link.Trigger>{body}</Link.Trigger>
-          <Link.Menu>
-            <Link.MenuAction
-              title="تعديل التصميم والمقاسات"
-              icon="pencil"
-              onPress={() => router.push(href)}
-            />
-            <Link.Menu title="تعديل المخزون" icon="shippingbox">
-              {d.sizes.map((s) => (
-                <Link.MenuAction
-                  key={s.id}
-                  title={`${s.size ?? '—'} (${s.stock})`}
-                  onPress={() => onAdjust(s.id)}
-                />
-              ))}
-            </Link.Menu>
-            <Link.MenuAction
-              title="حذف التصميم"
-              icon="trash"
-              destructive
-              onPress={() => onDelete(d)}
-            />
-          </Link.Menu>
-        </Link>
-      )}
+      {body}
     </ReanimatedSwipeable>
   );
 }
