@@ -114,6 +114,9 @@ function SystemStack() {
       <Stack.Screen name="customers" options={pushed} />
       <Stack.Screen name="customer/[id]" options={pushed} />
       <Stack.Screen name="debts" options={pushed} />
+      <Stack.Screen name="expenses" options={pushed} />
+      <Stack.Screen name="closing" options={pushed} />
+      <Stack.Screen name="comparison" options={pushed} />
       <Stack.Screen name="customer-form/[id]" options={sheet} />
       <Stack.Screen name="payment/[id]" options={halfSheet} />
       <Stack.Screen name="return/[id]" options={sheet} />

@@ -5,7 +5,16 @@ import { spacing } from '@/theme';
 
 /** The management screens, each opened by its route (see the More tab). */
 export type ManageTarget =
-  'sales' | 'returns' | 'customers' | 'debts' | 'brands' | 'sets' | 'settings';
+  | 'sales'
+  | 'returns'
+  | 'customers'
+  | 'debts'
+  | 'expenses'
+  | 'closing'
+  | 'comparison'
+  | 'brands'
+  | 'sets'
+  | 'settings';
 
 type Row = { target: ManageTarget; icon: SymbolViewProps['name']; title: string };
 
@@ -23,6 +32,14 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
     rows: [
       { target: 'customers', icon: 'person.2', title: 'الزبائن' },
       { target: 'debts', icon: 'creditcard', title: 'الديون' },
+    ],
+  },
+  {
+    title: 'المال',
+    rows: [
+      { target: 'expenses', icon: 'banknote', title: 'المصروفات' },
+      { target: 'closing', icon: 'checkmark.seal', title: 'الإقفال الربع سنوي' },
+      { target: 'comparison', icon: 'chart.bar', title: 'مقارنة الأشهر' },
     ],
   },
   {
