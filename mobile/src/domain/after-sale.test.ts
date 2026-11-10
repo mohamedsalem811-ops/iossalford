@@ -12,6 +12,7 @@ import {
   deletePayment,
   payments,
   recordPayment,
+  statement,
   totalOutstanding,
 } from './debts';
 import {
@@ -170,6 +171,25 @@ describe('debts', () => {
     expect(debtors(ctx).map((d) => [d.customer.name, d.balance])).toEqual([['سارة', 250_000]]);
     expect(totalOutstanding(ctx)).toBe(250_000);
     expect(payments(ctx, id)).toHaveLength(1);
+  });
+
+  it('lists the statement oldest first with the balance after each line', () => {
+    const ring = product('خاتم', 350_000, 5);
+    ctx.setNow(new Date(2026, 10, 1, 10, 0));
+    const s1 = sell(ring, 2, 'credit', { name: 'رنا' });
+    const id = getSale(ctx, s1.saleId)!.customerId!;
+    ctx.setNow(new Date(2026, 10, 2, 10, 0));
+    addReturn(ctx, { saleLineId: getSale(ctx, s1.saleId)!.lines[0].id, quantity: 1 });
+    ctx.setNow(new Date(2026, 10, 3, 10, 0));
+    recordPayment(ctx, { customerId: id, amount: 100_000, method: 'cash', note: 'دفعة أولى' });
+    ctx.setNow(new Date(2026, 10, 4, 10, 0));
+    sell(ring, 1, 'cash', { name: 'رنا' }); // cash: not on the statement
+    expect(statement(ctx, id).map((l) => [l.kind, l.amount, l.balance, l.note])).toEqual([
+      ['sale', 700_000, 700_000, null],
+      ['refund', -350_000, 350_000, null],
+      ['payment', -100_000, 250_000, 'دفعة أولى'],
+    ]);
+    expect(statement(ctx, id).at(-1)!.balance).toBe(balance(ctx, id));
   });
 
   it('refuses a payment above what is owed', () => {

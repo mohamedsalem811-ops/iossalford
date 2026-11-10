@@ -36,6 +36,12 @@ export default function SaleRoute() {
             params: { system, id: String(receiptId) },
           })
         }
+        onCustomer={(customerId) =>
+          router.push({
+            pathname: '/[system]/customer/[id]',
+            params: { system, id: String(customerId) },
+          })
+        }
         onDeleted={() => router.back()}
       />
     </>

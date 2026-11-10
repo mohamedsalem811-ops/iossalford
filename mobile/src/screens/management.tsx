@@ -4,7 +4,8 @@ import { ListGroup, ListRow, Screen, Text } from '@/components';
 import { spacing } from '@/theme';
 
 /** The management screens, each opened by its route (see the More tab). */
-export type ManageTarget = 'sales' | 'returns' | 'brands' | 'sets' | 'settings';
+export type ManageTarget =
+  'sales' | 'returns' | 'customers' | 'debts' | 'brands' | 'sets' | 'settings';
 
 type Row = { target: ManageTarget; icon: SymbolViewProps['name']; title: string };
 
@@ -15,6 +16,13 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
     rows: [
       { target: 'sales', icon: 'list.bullet.rectangle', title: 'سجل المبيعات' },
       { target: 'returns', icon: 'arrow.uturn.backward', title: 'المرتجعات' },
+    ],
+  },
+  {
+    title: 'الزبائن',
+    rows: [
+      { target: 'customers', icon: 'person.2', title: 'الزبائن' },
+      { target: 'debts', icon: 'creditcard', title: 'الديون' },
     ],
   },
   {
