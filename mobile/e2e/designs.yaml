@@ -1,0 +1,65 @@
+# Phase 4: a scarf design with two sizes (one added with the quick-add button), shown by design.
+# On iPad the form opens beside the list; the steps are the same.
+appId: com.salford.pos
+---
+- runFlow: subflows/fresh-launch.yaml
+- runFlow: subflows/setup-pins.yaml
+- tapOn: 'نظام الأوشحة'
+- runFlow: subflows/pin-scarves.yaml
+- extendedWaitUntil:
+    visible: 'مبيعات اليوم'
+    timeout: 90000
+- tapOn: 'المنتجات'
+- extendedWaitUntil:
+    visible: 'لا توجد أوشحة بعد'
+    timeout: 30000
+- tapOn: 'تصميم جديد'
+- extendedWaitUntil:
+    visible:
+      id: 'design-name'
+    timeout: 30000
+- tapOn:
+    id: 'design-name'
+- inputText: 'Silk Classic'
+# A new design starts with a 90×90 row.
+- scrollUntilVisible:
+    element:
+      id: 'size-price-0'
+    direction: DOWN
+- tapOn:
+    id: 'size-price-0'
+- inputText: '90'
+- tapOn:
+    id: 'size-cost-0'
+- inputText: '30'
+- scrollUntilVisible:
+    element:
+      id: 'add-size-120×120'
+    direction: DOWN
+- tapOn:
+    id: 'add-size-120×120'
+- scrollUntilVisible:
+    element:
+      id: 'size-price-1'
+    direction: DOWN
+- tapOn:
+    id: 'size-price-1'
+- inputText: '120'
+- tapOn:
+    id: 'size-cost-1'
+- inputText: '40'
+- takeScreenshot: ${DEVICE}-design-form
+- scrollUntilVisible:
+    element:
+      id: 'design-save'
+    direction: DOWN
+- tapOn:
+    id: 'design-save'
+- extendedWaitUntil:
+    visible: 'Silk Classic'
+    timeout: 30000
+- assertVisible: '90×90: 1'
+- assertVisible: '120×120: 1'
+- assertVisible: '90 – 120 د.ل'
+- assertVisible: '1 تصميم • 2 قطعة'
+- takeScreenshot: ${DEVICE}-designs-list

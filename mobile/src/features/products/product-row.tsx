@@ -151,23 +151,12 @@ export function ProductRow({
       )}
       renderLeftActions={() => (
         <View style={{ flexDirection: 'row' }}>
-          {onOpen ? (
-            <SwipeAction
-              label="تعديل"
-              icon="pencil"
-              color={colors.accent}
-              onPress={() => run(onOpen)}
-            />
-          ) : (
-            <Link href={editHref} asChild>
-              <SwipeAction
-                label="تعديل"
-                icon="pencil"
-                color={colors.accent}
-                onPress={() => swipe.current?.close()}
-              />
-            </Link>
-          )}
+          <SwipeAction
+            label="تعديل"
+            icon="pencil"
+            color={colors.accent}
+            onPress={() => run(onOpen ?? (() => router.push(editHref)))}
+          />
           <SwipeAction
             label="حذف"
             icon="trash"

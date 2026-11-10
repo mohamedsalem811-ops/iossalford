@@ -243,7 +243,7 @@ it('adds, refuses a duplicate, renames and deletes a brand', async () => {
   expect(screen.getByText('الماركات (1)')).toBeOnTheScreen();
 });
 
-it('changes stock and deletes from the swipe buttons', async () => {
+it('changes stock, edits and deletes from the swipe buttons', async () => {
   mockUnlocked = 'jewelry';
   type Button = { text?: string; onPress?: () => void };
   const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
@@ -261,6 +261,11 @@ it('changes stock and deletes from the swipe buttons', async () => {
   expect(summary()).toHaveTextContent('2 صنف • 1 قطعة في المخزن');
   // At zero the −1 button is off: stock never goes below zero.
   expect(screen.getAllByRole('button', { name: '−1' })[0]).toBeDisabled();
+
+  // The edit swipe button opens the piece's form.
+  await fireEvent.press(screen.getAllByRole('button', { name: 'تعديل' })[0]);
+  expect(await screen.findByDisplayValue('بروش')).toBeOnTheScreen();
+  await act(() => router.back());
 
   // Delete asks first, with the current stock; nothing is removed until confirmed.
   await fireEvent.press(screen.getAllByRole('button', { name: 'حذف' })[1]);

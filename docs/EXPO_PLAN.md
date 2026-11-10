@@ -210,7 +210,7 @@ mobile/
 - **4.4** Scarves: design cards with all sizes; design form with size rows (typed size, cost, price, stock); quick add for 90×90, 120×120 and 140×140.
 - **4.5** Brands management: add, rename, delete, photo or initials badge, product counts.
 - **4.6** Stock adjustment sheet with a reason. **NEW**
-- **4.7** iPad: list on the left, details or form on the right. **NEW**
+- **4.7** iPad: list on the leading side (the right, in Arabic), details or form beside it. **NEW**
 
 **You check:** products with photos, scarf designs with sizes, brands.
 
@@ -364,5 +364,9 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - PINs: 8 digits, salted SHA-256 in the Keychain (this device only, never backed up). Easy PINs (one digit repeated, straight runs) are refused. First-launch setup only asks for a system that has no PIN yet, so an interrupted setup can't be used to replace a saved PIN.
 - Locking: going to the background locks; the app switcher and the Face ID prompt only hide the screen behind the logos. The start screen always locks, so entering any system needs its PIN (or Face ID for jewelry).
 - The design gallery is opened only by its link (`salfordpos://gallery`), not from the start screen.
+- Testing: every push runs the fast checks and builds the `.ipa`; the simulator tap-through (Maestro) is started by hand once per phase, before the owner merges.
+- Photos: taken or chosen, resized to at most 1600 px, kept in the app's own folder per system (only the file name is in the database). A photo file is deleted only when no product, scarf size or brand shows it.
+- A cost entered in dollars keeps the rate it was bought at; editing a piece reprices it only when the dollar cost itself changes.
+- iPad: the list is on the leading side (the right, in Arabic, as in iOS's own apps) and the open piece beside it.
 
-Status: Phases 0 to 2 are merged; Phase 3 is in progress.
+Status: Phases 0 to 3 are merged; Phase 4 is in progress.

@@ -1,0 +1,69 @@
+# Phase 4: adding a piece with a new brand, the list and its brand filter, then the brands screen.
+# On iPad the form opens beside the list; the steps are the same.
+appId: com.salford.pos
+---
+- runFlow: subflows/fresh-launch.yaml
+- runFlow: subflows/setup-pins.yaml
+- tapOn: 'نظام المجوهرات'
+- runFlow: subflows/pin-jewelry.yaml
+# The first Face ID check on a fresh CI simulator can hold the PIN check for 30 seconds or more.
+- extendedWaitUntil:
+    visible: 'مبيعات اليوم'
+    timeout: 90000
+- tapOn: 'المنتجات'
+- extendedWaitUntil:
+    visible: 'لا توجد قطع بعد'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-products-empty
+- tapOn: 'إضافة قطعة'
+- extendedWaitUntil:
+    visible:
+      id: 'product-name'
+    timeout: 30000
+- tapOn:
+    id: 'product-name'
+- inputText: 'Ring Zircon'
+- tapOn:
+    id: 'product-brand'
+- inputText: 'Pandora'
+- assertVisible: 'ماركة جديدة — ستُضاف للقائمة عند الحفظ'
+- scrollUntilVisible:
+    element:
+      id: 'product-price'
+    direction: DOWN
+- tapOn:
+    id: 'product-price'
+- inputText: '350'
+- tapOn:
+    id: 'product-cost'
+- inputText: '200'
+- assertVisible: '150 د.ل • 43٪'
+- takeScreenshot: ${DEVICE}-product-form
+- scrollUntilVisible:
+    element:
+      id: 'product-save'
+    direction: DOWN
+- tapOn:
+    id: 'product-save'
+- extendedWaitUntil:
+    visible: 'Ring Zircon'
+    timeout: 30000
+- assertVisible: 'RNG-0001 • خواتم'
+- assertVisible: '1 صنف • 1 قطعة في المخزن'
+- takeScreenshot: ${DEVICE}-products-list
+# One tap on the brand shows its pieces; a second tap shows all again.
+- tapOn:
+    id: 'brand-chip-Pandora'
+- assertVisible: 'Ring Zircon'
+- tapOn:
+    id: 'brand-chip-Pandora'
+# Management → Brands lists the brand added with the piece.
+- tapOn: 'الإدارة'
+- tapOn:
+    id: 'manage-brands'
+- extendedWaitUntil:
+    visible:
+      id: 'brand-row-Pandora'
+    timeout: 30000
+- assertVisible: 'الماركات \(1\)'
+- takeScreenshot: ${DEVICE}-brands
