@@ -82,6 +82,7 @@ function SystemStack() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="product/[id]" options={sheet} />
       <Stack.Screen name="photo/[id]" options={sheet} />
+      <Stack.Screen name="design/[id]" options={sheet} />
     </Stack>
   );
 }

@@ -11,6 +11,7 @@ import SystemLayout from '@/app/[system]/_layout';
 import TabsLayout from '@/app/[system]/(tabs)/_layout';
 import ProductsStack from '@/app/[system]/(tabs)/products/_layout';
 import Products from '@/app/[system]/(tabs)/products/index';
+import DesignRoute from '@/app/[system]/design/[id]';
 import ProductRoute from '@/app/[system]/product/[id]';
 
 jest.mock('expo-haptics', () => ({
@@ -38,18 +39,26 @@ jest.mock('expo-router/build/link/preview/native', () => ({
   NativeLinkPreviewContent: () => null,
 }));
 // Already unlocked: the PIN screens have their own tests.
+let mockUnlocked = 'jewelry';
 jest.mock('@/state/lock', () => ({
   LockProvider: ({ children }: { children: React.ReactNode }) => children,
-  useLock: () => ({ unlocked: 'jewelry', unlock: () => {}, lock: () => {}, active: true }),
+  useLock: () => ({ unlocked: mockUnlocked, unlock: () => {}, lock: () => {}, active: true }),
 }));
 jest.mock('@/db/manager', () => {
   /* eslint-disable @typescript-eslint/no-require-imports -- jest.mock factories cannot use imports */
   const { openMemoryDb } = require('@/db/testing/node-db');
   const { migrate } = require('@/db/migrate');
   /* eslint-enable @typescript-eslint/no-require-imports */
-  const db = openMemoryDb();
-  migrate(db);
-  return { openSystemDb: () => ({ status: 'ok', db }), setAsideUnreadable: jest.fn() };
+  const dbs = new Map();
+  const open = (system: string) => {
+    if (!dbs.has(system)) {
+      const db = openMemoryDb();
+      migrate(db);
+      dbs.set(system, db);
+    }
+    return { status: 'ok', db: dbs.get(system) };
+  };
+  return { openSystemDb: open, setAsideUnreadable: jest.fn() };
 });
 
 const routes = {
@@ -61,6 +70,7 @@ const routes = {
   '[system]/(tabs)/products/_layout': ProductsStack,
   '[system]/(tabs)/products/index': Products,
   '[system]/product/[id]': ProductRoute,
+  '[system]/design/[id]': DesignRoute,
 };
 
 afterEach(() => jest.restoreAllMocks());
@@ -122,4 +132,45 @@ it('adds a piece through the form and finds it in the list', async () => {
   await fireEvent.press(screen.getByRole('button', { name: 'دبابيس' }));
   expect(screen.getByTestId('products-summary')).toHaveTextContent(/^0 صنف •/);
   expect(screen.getByText('لا توجد نتائج')).toBeOnTheScreen();
+});
+
+it('adds a scarf design with its sizes and opens it again', async () => {
+  mockUnlocked = 'scarves';
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  const app = await renderRouter(routes, { initialUrl: '/scarves/products' });
+
+  expect(await screen.findByText('لا توجد أوشحة بعد')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole('button', { name: 'تصميم جديد' }));
+  expect(app.getPathname()).toBe('/scarves/design/new');
+
+  // A new design starts with 90×90; 120×120 is one tap away.
+  expect(await screen.findByDisplayValue('90×90')).toBeOnTheScreen();
+  await fireEvent.changeText(screen.getByTestId('design-name'), 'وشاح حرير');
+  await fireEvent.changeText(screen.getByTestId('size-price-0'), '90');
+  await fireEvent.changeText(screen.getByTestId('size-cost-0'), '30');
+  await fireEvent.changeText(screen.getByTestId('size-stock-0'), '2');
+  await fireEvent.press(screen.getByTestId('add-size-120×120'));
+  expect(screen.queryByTestId('add-size-120×120')).not.toBeOnTheScreen();
+
+  // A size without a price is refused, naming the size.
+  await fireEvent.press(screen.getByTestId('design-save'));
+  expect(alert).toHaveBeenCalledWith('لم يتم الحفظ', 'أدخل سعر البيع للمقاس 120×120');
+  await fireEvent.changeText(screen.getByTestId('size-price-1'), '120');
+  await fireEvent.changeText(screen.getByTestId('size-cost-1'), '40');
+  await fireEvent.press(screen.getByTestId('design-save'));
+
+  // One design with both sizes, their stock and the price range.
+  expect(await screen.findByText('وشاح حرير')).toBeOnTheScreen();
+  expect(app.getPathname()).toBe('/scarves/products');
+  expect(screen.getByText('90×90: 2')).toBeOnTheScreen();
+  expect(screen.getByText('120×120: 1')).toBeOnTheScreen();
+  expect(screen.getByText('90 – 120 د.ل')).toBeOnTheScreen();
+  expect(screen.getByTestId('designs-summary')).toHaveTextContent('1 تصميم • 3 قطعة');
+
+  // Opening it shows every size with its own price.
+  await fireEvent.press(screen.getByTestId('design-وشاح حرير'));
+  expect(app.getPathname()).toMatch(/^\/scarves\/design\/D/);
+  expect(await screen.findByDisplayValue('120×120')).toBeOnTheScreen();
+  expect(screen.getByDisplayValue('120')).toBeOnTheScreen();
+  expect(screen.getByDisplayValue('وشاح حرير')).toBeOnTheScreen();
 });
