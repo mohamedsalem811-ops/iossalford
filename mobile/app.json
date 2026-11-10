@@ -69,7 +69,8 @@
           "cameraPermission": "يحتاج التطبيق إلى الكاميرا لتصوير المنتجات.",
           "microphonePermission": false
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true,

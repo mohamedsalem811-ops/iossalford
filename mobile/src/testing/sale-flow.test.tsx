@@ -15,6 +15,7 @@ import Sale from '@/app/[system]/(tabs)/sale/index';
 import AddRoute from '@/app/[system]/add/[id]';
 import CartRoute from '@/app/[system]/cart';
 import CheckoutRoute from '@/app/[system]/checkout';
+import ReceiptRoute from '@/app/[system]/receipt/[id]';
 import SetRoute from '@/app/[system]/set/[id]';
 import SetsRoute from '@/app/[system]/sets';
 import SizesRoute from '@/app/[system]/sizes/[id]';
@@ -34,6 +35,9 @@ jest.mock('expo-haptics', () => ({
   NotificationFeedbackType: { Success: 'success', Error: 'error' },
 }));
 jest.mock('expo-symbols', () => ({ SymbolView: () => null }));
+jest.mock('react-native-webview', () => ({ WebView: () => null }));
+jest.mock('expo-print', () => ({ printToFileAsync: jest.fn(), printAsync: jest.fn() }));
+jest.mock('expo-sharing', () => ({ shareAsync: jest.fn() }));
 jest.mock('expo-router/native-tabs', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories cannot use imports
   const { Slot } = require('expo-router');
@@ -116,6 +120,7 @@ const routes = {
   '[system]/cart': CartRoute,
   '[system]/checkout': CheckoutRoute,
   '[system]/sold/[id]': SoldRoute,
+  '[system]/receipt/[id]': ReceiptRoute,
   '[system]/add/[id]': AddRoute,
   '[system]/sizes/[id]': SizesRoute,
   '[system]/sets': SetsRoute,
@@ -206,8 +211,9 @@ it('sells two pieces on credit to a named customer, after refusing an out-of-sto
   expect(sale).toMatchObject({ paymentMethod: 'credit', customerName: 'سارة', total: 700_000 });
   expect(getProduct(ctx, ring)?.stock).toBe(0);
   expect(getCart('jewelry')).toHaveLength(0);
+  // The receipt opens in the studio, to print or share.
   await fireEvent.press(screen.getByTestId('sold-show-receipt'));
-  expect(screen.getByTestId('sold-receipt')).toHaveTextContent(/GR-\d{4}-0001/);
+  expect(await screen.findByTestId('studio-number')).toHaveTextContent(/^GR-\d{4}-0001$/);
 });
 
 it('adds a scarf by its size', async () => {
