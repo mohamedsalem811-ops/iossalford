@@ -8,11 +8,14 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 
 import { KeyboardBar } from '@/components/keyboard-bar';
 import { PrivacyCover } from '@/components/privacy-cover';
+import { applySavedAppearance } from '@/state/appearance';
 import { LockProvider } from '@/state/lock';
 import { ThemeProvider } from '@/theme';
 import { fontAssets } from '@/theme/font-assets';
 
 SplashScreen.preventAutoHideAsync();
+// The owner's light/dark choice (Settings) applies before anything is drawn.
+applySavedAppearance();
 
 export default function RootLayout() {
   const scheme = useColorScheme();

@@ -107,6 +107,8 @@ function SystemStack() {
       <Stack.Screen name="design/[id]" options={sheet} />
       <Stack.Screen name="stock/[id]" options={halfSheet} />
       <Stack.Screen name="manage-sets" options={pushed} />
+      <Stack.Screen name="settings" options={pushed} />
+      <Stack.Screen name="change-pin" options={sheet} />
       <Stack.Screen name="set/[id]" options={sheet} />
       <Stack.Screen name="sets" options={sheet} />
       <Stack.Screen name="cart" options={sheet} />

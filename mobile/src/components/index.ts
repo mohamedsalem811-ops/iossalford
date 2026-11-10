@@ -3,6 +3,7 @@ export type { ButtonSize, ButtonVariant } from './button';
 export { Card, HeroCard } from './card';
 export { Badge, ChipRow, FilterChip, Stat } from './chips';
 export { NumberField, TextField } from './fields';
+export { Page } from './page';
 export { FormHeader } from './form-header';
 export { Icon } from './icon';
 export { KEYBOARD_GAP, KeyboardBar } from './keyboard-bar';
