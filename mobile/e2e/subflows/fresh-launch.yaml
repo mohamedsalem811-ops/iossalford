@@ -1,6 +1,13 @@
 # Starts from a new install: app data and Keychain (where the PINs live) are both cleared.
 appId: com.salford.pos
 ---
+# A stray keyboard tap on the simulator can leave iOS's "Enable Dictation?" alert on screen,
+# which would block every later step.
+- runFlow:
+    when:
+      visible: 'Not Now'
+    commands:
+      - tapOn: 'Not Now'
 - launchApp:
     clearState: true
     clearKeychain: true
