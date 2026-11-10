@@ -1,11 +1,12 @@
 import { Redirect, router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback } from 'react';
 
+import { AutoBackup } from '@/backup/auto-backup';
 import { DbErrorScreen } from '@/screens/db-error';
 import { LoginScreen, type LoginDeps } from '@/screens/login';
 import { askFaceId, faceIdStatus, pinVault, rememberSystem } from '@/security/device';
 import { useLock } from '@/state/lock';
-import { CtxProvider, useSystemDb } from '@/state/system-db';
+import { CtxProvider, useCtx, useSystemDb } from '@/state/system-db';
 import { fonts, ThemeProvider, useTheme, type SystemId } from '@/theme';
 
 const loginDeps: LoginDeps = {
@@ -64,9 +65,15 @@ function SystemDb({ system }: { system: SystemId }) {
   }
   return (
     <CtxProvider db={result.db} system={system}>
+      <AutoBackupOfOpenSystem />
       <SystemStack />
     </CtxProvider>
   );
+}
+
+/** A backup of the open system each time the app goes to the background. */
+function AutoBackupOfOpenSystem() {
+  return <AutoBackup ctx={useCtx()} />;
 }
 
 /**
@@ -117,6 +124,7 @@ function SystemStack() {
       <Stack.Screen name="expenses" options={pushed} />
       <Stack.Screen name="closing" options={pushed} />
       <Stack.Screen name="comparison" options={pushed} />
+      <Stack.Screen name="backup" options={pushed} />
       <Stack.Screen name="customer-form/[id]" options={sheet} />
       <Stack.Screen name="payment/[id]" options={halfSheet} />
       <Stack.Screen name="return/[id]" options={sheet} />

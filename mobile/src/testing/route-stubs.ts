@@ -18,6 +18,7 @@ const NAMES = [
   'expenses',
   'closing',
   'comparison',
+  'backup',
   'return/[id]',
   'set/[id]',
   'sets',

@@ -1,6 +1,8 @@
 import type { SymbolViewProps } from 'expo-symbols';
 
-import { ListGroup, ListRow, Screen, Text } from '@/components';
+import { Pressable } from 'react-native';
+
+import { Card, ListGroup, ListRow, Screen, Text } from '@/components';
 import { spacing } from '@/theme';
 
 /** The management screens, each opened by its route (see the More tab). */
@@ -14,6 +16,7 @@ export type ManageTarget =
   | 'comparison'
   | 'brands'
   | 'sets'
+  | 'backup'
   | 'settings';
 
 type Row = { target: ManageTarget; icon: SymbolViewProps['name']; title: string };
@@ -51,7 +54,10 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
   },
   {
     title: 'التطبيق',
-    rows: [{ target: 'settings', icon: 'gearshape', title: 'الإعدادات' }],
+    rows: [
+      { target: 'backup', icon: 'externaldrive', title: 'النسخ الاحتياطي' },
+      { target: 'settings', icon: 'gearshape', title: 'الإعدادات' },
+    ],
   },
 ];
 
@@ -61,16 +67,34 @@ export function ManagementScreen({
   onSwitch,
   onLock,
   badges = {},
+  reminder,
 }: {
   onOpen: (target: ManageTarget) => void;
   onSwitch: () => void;
   onLock: () => void;
   /** A value shown at the end of a row (a count, a total). */
   badges?: Partial<Record<ManageTarget, string>>;
+  /** No recent backup copied off the device: a banner that opens the backup screen. */
+  reminder?: string | null;
 }) {
   return (
     <Screen tabBar contentStyle={{ gap: spacing.lg }}>
       <Text variant="largeTitle">الإدارة</Text>
+      {reminder ? (
+        <Pressable
+          onPress={() => onOpen('backup')}
+          accessibilityRole="button"
+          testID="manage-backup-reminder">
+          <Card>
+            <Text variant="bodyStrong" tone="warning">
+              {reminder}
+            </Text>
+            <Text variant="caption" tone="accent">
+              فتح النسخ الاحتياطي
+            </Text>
+          </Card>
+        </Pressable>
+      ) : null}
       {GROUPS.map((g) => (
         <ListGroup key={g.title} header={g.title}>
           {g.rows.map((r) => (

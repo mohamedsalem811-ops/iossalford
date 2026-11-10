@@ -1,4 +1,8 @@
-import { router, type Href } from 'expo-router';
+import { router, useFocusEffect, type Href } from 'expo-router';
+import { useCallback, useState } from 'react';
+
+import { copyReminder } from '@/backup/model';
+import { firstBackup, lastCopied } from '@/backup/store';
 
 import { ManagementScreen, type ManageTarget } from '@/screens/management';
 import { useLock } from '@/state/lock';
@@ -15,14 +19,23 @@ const ROUTES: Record<ManageTarget, (system: SystemId) => Href> = {
   comparison: (system) => ({ pathname: '/[system]/comparison', params: { system } }),
   brands: (system) => ({ pathname: '/[system]/brands', params: { system } }),
   sets: (system) => ({ pathname: '/[system]/manage-sets', params: { system } }),
+  backup: (system) => ({ pathname: '/[system]/backup', params: { system } }),
   settings: (system) => ({ pathname: '/[system]/settings', params: { system } }),
 };
 
 export default function More() {
   const { lock } = useLock();
-  const { system } = useCtx();
+  const ctx = useCtx();
+  const system = ctx.system;
+  const read = useCallback(
+    () => copyReminder(lastCopied(system), ctx.now(), firstBackup(system)),
+    [ctx, system],
+  );
+  const [reminder, setReminder] = useState(read);
+  useFocusEffect(useCallback(() => setReminder(read()), [read]));
   return (
     <ManagementScreen
+      reminder={reminder}
       onOpen={(t) => router.push(ROUTES[t](system))}
       onSwitch={() => router.replace('/')}
       onLock={lock}

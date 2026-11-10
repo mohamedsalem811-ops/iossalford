@@ -73,12 +73,16 @@ async function enter(pin: string) {
   for (const d of pin) await fireEvent.press(screen.getByTestId(`pin-key-${d}`));
 }
 
-let emit: (state: AppStateStatus) => void = () => {};
+// Every listener hears each change, as on iOS (the lock and the automatic backup both listen).
+const listeners = new Set<(state: AppStateStatus) => void>();
+const emit = (state: AppStateStatus) => [...listeners].forEach((l) => l(state));
 
 beforeEach(() => {
+  listeners.clear();
   jest.spyOn(AppState, 'addEventListener').mockImplementation((_type, handler) => {
-    emit = handler as (state: AppStateStatus) => void;
-    return { remove: jest.fn() } as never;
+    const l = handler as (state: AppStateStatus) => void;
+    listeners.add(l);
+    return { remove: () => listeners.delete(l) } as never;
   });
 });
 afterEach(() => jest.restoreAllMocks());
