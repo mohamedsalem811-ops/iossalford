@@ -75,6 +75,13 @@ describe('receiptHtml', () => {
     expect(html).toContain('table-header-group');
   });
 
+  it('scales the page to the preview width on screen; the PDF stays A4', () => {
+    const html = receiptHtml(doc(), { previewWidth: 297.5 });
+    expect(html).toContain('zoom: 0.5;');
+    expect(html).toContain('width=device-width');
+    expect(receiptHtml(doc())).toContain('zoom: 1;');
+  });
+
   it('says a gift receipt and that the number comes on save', () => {
     const html = receiptHtml(doc({ showPrices: false, receiptNo: null }));
     expect(html).toContain('GIFT RECEIPT');

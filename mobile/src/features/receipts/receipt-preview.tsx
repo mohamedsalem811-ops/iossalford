@@ -26,13 +26,13 @@ export function ReceiptPreview({ doc }: { doc: ReceiptDoc }) {
         <WebView
           testID="receipt-preview"
           originWhitelist={['*']}
-          source={{ html: receiptHtml(doc) }}
+          source={{ html: receiptHtml(doc, { previewWidth: width }) }}
           style={{ backgroundColor: '#fff' }}
           scrollEnabled
           bounces={false}
           showsVerticalScrollIndicator
-          // The page is 595 points wide; the viewport scales it to fit.
           automaticallyAdjustContentInsets={false}
+          contentInsetAdjustmentBehavior="never"
         />
       ) : null}
     </View>

@@ -131,7 +131,15 @@ const LOOKS: Record<TemplateId, Look> = {
   },
 };
 
-export function receiptHtml(doc: ReceiptDoc): string {
+/**
+ * `previewWidth`: shown on screen at this width (points). The page is scaled down to fit it
+ * exactly; the printed PDF is always real A4.
+ */
+export function receiptHtml(doc: ReceiptDoc, opts: { previewWidth?: number } = {}): string {
+  const zoom = opts.previewWidth ? Math.min(1, opts.previewWidth / PAGE.width) : 1;
+  const viewport = opts.previewWidth
+    ? 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no'
+    : `width=${PAGE.width}`;
   const look = LOOKS[doc.template] ?? LOOKS.salford_light;
   const no = doc.receiptNo ?? '— (assigned on save)';
   const e = escapeHtml;
@@ -146,12 +154,12 @@ export function receiptHtml(doc: ReceiptDoc): string {
 
   return `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
-<meta name="viewport" content="width=${PAGE.width}">
+<meta name="viewport" content="${viewport}">
 <style>
   @page { size: A4; margin: 0; }
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   html, body { margin: 0; padding: 0; background: #fff; color: #000; }
-  body { width: ${PAGE.width}px; font-family: -apple-system, "Helvetica Neue", "Geeza Pro", sans-serif; font-size: 11.5px; }
+  body { width: ${PAGE.width}px; zoom: ${zoom}; font-family: -apple-system, "Helvetica Neue", "Geeza Pro", sans-serif; font-size: 11.5px; }
   .banner, .plain { text-align: center; }
   .plain { padding-top: 30px; }
   .mono { font-size: 44px; font-weight: 900; font-family: "Times New Roman", serif; line-height: 1; padding-top: 22px; }

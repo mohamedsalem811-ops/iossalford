@@ -1,3 +1,4 @@
+import { isRunningInExpoGo } from 'expo';
 import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
@@ -139,7 +140,9 @@ export function ReceiptStudio({
         const name = await saveReceiptToFiles(doc);
         Alert.alert(
           'حُفظ في الملفات',
-          `${name}\nتجده في تطبيق الملفات ← على الـ iPhone (أو الـ iPad) ← SALFORD POS ← Receipts.`,
+          isRunningInExpoGo()
+            ? `${name}\nفي Expo Go يُحفظ داخل Expo Go. في التطبيق المثبّت تجده في تطبيق الملفات ← على الـ iPhone (أو الـ iPad) ← SALFORD POS ← Receipts.`
+            : `${name}\nتجده في تطبيق الملفات ← على الـ iPhone (أو الـ iPad) ← SALFORD POS ← Receipts.`,
         );
       }
     } catch {
