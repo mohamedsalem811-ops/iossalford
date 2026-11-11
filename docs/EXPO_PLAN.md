@@ -35,6 +35,13 @@ Every feature of the current app is kept. Items marked **NEW** don't exist in th
 6. You install the build (Expo Go preview, or the `.ipa` at key stages) and go through a short checklist.
 7. Each phase is one pull request into `main`. While steps are pushed it stays a draft and only the fast checks run (about 1 minute). Once it is marked ready, every push also builds the `.ipa` (about 20 minutes). When the phase is complete I publish the Expo Go preview; you test it and the `.ipa` and tell me what needs fixing, then it is **merged by you**.
 
+**Keeping it working for years (standing practice, from the long-life review):**
+
+- **Re-signing:** the 7-day expiry is the biggest everyday risk (a missed re-sign means the app won't open until it is re-signed; the data is safe). Turn on Sideloadly's automatic refresh, with the computer on the same Wi-Fi as the devices; the developer account (L1) makes it once a year.
+- **Once a year:** upgrade to the newest Expo SDK, with a full test run, so the app keeps building with new Xcode and iOS versions. The installed app keeps working without it.
+- **The repository stays public:** that is why GitHub's Mac builds are free and unlimited (no shop data is in it). If it became private, the free plan allows only about 8 `.ipa` builds a month.
+- **Every phase's self-check also covers growth:** nothing loads a whole table at once, and nothing slows down as the years of data grow.
+
 **Expo Go (changed after the Phase 7 review):** the owner tests with the installed `.ipa`, so Expo Go is no longer a rule. Libraries Expo Go includes are still preferred; a library with its own native code is added only when it is clearly better, after asking the owner. The Expo Go preview is still published each phase while the app runs there. In Expo Go the app shows Expo Go's name and icon, and its data is separate from the installed app (test only).
 
 ## 3. Architecture (all NEW under the hood)
@@ -322,8 +329,20 @@ mobile/
   - list with its details beside it, as in the iPad Settings app: the Management menu, Sales, Customers, Debts, Returns, Receipts;
   - cards that fill the width: Dashboard and Sale;
   - forms open as windows over the screen (as now).
-- **8.0f Speed test** (moved from 9.4): 2,000 products and 10,000 sales, measured on the dashboard and the long lists; anything slow is fixed.
-- **8.0g Tap-through tests written** for selling, receipts, management and backup/restore (today only login, lockout, switching and products have them). They run in the final test run (9.6), or earlier for backups.
+- **8.0f Tap-through tests written** for selling, receipts, management and backup/restore (today only login, lockout, switching and products have them). They run in the final test run (9.6), or earlier for backups.
+
+**Then the long-life fixes** (from the long-life review, approved by the owner on 2026-11-11), so the app keeps working the same after years of data and future upgrades:
+
+- **8.0g Backups as copies of the database file.** Each backup is made by SQLite itself (fast, small, no memory spike), written under a temporary name and renamed only when complete, so a half-written backup can't exist. Whether anything changed is known from a change counter, without reading the whole database. Every backup is checked (database integrity, system, version) before it is kept or restored. Backups already made in the old format still restore.
+- **8.0h Copy off the device written and read one photo at a time,** so memory stays small however many photos there are (today all photos are packed into memory at once, which would close the app with a few hundred photos). Copies made in the old format still restore.
+- **8.0i Safe database upgrades,** for every future change to the tables:
+  - a copy of the database is saved before any upgrade runs;
+  - the links between tables are switched off while an upgrade rebuilds a table and checked afterwards, so a rebuild can never delete sale lines, returns or other linked records;
+  - every upgrade also upgrades older backups, with a test that restores a backup from the first version;
+  - database upgrades ship only in a new `.ipa`, never as an instant update, and a check blocks publishing such an update (otherwise a rollback or the weekly re-sign could bring back older code that can't open the upgraded database).
+- **8.0j Restore writes the safety copy to the device first,** before any data is replaced, so it exists even if the app closes in the middle.
+- **8.0k Safety net for unexpected errors:** if a screen hits a bug, it shows "حدث خطأ" with "حاول مجدداً" instead of closing the app, and the error is written to a log on the device (no internet involved). Settings can share the log, so every problem is found and fixed once.
+- **8.0l Speed test** (moved from 9.4): 2,000 products and 10,000 sales, and a second run with 30,000 sales (about 5 to 10 years of use). Measured: opening every screen (target under a third of a second), a checkout, the dashboard, the long lists, saving a backup and making a copy with photos. Anything slow is fixed; the numbers go in the pull request.
 
 Then the dashboard:
 
@@ -351,7 +370,7 @@ Then the dashboard:
   - every orientation;
   - Split View and Stage Manager sizes.
   - **NEW:** keyboard shortcuts (⌘F search, ⌘N new product).
-- **9.4** Speed test with 2,000 products and 10,000 sales, repeated on the finished app (first done in Phase 8, step 8.0f). **NEW**
+- **9.4** Speed test with 2,000 products and 10,000 sales, repeated on the finished app (first done in Phase 8, step 8.0l). **NEW**
 - **9.5** App icon, launch screen, app name.
 - **9.6** Full tap-through test run and final screenshots on iPhone and iPad. **NEW**
 
@@ -414,14 +433,15 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - After checkout the success screen shows the total and the receipt number; "الإيصال" opens the receipt studio to print, share or edit it.
 - Receipts: printing makes an A6 PDF (105 × 148 mm, the shop's receipt paper, with narrower side margins and tighter spacing so a usual receipt fits on one sheet); sharing and Files use A4. Both run edge to edge: every size is a fraction of the paper's width, so the receipt fills the page whatever scale iOS prints at. Printing or sharing saves the receipt first, so the PDF has its number. iOS's web printing cannot put "page 1 / 2" on each page; instead each continued page repeats the table header with the receipt number. Saved PDFs go to the app's Receipts folder (Files → On My iPhone/iPad → SALFORD POS → Receipts); in Expo Go they stay inside Expo Go.
 - Management (Phase 7): the hub is grouped (sales, customers, money, catalogue, app). Changing a PIN asks for the current PIN first (wrong attempts count towards the lockout). Appearance (automatic, light, dark) applies to the whole app, native parts included. The monthly comparison is drawn with plain bars (no chart library) and offers 3, 6 or 12 months; Phase 8 decides the dashboard's charts.
-- Backups (Phase 7): saved on the device as JSON, last 10 per system, by hand, and automatically when the app goes to the background, when the system is locked or switched (skipped when nothing changed). These copies hold the data; the photos stay in the app's folder. A copy made to leave the device (AirDrop, Files, a computer) is one file with the data and the photos. Restoring checks the file, shows what it holds, asks, and saves a safety copy first (restorable). The reminder shows after 7 days without a copy off the device (before any copy, counted from the first backup).
+- Backups (Phase 7; from Phase 8 as copies of the database file, see 8.0g): saved on the device as JSON, last 10 per system, by hand, and automatically when the app goes to the background, when the system is locked or switched (skipped when nothing changed). These copies hold the data; the photos stay in the app's folder. A copy made to leave the device (AirDrop, Files, a computer) is one file with the data and the photos. Restoring checks the file, shows what it holds, asks, and saves a safety copy first (restorable). The reminder shows after 7 days without a copy off the device (before any copy, counted from the first backup).
 - Keeping the data out of the device's own iCloud backup needs one iOS setting that no Expo library offers, so the app has one small module of its own (`mobile/modules/backup-exclusion`, Swift). It runs in the installed `.ipa` only; Expo Go does not have it and the app works there without it. It is the app's only native code.
 
 - Review of Phases 0 to 7 (2026-11-11), approved by the owner, without changing how the app works:
   - **Fixes**, done first in Phase 8 (8.0b to 8.0e): the live data hidden from the Files app; long lists loaded as you scroll; the tab bar kept inside Management; the iPad layout planned by type of screen (list with details beside it, cards filling the width, forms as windows).
-  - **Plan changes:** the speed test moved to Phase 8 (8.0f); no chart library: the dashboard draws its own bars, with tap-to-see the day's total and breakdowns as ranked rows, and the first Phase 8 preview compares them with Apple's own charts; the missing tap-through tests written in Phase 8 (8.0g); this document brought up to date.
+  - **Plan changes:** the speed test moved to Phase 8 (8.0l); no chart library: the dashboard draws its own bars, with tap-to-see the day's total and breakdowns as ranked rows, and the first Phase 8 preview compares them with Apple's own charts; the missing tap-through tests written in Phase 8 (8.0f); this document brought up to date.
   - **Way of working:** a screenshot run on iPhone and iPad at the end of every phase; Expo Go no longer limits the choice of libraries (a native library only when clearly better, after asking).
   - **Instant updates** (L6) brought forward to the first step of Phase 8 (8.0a): they don't need the developer account. Updates go to the installed app only with the owner's OK; offline use is unchanged.
 - Offline: the app works fully without the internet, and every phase's self-check confirms nothing new needs it.
+- Long-life review (2026-11-11), approved by the owner: backups become copies of the database file, written safely and checked (8.0g); the copy off the device is handled one photo at a time (8.0h); database upgrades are made safe and ship only in a new `.ipa` (8.0i); restore saves its safety copy first (8.0j); errors show a retry screen and go to a log on the device (8.0k); the speed test also runs with 30,000 sales (8.0l). Standing practice: Sideloadly's automatic refresh, one Expo SDK upgrade a year, the repository kept public (section 2).
 
-Status: Phases 0 to 7 are merged. Next: Phase 8, starting with instant updates and the review fixes (8.0a to 8.0g).
+Status: Phases 0 to 7 are merged. Next: Phase 8, starting with instant updates, the review fixes and the long-life fixes (8.0a to 8.0l).

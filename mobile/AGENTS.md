@@ -49,6 +49,9 @@ Docs: https://docs.expo.dev/eas/index.md
 - The app works fully offline: no web addresses, no network calls. The only connection is the instant-update check when online, which must never make the app wait. Nothing may need the internet; check this in every phase's self-check.
 - Instant updates (from Phase 8): publish to the `preview` branch for testing; publish to `production` (the installed app) only after the owner says OK. Say whether each change can go as an update or needs a new `.ipa` (native changes).
 - Live data (databases, photos) never goes in the folder the Files app shows (`Paths.document`): only Backups and Receipts belong there.
+- Database upgrades (from Phase 8): save a copy of the database first; switch foreign keys off while rebuilding a table and run `PRAGMA foreign_key_check` after (never rebuild a table with foreign keys on: the cascades would delete linked rows); upgrade older backups in the same change and test restoring a backup from schema version 1. A schema change ships only in a new `.ipa`, never as an instant update.
+- Backups and other important files are written under a temporary name and renamed when complete; never hold every photo (or a whole large table) in memory at once. A restore writes its safety copy to disk before replacing anything.
+- Every screen has an error boundary (retry screen) and errors are written to the on-device log; never let one bug close the app.
 - Long lists load as you scroll; never load every sale or receipt (or their lines) at once, and never load a whole table just to list its months.
 - Keep everything up to date: newest packages the Expo SDK supports (`npx expo install --check`), latest GitHub Actions, newest stable Xcode.
 - Arabic, right-to-left, digits 0-9 only. Backups stay on the device; no iCloud until the Apple Developer step L2.
