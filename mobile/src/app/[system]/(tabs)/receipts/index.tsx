@@ -5,15 +5,20 @@ import { Alert } from 'react-native';
 import {
   countReceipts,
   deleteReceipt,
+  getReceipt,
   listReceipts,
   receiptMonths,
   templatesFor,
   type ReceiptQuery,
   type TemplateId,
 } from '@/domain/receipts';
+import { EmptyState, SplitView } from '@/components';
+import { BelowHeader } from '@/components/below-header';
 import { receiptDoc, templateName } from '@/features/receipts/model';
-import { usePaged } from '@/hooks/use-paged';
+import { ReceiptPane } from '@/features/receipts/receipt-pane';
 import { ReceiptsList } from '@/features/receipts/receipts-list';
+import { useLayout } from '@/hooks/use-layout';
+import { usePaged } from '@/hooks/use-paged';
 import { monthTitle } from '@/lib/dates';
 import { printReceipt, shareReceipt } from '@/receipts/output';
 import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
@@ -21,7 +26,8 @@ import { useCtx } from '@/state/system-db';
 
 /**
  * The receipts tab: every receipt, newest first. Search by number, customer or piece; filter by
- * month or design; open to edit or reprint; a new receipt made by hand.
+ * month or design; open to edit or reprint; a new receipt made by hand. iPad: the chosen receipt
+ * shows beside the list, as it prints, with its actions.
  */
 export default function ReceiptsRoute() {
   const ctx = useCtx();
@@ -46,6 +52,10 @@ export default function ReceiptsRoute() {
   const open = (id: number | 'new') =>
     router.push({ pathname: '/[system]/receipt/[id]', params: { system, id: String(id) } });
   const fail = () => Alert.alert('تعذّر إنشاء ملف الإيصال', 'حاول مرة أخرى.');
+  // iPad: the receipt shown beside the list (read again with the list, so edits show at once).
+  const { split } = useLayout();
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const selected = selectedId === null ? undefined : getReceipt(ctx, selectedId);
   const months = facts.months;
   const filtered = !!(query.search || query.month || query.template);
 
@@ -105,34 +115,87 @@ export default function ReceiptsRoute() {
           onPress={() => open('new')}
         />
       </Stack.Toolbar>
-      <ReceiptsList
-        receipts={data.shown}
-        total={facts.count}
-        onEndReached={shown.loadMore}
-        filtered={filtered}
-        onNew={() => open('new')}
-        actions={{
-          onOpen: (r) => open(r.id),
-          onPrint: (r) => printReceipt(receiptDoc(r)).catch(fail),
-          onShare: (r) => shareReceipt(receiptDoc(r)).catch(fail),
-          onDelete: (r) =>
-            Alert.alert(
-              `حذف الإيصال ${r.receiptNo}؟`,
-              'لا يتأثر البيع ولا المخزون، ولا يُعطى رقمه لإيصال آخر.',
-              [
-                { text: 'إلغاء', style: 'cancel' },
-                {
-                  text: 'حذف',
-                  style: 'destructive',
-                  onPress: () => {
-                    deleteReceipt(ctx, r.id);
-                    notifyDataChanged();
+      {split ? (
+        <BelowHeader>
+          <SplitView
+            list={
+              <ReceiptsList
+                receipts={data.shown}
+                total={facts.count}
+                onEndReached={shown.loadMore}
+                filtered={filtered}
+                onNew={() => open('new')}
+                actions={{
+                  onOpen: (r) => (split ? setSelectedId(r.id) : open(r.id)),
+                  onPrint: (r) => printReceipt(receiptDoc(r)).catch(fail),
+                  onShare: (r) => shareReceipt(receiptDoc(r)).catch(fail),
+                  onDelete: (r) =>
+                    Alert.alert(
+                      `حذف الإيصال ${r.receiptNo}؟`,
+                      'لا يتأثر البيع ولا المخزون، ولا يُعطى رقمه لإيصال آخر.',
+                      [
+                        { text: 'إلغاء', style: 'cancel' },
+                        {
+                          text: 'حذف',
+                          style: 'destructive',
+                          onPress: () => {
+                            deleteReceipt(ctx, r.id);
+                            notifyDataChanged();
+                          },
+                        },
+                      ],
+                    ),
+                }}
+              />
+            }
+            detail={
+              selected ? (
+                <ReceiptPane
+                  receipt={selected}
+                  onEdit={() => open(selected.id)}
+                  onPrint={() => printReceipt(receiptDoc(selected)).catch(fail)}
+                  onShare={() => shareReceipt(receiptDoc(selected)).catch(fail)}
+                />
+              ) : (
+                <EmptyState
+                  icon="doc.text"
+                  title="اختر إيصالاً من القائمة"
+                  message="يظهر هنا كما سيُطبع، مع الطباعة والمشاركة والتعديل."
+                />
+              )
+            }
+          />
+        </BelowHeader>
+      ) : (
+        <ReceiptsList
+          receipts={data.shown}
+          total={facts.count}
+          onEndReached={shown.loadMore}
+          filtered={filtered}
+          onNew={() => open('new')}
+          actions={{
+            onOpen: (r) => open(r.id),
+            onPrint: (r) => printReceipt(receiptDoc(r)).catch(fail),
+            onShare: (r) => shareReceipt(receiptDoc(r)).catch(fail),
+            onDelete: (r) =>
+              Alert.alert(
+                `حذف الإيصال ${r.receiptNo}؟`,
+                'لا يتأثر البيع ولا المخزون، ولا يُعطى رقمه لإيصال آخر.',
+                [
+                  { text: 'إلغاء', style: 'cancel' },
+                  {
+                    text: 'حذف',
+                    style: 'destructive',
+                    onPress: () => {
+                      deleteReceipt(ctx, r.id);
+                      notifyDataChanged();
+                    },
                   },
-                },
-              ],
-            ),
-        }}
-      />
+                ],
+              ),
+          }}
+        />
+      )}
     </>
   );
 }

@@ -9,8 +9,9 @@ import { AppState, type AppStateStatus } from 'react-native';
 import RootLayout from '@/app/_layout';
 import SystemLayout from '@/app/[system]/_layout';
 import TabsLayout from '@/app/[system]/(tabs)/_layout';
+import ManagementLayout from '@/app/[system]/(tabs)/more/_layout';
 import Dashboard from '@/app/[system]/(tabs)/index';
-import More from '@/app/[system]/(tabs)/more';
+import More from '@/app/[system]/(tabs)/more/index';
 import Index from '@/app/index';
 import Setup from '@/app/setup';
 
@@ -94,8 +95,9 @@ it('sets up both PINs, opens a system, switches, and locks in the background', a
     setup: Setup,
     '[system]/_layout': SystemLayout,
     '[system]/(tabs)/_layout': TabsLayout,
+    '[system]/(tabs)/more/_layout': ManagementLayout,
     '[system]/(tabs)/index': Dashboard,
-    '[system]/(tabs)/more': More,
+    '[system]/(tabs)/more/index': More,
     '[system]/product/[id]': () => null,
     '[system]/photo/[id]': () => null,
   });

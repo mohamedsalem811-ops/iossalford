@@ -38,7 +38,7 @@ export default function SaleRoute() {
         }
         onCustomer={(customerId) =>
           router.push({
-            pathname: '/[system]/customer/[id]',
+            pathname: '/[system]/more/customer/[id]',
             params: { system, id: String(customerId) },
           })
         }

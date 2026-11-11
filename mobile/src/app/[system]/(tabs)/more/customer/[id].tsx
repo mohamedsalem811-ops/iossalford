@@ -39,7 +39,10 @@ export default function CustomerRoute() {
         }
         onPay={() => router.push({ pathname: '/[system]/payment/[id]', params: { system, id } })}
         onSale={(saleId) =>
-          router.push({ pathname: '/[system]/sale/[id]', params: { system, id: String(saleId) } })
+          router.push({
+            pathname: '/[system]/more/sale/[id]',
+            params: { system, id: String(saleId) },
+          })
         }
         onDeleted={() => router.back()}
       />

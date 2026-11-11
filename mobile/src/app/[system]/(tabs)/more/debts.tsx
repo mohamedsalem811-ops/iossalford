@@ -20,7 +20,7 @@ export default function DebtsRoute() {
   useOnDataChanged(refresh);
   const total = data.owing.reduce((t, d) => t + d.balance, 0);
   const open = (id: number) =>
-    router.push({ pathname: '/[system]/customer/[id]', params: { system, id: String(id) } });
+    router.push({ pathname: '/[system]/more/customer/[id]', params: { system, id: String(id) } });
 
   return (
     <>

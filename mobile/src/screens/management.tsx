@@ -69,6 +69,7 @@ export function ManagementScreen({
   badges = {},
   reminder,
   updateReady = false,
+  selected,
 }: {
   onOpen: (target: ManageTarget) => void;
   onSwitch: () => void;
@@ -79,6 +80,8 @@ export function ManagementScreen({
   reminder?: string | null;
   /** An instant update was downloaded: a banner that opens Settings to restart. */
   updateReady?: boolean;
+  /** iPad: the section open beside the menu. */
+  selected?: ManageTarget;
 }) {
   return (
     <Screen tabBar contentStyle={{ gap: spacing.lg }}>
@@ -119,6 +122,7 @@ export function ManagementScreen({
               icon={r.icon}
               title={r.title}
               value={badges[r.target]}
+              selected={selected === r.target}
               onPress={() => onOpen(r.target)}
               testID={`manage-${r.target}`}
             />

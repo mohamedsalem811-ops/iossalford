@@ -123,7 +123,7 @@ export default function SalesRoute() {
             sale={item}
             onPress={() =>
               router.push({
-                pathname: '/[system]/sale/[id]',
+                pathname: '/[system]/more/sale/[id]',
                 params: { system: ctx.system, id: String(item.id) },
               })
             }

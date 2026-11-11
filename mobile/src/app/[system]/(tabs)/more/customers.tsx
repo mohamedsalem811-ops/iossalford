@@ -76,7 +76,7 @@ export default function CustomersRoute() {
             balance={item.balance}
             onPress={() =>
               router.push({
-                pathname: '/[system]/customer/[id]',
+                pathname: '/[system]/more/customer/[id]',
                 params: { system, id: String(item.customer.id) },
               })
             }

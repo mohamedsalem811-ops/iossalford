@@ -77,7 +77,7 @@ export default function ReturnsRoute() {
               title: `فتح البيعة رقم ${saleId}`,
               run: () =>
                 router.push({
-                  pathname: '/[system]/sale/[id]',
+                  pathname: '/[system]/more/sale/[id]',
                   params: { system, id: String(saleId) },
                 }),
             },

@@ -1,30 +1,47 @@
-import { useUpdates } from 'expo-updates';
 import { router, useFocusEffect, type Href } from 'expo-router';
+import { useUpdates } from 'expo-updates';
 import { useCallback, useState } from 'react';
 
 import { copyReminder } from '@/backup/model';
 import { firstBackup, lastCopied, saveBackup } from '@/backup/store';
-
 import { ManagementScreen, type ManageTarget } from '@/screens/management';
 import { useLock } from '@/state/lock';
 import { useCtx } from '@/state/system-db';
 import type { SystemId } from '@/theme';
 
-const ROUTES: Record<ManageTarget, (system: SystemId) => Href> = {
-  sales: (system) => ({ pathname: '/[system]/sales', params: { system } }),
-  returns: (system) => ({ pathname: '/[system]/returns', params: { system } }),
-  customers: (system) => ({ pathname: '/[system]/customers', params: { system } }),
-  debts: (system) => ({ pathname: '/[system]/debts', params: { system } }),
-  expenses: (system) => ({ pathname: '/[system]/expenses', params: { system } }),
-  closing: (system) => ({ pathname: '/[system]/closing', params: { system } }),
-  comparison: (system) => ({ pathname: '/[system]/comparison', params: { system } }),
-  brands: (system) => ({ pathname: '/[system]/brands', params: { system } }),
-  sets: (system) => ({ pathname: '/[system]/manage-sets', params: { system } }),
-  backup: (system) => ({ pathname: '/[system]/backup', params: { system } }),
-  settings: (system) => ({ pathname: '/[system]/settings', params: { system } }),
+/** The route of each section, inside the Management tab (its stack keeps the tab bar). */
+export const SECTION_ROUTE: Record<ManageTarget, string> = {
+  sales: 'sales',
+  returns: 'returns',
+  customers: 'customers',
+  debts: 'debts',
+  expenses: 'expenses',
+  closing: 'closing',
+  comparison: 'comparison',
+  brands: 'brands',
+  sets: 'manage-sets',
+  backup: 'backup',
+  settings: 'settings',
 };
 
-export default function More() {
+export const sectionHref = (target: ManageTarget, system: SystemId): Href =>
+  ({ pathname: `/[system]/more/${SECTION_ROUTE[target]}`, params: { system } }) as Href;
+
+/** The section a route name belongs to ("manage-sets" → sets), or undefined for deeper screens. */
+export const sectionOf = (route: string | undefined): ManageTarget | undefined =>
+  (Object.keys(SECTION_ROUTE) as ManageTarget[]).find((t) => SECTION_ROUTE[t] === route);
+
+/**
+ * The Management menu with its banners, switching and locking. On iPhone it is the tab's first
+ * screen; on iPad it stays on the leading side and the chosen section opens beside it.
+ */
+export function ManagementMenu({
+  onOpen,
+  selected,
+}: {
+  onOpen: (target: ManageTarget) => void;
+  selected?: ManageTarget;
+}) {
   const { lock } = useLock();
   const ctx = useCtx();
   const system = ctx.system;
@@ -47,7 +64,8 @@ export default function More() {
     <ManagementScreen
       reminder={reminder}
       updateReady={updateReady}
-      onOpen={(t) => router.push(ROUTES[t](system))}
+      selected={selected}
+      onOpen={onOpen}
       onSwitch={() => {
         backupNow();
         router.replace('/');
