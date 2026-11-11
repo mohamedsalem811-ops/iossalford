@@ -38,10 +38,7 @@ const legacyPhotos = (system: SystemId) => new Directory(Paths.document, 'photos
 export const photoFolder = (system: SystemId) =>
   ensure(new Directory(privateRoot(), 'photos', system));
 
-/** A plain file path, as expo-sqlite expects ("/var/…/SQLite", not "file:///var/…"). */
-export function toPath(uri: string): string {
-  return decodeURIComponent(uri.replace(/^file:\/\//, '')).replace(/\/+$/, '');
-}
+export { toPath } from './paths';
 
 /**
  * The folder holding a database file: the private one, unless the file is still only in the old

@@ -1,7 +1,13 @@
 /**
  * @jest-environment node
  */
-import { DatabaseTooNewError, migrate, schemaVersion } from './migrate';
+import {
+  DatabaseTooNewError,
+  migrate,
+  needsUpgrade,
+  schemaVersion,
+  UpgradeBrokeLinksError,
+} from './migrate';
 import { LATEST_VERSION } from './schema';
 import { openMemoryDb } from './testing/node-db';
 import type { Db } from './types';
@@ -83,6 +89,70 @@ describe('migrations', () => {
   it('refuses a database made by a newer app', () => {
     db.exec(`PRAGMA user_version = ${LATEST_VERSION + 5};`);
     expect(() => migrate(db)).toThrow(DatabaseTooNewError);
+  });
+});
+
+describe('safe upgrades (8.0i)', () => {
+  const { migrations } = jest.requireActual<typeof import('./schema')>('./schema');
+  function sellOne() {
+    const product = addProduct('RNG-0001', 5);
+    const sale = db.run(
+      `INSERT INTO sales (created_at, month, payment_method, rate, total, total_cost)
+       VALUES (?, '2026-11', 'cash', 7000, 350000, 200000)`,
+      [now],
+    ).lastInsertRowId;
+    const line = db.run(
+      `INSERT INTO sale_lines (sale_id, product_id, name, sku, quantity, unit_cost, list_price, unit_price, line_total, line_cost)
+       VALUES (?, ?, 'خاتم', 'RNG-0001', 1, 200000, 350000, 350000, 350000, 200000)`,
+      [sale, product],
+    ).lastInsertRowId;
+    db.run(
+      `INSERT INTO returns (sale_line_id, product_id, name, quantity, refund, cost, created_at, month)
+       VALUES (?, ?, 'خاتم', 1, 350000, 200000, ?, '2026-11')`,
+      [line, product, now],
+    );
+  }
+  const count = (t: string) => db.get<{ n: number }>(`SELECT count(*) n FROM ${t}`)!.n;
+
+  it('rebuilding a table never deletes the records linked to it', () => {
+    migrate(db);
+    sellOne();
+    // How SQLite changes a table: create a new one, copy, drop the old, rename.
+    const create = db
+      .get<{ sql: string }>(`SELECT sql FROM sqlite_master WHERE name = 'sales'`)!
+      .sql.replace('CREATE TABLE sales', 'CREATE TABLE sales_new');
+    const rebuild = {
+      version: LATEST_VERSION + 1,
+      name: 'rebuild sales',
+      sql: `${create};
+            INSERT INTO sales_new SELECT * FROM sales;
+            DROP TABLE sales;
+            ALTER TABLE sales_new RENAME TO sales;`,
+    };
+    expect(migrate(db, [...migrations, rebuild])).toBe(LATEST_VERSION + 1);
+    expect(count('sales')).toBe(1);
+    expect(count('sale_lines')).toBe(1);
+    expect(count('returns')).toBe(1);
+    // Links are on again afterwards.
+    expect(db.get<{ foreign_keys: number }>('PRAGMA foreign_keys')!.foreign_keys).toBe(1);
+  });
+
+  it('undoes an upgrade that would leave records pointing at nothing', () => {
+    migrate(db);
+    sellOne();
+    const bad = { version: LATEST_VERSION + 1, name: 'bad', sql: 'DELETE FROM sales;' };
+    expect(() => migrate(db, [...migrations, bad])).toThrow(UpgradeBrokeLinksError);
+    expect(schemaVersion(db)).toBe(LATEST_VERSION);
+    expect(count('sales')).toBe(1);
+    expect(db.get<{ foreign_keys: number }>('PRAGMA foreign_keys')!.foreign_keys).toBe(1);
+  });
+
+  it('tells when an upgrade will run, so a copy can be saved first', () => {
+    expect(needsUpgrade(db)).toBe(false); // a new, empty database
+    migrate(db);
+    expect(needsUpgrade(db)).toBe(false);
+    const next = [...migrations, { version: LATEST_VERSION + 1, name: 'x', sql: 'SELECT 1;' }];
+    expect(needsUpgrade(db, next)).toBe(true);
   });
 });
 

@@ -1,7 +1,7 @@
 import type { SystemId } from '@/theme';
 
 import { openExpoDb } from './expo-db';
-import { DatabaseTooNewError, migrate } from './migrate';
+import { DatabaseTooNewError, configure, migrate, needsUpgrade } from './migrate';
 import type { Db } from './types';
 
 /** One database file per system, kept apart so the two shops never mix. */
@@ -25,10 +25,14 @@ export type OpenResult =
 export function openSystemDb(
   system: SystemId,
   open: (file: string) => Db = openExpoDb,
+  /** Saves a copy of the data before an upgrade; if it throws, the upgrade does not run. */
+  beforeUpgrade?: (db: Db) => void,
 ): OpenResult {
   let db: Db | undefined;
   try {
     db = open(DB_FILES[system]);
+    configure(db);
+    if (beforeUpgrade && needsUpgrade(db)) beforeUpgrade(db);
     migrate(db);
     db.exec('PRAGMA journal_mode = WAL;');
     return { status: 'ok', db };
