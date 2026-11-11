@@ -1,0 +1,38 @@
+# Phase 7: the sale in the history, a return against it, and the returns list.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- runFlow: subflows/sell-ring.yaml
+- tapOn:
+    id: 'sold-new-sale'
+- tapOn: 'الإدارة'
+- tapOn:
+    id: 'manage-sales'
+- extendedWaitUntil:
+    visible:
+      id: 'sales-summary'
+    timeout: 30000
+- assertVisible: '1 بيعة • 350 د.ل'
+- takeScreenshot: ${DEVICE}-sales-history
+- tapOn:
+    id: 'sale-1'
+- extendedWaitUntil:
+    visible: 'Ring Zircon × 1'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-sale-detail
+- tapOn:
+    id: 'sale-return-1'
+- extendedWaitUntil:
+    visible:
+      id: 'return-save'
+    timeout: 30000
+- tapOn:
+    id: 'return-save'
+- tapOn: 'الإدارة'
+- tapOn:
+    id: 'manage-returns'
+- extendedWaitUntil:
+    visible: '1 مرتجع • 350 د.ل'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-returns

@@ -1,0 +1,51 @@
+# Adds "Ring Zircon" (Pandora, 350 د.ل, cost 200, 3 in stock) from the Products tab.
+appId: com.salford.pos
+---
+- tapOn: 'المنتجات'
+- tapOn: 'إضافة قطعة'
+- extendedWaitUntil:
+    visible:
+      id: 'product-name'
+    timeout: 30000
+- tapOn:
+    id: 'product-name'
+- inputText: 'Ring Zircon'
+- hideKeyboard
+- tapOn:
+    id: 'product-brand'
+- inputText: 'Pandora'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'product-price'
+    direction: DOWN
+- tapOn:
+    id: 'product-price'
+- inputText: '350'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'product-cost'
+    direction: DOWN
+- tapOn:
+    id: 'product-cost'
+- inputText: '200'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'product-stock'
+    direction: DOWN
+- tapOn:
+    id: 'product-stock'
+- eraseText
+- inputText: '3'
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      id: 'product-save'
+    direction: DOWN
+- tapOn:
+    id: 'product-save'
+- extendedWaitUntil:
+    visible: 'Ring Zircon'
+    timeout: 30000

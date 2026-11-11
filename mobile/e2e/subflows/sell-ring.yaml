@@ -1,0 +1,26 @@
+# Sells one "Ring Zircon" for cash from the Sale tab and closes the success screen.
+# iPhone: the cart bar above the tabs opens the cart; iPad: the cart is beside the products.
+appId: com.salford.pos
+---
+- tapOn: 'البيع'
+- tapOn:
+    id: 'sale-tile-Ring Zircon'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
+- tapOn:
+    id: 'cart-checkout'
+- extendedWaitUntil:
+    visible:
+      id: 'checkout-confirm'
+    timeout: 30000
+- tapOn:
+    id: 'checkout-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'sold-title'
+    timeout: 30000

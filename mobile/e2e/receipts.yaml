@@ -1,0 +1,29 @@
+# Phase 6: the receipt of a sale in the Receipts tab (on iPad, beside the list).
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- runFlow: subflows/sell-ring.yaml
+- tapOn:
+    id: 'sold-new-sale'
+- tapOn: 'الإيصالات'
+- extendedWaitUntil:
+    visible:
+      id: 'receipts-summary'
+    timeout: 30000
+- assertVisible: '1 إيصال'
+- takeScreenshot: ${DEVICE}-receipts
+- tapOn:
+    text: 'GR-.*'
+- runFlow:
+    when:
+      visible:
+        id: 'receipt-pane'
+    commands:
+      - takeScreenshot: ${DEVICE}-receipt-beside-list
+- runFlow:
+    when:
+      visible:
+        id: 'studio-number'
+    commands:
+      - takeScreenshot: ${DEVICE}-receipt-opened
