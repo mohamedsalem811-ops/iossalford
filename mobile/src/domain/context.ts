@@ -32,3 +32,12 @@ export function clean(text: string | null | undefined): string | null {
   const t = (text ?? '').trim();
   return t === '' ? null : t;
 }
+
+/** A page of a long list: the first `limit` rows after `offset`. */
+export type Page = { limit: number; offset?: number };
+
+/** LIMIT/OFFSET for a page (whole numbers only, so nothing else can reach the SQL). */
+export const pageSql = (page?: Page) =>
+  page
+    ? ` LIMIT ${Math.max(0, Math.floor(page.limit))} OFFSET ${Math.max(0, Math.floor(page.offset ?? 0))}`
+    : '';

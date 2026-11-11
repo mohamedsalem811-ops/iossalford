@@ -4,13 +4,13 @@ import { useCallback, useState } from 'react';
 
 import { EmptyState, Text } from '@/components';
 import { PAYMENT_LABELS, PAYMENT_METHODS } from '@/domain/checkout';
-import { listSales, type SaleQuery } from '@/domain/sales';
-import { monthsOf } from '@/features/sales/model';
+import { listSales, saleMonths, salesSummary, type SaleQuery } from '@/domain/sales';
 import { SaleRow } from '@/features/sales/sale-row';
 import { monthTitle } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import { usePaged } from '@/hooks/use-paged';
 import { useReadable } from '@/hooks/use-readable';
 import { spacing } from '@/theme';
 
@@ -19,15 +19,21 @@ export default function SalesRoute() {
   const ctx = useCtx();
   const readable = useReadable();
   const [query, setQuery] = useState<SaleQuery>({});
-  const read = useCallback(
-    () => ({ shown: listSales(ctx, query), months: monthsOf(listSales(ctx)) }),
+  const shown = usePaged(
+    useCallback(
+      (limit: number, offset: number) => listSales(ctx, query, { limit, offset }),
+      [ctx, query],
+    ),
+  );
+  const readFacts = useCallback(
+    () => ({ months: saleMonths(ctx), summary: salesSummary(ctx, query) }),
     [ctx, query],
   );
-  const [data, setData] = useState(read);
-  const refresh = useCallback(() => setData(read()), [read]);
-  useFocusEffect(refresh);
-  useOnDataChanged(refresh);
-  const total = data.shown.reduce((t, s) => t + s.total, 0);
+  const [facts, setFacts] = useState(readFacts);
+  const refreshFacts = useCallback(() => setFacts(readFacts()), [readFacts]);
+  useFocusEffect(refreshFacts);
+  useOnDataChanged(refreshFacts);
+  const data = { shown: shown.items, months: facts.months };
   const filtered = !!(query.search || query.month || query.paymentMethod);
 
   return (
@@ -83,6 +89,8 @@ export default function SalesRoute() {
       </Stack.Toolbar>
       <FlashList
         data={data.shown}
+        onEndReached={shown.loadMore}
+        onEndReachedThreshold={0.5}
         keyExtractor={(s) => String(s.id)}
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
@@ -95,7 +103,7 @@ export default function SalesRoute() {
               tone="secondary"
               style={{ paddingBottom: spacing.sm }}
               testID="sales-summary">
-              {`${data.shown.length} بيعة • ${formatLyd(total)}${query.month ? ` • ${monthTitle(query.month)}` : ''}`}
+              {`${facts.summary.count} بيعة • ${formatLyd(facts.summary.total)}${query.month ? ` • ${monthTitle(query.month)}` : ''}`}
             </Text>
           ) : null
         }

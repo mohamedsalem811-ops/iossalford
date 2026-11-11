@@ -3,23 +3,21 @@ import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
 
 import {
+  countReceipts,
   deleteReceipt,
   listReceipts,
+  receiptMonths,
   templatesFor,
-  type Receipt,
   type ReceiptQuery,
   type TemplateId,
 } from '@/domain/receipts';
 import { receiptDoc, templateName } from '@/features/receipts/model';
+import { usePaged } from '@/hooks/use-paged';
 import { ReceiptsList } from '@/features/receipts/receipts-list';
 import { monthTitle } from '@/lib/dates';
 import { printReceipt, shareReceipt } from '@/receipts/output';
 import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
-
-/** Months that have receipts, newest first ("2026-11"). */
-const monthsOf = (receipts: Receipt[]) =>
-  [...new Set(receipts.map((r) => r.createdAt.slice(0, 7)))].sort().reverse();
 
 /**
  * The receipts tab: every receipt, newest first. Search by number, customer or piece; filter by
@@ -29,19 +27,26 @@ export default function ReceiptsRoute() {
   const ctx = useCtx();
   const system = ctx.system;
   const [query, setQuery] = useState<ReceiptQuery>({});
-  const read = useCallback(
-    () => ({ shown: listReceipts(ctx, query), all: listReceipts(ctx) }),
+  const shown = usePaged(
+    useCallback(
+      (limit: number, offset: number) => listReceipts(ctx, query, { limit, offset }),
+      [ctx, query],
+    ),
+  );
+  const readFacts = useCallback(
+    () => ({ months: receiptMonths(ctx), count: countReceipts(ctx, query) }),
     [ctx, query],
   );
-  const [data, setData] = useState(read);
-  const refresh = useCallback(() => setData(read()), [read]);
-  useFocusEffect(refresh);
-  useOnDataChanged(refresh);
+  const [facts, setFacts] = useState(readFacts);
+  const refreshFacts = useCallback(() => setFacts(readFacts()), [readFacts]);
+  useFocusEffect(refreshFacts);
+  useOnDataChanged(refreshFacts);
+  const data = { shown: shown.items };
 
   const open = (id: number | 'new') =>
     router.push({ pathname: '/[system]/receipt/[id]', params: { system, id: String(id) } });
   const fail = () => Alert.alert('تعذّر إنشاء ملف الإيصال', 'حاول مرة أخرى.');
-  const months = monthsOf(data.all);
+  const months = facts.months;
   const filtered = !!(query.search || query.month || query.template);
 
   return (
@@ -102,6 +107,8 @@ export default function ReceiptsRoute() {
       </Stack.Toolbar>
       <ReceiptsList
         receipts={data.shown}
+        total={facts.count}
+        onEndReached={shown.loadMore}
         filtered={filtered}
         onNew={() => open('new')}
         actions={{
