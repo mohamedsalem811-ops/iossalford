@@ -167,13 +167,17 @@ const LOOKS: Record<TemplateId, Look> = {
 };
 
 /**
- * The receipt on `paper` (A4 unless told). On screen the page fills the view's width.
+ * The receipt on `paper` (A4 unless told). `previewWidth`: shown in the app at that width.
  */
 export function receiptHtml(
   doc: ReceiptDoc,
-  opts: { paper?: Paper; fontCss?: string } = {},
+  opts: { paper?: Paper; fontCss?: string; previewWidth?: number } = {},
 ): string {
   const paper = PAPERS[opts.paper ?? 'a4'];
+  // On screen the page is sized from the view's width in points; printed, from the page box.
+  const page = opts.previewWidth
+    ? `.page { width: ${opts.previewWidth}px; }\n  .r { --u: ${+(opts.previewWidth / paper.units).toFixed(5)}px; font-size: 11.5u; }`
+    : `.page { width: 100%; container-type: inline-size; }\n  .r { --u: calc(100cqw / ${paper.units}); font-size: 11.5u; }`;
   /** Vertical space, tighter on A6. */
   const v = (n: number) => +(n * paper.gap).toFixed(2);
   const look = LOOKS[doc.template] ?? LOOKS.salford_light;
@@ -201,8 +205,7 @@ export function receiptHtml(
   html, body { margin: 0; padding: 0; background: #fff; color: #000; }
   body { width: 100%; font-family: -apple-system, "Helvetica Neue", "Geeza Pro", sans-serif; }
   /* The page box: its width defines the receipt unit for everything inside. */
-  .page { width: 100%; container-type: inline-size; }
-  .r { --u: calc(100cqw / ${paper.units}); font-size: 11.5u; }
+  ${page}
   .banner, .plain { text-align: center; }
   .banner { padding: ${v(22)}u 0 ${v(16)}u; }
   .plain { padding-top: ${v(30)}u; }

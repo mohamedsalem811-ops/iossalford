@@ -39,7 +39,10 @@ export function ReceiptPreview({ doc }: { doc: ReceiptDoc }) {
           testID="receipt-preview"
           originWhitelist={['*']}
           source={{
-            html: receiptHtml(doc, { fontCss: fontCss?.system === system ? fontCss.css : '' }),
+            html: receiptHtml(doc, {
+              previewWidth: width,
+              fontCss: fontCss?.system === system ? fontCss.css : '',
+            }),
           }}
           style={{ backgroundColor: '#fff' }}
           scrollEnabled

@@ -121,3 +121,56 @@ export function deleteCustomer(ctx: Ctx, id: number) {
     ctx.db.run('DELETE FROM customers WHERE id = ?', [id]);
   });
 }
+
+export type StatementLine = {
+  kind: 'sale' | 'refund' | 'payment';
+  /** The sale, return or payment id. */
+  id: number;
+  saleId: number | null;
+  createdAt: string;
+  /** What it adds to (positive) or takes off (negative) what the customer owes. */
+  amount: number;
+  /** What the customer owes after this line. */
+  balance: number;
+  note: string | null;
+};
+
+/**
+ * The customer's statement: credit sales, refunds on returns of those sales, and payments, oldest
+ * first, with what they owe after each. Ends at balance().
+ */
+export function statement(ctx: Ctx, customerId: number): StatementLine[] {
+  const rows = ctx.db.all<{
+    kind: StatementLine['kind'];
+    id: number;
+    sale_id: number | null;
+    created_at: string;
+    amount: number;
+    note: string | null;
+  }>(
+    `SELECT 'sale' AS kind, id, id AS sale_id, created_at, total AS amount, note
+       FROM sales WHERE customer_id = ?1 AND payment_method = 'credit'
+     UNION ALL
+     SELECT 'refund', r.id, s.id, r.created_at, -r.refund, r.reason
+       FROM returns r JOIN sale_lines l ON l.id = r.sale_line_id JOIN sales s ON s.id = l.sale_id
+      WHERE s.customer_id = ?1 AND s.payment_method = 'credit'
+     UNION ALL
+     SELECT 'payment', id, NULL, created_at, -amount, coalesce(note, method)
+       FROM payments WHERE customer_id = ?1
+     ORDER BY created_at, kind DESC, id`,
+    [customerId],
+  );
+  let running = 0;
+  return rows.map((r) => {
+    running += r.amount;
+    return {
+      kind: r.kind,
+      id: r.id,
+      saleId: r.sale_id,
+      createdAt: r.created_at,
+      amount: r.amount,
+      balance: running,
+      note: r.note,
+    };
+  });
+}

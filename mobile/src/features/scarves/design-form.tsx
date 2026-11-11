@@ -22,6 +22,7 @@ import { releasePhoto } from '@/features/products/actions';
 import { BrandField } from '@/features/products/brand-field';
 import { PhotoPicker } from '@/features/products/photo-picker';
 import { notifyDataChanged } from '@/state/data-events';
+import { useReadable } from '@/hooks/use-readable';
 import { spacing, useTheme } from '@/theme';
 
 import { findDesign, storedDesignId } from './actions';
@@ -52,6 +53,7 @@ export function DesignFormView({
   /** Shown beside the list on iPad, with its own title bar. */
   embedded?: boolean;
 }) {
+  const readable = useReadable();
   const { colors } = useTheme();
   const [initial] = useState(() => {
     const design = designId ? findDesign(ctx, designId) : undefined;
@@ -115,12 +117,11 @@ export function DesignFormView({
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
+        onLayout={readable.onLayout}
         contentContainerStyle={{
-          padding: spacing.md,
+          ...readable.padding,
+          paddingVertical: spacing.md,
           gap: spacing.md,
-          width: '100%',
-          maxWidth: 760,
-          alignSelf: 'center',
         }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="interactive"
