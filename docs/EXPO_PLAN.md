@@ -18,6 +18,7 @@ Every feature of the current app is kept. Items marked **NEW** don't exist in th
 - **Backups stay on the device. No iCloud, no cloud of any kind** until the Apple Developer account exists (see "Later").
 - **Merging into `main` is done by the owner, manually.** Claude pushes to the work branch and opens pull requests; it never merges.
 - **Latest stack:** Expo SDK 58 on React Native 0.88. **NEW**
+- **Works fully offline.** The app never needs the internet: no web addresses, no network calls, automatic updates off. Only things outside the app need a connection: printing (the printer on the same Wi-Fi), sharing to WhatsApp and similar, the Expo Go preview, and Sideloadly's re-signing every 7 days. Every phase keeps it that way.
 
 ## 2. How each step works
 
@@ -28,12 +29,13 @@ Every feature of the current app is kept. Items marked **NEW** don't exist in th
 3. I push it to the phase's open pull request right away, so every step shows up there with its CI results.
 4. GitHub Actions builds:
    - the `.ipa` for your iPhone and iPad (as today);
-   - a simulator run that taps through the app on an iPhone and an iPad simulator and takes screenshots for me to review. **NEW** Run only at the end of the project, or earlier when a change is critical (security and PINs, saving data, backups); I say when and why. GitHub's macOS simulators are slow and unreliable, and a run takes about an hour.
-5. **NEW: Expo Go preview.** The stage is published to the owner's Expo account; open it in Expo Go on the iPhone or iPad from the link or QR code. Before that, Claude checks it on Expo's cloud iPhone and iPad simulators through the Expo connection (only within what the Expo plan allows; nothing paid without asking).
+   - **NEW: at the end of every phase, a screenshot run:** the phase's new screens on an iPhone and an iPad simulator, upright and sideways. I look at every screenshot and fix what is wrong before handing the phase over, because layout problems only show on a real screen (tests can't see them). About an hour of GitHub's time; no work for you.
+   - **NEW: the full tap-through test** (Maestro) runs at the end of the project, or earlier when a change is critical (security and PINs, saving data, backups); I say when and why. GitHub's macOS simulators are slow, and a run takes about an hour.
+5. **NEW: Expo Go preview.** The stage is published to the owner's Expo account; open it in Expo Go on the iPhone or iPad from the link or QR code.
 6. You install the build (Expo Go preview, or the `.ipa` at key stages) and go through a short checklist.
 7. Each phase is one pull request into `main`. While steps are pushed it stays a draft and only the fast checks run (about 1 minute). Once it is marked ready, every push also builds the `.ipa` (about 20 minutes). When the phase is complete I publish the Expo Go preview; you test it and the `.ipa` and tell me what needs fixing, then it is **merged by you**.
 
-**Expo Go rule:** the app uses only libraries that Expo Go already includes, so every stage can be previewed in Expo Go. In Expo Go the app shows Expo Go's name and icon, and its data is separate from the installed app (test only).
+**Expo Go (changed after the Phase 7 review):** the owner tests with the installed `.ipa`, so Expo Go is no longer a rule. Libraries Expo Go includes are still preferred; a library with its own native code is added only when it is clearly better, after asking the owner. The Expo Go preview is still published each phase while the app runs there. In Expo Go the app shows Expo Go's name and icon, and its data is separate from the installed app (test only).
 
 ## 3. Architecture (all NEW under the hood)
 
@@ -41,19 +43,28 @@ Every feature of the current app is kept. Items marked **NEW** don't exist in th
 
 ```
 mobile/
-  app/                     ← screens (Expo Router)
-    index.tsx              ← choose system
-    [system]/              ← the same screens for jewelry and scarves
-      login.tsx
-      (tabs)/ dashboard/ sale/ products/ receipts/ management/
   src/
+    app/                   ← screens (Expo Router)
+      index.tsx            ← choose system
+      [system]/            ← the same screens for jewelry and scarves
+        login.tsx
+        (tabs)/            ← dashboard, sale, products, receipts, management
+        sales.tsx, customer/[id].tsx, …  ← screens opened from the tabs
+    screens/               ← whole screens used by the routes
+    features/              ← screen parts per feature (sale, products, receipts, customers, …)
+    components/            ← design system
+    theme/                 ← colours, fonts, spacing
     domain/                ← business rules (tested)
     db/                    ← schema and migrations, one database per system
-    features/              ← screen parts per feature
-    ui/                    ← design system
-    lib/                   ← money, digits, dates
-    receipts/templates/    ← 5 receipt designs (HTML)
-  e2e/                     ← tap-through tests
+    backup/                ← saving, keeping and restoring backups
+    security/              ← PIN and Face ID
+    state/                 ← cart, lock, appearance
+    hooks/                 ← iPad layout helpers
+    lib/                   ← money, digits, dates, photos
+    receipts/              ← receipt engine and the 5 designs (HTML)
+    testing/               ← whole-flow screen tests
+  modules/backup-exclusion/ ← the app's only native code (Swift)
+  e2e/                     ← tap-through tests (Maestro)
 ```
 
 **Libraries:**
@@ -61,14 +72,15 @@ mobile/
 | Area             | Choice                                                                                     |
 | ---------------- | ------------------------------------------------------------------------------------------ |
 | Screens and tabs | Expo Router with native Liquid Glass tabs                                                  |
-| Native controls  | `@expo/ui` (SwiftUI menus, pickers, sheets, forms)                                         |
+| Native controls  | `@expo/ui` (SwiftUI sheets, segmented control; also has Apple's charts)                    |
 | Database         | `expo-sqlite`, plain SQL (same SQL tested on Node SQLite). **NEW:** replaces the JSON file |
+| Files            | `expo-file-system`, `expo-document-picker` (backups, photos, receipts)                     |
 | Cart state       | Zustand                                                                                    |
 | Lists            | FlashList                                                                                  |
 | Photos           | `expo-image`, `expo-image-picker`, `expo-image-manipulator`                                |
 | Security         | `expo-secure-store`, `expo-crypto`, `expo-local-authentication`                            |
-| Receipts         | HTML → `expo-print` and `expo-sharing`                                                     |
-| Charts           | Victory Native                                                                             |
+| Receipts         | HTML → `expo-print` and `expo-sharing`; live preview in `react-native-webview`             |
+| Charts           | The app's own bars (no chart library); Apple's charts from `@expo/ui` compared in Phase 8  |
 | Motion           | Reanimated 4, Gesture Handler, `expo-haptics`                                              |
 | Tests            | Jest + Maestro. **NEW**                                                                    |
 | Previews         | EAS Update opened in Expo Go, through the owner's Expo account. **NEW**                    |
@@ -77,6 +89,8 @@ mobile/
 
 - **Money as whole dirhams. NEW** No rounding errors.
 - **Record numbers are never reused.** Same rule as today.
+- **Where data lives (from Phase 8):** the databases and photos in a private folder of the app that the Files app can't show, so they can't be deleted or moved there by mistake. Only Backups and Receipts are in the folder Files shows (On My iPhone / On My iPad → SALFORD POS).
+- **Long lists load as you scroll (from Phase 8),** so screens stay fast after years of sales.
 
 | Table                        | Holds                                                                                                                                              |
 | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -168,7 +182,7 @@ mobile/
     - **NEW:** by payment method, and top products.
   - **Quarterly closing:** issue, re-issue, delete.
   - **Backup:** export with photos; import checks the file and the system, asks you to confirm, and saves a safety copy first. **NEW:** the file has a version number.
-- **2.4** About 60 automatic tests, including edge cases. **NEW**
+- **2.4** Automatic tests for every rule, including edge cases (336 tests in the app by the end of Phase 7). **NEW**
 - **2.5** Test data for test builds only. Your real app starts empty.
 
 **Done when:** all tests pass. I'll send you the list.
@@ -291,19 +305,35 @@ mobile/
 
 ### Phase 8: dashboard
 
+**First, the fixes from the review of Phases 0 to 7** (approved by the owner on 2026-11-11). None of them changes how the app works:
+
+- **8.0a Hide the live data from the Files app.** The databases and photos move to the app's private folder; an existing install is moved over with all its data on first launch. Backups and Receipts stay visible in Files. Keeping them out of the device's iCloud backup covers the new folder too.
+- **8.0b Long lists load as you scroll:** sales history, receipts and the other long lists. The list of months comes from one quick query, not from loading every sale.
+- **8.0c The tab bar stays visible inside Management:** Sales, Customers, Debts and the rest open inside the Management tab, as in Apple's own apps, instead of covering the tabs.
+- **8.0d iPad layout by type of screen, using the whole width:**
+  - list with its details beside it, as in the iPad Settings app: the Management menu, Sales, Customers, Debts, Returns, Receipts;
+  - cards that fill the width: Dashboard and Sale;
+  - forms open as windows over the screen (as now).
+- **8.0e Speed test** (moved from 9.4): 2,000 products and 10,000 sales, measured on the dashboard and the long lists; anything slow is fixed.
+- **8.0f Tap-through tests written** for selling, receipts, management and backup/restore (today only login, lockout, switching and products have them). They run in the final test run (9.6), or earlier for backups.
+
+Then the dashboard:
+
 - **8.1** Header: system name with the switch menu, and the "$ rate" button that opens the rate editor.
 - **8.2** Today: sales, profit, number of sales and pieces. **NEW:** cash vs credit.
 - **8.3** Month picker and month summary: sales, cost, profit, returns, expenses, net profit, in LYD and USD.
-- **8.4** Daily sales chart for the selected month.
+- **8.4** Daily sales chart for the selected month: one bar per day, drawn by the app itself (digits 0-9 and the Arabic font guaranteed, right to left). **NEW:** tap a day to see its total. The first preview also shows the same chart drawn with Apple's own charts, so the owner can compare and choose on the devices.
 - **8.5** Needs attention: low and out-of-stock items, total owed by customers. **NEW:** "no recent backup" warning.
 - **8.6** Breakdowns:
   - by category (by material for scarves);
   - by brand;
   - by size for scarves, with stock per size.
   - **NEW:** by payment method, and top products.
+  - Shown as ranked rows with a bar in each row (easier to read than a pie when there are many brands).
 - **8.7** Latest sales list.
 - **8.8** Stock summary.
 - **8.9** iPad: multi-column dashboard. **NEW**
+- **8.10** End of phase: self-check, screenshot run on iPhone and iPad (upright and sideways), Expo Go preview, pull request.
 
 ### Phase 9: polish
 
@@ -313,7 +343,7 @@ mobile/
   - every orientation;
   - Split View and Stage Manager sizes.
   - **NEW:** keyboard shortcuts (⌘F search, ⌘N new product).
-- **9.4** Speed test with 2,000 products and 10,000 sales. **NEW**
+- **9.4** Speed test with 2,000 products and 10,000 sales, repeated on the finished app (first done in Phase 8, step 8.0e). **NEW**
 - **9.5** App icon, launch screen, app name.
 - **9.6** Full tap-through test run and final screenshots on iPhone and iPad. **NEW**
 
@@ -335,7 +365,7 @@ Done **after the project is finished**, one step at a time; none of it changes t
 | L3  | Choose where each backup goes                                              | On device only, iCloud only, or both                                    |
 | L4  | Stronger file protection                                                   | Data stays locked while the device is locked                            |
 | L5  | TestFlight installs                                                        | Install and update from TestFlight instead of Sideloadly                |
-| L6  | Instant updates (EAS Update in the real app)                               | Small fixes reach the installed app without reinstalling                |
+| L6  | Instant updates (EAS Update in the real app); skipped for now by the owner | Small fixes reach the installed app without reinstalling                |
 | L7  | App Store (optional)                                                       | Only if wanted; it can stay private                                     |
 
 ## 5. Summary
@@ -352,7 +382,7 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - New app, starts empty; no data migration.
 - iOS only (iPhone and iPad), minimum iOS 26.0; no Android; no device sync.
 - Unsigned `.ipa` from GitHub Actions, installed with Sideloadly.
-- Previews in Expo Go through the owner's Expo account; only Expo Go-compatible libraries.
+- Previews in Expo Go through the owner's Expo account. Until Phase 7 only Expo Go-compatible libraries were used; since the Phase 7 review Expo Go is preferred but no longer a rule (see section 2).
 - Backups on the device only; iCloud backup postponed to step L2.
 - The owner merges every pull request.
 - Keep every receipt template; digits 0-9 only. The Swarovski London design is not rebuilt as it was: it copied a Swarovski store's name, address, phone and thanks, which makes it a receipt from a real company that did not make the sale. Its place is SALFORD's own receipt for the Swarovski pieces it sells (owner to confirm in Phase 6).
@@ -365,7 +395,7 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - Locking: going to the background locks; the app switcher and the Face ID prompt only hide the screen behind the logos. The start screen always locks, so entering any system needs its PIN (or Face ID for jewelry).
 - The design gallery is opened only by its link (`salfordpos://gallery`), not from the start screen.
 - End of every phase (owner's rule): before the phase is handed over, Claude re-checks the whole phase against this plan and against how the app is really used, and fixes or adds anything missed or done wrong, without waiting to be asked (as with the exchange-rate editor in Phase 4). What was found is listed in the pull request.
-- Testing: every push runs the fast checks (types, lint, unit and screen tests) and builds the `.ipa`; Claude publishes the Expo Go preview each phase. The owner tests on the iPhone and iPad and reports what needs fixing. The simulator tap-through (Maestro) runs only at the end of the project, or earlier for a critical change (security and PINs, saving data, backups).
+- Testing: every push runs the fast checks (types, lint, unit and screen tests) and builds the `.ipa`; Claude publishes the Expo Go preview each phase. The owner tests on the iPhone and iPad and reports what needs fixing. From Phase 8, every phase ends with a screenshot run of its new screens on an iPhone and an iPad simulator (upright and sideways), reviewed and fixed before handover. The full simulator tap-through (Maestro) runs at the end of the project, or earlier for a critical change (security and PINs, saving data, backups).
 - Photos: taken or chosen, resized to at most 1600 px, kept in the app's own folder per system (only the file name is in the database). A photo file is deleted only when no product, scarf size or brand shows it.
 - A cost entered in dollars keeps the rate it was bought at; editing a piece reprices it only when the dollar cost itself changes.
 - iPad: the list is on the leading side (the right, in Arabic, as in iOS's own apps) and the open piece beside it.
@@ -379,4 +409,11 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - Backups (Phase 7): saved on the device as JSON, last 10 per system, by hand, and automatically when the app goes to the background, when the system is locked or switched (skipped when nothing changed). These copies hold the data; the photos stay in the app's folder. A copy made to leave the device (AirDrop, Files, a computer) is one file with the data and the photos. Restoring checks the file, shows what it holds, asks, and saves a safety copy first (restorable). The reminder shows after 7 days without a copy off the device (before any copy, counted from the first backup).
 - Keeping the data out of the device's own iCloud backup needs one iOS setting that no Expo library offers, so the app has one small module of its own (`mobile/modules/backup-exclusion`, Swift). It runs in the installed `.ipa` only; Expo Go does not have it and the app works there without it. It is the app's only native code.
 
-Status: Phases 0 to 6 are merged; Phase 7 is in progress.
+- Review of Phases 0 to 7 (2026-11-11), approved by the owner, without changing how the app works:
+  - **Fixes**, done first in Phase 8 (8.0a to 8.0d): the live data hidden from the Files app; long lists loaded as you scroll; the tab bar kept inside Management; the iPad layout planned by type of screen (list with details beside it, cards filling the width, forms as windows).
+  - **Plan changes:** the speed test moved to Phase 8 (8.0e); no chart library: the dashboard draws its own bars, with tap-to-see the day's total and breakdowns as ranked rows, and the first Phase 8 preview compares them with Apple's own charts; the missing tap-through tests written in Phase 8 (8.0f); this document brought up to date.
+  - **Way of working:** a screenshot run on iPhone and iPad at the end of every phase; Expo Go no longer limits the choice of libraries (a native library only when clearly better, after asking).
+  - **Skipped by the owner:** instant updates in the installed app (L6). They would not need the developer account, but the owner keeps installing the `.ipa`.
+- Offline: the app works fully without the internet, and every phase's self-check confirms nothing new needs it.
+
+Status: Phases 0 to 7 are merged. Next: Phase 8, starting with the review fixes (8.0a to 8.0f).
