@@ -1,3 +1,5 @@
+import type { ComponentProps } from 'react';
+import { TouchableOpacity } from 'react-native';
 import { KeyboardToolbar } from 'react-native-keyboard-controller';
 
 import { palettes, useTheme } from '@/theme';
@@ -27,10 +29,30 @@ export function KeyboardBar() {
           ripple: p.dark.accentSoft,
         },
       }}>
-      <KeyboardToolbar.Done text="تم" />
+      <KeyboardToolbar.Done text="تم" button={ArabicButton} />
     </KeyboardToolbar>
   );
 }
+
+type ToolbarButton = NonNullable<ComponentProps<typeof KeyboardToolbar.Done>['button']>;
+
+/**
+ * The library labels its button "Done" in English for VoiceOver (and the tap-through tests find
+ * it by that label), whatever text it shows. This one says "تم", like the text on the button.
+ */
+export const ArabicButton: ToolbarButton = ({ children, onPress, disabled, testID, style }) => (
+  <TouchableOpacity
+    accessibilityRole="button"
+    accessibilityLabel="تم"
+    accessibilityHint="يغلق لوحة المفاتيح"
+    accessibilityState={{ disabled }}
+    disabled={disabled}
+    onPress={onPress}
+    style={style}
+    testID={testID}>
+    {children}
+  </TouchableOpacity>
+);
 
 /**
  * Space kept between a focused field and the keyboard, so the "تم" bar above the keyboard

@@ -24,12 +24,14 @@ appId: com.salford.pos
     id: 'product-name'
 - inputText: 'Ring Zircon'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
-- tapOn: 'تم'
+- tapOn:
+    id: 'keyboard.toolbar.done'
 - tapOn:
     id: 'product-brand'
 - inputText: 'Pandora'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
-- tapOn: 'تم'
+- tapOn:
+    id: 'keyboard.toolbar.done'
 - assertVisible: 'ماركة جديدة — ستُضاف للقائمة عند الحفظ'
 - scrollUntilVisible:
     element:
@@ -39,7 +41,8 @@ appId: com.salford.pos
     id: 'product-price'
 - inputText: '350'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
-- tapOn: 'تم'
+- tapOn:
+    id: 'keyboard.toolbar.done'
 - scrollUntilVisible:
     element:
       id: 'product-cost'
@@ -48,7 +51,8 @@ appId: com.salford.pos
     id: 'product-cost'
 - inputText: '200'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
-- tapOn: 'تم'
+- tapOn:
+    id: 'keyboard.toolbar.done'
 - scrollUntilVisible:
     element: '150 د.ل • 43٪'
     direction: DOWN

@@ -34,7 +34,8 @@ appId: com.salford.pos
     id: 'checkout-name'
 - inputText: 'Sara'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
-- tapOn: 'تم'
+- tapOn:
+    id: 'keyboard.toolbar.done'
 - tapOn:
     id: 'checkout-confirm'
 - extendedWaitUntil:
