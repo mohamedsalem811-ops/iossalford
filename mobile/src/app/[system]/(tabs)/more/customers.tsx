@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 
 import { EmptyState, Text } from '@/components';
 import { listCustomers } from '@/domain/customers';
-import { balance } from '@/domain/debts';
+import { allBalances } from '@/domain/debts';
 import { CustomerRow } from '@/features/customers/customer-row';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
@@ -18,10 +18,13 @@ export default function CustomersRoute() {
   const readable = useReadable();
   const system = ctx.system;
   const [search, setSearch] = useState('');
-  const read = useCallback(
-    () => listCustomers(ctx, search).map((c) => ({ customer: c, balance: balance(ctx, c.id) })),
-    [ctx, search],
-  );
+  const read = useCallback(() => {
+    const balances = allBalances(ctx);
+    return listCustomers(ctx, search).map((c) => ({
+      customer: c,
+      balance: balances.get(c.id) ?? 0,
+    }));
+  }, [ctx, search]);
   const [rows, setRows] = useState(read);
   const refresh = useCallback(() => setRows(read()), [read]);
   useFocusEffect(refresh);

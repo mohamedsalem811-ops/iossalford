@@ -5,6 +5,8 @@
  */
 import { addToCart, type CartLine } from './cart';
 import { checkout, type PaymentMethod } from './checkout';
+import { saveCustomer } from './customers';
+import { allBalances, balance, recordPayment } from './debts';
 import { displayName, getProduct, saveProduct } from './products';
 import { countReceipts, listReceipts, receiptMonths } from './receipts';
 import {
@@ -134,5 +136,18 @@ describe('returns, a page at a time', () => {
     );
     expect(returnsSummary(ctx)).toEqual({ count: 12, total: 120_000 });
     expect(returnMonths(ctx)).toEqual(['2026-11']);
+  });
+});
+
+describe('balances for lists, in one query', () => {
+  it('match the balance of each customer, payments and refunds included', () => {
+    const credit = listSales(ctx, { paymentMethod: 'credit' });
+    addReturn(ctx, { saleLineId: credit[0].lines[0].id, quantity: 1, refund: 30_000 });
+    const sara = credit[0].customerId!;
+    recordPayment(ctx, { customerId: sara, amount: 50_000, method: 'cash' });
+    const other = saveCustomer(ctx, { name: 'هدى', phone: '0911111111' });
+    const all = allBalances(ctx);
+    for (const id of [sara, other]) expect(all.get(id) ?? 0).toBe(balance(ctx, id));
+    expect(all.has(other)).toBe(false);
   });
 });

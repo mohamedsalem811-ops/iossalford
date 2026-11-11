@@ -69,6 +69,7 @@
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
     "test": "jest",
+    "speed": "SPEED=1 jest src/testing/speed.test.ts --verbose=false",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm test",
     "update:preview": "node scripts/publish-update.mjs preview",
     "update:production": "node scripts/publish-update.mjs production",

@@ -22,28 +22,45 @@ export function balance(ctx: Ctx, customerId: number): number {
 
 export type Debtor = { customer: Customer; balance: number };
 
+/**
+ * Every customer's balance (the same rule as `balance`) in one query, for lists: the time stays
+ * the same however many customers and years of sales there are. Customers with no balance are
+ * left out.
+ */
+export function allBalances(ctx: Ctx): Map<number, number> {
+  const rows = ctx.db.all<{ id: number; balance: number }>(
+    `SELECT c.id, coalesce(o.owed, 0) - coalesce(r.refunded, 0) - coalesce(p.paid, 0) AS balance
+       FROM customers c
+       LEFT JOIN (SELECT customer_id, sum(total) AS owed FROM sales
+                   WHERE payment_method = 'credit' AND customer_id IS NOT NULL
+                   GROUP BY customer_id) o ON o.customer_id = c.id
+       LEFT JOIN (SELECT s.customer_id, sum(r.refund) AS refunded FROM returns r
+                    JOIN sale_lines l ON l.id = r.sale_line_id JOIN sales s ON s.id = l.sale_id
+                   WHERE s.payment_method = 'credit' AND s.customer_id IS NOT NULL
+                   GROUP BY s.customer_id) r ON r.customer_id = c.id
+       LEFT JOIN (SELECT customer_id, sum(amount) AS paid FROM payments GROUP BY customer_id) p
+              ON p.customer_id = c.id
+      WHERE o.owed IS NOT NULL OR p.paid IS NOT NULL`,
+  );
+  return new Map(rows.filter((r) => r.balance !== 0).map((r) => [r.id, r.balance]));
+}
+
+const withBalances = (ctx: Ctx, keep: (b: number) => boolean): Debtor[] =>
+  [...allBalances(ctx)]
+    .filter(([, b]) => keep(b))
+    .map(([id, b]) => ({ customer: getCustomer(ctx, id)!, balance: b }))
+    .filter((d) => d.customer);
+
 /** Customers who owe money, largest balance first. */
 export function debtors(ctx: Ctx): Debtor[] {
-  const ids = ctx.db.all<{ customer_id: number }>(
-    `SELECT DISTINCT customer_id FROM sales WHERE payment_method = 'credit' AND customer_id IS NOT NULL`,
-  );
-  return ids
-    .map(({ customer_id }) => ({
-      customer: getCustomer(ctx, customer_id)!,
-      balance: balance(ctx, customer_id),
-    }))
-    .filter((d) => d.customer && d.balance > 0)
-    .sort((a, b) => b.balance - a.balance);
+  return withBalances(ctx, (b) => b > 0).sort((a, b) => b.balance - a.balance);
 }
 
 export const totalOutstanding = (ctx: Ctx) => debtors(ctx).reduce((t, d) => t + d.balance, 0);
 
 /** Customers the shop owes money to (they paid more than they owe after returns). */
 export function creditBalances(ctx: Ctx): Debtor[] {
-  return ctx.db
-    .all<{ id: number }>('SELECT id FROM customers')
-    .map(({ id }) => ({ customer: getCustomer(ctx, id)!, balance: balance(ctx, id) }))
-    .filter((d) => d.balance < 0);
+  return withBalances(ctx, (b) => b < 0).sort((a, b) => a.balance - b.balance);
 }
 
 export type Payment = {
