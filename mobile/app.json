@@ -9,7 +9,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "bundleIdentifier": "com.salford.pos",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "supportsTablet": true,
       "requireFullScreen": false,
       "infoPlist": {
