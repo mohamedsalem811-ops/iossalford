@@ -29,6 +29,7 @@ import { formatDate, monthKey, monthTitle, recentMonths } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
 import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import { useReadable } from '@/hooks/use-readable';
 import { spacing, useTheme } from '@/theme';
 
 /**
@@ -37,6 +38,7 @@ import { spacing, useTheme } from '@/theme';
  */
 export default function ExpensesRoute() {
   const ctx = useCtx();
+  const readable = useReadable();
   const { colors } = useTheme();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -90,12 +92,11 @@ export default function ExpensesRoute() {
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
+        onLayout={readable.onLayout}
         contentContainerStyle={{
-          padding: spacing.md,
+          ...readable.padding,
+          paddingVertical: spacing.md,
           gap: spacing.md,
-          width: '100%',
-          maxWidth: 760,
-          alignSelf: 'center',
         }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled">

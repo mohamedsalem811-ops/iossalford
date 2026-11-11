@@ -33,6 +33,7 @@ import { formatLyd } from '@/lib/money';
 import { printReceipt, saveReceiptToFiles, shareReceipt } from '@/receipts/output';
 import { notifyDataChanged } from '@/state/data-events';
 import { radius, spacing, useTheme } from '@/theme';
+import { useReadable } from '@/hooks/use-readable';
 
 import {
   blankItem,
@@ -75,6 +76,7 @@ export function ReceiptStudio({
   receiptId?: number;
   onDone: () => void;
 }) {
+  const readable = useReadable();
   const { colors } = useTheme();
   const [saved, setSaved] = useState<Receipt | null>(() =>
     receiptId ? (getReceipt(ctx, receiptId) ?? null) : null,
@@ -195,12 +197,11 @@ export function ReceiptStudio({
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
+        onLayout={readable.onLayout}
         contentContainerStyle={{
-          padding: spacing.md,
+          ...readable.padding,
+          paddingVertical: spacing.md,
           gap: spacing.md,
-          width: '100%',
-          maxWidth: 760,
-          alignSelf: 'center',
         }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled">

@@ -23,6 +23,7 @@ import { getRate } from '@/domain/settings';
 import { parseInteger } from '@/lib/digits';
 import { formatLyd, formatRate } from '@/lib/money';
 import { notifyDataChanged } from '@/state/data-events';
+import { useReadable } from '@/hooks/use-readable';
 import { spacing, touchTarget, useTheme } from '@/theme';
 
 import { releasePhoto } from './actions';
@@ -55,6 +56,7 @@ export function ProductFormView({
   /** Shown beside the list on iPad, with its own title bar. */
   embedded?: boolean;
 }) {
+  const readable = useReadable();
   const { colors } = useTheme();
   const [initial] = useState(() => {
     const p = productId ? getProduct(ctx, productId) : undefined;
@@ -122,12 +124,11 @@ export function ProductFormView({
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
+        onLayout={readable.onLayout}
         contentContainerStyle={{
-          padding: spacing.md,
+          ...readable.padding,
+          paddingVertical: spacing.md,
           gap: spacing.md,
-          width: '100%',
-          maxWidth: 760,
-          alignSelf: 'center',
         }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="interactive"

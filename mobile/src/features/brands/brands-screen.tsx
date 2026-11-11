@@ -9,6 +9,7 @@ import { Button, Card, EmptyState, Icon, Text, TextField, KEYBOARD_GAP } from '@
 import type { Brand } from '@/domain/brands';
 import type { Ctx } from '@/domain/context';
 import { BrandBadge } from '@/features/products/brand-badge';
+import { useReadable } from '@/hooks/use-readable';
 import { spacing, touchTarget, useTheme } from '@/theme';
 
 import {
@@ -24,6 +25,7 @@ import {
  * delete (its pieces become "no brand"), and the shop's own photo for each brand.
  */
 export function BrandsScreen({ ctx, brands }: { ctx: Ctx; brands: Brand[] }) {
+  const readable = useReadable();
   const { colors } = useTheme();
   const [name, setName] = useState('');
   const add = () => {
@@ -34,13 +36,8 @@ export function BrandsScreen({ ctx, brands }: { ctx: Ctx; brands: Brand[] }) {
     <KeyboardAwareScrollView
       bottomOffset={KEYBOARD_GAP}
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{
-        padding: spacing.md,
-        gap: spacing.md,
-        width: '100%',
-        maxWidth: 760,
-        alignSelf: 'center',
-      }}
+      onLayout={readable.onLayout}
+      contentContainerStyle={{ ...readable.padding, paddingVertical: spacing.md, gap: spacing.md }}
       contentInsetAdjustmentBehavior="automatic"
       keyboardShouldPersistTaps="handled">
       <Card>

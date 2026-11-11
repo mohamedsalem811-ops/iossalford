@@ -11,11 +11,13 @@ import { monthTitle } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import { useReadable } from '@/hooks/use-readable';
 import { spacing } from '@/theme';
 
 /** Management → Sales history: every checkout as one sale, by month and payment, searchable. */
 export default function SalesRoute() {
   const ctx = useCtx();
+  const readable = useReadable();
   const [query, setQuery] = useState<SaleQuery>({});
   const read = useCallback(
     () => ({ shown: listSales(ctx, query), months: monthsOf(listSales(ctx)) }),
@@ -84,7 +86,8 @@ export default function SalesRoute() {
         keyExtractor={(s) => String(s.id)}
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
-        contentContainerStyle={{ padding: spacing.md }}
+        onLayout={readable.onLayout}
+        contentContainerStyle={{ paddingHorizontal: readable.side, paddingVertical: spacing.md }}
         ListHeaderComponent={
           data.shown.length ? (
             <Text

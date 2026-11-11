@@ -7,11 +7,13 @@ import { listSets } from '@/domain/sets';
 import { SetList } from '@/features/sets/set-picker';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import { useReadable } from '@/hooks/use-readable';
 import { spacing, useTheme } from '@/theme';
 
 /** Management → Sets: create, edit and delete the sets the shop sells. */
 export default function ManageSetsRoute() {
   const ctx = useCtx();
+  const readable = useReadable();
   const { colors } = useTheme();
   const read = useCallback(() => listSets(ctx), [ctx]);
   const [sets, setSets] = useState(read);
@@ -32,12 +34,11 @@ export default function ManageSetsRoute() {
       </Stack.Toolbar>
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.background }}
+        onLayout={readable.onLayout}
         contentContainerStyle={{
-          padding: spacing.md,
+          ...readable.padding,
+          paddingVertical: spacing.md,
           gap: spacing.md,
-          width: '100%',
-          maxWidth: 760,
-          alignSelf: 'center',
         }}
         contentInsetAdjustmentBehavior="automatic">
         <SetList

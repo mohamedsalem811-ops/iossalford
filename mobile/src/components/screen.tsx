@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { ScrollView, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useReadable } from '@/hooks/use-readable';
 import { spacing, useTheme } from '@/theme';
 
 /** Height kept clear at the bottom for the floating glass tab bar. */
@@ -27,11 +28,9 @@ export function Screen({
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
+  const readable = useReadable(maxWidth);
   const inner: ViewStyle = {
-    width: '100%',
-    maxWidth,
-    alignSelf: 'center',
-    paddingHorizontal: spacing.md,
+    ...readable.padding,
     paddingTop: insets.top + spacing.sm,
     paddingBottom: (tabBar ? TAB_BAR_CLEARANCE : 0) + insets.bottom + spacing.lg,
     gap: spacing.ms,
@@ -39,7 +38,7 @@ export function Screen({
 
   if (!scroll) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <View style={{ flex: 1, backgroundColor: colors.background }} onLayout={readable.onLayout}>
         <View style={[inner, { flex: 1 }, contentStyle]}>{children}</View>
       </View>
     );
@@ -47,6 +46,7 @@ export function Screen({
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
+      onLayout={readable.onLayout}
       contentContainerStyle={[inner, contentStyle]}
       contentInsetAdjustmentBehavior="never"
       keyboardDismissMode="interactive">

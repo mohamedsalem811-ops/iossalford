@@ -8,11 +8,13 @@ import { balance } from '@/domain/debts';
 import { CustomerRow } from '@/features/customers/customer-row';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import { useReadable } from '@/hooks/use-readable';
 import { spacing } from '@/theme';
 
 /** Management → Customers: search by name, phone or area; add; open for details and debts. */
 export default function CustomersRoute() {
   const ctx = useCtx();
+  const readable = useReadable();
   const system = ctx.system;
   const [search, setSearch] = useState('');
   const read = useCallback(
@@ -48,7 +50,8 @@ export default function CustomersRoute() {
         keyExtractor={(r) => String(r.customer.id)}
         contentInsetAdjustmentBehavior="automatic"
         keyboardDismissMode="on-drag"
-        contentContainerStyle={{ padding: spacing.md }}
+        onLayout={readable.onLayout}
+        contentContainerStyle={{ paddingHorizontal: readable.side, paddingVertical: spacing.md }}
         ListHeaderComponent={
           rows.length ? (
             <Text variant="caption" tone="secondary" style={{ paddingBottom: spacing.sm }}>

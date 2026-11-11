@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { ScrollView, type StyleProp, type ViewStyle } from 'react-native';
 
+import { useReadable } from '@/hooks/use-readable';
 import { spacing, useTheme } from '@/theme';
 
 /**
@@ -17,15 +18,15 @@ export function Page({
   contentStyle?: StyleProp<ViewStyle>;
 }) {
   const { colors } = useTheme();
+  const readable = useReadable(maxWidth);
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
+      onLayout={readable.onLayout}
       contentContainerStyle={[
         {
-          width: '100%',
-          maxWidth,
-          alignSelf: 'center',
-          padding: spacing.md,
+          ...readable.padding,
+          paddingTop: spacing.md,
           paddingBottom: spacing.xxl,
           gap: spacing.md,
         },

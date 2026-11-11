@@ -12,11 +12,13 @@ import { formatDate, monthTitle } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
 import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import { useReadable } from '@/hooks/use-readable';
 import { radius, spacing, useTheme } from '@/theme';
 
 /** Management → Returns: every return by month; a return without a sale; delete one by mistake. */
 export default function ReturnsRoute() {
   const ctx = useCtx();
+  const readable = useReadable();
   const { colors } = useTheme();
   const system = ctx.system;
   const [month, setMonth] = useState<string | undefined>();
@@ -110,7 +112,8 @@ export default function ReturnsRoute() {
         data={data.shown}
         keyExtractor={(r) => String(r.id)}
         contentInsetAdjustmentBehavior="automatic"
-        contentContainerStyle={{ padding: spacing.md }}
+        onLayout={readable.onLayout}
+        contentContainerStyle={{ paddingHorizontal: readable.side, paddingVertical: spacing.md }}
         ListHeaderComponent={
           <Text variant="caption" tone="secondary" style={{ paddingBottom: spacing.sm }}>
             {data.shown.length

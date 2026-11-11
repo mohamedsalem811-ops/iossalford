@@ -4,6 +4,7 @@ import { ActionSheetIOS, Pressable, View } from 'react-native';
 import { Badge, EmptyState, TAB_BAR_CLEARANCE, Text } from '@/components';
 import type { Receipt } from '@/domain/receipts';
 import { formatLyd } from '@/lib/money';
+import { useReadable } from '@/hooks/use-readable';
 import { radius, spacing, useTheme } from '@/theme';
 
 import { receiptSummary, templateName } from './model';
@@ -29,6 +30,7 @@ export function ReceiptsList({
   onNew: () => void;
 }) {
   const { colors } = useTheme();
+  const readable = useReadable();
   const menu = (r: Receipt) => {
     const items = [
       { title: 'فتح وتعديل', run: () => actions.onOpen(r) },
@@ -53,8 +55,9 @@ export function ReceiptsList({
       keyExtractor={(r) => String(r.id)}
       contentInsetAdjustmentBehavior="automatic"
       keyboardDismissMode="on-drag"
+      onLayout={readable.onLayout}
       contentContainerStyle={{
-        paddingHorizontal: spacing.md,
+        paddingHorizontal: readable.side,
         paddingTop: spacing.sm,
         paddingBottom: TAB_BAR_CLEARANCE + spacing.lg,
       }}

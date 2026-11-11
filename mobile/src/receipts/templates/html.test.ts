@@ -109,6 +109,13 @@ describe('receiptHtml', () => {
     expect(a6).toContain('--u: calc(100cqw / 420)');
   });
 
+  it('sizes the preview from the view width in points', () => {
+    const html = receiptHtml(doc(), { previewWidth: 297.5 });
+    expect(html).toContain('.page { width: 297.5px; }');
+    expect(html).toContain('--u: 0.5px');
+    expect(html).not.toContain('cqw');
+  });
+
   it('turns receipt units into CSS lengths, and nothing else', () => {
     expect(toCss('margin: 0 96u; padding: -4.5u .3u')).toBe(
       'margin: 0 calc(96 * var(--u)); padding: calc(-4.5 * var(--u)) calc(.3 * var(--u))',
