@@ -21,7 +21,8 @@ appId: com.salford.pos
 - tapOn:
     id: 'design-name'
 - inputText: 'Silk Classic'
-- hideKeyboard
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn: 'تم'
 # A new design starts with a 90×90 row.
 - scrollUntilVisible:
     element:
@@ -30,7 +31,8 @@ appId: com.salford.pos
 - tapOn:
     id: 'size-price-0'
 - inputText: '90'
-- hideKeyboard
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn: 'تم'
 - scrollUntilVisible:
     element:
       id: 'size-cost-0'
@@ -38,7 +40,8 @@ appId: com.salford.pos
 - tapOn:
     id: 'size-cost-0'
 - inputText: '30'
-- hideKeyboard
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn: 'تم'
 - scrollUntilVisible:
     element:
       id: 'add-size-120×120'
@@ -52,7 +55,8 @@ appId: com.salford.pos
 - tapOn:
     id: 'size-price-1'
 - inputText: '120'
-- hideKeyboard
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn: 'تم'
 - scrollUntilVisible:
     element:
       id: 'size-cost-1'
@@ -60,7 +64,8 @@ appId: com.salford.pos
 - tapOn:
     id: 'size-cost-1'
 - inputText: '40'
-- hideKeyboard
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn: 'تم'
 - takeScreenshot: ${DEVICE}-design-form
 - scrollUntilVisible:
     element:

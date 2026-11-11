@@ -19,6 +19,9 @@ appId: com.salford.pos
 - runFlow: subflows/pin-scarves.yaml
 - assertVisible: 'مبيعات اليوم'
 - tapOn: 'الإدارة'
+- scrollUntilVisible:
+    element: 'تبديل النظام'
+    direction: DOWN
 - tapOn: 'تبديل النظام'
 - assertVisible: 'اختر النظام'
 - takeScreenshot: ${DEVICE}-chooser-after-switch

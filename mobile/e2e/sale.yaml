@@ -17,7 +17,7 @@ appId: com.salford.pos
 - takeScreenshot: ${DEVICE}-receipt-studio
 - tapOn: 'إغلاق'
 # A credit sale needs the customer.
-- tapOn: 'البيع'
+- tapOn: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:
@@ -33,7 +33,8 @@ appId: com.salford.pos
 - tapOn:
     id: 'checkout-name'
 - inputText: 'Sara'
-- hideKeyboard
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn: 'تم'
 - tapOn:
     id: 'checkout-confirm'
 - extendedWaitUntil:

@@ -2,7 +2,7 @@
 # iPhone: the cart bar above the tabs opens the cart; iPad: the cart is beside the products.
 appId: com.salford.pos
 ---
-- tapOn: 'البيع'
+- tapOn: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:
