@@ -5,6 +5,7 @@ import { listSets } from '@/domain/sets';
 import { SetPicker } from '@/features/sets/set-picker';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /** Sale → sets: add a whole set to the cart. */
 export default function SetsRoute() {
@@ -25,3 +26,6 @@ export default function SetsRoute() {
     />
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('sets');

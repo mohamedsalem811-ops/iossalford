@@ -21,6 +21,7 @@ export function SettingsScreen({
   appearance,
   version,
   updates,
+  errors,
   onEditRate,
   onChangePin,
   onAppearance,
@@ -30,6 +31,8 @@ export function SettingsScreen({
   appearance: Appearance;
   version: string;
   updates: UpdateRows;
+  /** Errors written to the log on this device; opening it offers to share or clear it. */
+  errors: { count: number; onOpen: () => void };
   onEditRate: () => void;
   onChangePin: () => void;
   onAppearance: (a: Appearance) => void;
@@ -93,8 +96,18 @@ export function SettingsScreen({
           />
         ) : null}
       </ListGroup>
-      <ListGroup header="التطبيق">
+      <ListGroup
+        header="التطبيق"
+        footer="سجل الأخطاء يبقى على هذا الجهاز. أرسله عند حدوث مشكلة ليُعرف سببها وتُصلح.">
         <ListRow icon="info.circle" title="الإصدار" value={version} />
+        <ListRow
+          icon="ladybug"
+          title="سجل الأخطاء"
+          value={errors.count ? String(errors.count) : 'لا أخطاء'}
+          tone={errors.count ? 'warning' : 'normal'}
+          onPress={errors.count ? errors.onOpen : undefined}
+          testID="settings-errors"
+        />
       </ListGroup>
       <Text variant="caption" tone="secondary" center>
         SALFORD POS — بياناتك على هذا الجهاز فقط.

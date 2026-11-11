@@ -10,6 +10,7 @@ import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { useReadable } from '@/hooks/use-readable';
 import { spacing } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 /** Management → Customers: search by name, phone or area; add; open for details and debts. */
 export default function CustomersRoute() {
@@ -86,3 +87,6 @@ export default function CustomersRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/customers');

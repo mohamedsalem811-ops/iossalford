@@ -4,6 +4,7 @@ import { Alert } from 'react-native';
 import { ChangePinScreen, type ChangePinDeps } from '@/screens/change-pin';
 import { pinVault } from '@/security/device';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 const deps: ChangePinDeps = {
   verify: (system, pin) => pinVault.verify(system, pin),
@@ -30,3 +31,6 @@ export default function ChangePinRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('change-pin');

@@ -21,6 +21,7 @@ import { useCtx } from '@/state/system-db';
 import { usePaged } from '@/hooks/use-paged';
 import { useReadable } from '@/hooks/use-readable';
 import { radius, spacing, useTheme } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 /** Management → Returns: every return by month; a return without a sale; delete one by mistake. */
 export default function ReturnsRoute() {
@@ -169,3 +170,6 @@ export default function ReturnsRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/returns');

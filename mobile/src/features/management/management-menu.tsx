@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 
 import { copyReminder } from '@/backup/model';
 import { firstBackup, lastCopied, saveBackup } from '@/backup/store';
+import { logError } from '@/lib/error-log';
 import { ManagementScreen, type ManageTarget } from '@/screens/management';
 import { useLock } from '@/state/lock';
 import { useCtx } from '@/state/system-db';
@@ -54,8 +55,9 @@ export function ManagementMenu({
   const backupNow = () => {
     try {
       saveBackup(ctx, 'auto');
-    } catch {
+    } catch (error) {
       // Never block locking or switching; the next backup tries again.
+      logError('نسخة عند القفل أو التبديل', error);
     }
   };
   useFocusEffect(useCallback(() => setReminder(read()), [read]));

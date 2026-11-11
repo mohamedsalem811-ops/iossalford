@@ -23,6 +23,7 @@ import { monthTitle } from '@/lib/dates';
 import { printReceipt, shareReceipt } from '@/receipts/output';
 import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /**
  * The receipts tab: every receipt, newest first. Search by number, customer or piece; filter by
@@ -199,3 +200,6 @@ export default function ReceiptsRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('receipts');

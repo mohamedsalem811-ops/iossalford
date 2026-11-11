@@ -3,6 +3,8 @@ import { AppState } from 'react-native';
 
 import type { Ctx } from '@/domain/context';
 
+import { logError } from '@/lib/error-log';
+
 import { saveBackup } from './store';
 
 /**
@@ -15,8 +17,9 @@ export function AutoBackup({ ctx }: { ctx: Ctx }) {
       if (next !== 'background') return;
       try {
         saveBackup(ctx, 'auto');
-      } catch {
+      } catch (error) {
         // A failed automatic backup must never stop the app; the next one tries again.
+        logError('نسخة تلقائية', error);
       }
     });
     return () => sub.remove();

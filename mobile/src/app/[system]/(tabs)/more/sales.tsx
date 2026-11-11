@@ -13,6 +13,7 @@ import { useCtx } from '@/state/system-db';
 import { usePaged } from '@/hooks/use-paged';
 import { useReadable } from '@/hooks/use-readable';
 import { spacing } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 /** Management → Sales history: every checkout as one sale, by month and payment, searchable. */
 export default function SalesRoute() {
@@ -133,3 +134,6 @@ export default function SalesRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/sales');

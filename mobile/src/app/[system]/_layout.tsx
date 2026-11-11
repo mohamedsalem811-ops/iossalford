@@ -8,6 +8,7 @@ import { askFaceId, faceIdStatus, pinVault, rememberSystem } from '@/security/de
 import { useLock } from '@/state/lock';
 import { CtxProvider, useCtx, useSystemDb } from '@/state/system-db';
 import { fonts, ThemeProvider, useTheme, type SystemId } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 const loginDeps: LoginDeps = {
   verify: (system, pin) => pinVault.verify(system, pin),
@@ -118,3 +119,6 @@ function SystemStack() {
     </Stack>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('system');

@@ -4,6 +4,7 @@ import { EmptyState, Screen } from '@/components';
 import { ManagementMenu, sectionHref } from '@/features/management/management-menu';
 import { useLayout } from '@/hooks/use-layout';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /**
  * The Management tab's first screen. iPhone: the menu (a section opens over it, the tab bar
@@ -26,3 +27,6 @@ export default function More() {
   }
   return <ManagementMenu onOpen={(t) => router.push(sectionHref(t, system))} />;
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more');

@@ -17,6 +17,7 @@ import { DEFAULT_DESIGN_QUERY, type DesignQuery } from '@/features/scarves/model
 import { useLayout } from '@/hooks/use-layout';
 import { useCtx } from '@/state/system-db';
 import type { SystemId } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 /** Jewelry lists pieces; scarves list designs with all their sizes. */
 export default function ProductsRoute() {
@@ -251,3 +252,6 @@ function ScarvesProducts({ ctx }: { ctx: Ctx }) {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('products');

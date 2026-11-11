@@ -13,6 +13,7 @@ import { useLayout } from '@/hooks/use-layout';
 import type { ManageTarget } from '@/screens/management';
 import { useCtx } from '@/state/system-db';
 import { useTheme } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 /**
  * The Management tab's own stack, so Sales, Customers and the rest open inside the tab and the
@@ -58,3 +59,6 @@ export default function ManagementLayout() {
     </View>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/layout');

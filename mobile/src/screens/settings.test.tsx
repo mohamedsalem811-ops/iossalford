@@ -6,7 +6,7 @@ import { SettingsScreen, type UpdateRows } from './settings';
 
 jest.mock('expo-symbols', () => ({ SymbolView: () => null }));
 
-async function setup(updates: Partial<UpdateRows> = {}) {
+async function setup(updates: Partial<UpdateRows> = {}, errors = { count: 0, onOpen: jest.fn() }) {
   const rows: UpdateRows = {
     enabled: true,
     running: 'النسخة المثبّتة',
@@ -23,6 +23,7 @@ async function setup(updates: Partial<UpdateRows> = {}) {
       appearance="system"
       version="1.0.0 (1)"
       updates={rows}
+      errors={errors}
       onEditRate={jest.fn()}
       onChangePin={jest.fn()}
       onAppearance={jest.fn()}
@@ -57,5 +58,17 @@ describe('Settings: instant updates', () => {
     await setup({ enabled: false, running: 'التحديثات تعمل في التطبيق المثبّت فقط' });
     expect(screen.queryByTestId('settings-update-check')).toBeNull();
     expect(screen.getByText('التحديثات تعمل في التطبيق المثبّت فقط')).toBeTruthy();
+  });
+});
+
+describe('Settings: the error log', () => {
+  it('says when there are no errors, and opens the log when there are', async () => {
+    await setup();
+    expect(screen.getByText('لا أخطاء')).toBeTruthy();
+    const onOpen = jest.fn();
+    screen.unmount();
+    await setup({}, { count: 3, onOpen });
+    fireEvent.press(screen.getByTestId('settings-errors'));
+    expect(onOpen).toHaveBeenCalled();
   });
 });

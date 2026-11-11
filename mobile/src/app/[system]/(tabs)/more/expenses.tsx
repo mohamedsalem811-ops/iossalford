@@ -31,6 +31,7 @@ import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { useReadable } from '@/hooks/use-readable';
 import { spacing, useTheme } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 /**
  * Management → Expenses: add an expense booked to a chosen month (a warning when that month's
@@ -167,3 +168,6 @@ export default function ExpensesRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/expenses');

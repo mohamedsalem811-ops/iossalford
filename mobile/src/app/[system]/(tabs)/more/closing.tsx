@@ -18,6 +18,7 @@ import { formatLyd } from '@/lib/money';
 import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { spacing } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 /**
  * Management → Quarterly closing: choose a quarter, see what it totals (only its own sales,
@@ -155,3 +156,6 @@ function Line({
     </View>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/closing');

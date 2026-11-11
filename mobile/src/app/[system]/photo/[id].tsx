@@ -10,6 +10,7 @@ import { formatLyd } from '@/lib/money';
 import { photoUri } from '@/lib/photos';
 import { radius, spacing, useTheme } from '@/theme';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /** A product's photo, large, pinch to zoom; with its name, price and a way to edit it. */
 export default function PhotoRoute() {
@@ -82,3 +83,6 @@ export default function PhotoRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('photo/[id]');

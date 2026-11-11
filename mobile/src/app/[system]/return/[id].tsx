@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import { ReturnForm } from '@/features/sales/return-form';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /** /jewelry/return/31 returns from sale line 31; /jewelry/return/new is a return without a sale. */
 export default function ReturnRoute() {
@@ -17,3 +18,6 @@ export default function ReturnRoute() {
     />
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('return/[id]');

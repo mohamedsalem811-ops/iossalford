@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { ChooserScreen } from '@/screens/chooser';
 import { lastSystem, pinVault } from '@/security/device';
 import { useLock } from '@/state/lock';
+import { errorBoundary } from '@/components/error-screen';
 
 /**
  * The start screen. Being here means no system is open: it locks on arrival, so going back into
@@ -37,3 +38,6 @@ export default function Index() {
     />
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('start');

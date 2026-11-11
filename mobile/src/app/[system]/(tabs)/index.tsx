@@ -6,6 +6,7 @@ import { getRate } from '@/domain/settings';
 import { promptRate } from '@/features/settings/rate';
 import { DashboardScreen } from '@/screens/dashboard';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 export default function Dashboard() {
   const ctx = useCtx();
@@ -25,3 +26,6 @@ export default function Dashboard() {
     />
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('dashboard');

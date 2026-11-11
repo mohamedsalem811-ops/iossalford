@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 import { firstBackup, lastCopied, listBackups } from '@/backup/store';
 import { BackupScreen } from '@/features/backup/backup-screen';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /** Management → Backup. */
 export default function BackupRoute() {
@@ -26,3 +27,6 @@ export default function BackupRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/backup');

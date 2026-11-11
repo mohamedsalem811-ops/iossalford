@@ -8,6 +8,7 @@ import { formatLyd } from '@/lib/money';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { spacing } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 /** Management → Debts: who owes money and the total; customers the shop owes ("له رصيد"). */
 export default function DebtsRoute() {
@@ -68,3 +69,6 @@ export default function DebtsRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/debts');
