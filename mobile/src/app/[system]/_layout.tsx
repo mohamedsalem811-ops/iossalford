@@ -2,6 +2,7 @@ import { Redirect, router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback } from 'react';
 
 import { AutoBackup } from '@/backup/auto-backup';
+import { KeyboardBar } from '@/components/keyboard-bar';
 import { DbErrorScreen } from '@/screens/db-error';
 import { LoginScreen, type LoginDeps } from '@/screens/login';
 import { askFaceId, faceIdStatus, pinVault, rememberSystem } from '@/security/device';
@@ -99,7 +100,20 @@ function SystemStack() {
     sheetAllowedDetents: [0.7, 1],
   };
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{ headerShown: false }}
+      // A sheet is drawn above the app, so the "تم" bar of the root layout would sit behind it:
+      // each sheet gets its own, so a number pad (no return key) can always be closed.
+      screenLayout={({ children, options }) =>
+        options.presentation === 'modal' || options.presentation === 'formSheet' ? (
+          <>
+            {children}
+            <KeyboardBar />
+          </>
+        ) : (
+          children
+        )
+      }>
       <Stack.Screen name="product/[id]" options={sheet} />
       <Stack.Screen name="photo/[id]" options={sheet} />
       <Stack.Screen name="design/[id]" options={sheet} />
