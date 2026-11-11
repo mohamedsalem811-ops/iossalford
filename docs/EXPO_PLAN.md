@@ -18,7 +18,7 @@ Every feature of the current app is kept. Items marked **NEW** don't exist in th
 - **Backups stay on the device. No iCloud, no cloud of any kind** until the Apple Developer account exists (see "Later").
 - **Merging into `main` is done by the owner, manually.** Claude pushes to the work branch and opens pull requests; it never merges.
 - **Latest stack:** Expo SDK 58 on React Native 0.88. **NEW**
-- **Works fully offline.** The app never needs the internet: no web addresses, no network calls, automatic updates off. Only things outside the app need a connection: printing (the printer on the same Wi-Fi), sharing to WhatsApp and similar, the Expo Go preview, and Sideloadly's re-signing every 7 days. Every phase keeps it that way.
+- **Works fully offline.** The app never needs the internet: no web addresses, no network calls. The one connection it makes is a check for instant updates when the device is online (see 8.0a); with no internet it opens straight away with the version it has, and no shop data is ever sent. Only things outside the app need a connection: printing (the printer on the same Wi-Fi), sharing to WhatsApp and similar, the Expo Go preview, and Sideloadly's re-signing every 7 days. Every phase keeps it that way.
 
 ## 2. How each step works
 
@@ -307,15 +307,23 @@ mobile/
 
 **First, the fixes from the review of Phases 0 to 7** (approved by the owner on 2026-11-11). None of them changes how the app works:
 
-- **8.0a Hide the live data from the Files app.** The databases and photos move to the app's private folder; an existing install is moved over with all its data on first launch. Backups and Receipts stay visible in Files. Keeping them out of the device's iCloud backup covers the new folder too.
-- **8.0b Long lists load as you scroll:** sales history, receipts and the other long lists. The list of months comes from one quick query, not from loading every sale.
-- **8.0c The tab bar stays visible inside Management:** Sales, Customers, Debts and the rest open inside the Management tab, as in Apple's own apps, instead of covering the tabs.
-- **8.0d iPad layout by type of screen, using the whole width:**
+- **8.0a Instant updates in the installed app** (brought forward from L6; no developer account needed). **NEW**
+  - After one new `.ipa` with updates switched on, changes to the app's code (screens, rules, receipts, fixes) reach the iPhone and iPad just by opening the app; only native changes (a new native library or permission, the icon or name, the backup module, an Expo SDK upgrade) still need a new `.ipa`. I say which kind each change is.
+  - Two channels: **preview** for testing (Expo Go, as now) and **production** for the installed app. Nothing is published to production without the owner's OK.
+  - Each update is tied to the exact `.ipa` it was made for (fingerprint runtime version), so it never reaches an app that can't run it.
+  - The app checks when it opens and the device is online, downloads in the background and never waits; the update runs on the next launch, or straight away from an "تحديث جاهز" prompt with a restart button.
+  - If an update fails to start, the app goes back to the previous working version by itself; a bad update can also be rolled back with one command. Data, photos and backups are never touched by an update.
+  - Settings shows the version running and its date, and a "تحقق من التحديثات" button.
+  - Tested on the devices, including what happens after Sideloadly's weekly re-sign.
+- **8.0b Hide the live data from the Files app.** The databases and photos move to the app's private folder; an existing install is moved over with all its data on first launch. Backups and Receipts stay visible in Files. Keeping them out of the device's iCloud backup covers the new folder too.
+- **8.0c Long lists load as you scroll:** sales history, receipts and the other long lists. The list of months comes from one quick query, not from loading every sale.
+- **8.0d The tab bar stays visible inside Management:** Sales, Customers, Debts and the rest open inside the Management tab, as in Apple's own apps, instead of covering the tabs.
+- **8.0e iPad layout by type of screen, using the whole width:**
   - list with its details beside it, as in the iPad Settings app: the Management menu, Sales, Customers, Debts, Returns, Receipts;
   - cards that fill the width: Dashboard and Sale;
   - forms open as windows over the screen (as now).
-- **8.0e Speed test** (moved from 9.4): 2,000 products and 10,000 sales, measured on the dashboard and the long lists; anything slow is fixed.
-- **8.0f Tap-through tests written** for selling, receipts, management and backup/restore (today only login, lockout, switching and products have them). They run in the final test run (9.6), or earlier for backups.
+- **8.0f Speed test** (moved from 9.4): 2,000 products and 10,000 sales, measured on the dashboard and the long lists; anything slow is fixed.
+- **8.0g Tap-through tests written** for selling, receipts, management and backup/restore (today only login, lockout, switching and products have them). They run in the final test run (9.6), or earlier for backups.
 
 Then the dashboard:
 
@@ -343,7 +351,7 @@ Then the dashboard:
   - every orientation;
   - Split View and Stage Manager sizes.
   - **NEW:** keyboard shortcuts (⌘F search, ⌘N new product).
-- **9.4** Speed test with 2,000 products and 10,000 sales, repeated on the finished app (first done in Phase 8, step 8.0e). **NEW**
+- **9.4** Speed test with 2,000 products and 10,000 sales, repeated on the finished app (first done in Phase 8, step 8.0f). **NEW**
 - **9.5** App icon, launch screen, app name.
 - **9.6** Full tap-through test run and final screenshots on iPhone and iPad. **NEW**
 
@@ -365,7 +373,7 @@ Done **after the project is finished**, one step at a time; none of it changes t
 | L3  | Choose where each backup goes                                              | On device only, iCloud only, or both                                    |
 | L4  | Stronger file protection                                                   | Data stays locked while the device is locked                            |
 | L5  | TestFlight installs                                                        | Install and update from TestFlight instead of Sideloadly                |
-| L6  | Instant updates (EAS Update in the real app); skipped for now by the owner | Small fixes reach the installed app without reinstalling                |
+| L6  | Instant updates (EAS Update in the real app): moved to Phase 8 (8.0a)      | Small fixes reach the installed app without reinstalling                |
 | L7  | App Store (optional)                                                       | Only if wanted; it can stay private                                     |
 
 ## 5. Summary
@@ -410,10 +418,10 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - Keeping the data out of the device's own iCloud backup needs one iOS setting that no Expo library offers, so the app has one small module of its own (`mobile/modules/backup-exclusion`, Swift). It runs in the installed `.ipa` only; Expo Go does not have it and the app works there without it. It is the app's only native code.
 
 - Review of Phases 0 to 7 (2026-11-11), approved by the owner, without changing how the app works:
-  - **Fixes**, done first in Phase 8 (8.0a to 8.0d): the live data hidden from the Files app; long lists loaded as you scroll; the tab bar kept inside Management; the iPad layout planned by type of screen (list with details beside it, cards filling the width, forms as windows).
-  - **Plan changes:** the speed test moved to Phase 8 (8.0e); no chart library: the dashboard draws its own bars, with tap-to-see the day's total and breakdowns as ranked rows, and the first Phase 8 preview compares them with Apple's own charts; the missing tap-through tests written in Phase 8 (8.0f); this document brought up to date.
+  - **Fixes**, done first in Phase 8 (8.0b to 8.0e): the live data hidden from the Files app; long lists loaded as you scroll; the tab bar kept inside Management; the iPad layout planned by type of screen (list with details beside it, cards filling the width, forms as windows).
+  - **Plan changes:** the speed test moved to Phase 8 (8.0f); no chart library: the dashboard draws its own bars, with tap-to-see the day's total and breakdowns as ranked rows, and the first Phase 8 preview compares them with Apple's own charts; the missing tap-through tests written in Phase 8 (8.0g); this document brought up to date.
   - **Way of working:** a screenshot run on iPhone and iPad at the end of every phase; Expo Go no longer limits the choice of libraries (a native library only when clearly better, after asking).
-  - **Skipped by the owner:** instant updates in the installed app (L6). They would not need the developer account, but the owner keeps installing the `.ipa`.
+  - **Instant updates** (L6) brought forward to the first step of Phase 8 (8.0a): they don't need the developer account. Updates go to the installed app only with the owner's OK; offline use is unchanged.
 - Offline: the app works fully without the internet, and every phase's self-check confirms nothing new needs it.
 
-Status: Phases 0 to 7 are merged. Next: Phase 8, starting with the review fixes (8.0a to 8.0f).
+Status: Phases 0 to 7 are merged. Next: Phase 8, starting with instant updates and the review fixes (8.0a to 8.0g).

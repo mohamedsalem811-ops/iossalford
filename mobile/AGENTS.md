@@ -46,7 +46,8 @@ Docs: https://docs.expo.dev/eas/index.md
 - **After every step or task: test, check, and push to the open pull request.** Run `npm run check` (typecheck, lint, format, tests) and `npx expo-doctor` before each push. A step is done only when its checks pass and it is pushed.
 - The owner merges every pull request. Never merge.
 - Prefer libraries Expo Go already includes. Expo Go is no longer a hard rule (the owner tests with the `.ipa`): add a library with its own native code only when it is clearly better, and ask the owner first.
-- The app works fully offline: no web addresses, no network calls, automatic updates off. Nothing may need the internet; check this in every phase's self-check.
+- The app works fully offline: no web addresses, no network calls. The only connection is the instant-update check when online, which must never make the app wait. Nothing may need the internet; check this in every phase's self-check.
+- Instant updates (from Phase 8): publish to the `preview` branch for testing; publish to `production` (the installed app) only after the owner says OK. Say whether each change can go as an update or needs a new `.ipa` (native changes).
 - Live data (databases, photos) never goes in the folder the Files app shows (`Paths.document`): only Backups and Receipts belong there.
 - Long lists load as you scroll; never load every sale or receipt (or their lines) at once, and never load a whole table just to list its months.
 - Keep everything up to date: newest packages the Expo SDK supports (`npx expo install --check`), latest GitHub Actions, newest stable Xcode.
