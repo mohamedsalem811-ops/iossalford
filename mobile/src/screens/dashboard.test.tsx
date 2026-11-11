@@ -1,55 +1,187 @@
 import { fireEvent, screen } from '@testing-library/react-native';
 
+import { addToCart, type CartLine } from '@/domain/cart';
+import { checkout, type PaymentMethod } from '@/domain/checkout';
+import { addExpense } from '@/domain/expenses';
+import { displayName, getProduct, saveProduct } from '@/domain/products';
+import { setRate } from '@/domain/settings';
+import { makeCtx, type TestCtx } from '@/domain/testing/ctx';
+import { readDashboard } from '@/features/dashboard/model';
 import { renderScreen } from '@/testing/render';
 
-import { DashboardScreen } from './dashboard';
+import { DashboardScreen, type DashboardActions } from './dashboard';
 
 jest.mock('expo-symbols', () => ({ SymbolView: () => null }));
+jest.mock('expo-haptics', () => ({ selectionAsync: jest.fn(() => Promise.resolve()) }));
+jest.mock('@expo/ui/swift-ui', () => ({ Host: () => null, Chart: () => null }));
+jest.mock('@expo/ui/community/segmented-control', () => ({
+  __esModule: true,
+  default: () => null,
+}));
+let mockColumns = 1;
+jest.mock('@/hooks/use-layout', () => ({
+  ...jest.requireActual('@/hooks/use-layout'),
+  useLayout: () => ({ dashboardColumns: mockColumns, split: mockColumns > 1 }),
+}));
 
-const today = {
-  total: 4_350_000,
-  profit: 1_120_500,
-  sales: 6,
-  pieces: 11,
-  byMethod: { cash: 4_350_000, card: 0, transfer: 0, credit: 0 },
-};
+let ctx: TestCtx;
+const actions = (): DashboardActions => ({
+  onSystemMenu: jest.fn(),
+  onEditRate: jest.fn(),
+  onMonth: jest.fn(),
+  onOpenSale: jest.fn(),
+  onOpenDebts: jest.fn(),
+  onOpenBackup: jest.fn(),
+  onOpenProducts: jest.fn(),
+});
+const noBackup = { lastCopied: null, firstBackup: null };
 
-describe('DashboardScreen', () => {
-  it("shows today's figures, the rate, and switches system", async () => {
-    const onSwitch = jest.fn();
-    await renderScreen(
-      <DashboardScreen
-        system="scarves"
-        date={new Date(2026, 10, 9)}
-        today={today}
-        rate={7_125}
-        onSwitch={onSwitch}
-      />,
-      'scarves',
-    );
-    expect(screen.getByLabelText('SALFORD scarfs')).toBeOnTheScreen();
-    expect(screen.getByText('الإثنين 9 نوفمبر 2026')).toBeOnTheScreen();
-    expect(screen.getByTestId('today-total')).toHaveTextContent('4,350 د.ل');
-    expect(screen.getByText('1,120.5')).toBeOnTheScreen();
-    expect(screen.getByText('وشاح')).toBeOnTheScreen();
-    expect(screen.getByText('7.125')).toBeOnTheScreen();
-    await fireEvent.press(screen.getByRole('button', { name: 'تبديل النظام' }));
-    expect(onSwitch).toHaveBeenCalled();
+function sell(id: number, method: PaymentMethod, at: Date) {
+  ctx.setNow(at);
+  const p = getProduct(ctx, id)!;
+  const cart = (addToCart([], p, displayName(ctx, p), 1) as { cart: CartLine[] }).cart;
+  checkout(ctx, {
+    cart,
+    paymentMethod: method,
+    customer: method === 'credit' ? { name: 'سارة' } : undefined,
   });
+}
 
-  it('opens the rate editor from the rate row', async () => {
-    const onEditRate = jest.fn();
+beforeEach(() => {
+  mockColumns = 1;
+  ctx = makeCtx('jewelry', new Date(2026, 10, 9, 10));
+  setRate(ctx, 7_000);
+  const ring = saveProduct(ctx, {
+    name: 'خاتم',
+    brand: 'Pandora',
+    category: 'خواتم',
+    price: 350_000,
+    cost: 200_000,
+    stock: 6,
+  });
+  const neck = saveProduct(ctx, {
+    name: 'قلادة',
+    brand: 'Swarovski',
+    category: 'قلادات',
+    price: 600_000,
+    cost: 300_000,
+    stock: 1,
+  });
+  sell(ring, 'cash', new Date(2026, 10, 9, 11));
+  sell(neck, 'credit', new Date(2026, 10, 9, 12));
+  sell(ring, 'card', new Date(2026, 10, 3, 12));
+  addExpense(ctx, { description: 'إيجار', amount: 100_000, month: '2026-11' });
+  ctx.setNow(new Date(2026, 10, 9, 18));
+});
+afterEach(() => ctx.close());
+
+describe('the dashboard', () => {
+  it("shows today, cash against credit, and the month's figures", async () => {
     await renderScreen(
       <DashboardScreen
         system="jewelry"
-        date={new Date(2026, 10, 9)}
-        today={today}
-        rate={7_000}
-        onSwitch={() => {}}
-        onEditRate={onEditRate}
+        data={readDashboard(ctx, '2026-11', noBackup)}
+        actions={actions()}
       />,
     );
-    await fireEvent.press(screen.getByTestId('rate-row'));
-    expect(onEditRate).toHaveBeenCalled();
+    expect(screen.getByText('الإثنين 9 نوفمبر 2026')).toBeOnTheScreen();
+    expect(screen.getByTestId('today-total')).toHaveTextContent('950 د.ل');
+    expect(screen.getByTestId('today-cash-credit')).toHaveTextContent(
+      'مدفوع 350 د.ل • آجل 600 د.ل',
+    );
+    expect(screen.getByTestId('month-title')).toHaveTextContent('نوفمبر 2026');
+    expect(screen.getByTestId('month-summary')).toHaveTextContent(/1,300 د\.ل/); // 3 sales
+    expect(screen.getByTestId('month-summary')).toHaveTextContent(/صافي الربح/);
+    expect(screen.getByTestId('by-brand')).toHaveTextContent(/Swarovski/);
+    expect(screen.getByTestId('by-payment')).toHaveTextContent(/آجل/);
+    expect(screen.getByTestId('latest-sales')).toHaveTextContent(/قلادة/);
   });
+
+  it('lists what needs attention: stock, debts and a backup reminder', async () => {
+    const a = actions();
+    await renderScreen(
+      <DashboardScreen
+        system="jewelry"
+        data={readDashboard(ctx, '2026-11', {
+          lastCopied: null,
+          firstBackup: new Date(2026, 9, 1),
+        })}
+        actions={a}
+      />,
+    );
+    // The necklace sold out; the debt is the credit sale.
+    expect(screen.getByTestId('attention-stock')).toHaveTextContent(/نفد 1/);
+    expect(screen.getByTestId('attention-debts')).toHaveTextContent(/600 د\.ل/);
+    expect(screen.getByTestId('attention-backup')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId('attention-debts'));
+    expect(a.onOpenDebts).toHaveBeenCalled();
+  });
+
+  it('taps a day of the chart to see its total', async () => {
+    await renderScreen(
+      <DashboardScreen
+        system="jewelry"
+        data={readDashboard(ctx, '2026-11', noBackup)}
+        actions={actions()}
+      />,
+    );
+    expect(screen.getByTestId('daily-chart-value')).toHaveTextContent('1,300 د.ل');
+    await fireEvent.press(screen.getByTestId('day-3'));
+    expect(screen.getByTestId('daily-chart-label')).toHaveTextContent('3/11');
+    expect(screen.getByTestId('daily-chart-value')).toHaveTextContent('350 د.ل');
+    await fireEvent.press(screen.getByTestId('day-3'));
+    expect(screen.getByTestId('daily-chart-value')).toHaveTextContent('1,300 د.ل');
+  });
+
+  it('moves between months, opens the rate editor and the system menu', async () => {
+    const a = actions();
+    const data = readDashboard(ctx, '2026-11', noBackup);
+    await renderScreen(<DashboardScreen system="jewelry" data={data} actions={a} />);
+    expect(screen.getByTestId('month-newer')).toBeDisabled();
+    await fireEvent.press(screen.getByTestId('rate-row'));
+    expect(a.onEditRate).toHaveBeenCalled();
+    await fireEvent.press(screen.getByTestId('dashboard-system'));
+    expect(a.onSystemMenu).toHaveBeenCalled();
+  });
+
+  it('shows the scarves breakdown by size, with stock per size', async () => {
+    const sc = makeCtx('scarves', new Date(2026, 10, 9, 10));
+    const id = saveProduct(sc, {
+      name: 'وشاح حرير',
+      category: 'حرير',
+      size: '90×90',
+      price: 120_000,
+      cost: 50_000,
+      stock: 4,
+    });
+    const p = getProduct(sc, id)!;
+    checkout(sc, {
+      cart: (addToCart([], p, displayName(sc, p), 1) as { cart: CartLine[] }).cart,
+      paymentMethod: 'cash',
+    });
+    await renderScreen(
+      <DashboardScreen
+        system="scarves"
+        data={readDashboard(sc, '2026-11', noBackup)}
+        actions={actions()}
+      />,
+      'scarves',
+    );
+    expect(screen.getByTestId('by-size')).toHaveTextContent(/90×90/);
+    expect(screen.getByTestId('by-size')).toHaveTextContent(/في المخزون 3/);
+    sc.close();
+  });
+});
+
+it('lays the cards out in three columns on a wide iPad', async () => {
+  mockColumns = 3;
+  await renderScreen(
+    <DashboardScreen
+      system="jewelry"
+      data={readDashboard(ctx, '2026-11', noBackup)}
+      actions={actions()}
+    />,
+  );
+  expect(screen.getByTestId('by-category')).toBeOnTheScreen();
+  expect(screen.getByTestId('stock-summary')).toBeOnTheScreen();
 });

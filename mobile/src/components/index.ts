@@ -9,6 +9,7 @@ export { Icon } from './icon';
 export { KEYBOARD_GAP, KeyboardBar } from './keyboard-bar';
 export { ListGroup, ListRow } from './list-group';
 export { Logo } from './logo';
+export { Meter } from './meter';
 export { Screen, TAB_BAR_CLEARANCE } from './screen';
 export { EmptyState, SectionHeader } from './section';
 export { Segmented } from './segmented';

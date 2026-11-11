@@ -9,10 +9,10 @@ appId: com.salford.pos
 - extendedWaitUntil:
     visible: 'مبيعات اليوم'
     timeout: 90000
-- scrollUntilVisible:
-    element: 'تبديل النظام'
-    direction: DOWN
-- tapOn: 'تبديل النظام'
+# Phase 8: the logo at the top of the dashboard opens the system menu.
+- tapOn:
+    id: 'dashboard-system'
+- tapOn: 'التبديل إلى الأوشحة'
 - assertVisible: 'اختر النظام'
 - tapOn: 'نظام الأوشحة'
 - assertVisible: 'أدخل رمز الدخول'
