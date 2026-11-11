@@ -68,6 +68,7 @@ export function ManagementScreen({
   onLock,
   badges = {},
   reminder,
+  updateReady = false,
 }: {
   onOpen: (target: ManageTarget) => void;
   onSwitch: () => void;
@@ -76,6 +77,8 @@ export function ManagementScreen({
   badges?: Partial<Record<ManageTarget, string>>;
   /** No recent backup copied off the device: a banner that opens the backup screen. */
   reminder?: string | null;
+  /** An instant update was downloaded: a banner that opens Settings to restart. */
+  updateReady?: boolean;
 }) {
   return (
     <Screen tabBar contentStyle={{ gap: spacing.lg }}>
@@ -91,6 +94,19 @@ export function ManagementScreen({
             </Text>
             <Text variant="caption" tone="accent">
               فتح النسخ الاحتياطي
+            </Text>
+          </Card>
+        </Pressable>
+      ) : null}
+      {updateReady ? (
+        <Pressable
+          onPress={() => onOpen('settings')}
+          accessibilityRole="button"
+          testID="manage-update-ready">
+          <Card>
+            <Text variant="bodyStrong">تحديث جاهز للتطبيق</Text>
+            <Text variant="caption" tone="accent">
+              يعمل عند الفتح القادم، أو أعد التشغيل من الإعدادات
             </Text>
           </Card>
         </Pressable>

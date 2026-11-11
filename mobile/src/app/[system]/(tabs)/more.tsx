@@ -1,3 +1,4 @@
+import { useUpdates } from 'expo-updates';
 import { router, useFocusEffect, type Href } from 'expo-router';
 import { useCallback, useState } from 'react';
 
@@ -41,9 +42,11 @@ export default function More() {
     }
   };
   useFocusEffect(useCallback(() => setReminder(read()), [read]));
+  const updateReady = useUpdates().isUpdatePending;
   return (
     <ManagementScreen
       reminder={reminder}
+      updateReady={updateReady}
       onOpen={(t) => router.push(ROUTES[t](system))}
       onSwitch={() => {
         backupNow();
