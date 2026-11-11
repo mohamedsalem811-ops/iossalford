@@ -7,15 +7,9 @@ jest.mock('../../modules/backup-exclusion/src/BackupExclusionModule', () => ({
     return mockInstalled ? { exclude: mockExclude, isExcluded: () => true } : null;
   },
 }));
-jest.mock('expo-file-system', () => ({
-  Paths: { document: { uri: 'file:///app/Documents/' } },
-  Directory: class {
-    uri: string;
-    constructor(parent: { uri: string }, name: string) {
-      this.uri = `${parent.uri}${name}`;
-    }
-  },
-}));
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories cannot use imports
+jest.mock('expo-file-system', () => require('@/testing/memory-fs').memoryFs());
+jest.mock('expo', () => ({ isRunningInExpoGo: () => false }));
 
 describe('excluding the data from the device iCloud backup', () => {
   beforeEach(() => {
@@ -23,13 +17,14 @@ describe('excluding the data from the device iCloud backup', () => {
     mockExclude.mockClear();
   });
 
-  it('marks the documents and database folders in the installed app', () => {
+  it('marks the private folder (databases, photos) and Documents (backups, receipts)', () => {
     mockInstalled = true;
     const m = jest.requireActual<typeof import('./exclusion')>('./exclusion');
     m.excludeAppDataFromBackup();
     expect(mockExclude).toHaveBeenCalledWith([
-      'file:///app/Documents/',
-      'file:///app/Documents/SQLite',
+      'container/Library/Application Support/SALFORD',
+      'container/Library/Application Support/SALFORD/SQLite',
+      'container/Documents',
     ]);
     expect(m.canExcludeFromBackup()).toBe(true);
     expect(m.isAppDataExcluded()).toBe(true);

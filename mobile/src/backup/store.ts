@@ -11,6 +11,7 @@ import * as Sharing from 'expo-sharing';
 
 import { exportBackup, restoreBackup, validateBackup, type Backup } from '@/domain/backup';
 import type { Ctx } from '@/domain/context';
+import { photoFile, photoFolder } from '@/lib/storage';
 import { putCart } from '@/state/cart';
 import type { SystemId } from '@/theme';
 
@@ -32,7 +33,6 @@ const folder = (system: SystemId) => {
   if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
   return dir;
 };
-const photoFolder = (system: SystemId) => new Directory(Paths.document, 'photos', system);
 
 const key = (what: 'checksum' | 'copied' | 'first', system: SystemId) => `backup-${what}.${system}`;
 const read = (k: string) => {
@@ -124,9 +124,8 @@ export async function shareCopy(ctx: Ctx): Promise<void> {
   const data = exportBackup(ctx);
   saveBackup(ctx, 'manual', data);
   const photos: Record<string, string> = {};
-  const dir = photoFolder(ctx.system);
   for (const name of photoNames(ctx)) {
-    const f = new File(dir, name);
+    const f = photoFile(ctx.system, name);
     if (f.exists) photos[name] = await f.base64();
   }
   const file = new File(Paths.cache, copyFileName(ctx.system, ctx.now()));
@@ -180,11 +179,10 @@ export async function restore(ctx: Ctx, file: BackupFile): Promise<void> {
   write(key('checksum', ctx.system), backup.checksum);
   if (photos) {
     const dir = photoFolder(ctx.system);
-    if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
     for (const [name, base64] of Object.entries(photos)) {
       if (!/^[\w.-]+$/.test(name)) continue;
+      if (photoFile(ctx.system, name).exists) continue;
       const f = new File(dir, name);
-      if (f.exists) continue;
       f.create();
       f.writeSync(base64, { encoding: 'base64' });
     }

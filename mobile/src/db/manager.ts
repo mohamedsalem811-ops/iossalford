@@ -60,11 +60,13 @@ export async function setAsideUnreadable(
   system: SystemId,
   now: Date = new Date(),
 ): Promise<string> {
-  const { File, Paths } = await import('expo-file-system');
+  const { File } = await import('expo-file-system');
+  const { databaseDirectory } = await import('@/lib/storage');
   const name = setAsideName(system, now);
+  const dir = databaseDirectory(DB_FILES[system]);
   for (const suffix of ['', '-wal', '-shm']) {
-    const file = new File(Paths.document, 'SQLite', DB_FILES[system] + suffix);
-    if (file.exists) await file.move(new File(Paths.document, 'SQLite', name + suffix));
+    const file = new File(dir, DB_FILES[system] + suffix);
+    if (file.exists) await file.move(new File(dir, name + suffix));
   }
   return name;
 }

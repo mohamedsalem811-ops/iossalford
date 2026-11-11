@@ -9,6 +9,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { KeyboardBar } from '@/components/keyboard-bar';
 import { PrivacyCover } from '@/components/privacy-cover';
 import { excludeAppDataFromBackup } from '@/backup/exclusion';
+import { moveLegacyData } from '@/lib/storage';
 import { applySavedAppearance } from '@/state/appearance';
 import { LockProvider } from '@/state/lock';
 import { ThemeProvider } from '@/theme';
@@ -17,6 +18,9 @@ import { fontAssets } from '@/theme/font-assets';
 SplashScreen.preventAutoHideAsync();
 // The owner's light/dark choice (Settings) applies before anything is drawn.
 applySavedAppearance();
+// Databases and photos live in the app's private folder (older installs are moved there once),
+// before any database opens.
+moveLegacyData(['jewelry', 'scarves']);
 // The shop's data stays on this device: out of the device's iCloud backup (installed app only).
 excludeAppDataFromBackup();
 

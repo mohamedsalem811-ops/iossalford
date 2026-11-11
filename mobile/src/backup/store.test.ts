@@ -19,58 +19,9 @@ import {
   shareCopy,
 } from './store';
 
-jest.mock('expo-file-system', () => {
-  const files = new Map<string, string>();
-  const dirs = new Set<string>();
-  const join = (parts: unknown[]) =>
-    parts.map((p) => (typeof p === 'string' ? p : (p as { uri: string }).uri)).join('/');
-  class File {
-    uri: string;
-    constructor(...parts: unknown[]) {
-      this.uri = join(parts);
-    }
-    get name() {
-      return this.uri.split('/').pop()!;
-    }
-    get exists() {
-      return files.has(this.uri);
-    }
-    create() {
-      files.set(this.uri, '');
-    }
-    delete() {
-      files.delete(this.uri);
-    }
-    writeSync(content: string, o?: { encoding?: string }) {
-      files.set(this.uri, o?.encoding === 'base64' ? `b64:${content}` : content);
-    }
-    async text() {
-      if (!files.has(this.uri)) throw new Error('missing');
-      return files.get(this.uri)!;
-    }
-    async base64() {
-      return files.get(this.uri)!.replace(/^b64:/, '');
-    }
-  }
-  class Directory {
-    uri: string;
-    constructor(...parts: unknown[]) {
-      this.uri = join(parts);
-    }
-    get exists() {
-      return dirs.has(this.uri);
-    }
-    create() {
-      dirs.add(this.uri);
-    }
-    list() {
-      return [...files.keys()]
-        .filter((k) => k.startsWith(`${this.uri}/`) && !k.slice(this.uri.length + 1).includes('/'))
-        .map((k) => new File(k));
-    }
-  }
-  return { File, Directory, Paths: { document: 'doc', cache: 'cache' }, __files: files };
-});
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories cannot use imports
+jest.mock('expo-file-system', () => require('@/testing/memory-fs').memoryFs());
+jest.mock('expo', () => ({ isRunningInExpoGo: () => false }));
 jest.mock('expo-secure-store', () => {
   const store = new Map<string, string>();
   return {
@@ -125,10 +76,10 @@ describe('saving backups on the device', () => {
 describe('copying off the device', () => {
   it('shares one file with the data and the photos, and remembers when', async () => {
     saveProduct(ctx, { name: 'Ring', category: 'خواتم', price: 1, stock: 1, imageFile: 'r.jpg' });
-    files.set('doc/photos/jewelry/r.jpg', 'b64:AAAA');
+    files.set('container/Library/Application Support/SALFORD/photos/jewelry/r.jpg', 'b64:AAAA');
     expect(lastCopied('jewelry')).toBeNull();
     await shareCopy(ctx);
-    const copy = [...files.keys()].find((k) => k.startsWith('cache/'))!;
+    const copy = [...files.keys()].find((k) => k.startsWith('container/Library/Caches/'))!;
     expect(copy).toMatch(/SALFORD-jewelry-.*-copy\.json$/);
     expect(JSON.parse(files.get(copy)!).photos).toEqual({ 'r.jpg': 'AAAA' });
     expect(lastCopied('jewelry')).toEqual(clock);
@@ -139,36 +90,45 @@ describe('copying off the device', () => {
 
 describe('restoring', () => {
   it('refuses a damaged file, another system and anything that is not a backup', async () => {
-    files.set('cache/bad.json', '{"format":"salford-pos-backup"');
-    await expect(readBackupFile(ctx, 'cache/bad.json')).rejects.toThrow(
+    files.set('container/Library/Caches/bad.json', '{"format":"salford-pos-backup"');
+    await expect(readBackupFile(ctx, 'container/Library/Caches/bad.json')).rejects.toThrow(
       'هذا الملف ليس نسخة احتياطية من SALFORD POS',
     );
     const scarves = makeCtx('scarves');
-    files.set('cache/scarves.json', JSON.stringify(exportBackup(scarves)));
+    files.set('container/Library/Caches/scarves.json', JSON.stringify(exportBackup(scarves)));
     scarves.close();
-    await expect(readBackupFile(ctx, 'cache/scarves.json')).rejects.toThrow('نظام الأوشحة');
+    await expect(readBackupFile(ctx, 'container/Library/Caches/scarves.json')).rejects.toThrow(
+      'نظام الأوشحة',
+    );
     const b = exportBackup(ctx);
-    files.set('cache/edited.json', JSON.stringify({ ...b, sequences: { products: 99 } }));
-    await expect(readBackupFile(ctx, 'cache/edited.json')).rejects.toThrow('تالف');
+    files.set(
+      'container/Library/Caches/edited.json',
+      JSON.stringify({ ...b, sequences: { products: 99 } }),
+    );
+    await expect(readBackupFile(ctx, 'container/Library/Caches/edited.json')).rejects.toThrow(
+      'تالف',
+    );
   });
 
   it('replaces the data, keeps a safety copy of what it replaced, puts photos back', async () => {
     saveProduct(ctx, { name: 'Old', category: 'خواتم', price: 1, stock: 1, imageFile: 'o.jpg' });
-    files.set('doc/photos/jewelry/o.jpg', 'b64:OOOO');
+    files.set('container/Library/Application Support/SALFORD/photos/jewelry/o.jpg', 'b64:OOOO');
     tick();
     await shareCopy(ctx);
-    const copy = [...files.keys()].find((k) => k.startsWith('cache/'))!;
+    const copy = [...files.keys()].find((k) => k.startsWith('container/Library/Caches/'))!;
 
     // Later: different data, and the photo is gone.
     saveProduct(ctx, { name: 'New', category: 'خواتم', price: 1, stock: 1 });
-    files.delete('doc/photos/jewelry/o.jpg');
+    files.delete('container/Library/Application Support/SALFORD/photos/jewelry/o.jpg');
     const id = listProducts(ctx).find((p) => p.name === 'New')!.id;
     putCart('jewelry', [{ key: 'k', productId: id, name: 'New', quantity: 1, unitPrice: 1 }]);
     tick();
 
     await restore(ctx, await readBackupFile(ctx, copy));
     expect(listProducts(ctx).map((p) => p.name)).toEqual(['Old']);
-    expect(files.get('doc/photos/jewelry/o.jpg')).toBe('b64:OOOO');
+    expect(files.get('container/Library/Application Support/SALFORD/photos/jewelry/o.jpg')).toBe(
+      'b64:OOOO',
+    );
     expect(getCart('jewelry')).toEqual([]);
 
     // The safety copy holds the data before the restore, and can itself be restored.

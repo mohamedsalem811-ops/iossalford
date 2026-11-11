@@ -1,10 +1,16 @@
 import { openDatabaseSync, type SQLiteDatabase } from 'expo-sqlite';
 
+import { databaseDirectory, toPath } from '@/lib/storage';
+
 import { bindable, makeTransaction, type Db, type Params } from './types';
 
-/** Opens a database file in the app's private storage, using expo-sqlite's synchronous API. */
+/** Opens a database file in the app's private folder, using expo-sqlite's synchronous API. */
 export function openExpoDb(fileName: string): Db {
-  const db: SQLiteDatabase = openDatabaseSync(fileName);
+  const db: SQLiteDatabase = openDatabaseSync(
+    fileName,
+    undefined,
+    toPath(databaseDirectory(fileName).uri),
+  );
   const exec = (sql: string) => db.execSync(sql);
   return {
     exec,
