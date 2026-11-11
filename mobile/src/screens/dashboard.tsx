@@ -1,20 +1,8 @@
 import { Children, useState, type ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 
-import {
-  Card,
-  HeroCard,
-  Icon,
-  ListGroup,
-  ListRow,
-  Logo,
-  Screen,
-  Segmented,
-  Stat,
-  Text,
-} from '@/components';
+import { Card, HeroCard, Icon, ListGroup, ListRow, Logo, Screen, Stat, Text } from '@/components';
 import { PAYMENT_LABELS } from '@/domain/checkout';
-import { AppleDailyChart } from '@/features/dashboard/apple-chart';
 import { DailyChart } from '@/features/dashboard/daily-chart';
 import { cashVsCredit, type DashboardData } from '@/features/dashboard/model';
 import { RankedList } from '@/features/dashboard/ranked-list';
@@ -323,23 +311,11 @@ function MonthCard({ data }: { data: DashboardData }) {
   );
 }
 
-const CHART_KINDS = [
-  { value: 'app', label: 'رسم التطبيق' },
-  { value: 'apple', label: 'رسم Apple' },
-] as const;
-
 function ChartCard({ data }: { data: DashboardData }) {
-  // TEMPORARY (plan 8.4): both drawings, so the owner can choose on the devices.
-  const [kind, setKind] = useState<(typeof CHART_KINDS)[number]['value']>('app');
   return (
     <Card style={{ flex: 1, gap: spacing.ms }}>
       <Title>المبيعات اليومية</Title>
-      <Segmented options={[...CHART_KINDS]} value={kind} onChange={setKind} testID="chart-kind" />
-      {kind === 'app' ? (
-        <DailyChart month={data.month} days={data.daily} />
-      ) : (
-        <AppleDailyChart days={data.daily} />
-      )}
+      <DailyChart month={data.month} days={data.daily} />
     </Card>
   );
 }

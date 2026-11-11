@@ -76,21 +76,21 @@ mobile/
 
 **Libraries:**
 
-| Area             | Choice                                                                                     |
-| ---------------- | ------------------------------------------------------------------------------------------ |
-| Screens and tabs | Expo Router with native Liquid Glass tabs                                                  |
-| Native controls  | `@expo/ui` (SwiftUI sheets, segmented control; also has Apple's charts)                    |
-| Database         | `expo-sqlite`, plain SQL (same SQL tested on Node SQLite). **NEW:** replaces the JSON file |
-| Files            | `expo-file-system`, `expo-document-picker` (backups, photos, receipts)                     |
-| Cart state       | Zustand                                                                                    |
-| Lists            | FlashList                                                                                  |
-| Photos           | `expo-image`, `expo-image-picker`, `expo-image-manipulator`                                |
-| Security         | `expo-secure-store`, `expo-crypto`, `expo-local-authentication`                            |
-| Receipts         | HTML → `expo-print` and `expo-sharing`; live preview in `react-native-webview`             |
-| Charts           | The app's own bars (no chart library); Apple's charts from `@expo/ui` compared in Phase 8  |
-| Motion           | Reanimated 4, Gesture Handler, `expo-haptics`                                              |
-| Tests            | Jest + Maestro. **NEW**                                                                    |
-| Previews         | EAS Update opened in Expo Go, through the owner's Expo account. **NEW**                    |
+| Area             | Choice                                                                                                                        |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Screens and tabs | Expo Router with native Liquid Glass tabs                                                                                     |
+| Native controls  | `@expo/ui` (SwiftUI sheets, segmented control)                                                                                |
+| Database         | `expo-sqlite`, plain SQL (same SQL tested on Node SQLite). **NEW:** replaces the JSON file                                    |
+| Files            | `expo-file-system`, `expo-document-picker` (backups, photos, receipts)                                                        |
+| Cart state       | Zustand                                                                                                                       |
+| Lists            | FlashList                                                                                                                     |
+| Photos           | `expo-image`, `expo-image-picker`, `expo-image-manipulator`                                                                   |
+| Security         | `expo-secure-store`, `expo-crypto`, `expo-local-authentication`                                                               |
+| Receipts         | HTML → `expo-print` and `expo-sharing`; live preview in `react-native-webview`                                                |
+| Charts           | The app's own bars (no chart library); Apple's charts were compared in Phase 8 and the owner chose the app's own (2026-11-11) |
+| Motion           | Reanimated 4, Gesture Handler, `expo-haptics`                                                                                 |
+| Tests            | Jest + Maestro. **NEW**                                                                                                       |
+| Previews         | EAS Update opened in Expo Go, through the owner's Expo account. **NEW**                                                       |
 
 **Database:** one file per system.
 
@@ -349,7 +349,7 @@ Then the dashboard:
 - **8.1** Header: system name with the switch menu, and the "$ rate" button that opens the rate editor.
 - **8.2** Today: sales, profit, number of sales and pieces. **NEW:** cash vs credit.
 - **8.3** Month picker and month summary: sales, cost, profit, returns, expenses, net profit, in LYD and USD.
-- **8.4** Daily sales chart for the selected month: one bar per day, drawn by the app itself (digits 0-9 and the Arabic font guaranteed, right to left). **NEW:** tap a day to see its total. The first preview also shows the same chart drawn with Apple's own charts, so the owner can compare and choose on the devices.
+- **8.4** Daily sales chart for the selected month: one bar per day, drawn by the app itself (digits 0-9 and the Arabic font guaranteed, right to left). **NEW:** tap a day to see its total. The owner compared it with Apple's own charts and chose the app's drawing (2026-11-11).
 - **8.5** Needs attention: low and out-of-stock items, total owed by customers. **NEW:** "no recent backup" warning.
 - **8.6** Breakdowns:
   - by category (by material for scarves);
