@@ -15,7 +15,7 @@ Every feature of the current app is kept. Items marked **NEW** don't exist in th
 - **No Apple Developer account for now.** Builds are unsigned `.ipa` files made on GitHub Actions, as today.
 - **Devices:** iPhone on iOS 26.6, iPad on iPadOS 26.7.2. **Minimum iOS 26.0.**
 - **Install method:** Sideloadly with a free Apple ID. Installs expire after 7 days; re-installing over the app keeps its data. A free Apple ID allows 3 sideloaded apps per device.
-- **Backups stay on the device. No iCloud, no cloud of any kind** until the Apple Developer account exists (see "Later").
+- **Backups stay on the device. No iCloud, no cloud of any kind** until the Apple Developer account exists (Phase 11).
 - **Merging into `main` is done by the owner, manually.** Claude pushes to the work branch and opens pull requests; it never merges.
 - **Latest stack:** Expo SDK 58 on React Native 0.88. **NEW**
 - **Works fully offline.** The app never needs the internet: no web addresses, no network calls. The one connection it makes is a check for instant updates when the device is online (see 8.0a); with no internet it opens straight away with the version it has, and no shop data is ever sent. Only things outside the app need a connection: printing (the printer on the same Wi-Fi), sharing to WhatsApp and similar, the Expo Go preview, and Sideloadly's re-signing every 7 days. Every phase keeps it that way.
@@ -37,8 +37,8 @@ Every feature of the current app is kept. Items marked **NEW** don't exist in th
 
 **Keeping it working for years (standing practice, from the long-life review):**
 
-- **Re-signing:** the 7-day expiry is the biggest everyday risk (a missed re-sign means the app won't open until it is re-signed; the data is safe). Turn on Sideloadly's automatic refresh, with the computer on the same Wi-Fi as the devices; the developer account (L1) makes it once a year.
-- **Once a year:** upgrade to the newest Expo SDK, with a full test run, so the app keeps building with new Xcode and iOS versions. The installed app keeps working without it.
+- **Re-signing until Phase 11:** every 7 days with Sideloadly; the owner treats it as mandatory (if it lapses, the data is safe but the app won't open until it is re-signed; Sideloadly's automatic refresh can help). From Phase 11 the app comes from TestFlight and then the App Store, and no longer expires weekly.
+- **Once a year (accepted by the owner):** upgrade to the newest Expo SDK, with a full test run, so the app keeps building with new Xcode and iOS versions. The installed app keeps working without it.
 - **The repository stays public:** that is why GitHub's Mac builds are free and unlimited (no shop data is in it). If it became private, the free plan allows only about 8 `.ipa` builds a month.
 - **Every phase's self-check also covers growth:** nothing loads a whole table at once, and nothing slows down as the years of data grow.
 
@@ -381,19 +381,25 @@ Then the dashboard:
 - **10.3** A few days of use with the current app still installed.
 - **10.4** Delete the old app.
 
-### Later, with an Apple Developer account ($99 a year)
+### Phase 11: Apple Developer account and the App Store
 
-Done **after the project is finished**, one step at a time; none of it changes the project before then. All **NEW**:
+Once the build (Phases 0 to 10) is finished, the owner gets the Apple Developer account ($99 a year) and the project ends by putting the app on the App Store (owner's decision, 2026-11-11). This replaces the old "Later" list; its step numbers are kept in brackets. All **NEW**:
 
-| #   | Step                                                                       | What it adds                                                            |
-| --- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
-| L1  | Sign the app with the developer account                                    | Installs last 1 year instead of 7 days; no weekly Sideloadly re-signing |
-| L2  | **iCloud backup** (iCloud Drive or private iCloud storage, owner's choice) | Automatic copy off the device; restore on a new iPhone or iPad          |
-| L3  | Choose where each backup goes                                              | On device only, iCloud only, or both                                    |
-| L4  | Stronger file protection                                                   | Data stays locked while the device is locked                            |
-| L5  | TestFlight installs                                                        | Install and update from TestFlight instead of Sideloadly                |
-| L6  | Instant updates (EAS Update in the real app): moved to Phase 8 (8.0a)      | Small fixes reach the installed app without reinstalling                |
-| L7  | App Store (optional)                                                       | Only if wanted; it can stay private                                     |
+- **11.1 The account:** the owner creates it; the app's ID (`com.salford.pos`) and name ("SALFORD POS") are reserved in App Store Connect. If another developer already holds either, a close one is chosen before anything else.
+- **11.2 Signed builds** (L1): GitHub Actions signs each build and uploads it to App Store Connect. The signing keys are kept as GitHub secrets, never in the repository.
+- **11.3 TestFlight on both devices** (L5), replacing Sideloadly. Before switching, a copy is made off each device; if the data doesn't carry over to the signed app, the copy is restored. The PINs are set again, as the signed app has its own secure storage.
+- **11.4 iCloud backup** (L2) and **choosing where each backup goes** (L3: device only, iCloud only, or both). Owner's choice of iCloud Drive or private iCloud storage.
+- **11.5 Stronger file protection** (L4): the data stays locked while the device is locked.
+- **11.6 Final polish for the App Store:**
+  - store icon, screenshots for iPhone and iPad, Arabic name, subtitle, description and keywords;
+  - App Privacy: "no data collected"; a privacy policy and support page (a simple free page);
+  - review notes for Apple (how to create the two PINs and try the app);
+  - other companies' brand names kept out of the listing and screenshots;
+  - a last full tap-through test run and screenshots on iPhone and iPad.
+- **11.7 Submit** (L7): public on the App Store, or unlisted (found only through its link), owner's choice. Anything Apple's review asks for is fixed and resubmitted.
+- **11.8 After approval:** native changes go out as App Store updates; fixes to the app's code as instant updates (8.0a), within Apple's rules.
+
+Instant updates (L6) were already moved to Phase 8 (8.0a).
 
 ## 5. Summary
 
@@ -410,7 +416,7 @@ Done **after the project is finished**, one step at a time; none of it changes t
 - iOS only (iPhone and iPad), minimum iOS 26.0; no Android; no device sync.
 - Unsigned `.ipa` from GitHub Actions, installed with Sideloadly.
 - Previews in Expo Go through the owner's Expo account. Until Phase 7 only Expo Go-compatible libraries were used; since the Phase 7 review Expo Go is preferred but no longer a rule (see section 2).
-- Backups on the device only; iCloud backup postponed to step L2.
+- Backups on the device only; iCloud backup postponed to Phase 11 (11.4).
 - The owner merges every pull request.
 - Keep every receipt template; digits 0-9 only. The Swarovski London design is not rebuilt as it was: it copied a Swarovski store's name, address, phone and thanks, which makes it a receipt from a real company that did not make the sale. Its place is SALFORD's own receipt for the Swarovski pieces it sells (owner to confirm in Phase 6).
 - After every step or task: test, check, push to the pull request.
@@ -443,5 +449,6 @@ Done **after the project is finished**, one step at a time; none of it changes t
   - **Instant updates** (L6) brought forward to the first step of Phase 8 (8.0a): they don't need the developer account. Updates go to the installed app only with the owner's OK; offline use is unchanged.
 - Offline: the app works fully without the internet, and every phase's self-check confirms nothing new needs it.
 - Long-life review (2026-11-11), approved by the owner: backups become copies of the database file, written safely and checked (8.0g); the copy off the device is handled one photo at a time (8.0h); database upgrades are made safe and ship only in a new `.ipa` (8.0i); restore saves its safety copy first (8.0j); errors show a retry screen and go to a log on the device (8.0k); the speed test also runs with 30,000 sales (8.0l). Standing practice: Sideloadly's automatic refresh, one Expo SDK upgrade a year, the repository kept public (section 2).
+- Owner (2026-11-11): re-signing every 7 days is mandatory until the developer account, and the yearly Expo SDK upgrade is accepted. Once the build is finished the owner gets the Apple Developer account, and the project ends with Phase 11: TestFlight, iCloud backup, final polish and submitting to the App Store (no longer optional).
 
 Status: Phases 0 to 7 are merged. Next: Phase 8, starting with instant updates, the review fixes and the long-life fixes (8.0a to 8.0l).
