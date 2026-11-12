@@ -21,7 +21,7 @@ import {
 } from '@/domain/reports';
 import { listSales, saleMonths, type Sale } from '@/domain/sales';
 import { getRate } from '@/domain/settings';
-import { monthKey, type MonthKey } from '@/lib/dates';
+import { addMonths, monthKey, type MonthKey } from '@/lib/dates';
 import { healthProblem } from '@/db/health';
 
 /** Months the picker offers: this month and every month with sales, newest first (24 at most). */
@@ -75,6 +75,8 @@ export type DashboardData = {
   month: MonthKey;
   months: MonthKey[];
   summary: PeriodSummary;
+  /** The month before, for the dot on each tile. */
+  previous: PeriodSummary;
   daily: { day: number; total: number }[];
   attention: {
     low: { id: number; name: string; size: string | null; stock: number }[];
@@ -112,6 +114,7 @@ export function readDashboard(
     month,
     months: monthChoices(saleMonths(ctx), now),
     summary: summary(ctx, [month]),
+    previous: summary(ctx, [addMonths(month, -1)]),
     daily: dailySales(ctx, month),
     attention: {
       low: lowStock(ctx),

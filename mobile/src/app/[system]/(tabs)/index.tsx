@@ -75,6 +75,15 @@ export default function Dashboard() {
         onOpenDebts: () => router.push(sectionHref('debts', system)),
         onOpenBackup: () => router.push(sectionHref('backup', system)),
         onOpenProducts: () => router.push({ pathname: '/[system]/products', params: { system } }),
+        onNewSale: () => router.push({ pathname: '/[system]/sale', params: { system } }),
+        onNewReceipt: () =>
+          router.push({ pathname: '/[system]/receipt/[id]', params: { system, id: 'new' } }),
+        onNewProduct: () =>
+          router.push(
+            system === 'scarves'
+              ? { pathname: '/[system]/design/[id]', params: { system, id: 'new' } }
+              : { pathname: '/[system]/product/[id]', params: { system, id: 'new' } },
+          ),
       }}
     />
   );

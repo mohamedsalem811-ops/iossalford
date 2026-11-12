@@ -2,28 +2,30 @@ import { Pressable, View } from 'react-native';
 import { Icon, Logo, Screen, Text } from '@/components';
 import { type DashboardData } from '@/features/dashboard/model';
 import { useLayout } from '@/hooks/use-layout';
-import { formatDay, monthTitle, type MonthKey } from '@/lib/dates';
-import { formatLyd, formatRate, formatUsd } from '@/lib/money';
+import { formatDay } from '@/lib/dates';
+import { formatRate } from '@/lib/money';
 import { radius, spacing, useTheme, type SystemId } from '@/theme';
 import {
   AttentionCard,
   BreakdownCard,
   ChartCard,
-  DetailsCard,
   EmptyMonth,
   LatestCard,
   StockTiles,
   TodayCard,
   type DashboardActions,
 } from '@/features/dashboard/cards';
-import { Grid, KpiTile, Split } from '@/features/dashboard/layout';
+import { Grid, Split } from '@/features/dashboard/layout';
+import { MonthSummary } from '@/features/dashboard/month-summary';
+import { QuickActions } from '@/features/dashboard/quick-actions';
 
 export type { DashboardActions };
 
 /**
- * The first tab. iPhone: one column. iPad: the month's numbers as a row of tiles, the daily chart
- * wide with its details beside it, and the breakdowns in one card with a switch, so no card sits
- * half empty (Split View narrows it back to one column).
+ * The first tab: the shortcuts (new sale, new receipt, new piece), today and what needs attention,
+ * "ملخص الشهر" (four tiles, each with a dot comparing with the month before), the daily chart,
+ * the breakdowns and the latest sales, then the stock. iPhone: one column; iPad: the cards fill
+ * the width (Split View narrows it back to one column).
  */
 export function DashboardScreen({
   system,
@@ -42,42 +44,22 @@ export function DashboardScreen({
   return (
     <Screen tabBar maxWidth={1400} contentStyle={{ gap: spacing.lg }}>
       <Header system={system} data={data} actions={actions} />
+      <QuickActions
+        system={system}
+        onNewSale={actions.onNewSale}
+        onNewReceipt={actions.onNewReceipt}
+        onNewProduct={actions.onNewProduct}
+      />
       <Grid columns={Math.min(columns, 2)}>
         <TodayCard data={data} piece={piece} />
         <AttentionCard data={data} actions={actions} />
       </Grid>
-      <MonthPicker month={data.month} months={data.months} onMonth={actions.onMonth} />
+      <MonthSummary data={data} piece={piece} wide={wide} onMonth={actions.onMonth} />
       {empty ? (
         <EmptyMonth data={data} />
       ) : (
         <>
-          <Grid columns={wide ? 4 : 2} testID="month-summary">
-            <KpiTile
-              label="المبيعات"
-              value={formatLyd(s.grossSales)}
-              sub={formatUsd(s.grossSalesUsd)}
-            />
-            <KpiTile
-              label="ربح المبيعات"
-              value={formatLyd(s.grossProfit)}
-              sub={formatUsd(s.grossProfitUsd)}
-            />
-            <KpiTile
-              label="صافي الربح"
-              value={formatLyd(s.netProfit)}
-              sub={formatUsd(s.netProfitUsd)}
-              strong
-            />
-            <KpiTile
-              label={system === 'scarves' ? 'الأوشحة المباعة' : 'القطع المباعة'}
-              value={String(s.itemsSold)}
-              sub={`${s.transactions} بيعة`}
-            />
-          </Grid>
-          <Split wide={wide} ratio={2}>
-            <ChartCard data={data} />
-            <DetailsCard data={data} />
-          </Split>
+          <ChartCard data={data} />
           <Split wide={wide}>
             <BreakdownCard system={system} data={data} piece={piece} />
             <LatestCard data={data} onOpenSale={actions.onOpenSale} />
@@ -141,45 +123,3 @@ function Header({
     </View>
   );
 }
-
-function MonthPicker({
-  month,
-  months,
-  onMonth,
-}: {
-  month: MonthKey;
-  months: MonthKey[];
-  onMonth: (m: MonthKey) => void;
-}) {
-  const { colors } = useTheme();
-  const i = months.indexOf(month);
-  const older = i >= 0 && i < months.length - 1 ? months[i + 1] : null;
-  const newer = i > 0 ? months[i - 1] : null;
-  const arrow = (
-    to: MonthKey | null,
-    icon: 'chevron.backward' | 'chevron.forward',
-    label: string,
-  ) => (
-    <Pressable
-      onPress={() => to && onMonth(to)}
-      disabled={!to}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      hitSlop={12}
-      style={{ opacity: to ? 1 : 0.3, padding: spacing.xs }}
-      testID={icon === 'chevron.backward' ? 'month-older' : 'month-newer'}>
-      <Icon name={icon} size={18} color={colors.accent} weight="semibold" />
-    </Pressable>
-  );
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-      {arrow(older, 'chevron.backward', 'الشهر السابق')}
-      <Text variant="title" testID="month-title">
-        {monthTitle(month)}
-      </Text>
-      {arrow(newer, 'chevron.forward', 'الشهر التالي')}
-    </View>
-  );
-}
-
-/** A month without sales: one card instead of a column of empty ones. */

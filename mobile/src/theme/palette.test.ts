@@ -52,6 +52,19 @@ describe.each(cases)('%s %s palette', (system, mode) => {
   });
 });
 
+describe.each([
+  ['jewelry', 'light'],
+  ['jewelry', 'dark'],
+  ['scarves', 'light'],
+  ['scarves', 'dark'],
+] as const)('home screen tile colours, %s %s', (system, mode) => {
+  const p = palettes[system][mode];
+  it('are readable on cards (4.5:1)', () => {
+    for (const c of [p.positive, p.negative, p.gold])
+      expect(contrast(c, p.surface)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
 describe('resolveTheme', () => {
   it('picks the system palette', () => {
     expect(resolveTheme('scarves', 'dark').colors).toBe(palettes.scarves.dark);
