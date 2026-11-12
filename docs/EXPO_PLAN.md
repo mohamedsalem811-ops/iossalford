@@ -29,8 +29,7 @@ Every feature of the current app is kept. Items marked **NEW** don't exist in th
 3. I push it to the phase's open pull request right away, so every step shows up there with its CI results.
 4. GitHub Actions builds:
    - the `.ipa` for your iPhone and iPad (as today);
-   - **NEW: at the end of every phase, a screenshot run:** the phase's new screens on an iPhone and an iPad simulator, upright and sideways. I look at every screenshot and fix what is wrong before handing the phase over, because layout problems only show on a real screen (tests can't see them). About an hour of GitHub's time; no work for you.
-   - **NEW: the full tap-through test** (Maestro) runs at the end of the project, or earlier when a change is critical (security and PINs, saving data, backups); I say when and why. GitHub's macOS simulators are slow, and a run takes about an hour.
+   - **No simulator runs during the build (owner's decision, 2026-11-12).** You test each phase yourself on the iPhone and iPad. The simulator tap-through tests and screenshots, and a full test list of the whole app for you, wait for step 10.0, the last step before the Apple Developer steps. Most simulator failures were the test robot, not the app. Each feature's Maestro flow is still written in its phase, ready for 10.0.
 5. **NEW: Expo Go preview.** The stage is published to the owner's Expo account; open it in Expo Go on the iPhone or iPad from the link or QR code.
 6. You install the build (Expo Go preview, or the `.ipa` at key stages) and go through a short checklist.
 7. Each phase is one pull request into `main`. While steps are pushed it stays a draft and only the fast checks run (about 1 minute). Once it is marked ready, every push also builds the `.ipa` (about 20 minutes). When the phase is complete I publish the Expo Go preview; you test it and the `.ipa` and tell me what needs fixing, then it is **merged by you**.
@@ -360,7 +359,7 @@ Then the dashboard:
 - **8.7** Latest sales list.
 - **8.8** Stock summary.
 - **8.9** iPad: multi-column dashboard. **NEW**
-- **8.10** End of phase: self-check, screenshot run on iPhone and iPad (upright and sideways), Expo Go preview, pull request.
+- **8.10** End of phase: self-check, Expo Go preview, pull request. (The simulator screenshot run moved to 10.0.)
 
 ### Phase 9: polish
 
@@ -376,6 +375,9 @@ Then the dashboard:
 
 ### Phase 10: switching over
 
+- **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):
+  - the simulator tap-through tests (Maestro) and screenshots on an iPhone and an iPad, upright and sideways; I fix what fails and every layout problem the screenshots show;
+  - a complete test list for you: every screen and action of both systems, step by step, to tick off on your iPhone and iPad.
 - **10.1** Release build, version 1.0.0.
 - **10.2** You set up both PINs and enter your products and brands.
 - **10.3** A few days of use with the current app still installed.
@@ -428,7 +430,7 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
 - Locking: going to the background locks; the app switcher and the Face ID prompt only hide the screen behind the logos. The start screen always locks, so entering any system needs its PIN (or Face ID for jewelry).
 - The design gallery is opened only by its link (`salfordpos://gallery`), not from the start screen.
 - End of every phase (owner's rule): before the phase is handed over, Claude re-checks the whole phase against this plan and against how the app is really used, and fixes or adds anything missed or done wrong, without waiting to be asked (as with the exchange-rate editor in Phase 4). What was found is listed in the pull request.
-- Testing: every push runs the fast checks (types, lint, unit and screen tests) and builds the `.ipa`; Claude publishes the Expo Go preview each phase. The owner tests on the iPhone and iPad and reports what needs fixing. From Phase 8, every phase ends with a screenshot run of its new screens on an iPhone and an iPad simulator (upright and sideways), reviewed and fixed before handover. The full simulator tap-through (Maestro) runs at the end of the project, or earlier for a critical change (security and PINs, saving data, backups).
+- Testing: every push runs the fast checks (types, lint, unit and screen tests) and builds the `.ipa`; Claude publishes the Expo Go preview each phase. The owner tests on the iPhone and iPad and reports what needs fixing. No simulator runs during the build (owner's decision, 2026-11-12): the simulator tap-through and screenshots, and the owner's full test list, are step 10.0.
 - Photos: taken or chosen, resized to at most 1600 px, kept in the app's own folder per system (only the file name is in the database). A photo file is deleted only when no product, scarf size or brand shows it.
 - A cost entered in dollars keeps the rate it was bought at; editing a piece reprices it only when the dollar cost itself changes.
 - iPad: the list is on the leading side (the right, in Arabic, as in iOS's own apps) and the open piece beside it.
@@ -445,7 +447,7 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
 - Review of Phases 0 to 7 (2026-11-11), approved by the owner, without changing how the app works:
   - **Fixes**, done first in Phase 8 (8.0b to 8.0e): the live data hidden from the Files app; long lists loaded as you scroll; the tab bar kept inside Management; the iPad layout planned by type of screen (list with details beside it, cards filling the width, forms as windows).
   - **Plan changes:** the speed test moved to Phase 8 (8.0l); no chart library: the dashboard draws its own bars, with tap-to-see the day's total and breakdowns as ranked rows, and the first Phase 8 preview compares them with Apple's own charts; the missing tap-through tests written in Phase 8 (8.0f); this document brought up to date.
-  - **Way of working:** a screenshot run on iPhone and iPad at the end of every phase; Expo Go no longer limits the choice of libraries (a native library only when clearly better, after asking).
+  - **Way of working:** a screenshot run on iPhone and iPad at the end of every phase (replaced on 2026-11-12: all simulator runs moved to step 10.0); Expo Go no longer limits the choice of libraries (a native library only when clearly better, after asking).
   - **Instant updates** (L6) brought forward to the first step of Phase 8 (8.0a): they don't need the developer account. Updates go to the installed app only with the owner's OK; offline use is unchanged.
 - Offline: the app works fully without the internet, and every phase's self-check confirms nothing new needs it.
 - Long-life review (2026-11-11), approved by the owner: backups become copies of the database file, written safely and checked (8.0g); the copy off the device is handled one photo at a time (8.0h); database upgrades are made safe and ship only in a new `.ipa` (8.0i); restore saves its safety copy first (8.0j); errors show a retry screen and go to a log on the device (8.0k); the speed test also runs with 30,000 sales (8.0l). Standing practice: Sideloadly's automatic refresh, one Expo SDK upgrade a year, the repository kept public (section 2).
@@ -453,4 +455,4 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
 
 - Phase 8 (built, owner to test): instant updates need one new `.ipa` (build 2) before they reach the devices; after installing it, it is recorded with `npm run update:record`. Backups are now copies of the database file (`.db`); `.json` backups from before still restore. A restore keeps sale and receipt numbers from ever repeating, also from an older backup (found while testing 8.0g). The speed test is `npm run speed`: with 2,000 products and 30,000 sales every screen reads in under 25 ms on a computer (Customers and Debts were changed to one query for all balances). The dashboard's daily chart has a temporary switch to Apple's charts so the owner can choose; the other one is removed afterwards. Errors are kept in a log on the device (Settings → سجل الأخطاء).
 
-Status: Phases 0 to 7 are merged; Phase 8 is built (PR open), waiting for the owner's test and choice of chart.
+Status: Phases 0 to 7 are merged; Phase 8 is built (PR open), waiting for the owner's test on the devices (chart chosen: the app's own).
