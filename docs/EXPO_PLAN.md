@@ -370,7 +370,7 @@ Then the dashboard:
   - Split View and Stage Manager sizes.
   - **NEW:** keyboard shortcuts with a hardware keyboard: ⌘F focuses the search of the screen in front (products, sale, receipts, sales, customers), ⌘N adds a new one (piece or design, receipt, customer); holding ⌘ lists them. A small native module (`modules/key-commands`), added with the owner's OK; needs a new `.ipa`.
 - **9.4** Speed test with 2,000 products and 10,000 sales, repeated on the finished app (first done in Phase 8, step 8.0l). **NEW**
-- **9.5** App icon, launch screen, app name.
+- **9.5** App icon, launch screen, app name. Owner's choice (2026-11-12) of two drawn from the logo's typefaces: **A, "Midnight"**: a white S with gold four-point stars and SALFORD in gold on dark navy, with dark-mode and tinted versions; the launch screen shows the same mark on navy.
 - **9.6** ~~Full tap-through test run and final screenshots~~: moved to step 10.0 with the owner's full test list (owner's decision, 2026-11-12).
 
 ### Phase 10: switching over
@@ -456,4 +456,4 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
 
 - Phase 8 (built, owner to test): instant updates need one new `.ipa` (build 2) before they reach the devices; after installing it, it is recorded with `npm run update:record`. Backups are now copies of the database file (`.db`); `.json` backups from before still restore. A restore keeps sale and receipt numbers from ever repeating, also from an older backup (found while testing 8.0g). The speed test is `npm run speed`: with 2,000 products and 30,000 sales every screen reads in under 25 ms on a computer (Customers and Debts were changed to one query for all balances). The dashboard's daily chart has a temporary switch to Apple's charts so the owner can choose; the other one is removed afterwards. Errors are kept in a log on the device (Settings → سجل الأخطاء).
 
-Status: Phases 0 to 8 are merged, with the fixes from the owner's Phase 8 test (sent as an instant update). Phase 9 is built (PR open): haptics and animations, VoiceOver headings, contrast, iPad window sizes, speed test passed. Keyboard shortcuts added (new `.ipa`); the owner is choosing between two new icons and launch screens.
+Status: Phases 0 to 8 are merged, with the fixes from the owner's Phase 8 test (sent as an instant update). Phase 9 is built (PR open): haptics and animations, VoiceOver headings, contrast, iPad window sizes, speed test passed. Keyboard shortcuts added and the new icon and launch screen chosen (option A, "Midnight"); both need a new `.ipa`.
