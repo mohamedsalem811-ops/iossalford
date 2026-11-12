@@ -1,6 +1,7 @@
 /**
- * PIN rules for both systems. A PIN is 8 digits (0-9), stored only as a salted SHA-256 hash in
- * the Keychain. After 5 wrong attempts the system locks for 30 seconds, and every further wrong
+ * PIN rules for both systems. A PIN is 8 digits (0-9), stored only as a salted, slow hash
+ * (PBKDF2-SHA256, PIN_ROUNDS rounds) in the Keychain; PINs saved before as one salted SHA-256
+ * are upgraded at the next correct entry. After 5 wrong attempts the system locks for 30 seconds, and every further wrong
  * attempt doubles the wait (capped at 30 minutes). There is no default PIN: the owner creates
  * both on first launch.
  *
@@ -21,8 +22,14 @@ export interface SecureKv {
 
 /** SHA-256 of a string, as lowercase hex. */
 export type Digest = (text: string) => Promise<string>;
+/** PBKDF2-SHA256 of the PIN with the salt, PIN_ROUNDS rounds, as lowercase hex. */
+export type Derive = (pin: string, salt: string) => Promise<string>;
 
-type PinRecord = { salt: string; hash: string };
+/** PBKDF2 rounds: each guess costs this many hashes, while a PIN entry stays quick. */
+export const PIN_ROUNDS = 10_000;
+
+/** v2: PBKDF2. No version: the first format (one salted SHA-256). */
+type PinRecord = { salt: string; hash: string; v?: 2 };
 type LockRecord = { failures: number; lockedUntil: number };
 
 const pinKey = (s: SystemId) => `pin.${s}`;
@@ -60,10 +67,24 @@ export class PinVault {
     private digest: Digest,
     private randomHex: () => string,
     private now: () => number = Date.now,
+    private derive?: Derive,
   ) {}
 
-  private async hash(pin: string, salt: string) {
+  /** The first format, still read for PINs saved before PBKDF2. */
+  private async legacyHash(pin: string, salt: string) {
     return this.digest(`salford-pos:${salt}:${pin}`);
+  }
+
+  private async record(pin: string): Promise<PinRecord> {
+    const salt = this.randomHex();
+    return this.derive
+      ? { v: 2, salt, hash: await this.derive(pin, salt) }
+      : { salt, hash: await this.legacyHash(pin, salt) };
+  }
+
+  private async matches(pin: string, r: PinRecord): Promise<boolean> {
+    if (r.v === 2) return !!this.derive && (await this.derive(pin, r.salt)) === r.hash;
+    return (await this.legacyHash(pin, r.salt)) === r.hash;
   }
 
   async hasPin(system: SystemId): Promise<boolean> {
@@ -79,9 +100,7 @@ export class PinVault {
   async setPin(system: SystemId, pin: string): Promise<void> {
     const problem = pinProblem(pin);
     if (problem) throw new Error(problem);
-    const salt = this.randomHex();
-    const record: PinRecord = { salt, hash: await this.hash(pin, salt) };
-    await this.kv.set(pinKey(system), JSON.stringify(record));
+    await this.kv.set(pinKey(system), JSON.stringify(await this.record(pin)));
     await this.kv.remove(lockKey(system));
   }
 
@@ -109,7 +128,10 @@ export class PinVault {
     const raw = await this.kv.get(pinKey(system));
     if (raw) {
       const record = JSON.parse(raw) as PinRecord;
-      if ((await this.hash(pin, record.salt)) === record.hash) {
+      if (await this.matches(pin, record)) {
+        // A PIN saved in the first format is saved again with PBKDF2, now that it is known.
+        if (record.v !== 2 && this.derive)
+          await this.kv.set(pinKey(system), JSON.stringify(await this.record(pin)));
         await this.kv.remove(lockKey(system));
         return { ok: true };
       }

@@ -152,3 +152,36 @@ describe('PinVault', () => {
     expect(await v.lockedUntil('jewelry')).toBe(now.t + 30_000);
   });
 });
+
+describe('the slow PIN hash (PBKDF2)', () => {
+  /* eslint-disable @typescript-eslint/no-require-imports -- the same library the app uses */
+  const { pbkdf2Async } = require('@noble/hashes/pbkdf2') as typeof import('@noble/hashes/pbkdf2');
+  const { sha256 } = require('@noble/hashes/sha256') as typeof import('@noble/hashes/sha256');
+  /* eslint-enable @typescript-eslint/no-require-imports */
+  const toHex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+  const derive = async (pin: string, salt: string) =>
+    toHex(await pbkdf2Async(sha256, pin, `salford-pos:${salt}`, { c: 1_000, dkLen: 32 }));
+
+  it('saves new PINs with PBKDF2 and opens with them', async () => {
+    const kv = memoryKv();
+    const v = new PinVault(kv, digest, random, () => 1, derive);
+    await v.setPin('jewelry', '25801470');
+    expect(JSON.parse(kv.data.get('pin.jewelry')!)).toMatchObject({ v: 2 });
+    expect(await v.verify('jewelry', '25801470')).toEqual({ ok: true });
+    expect((await v.verify('jewelry', '25801471')).ok).toBe(false);
+  });
+
+  it('upgrades a PIN saved in the first format at the next correct entry', async () => {
+    const kv = memoryKv();
+    await new PinVault(kv, digest, random, () => 1).setPin('scarves', '36925814');
+    expect(JSON.parse(kv.data.get('pin.scarves')!).v).toBeUndefined();
+
+    const upgraded = new PinVault(kv, digest, random, () => 1, derive);
+    // A wrong PIN changes nothing.
+    expect((await upgraded.verify('scarves', '36925815')).ok).toBe(false);
+    expect(JSON.parse(kv.data.get('pin.scarves')!).v).toBeUndefined();
+    expect(await upgraded.verify('scarves', '36925814')).toEqual({ ok: true });
+    expect(JSON.parse(kv.data.get('pin.scarves')!).v).toBe(2);
+    expect(await upgraded.verify('scarves', '36925814')).toEqual({ ok: true });
+  });
+});

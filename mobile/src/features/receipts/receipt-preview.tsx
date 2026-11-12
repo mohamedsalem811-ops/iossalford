@@ -38,6 +38,9 @@ export function ReceiptPreview({ doc }: { doc: ReceiptDoc }) {
         <WebView
           testID="receipt-preview"
           originWhitelist={['*']}
+          // The preview is plain HTML: no scripts run, and it never opens anything else.
+          javaScriptEnabled={false}
+          onShouldStartLoadWithRequest={(r) => r.url === 'about:blank' || r.url.startsWith('data:')}
           source={{
             html: receiptHtml(doc, {
               previewWidth: width,
