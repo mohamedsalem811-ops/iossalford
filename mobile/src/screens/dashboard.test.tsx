@@ -1,4 +1,5 @@
 import { fireEvent, screen } from '@testing-library/react-native';
+import { ActionSheetIOS } from 'react-native';
 
 import { addToCart, type CartLine } from '@/domain/cart';
 import { checkout, type PaymentMethod } from '@/domain/checkout';
@@ -55,6 +56,9 @@ const actions = (): DashboardActions => ({
   onOpenDebts: jest.fn(),
   onOpenBackup: jest.fn(),
   onOpenProducts: jest.fn(),
+  onNewSale: jest.fn(),
+  onNewReceipt: jest.fn(),
+  onNewProduct: jest.fn(),
 });
 const noBackup = { lastCopied: null, firstBackup: null };
 
@@ -112,9 +116,14 @@ describe('the dashboard', () => {
       'مدفوع 350 د.ل • آجل 600 د.ل',
     );
     expect(screen.getByTestId('month-title')).toHaveTextContent('نوفمبر 2026');
-    expect(screen.getByTestId('month-summary')).toHaveTextContent(/1,300 د\.ل/); // 3 sales
+    // ملخص الشهر: net sales of the 3 sales, the count line, the margin, net profit in dollars.
+    expect(screen.getByTestId('tile-net-sales')).toHaveTextContent(/1,300 د\.ل/);
+    expect(screen.getByTestId('tile-net-sales')).toHaveTextContent(/3 عملية • 3 قطعة/);
+    expect(screen.getByTestId('tile-profit')).toHaveTextContent(/الهامش \d+٪/);
+    expect(screen.getByTestId('tile-out')).toHaveTextContent(/مصاريف .* • مرتجعات/);
     expect(screen.getByTestId('month-summary')).toHaveTextContent(/صافي الربح/);
-    expect(screen.getByTestId('month-details')).toHaveTextContent(/التكلفة/);
+    // Nothing sold the month before: every dot says "better" for sales.
+    expect(screen.getByTestId('trend-net-sales-better')).toBeOnTheScreen();
     // VoiceOver reads each tile as one item.
     expect(screen.getByLabelText(/^صافي الربح، .*د\.ل، \$/)).toBeOnTheScreen();
     // One breakdown card: by category first, the switch shows the others.
@@ -137,7 +146,8 @@ describe('the dashboard', () => {
       />,
     );
     expect(screen.getByTestId('empty-month')).toHaveTextContent(/لا مبيعات في أكتوبر 2026/);
-    expect(screen.queryByTestId('month-summary')).toBeNull();
+    // The tiles stay (at zero, like the old app), with the chart and lists replaced by one card.
+    expect(screen.getByTestId('tile-net-sales')).toHaveTextContent(/0 د\.ل/);
     expect(screen.queryByTestId('latest-sales')).toBeNull();
     expect(screen.getByTestId('stock-summary')).toBeOnTheScreen();
   });
@@ -196,7 +206,21 @@ describe('the dashboard', () => {
     const a = actions();
     const data = readDashboard(ctx, '2026-11', noBackup);
     await renderScreen(<DashboardScreen system="jewelry" data={data} actions={a} />);
-    expect(screen.getByTestId('month-newer')).toBeDisabled();
+    // The calendar chip lists the months; picking one shows it.
+    const sheet = jest
+      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .mockImplementation((_o, pick) => pick(0));
+    await fireEvent.press(screen.getByTestId('month-picker'));
+    expect(a.onMonth).toHaveBeenCalledWith(data.months[0]);
+    sheet.mockRestore();
+    // The shortcuts at the top.
+    await fireEvent.press(screen.getByTestId('quick-sale'));
+    await fireEvent.press(screen.getByTestId('quick-receipt'));
+    await fireEvent.press(screen.getByTestId('quick-product'));
+    expect(a.onNewSale).toHaveBeenCalled();
+    expect(a.onNewReceipt).toHaveBeenCalled();
+    expect(a.onNewProduct).toHaveBeenCalled();
+    expect(screen.getByText('قطعة جديدة')).toBeOnTheScreen();
     await fireEvent.press(screen.getByTestId('rate-row'));
     expect(a.onEditRate).toHaveBeenCalled();
     await fireEvent.press(screen.getByTestId('dashboard-system'));
@@ -226,6 +250,9 @@ describe('the dashboard', () => {
       />,
       'scarves',
     );
+    // Scarves: the third shortcut adds a design, and the tile counts scarves.
+    expect(screen.getByText('تصميم جديد')).toBeOnTheScreen();
+    expect(screen.getByTestId('tile-net-sales')).toHaveTextContent(/1 عملية • 1 وشاح/);
     await fireEvent.press(screen.getByText('المقاس'));
     expect(screen.getByTestId('by-size')).toHaveTextContent(/90×90/);
     expect(screen.getByTestId('by-size')).toHaveTextContent(/في المخزون 3/);

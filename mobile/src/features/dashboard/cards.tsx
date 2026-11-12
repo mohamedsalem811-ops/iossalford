@@ -21,6 +21,10 @@ export type DashboardActions = {
   onOpenDebts: () => void;
   onOpenBackup: () => void;
   onOpenProducts: () => void;
+  /** The shortcuts at the top. */
+  onNewSale: () => void;
+  onNewReceipt: () => void;
+  onNewProduct: () => void;
 };
 
 /** The cards of the home screen. */
@@ -143,36 +147,6 @@ export function ChartCard({ data }: { data: DashboardData }) {
     <Card style={{ flex: 1, gap: spacing.ms }}>
       <Title>المبيعات اليومية</Title>
       <DailyChart month={data.month} days={data.daily} />
-    </Card>
-  );
-}
-
-/** What the tiles don't show: cost, returns and expenses, and how net profit comes out. */
-export function DetailsCard({ data }: { data: DashboardData }) {
-  const s = data.summary;
-  const row = (label: string, value: string, sub?: string, strong = false) => (
-    <View
-      key={label}
-      style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
-      <Text variant={strong ? 'bodyStrong' : 'body'}>{label}</Text>
-      <View style={{ alignItems: 'flex-end' }}>
-        <Text variant={strong ? 'headline' : 'bodyStrong'}>{value}</Text>
-        {sub ? (
-          <Text variant="caption" tone="secondary">
-            {sub}
-          </Text>
-        ) : null}
-      </View>
-    </View>
-  );
-  return (
-    <Card style={{ flex: 1, gap: spacing.ms }} testID="month-details">
-      <Title>{`تفاصيل ${monthTitle(data.month)}`}</Title>
-      {row('المبيعات', formatLyd(s.grossSales))}
-      {row('التكلفة', formatLyd(s.costOfSales))}
-      {row('المرتجعات', formatLyd(s.refunds), `${s.itemsReturned} قطعة`)}
-      {row('المصروفات', formatLyd(s.expenses))}
-      {row('صافي الربح', formatLyd(s.netProfit), undefined, true)}
     </Card>
   );
 }

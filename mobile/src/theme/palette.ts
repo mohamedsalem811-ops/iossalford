@@ -22,6 +22,12 @@ export type Palette = {
   segmentTrack: string;
   segmentThumb: string;
   warning: string;
+  /** Money in: profit, a better month (home screen tiles). */
+  positive: string;
+  /** Money out: expenses and refunds, a worse month. */
+  negative: string;
+  /** The gold of the logos, for the small line under a tile's amount. */
+  gold: string;
   /** Glass tab bar fill and edge. */
   glass: string;
   glassEdge: string;
@@ -46,6 +52,9 @@ export const palettes: Record<SystemId, Record<Mode, Palette>> = {
       segmentTrack: '#E3E3E8',
       segmentThumb: '#FFFFFF',
       warning: '#B4390A',
+      positive: '#1E7A4C',
+      negative: '#B42318',
+      gold: '#86662C',
       glass: 'rgba(255,255,255,0.75)',
       glassEdge: 'rgba(255,255,255,0.95)',
       cardShadow: '0 6px 18px rgba(18,20,46,0.06)',
@@ -65,6 +74,9 @@ export const palettes: Record<SystemId, Record<Mode, Palette>> = {
       segmentTrack: '#1C1C1E',
       segmentThumb: '#3A3A3C',
       warning: '#FF9F6B',
+      positive: '#5FD39A',
+      negative: '#FF8A80',
+      gold: '#D9B977',
       glass: 'rgba(44,44,46,0.75)',
       glassEdge: 'rgba(255,255,255,0.12)',
       cardShadow: 'none',
@@ -86,6 +98,9 @@ export const palettes: Record<SystemId, Record<Mode, Palette>> = {
       segmentTrack: '#E5E3DD',
       segmentThumb: '#FFFFFF',
       warning: '#B4390A',
+      positive: '#1E7A4C',
+      negative: '#B42318',
+      gold: '#7A5A22',
       glass: 'rgba(255,255,255,0.75)',
       glassEdge: 'rgba(255,255,255,0.95)',
       cardShadow: '0 6px 18px rgba(30,26,19,0.06)',
@@ -105,6 +120,9 @@ export const palettes: Record<SystemId, Record<Mode, Palette>> = {
       segmentTrack: '#1C1C1E',
       segmentThumb: '#3A3A3C',
       warning: '#FF9F6B',
+      positive: '#5FD39A',
+      negative: '#FF8A80',
+      gold: '#D9B977',
       glass: 'rgba(44,44,46,0.75)',
       glassEdge: 'rgba(255,255,255,0.12)',
       cardShadow: 'none',
