@@ -9,6 +9,18 @@
  */
 import type { SystemId } from '@/theme';
 
+/**
+ * Whose PIN: the owner's PIN of a system ("jewelry", "scarves", as since Phase 3) or an
+ * employee's ("user.<id>"), one PIN for both systems.
+ */
+export type PinAccount = SystemId | `user.${string}`;
+
+/** An employee's PIN is shorter: quick at the counter. */
+export const EMPLOYEE_PIN_LENGTH = 6;
+
+export const pinLengthOf = (account: PinAccount) =>
+  account.startsWith('user.') ? EMPLOYEE_PIN_LENGTH : PIN_LENGTH;
+
 export const PIN_LENGTH = 8;
 export const FREE_ATTEMPTS = 5;
 const FIRST_WAIT_MS = 30_000;
@@ -32,13 +44,13 @@ export const PIN_ROUNDS = 10_000;
 type PinRecord = { salt: string; hash: string; v?: 2 };
 type LockRecord = { failures: number; lockedUntil: number };
 
-const pinKey = (s: SystemId) => `pin.${s}`;
-const lockKey = (s: SystemId) => `pin-lock.${s}`;
+const EMERGENCY = 'emergency.owner';
+const pinKey = (a: PinAccount) => `pin.${a}`;
+const lockKey = (a: PinAccount) => `pin-lock.${a}`;
 
 /** Why a new PIN is refused, or null when it is acceptable. */
-export function pinProblem(pin: string): string | null {
-  if (!new RegExp(`^[0-9]{${PIN_LENGTH}}$`).test(pin))
-    return `الرمز يجب أن يكون ${PIN_LENGTH} أرقام`;
+export function pinProblem(pin: string, length = PIN_LENGTH): string | null {
+  if (!new RegExp(`^[0-9]{${length}}$`).test(pin)) return `الرمز يجب أن يكون ${length} أرقام`;
   if (/^(\d)\1+$/.test(pin)) return 'رمز سهل التخمين: لا تكرر الرقم نفسه';
   const digits = [...pin].map(Number);
   const step = digits[1] - digits[0];
@@ -87,7 +99,7 @@ export class PinVault {
     return (await this.legacyHash(pin, r.salt)) === r.hash;
   }
 
-  async hasPin(system: SystemId): Promise<boolean> {
+  async hasPin(system: PinAccount): Promise<boolean> {
     return (await this.kv.get(pinKey(system))) !== null;
   }
 
@@ -97,14 +109,14 @@ export class PinVault {
   }
 
   /** Saves a new PIN (first launch, or after the current one was confirmed). Clears any lockout. */
-  async setPin(system: SystemId, pin: string): Promise<void> {
-    const problem = pinProblem(pin);
+  async setPin(system: PinAccount, pin: string): Promise<void> {
+    const problem = pinProblem(pin, pinLengthOf(system));
     if (problem) throw new Error(problem);
     await this.kv.set(pinKey(system), JSON.stringify(await this.record(pin)));
     await this.kv.remove(lockKey(system));
   }
 
-  private async lockState(system: SystemId): Promise<LockRecord> {
+  private async lockState(system: PinAccount): Promise<LockRecord> {
     const raw = await this.kv.get(lockKey(system));
     if (!raw) return { failures: 0, lockedUntil: 0 };
     try {
@@ -116,12 +128,12 @@ export class PinVault {
   }
 
   /** When the system is locked out, the time it opens again (ms since epoch); otherwise 0. */
-  async lockedUntil(system: SystemId): Promise<number> {
+  async lockedUntil(system: PinAccount): Promise<number> {
     const s = await this.lockState(system);
     return s.lockedUntil > this.now() ? s.lockedUntil : 0;
   }
 
-  async verify(system: SystemId, pin: string): Promise<VerifyResult> {
+  async verify(system: PinAccount, pin: string): Promise<VerifyResult> {
     const state = await this.lockState(system);
     if (state.lockedUntil > this.now())
       return { ok: false, locked: true, lockedUntil: state.lockedUntil };
@@ -143,8 +155,54 @@ export class PinVault {
     return { ok: false, attemptsLeft: Math.max(0, FREE_ATTEMPTS - failures), lockedUntil };
   }
 
+  /**
+   * A new emergency code for the owner (shown once, to keep off the device): 12 digits as
+   * "1234-5678-9012". Only its hash is kept; a new one replaces the old.
+   */
+  async newEmergencyCode(): Promise<string> {
+    const digits = [...(this.randomHex() + this.randomHex())]
+      .map((h) => parseInt(h, 16) % 10)
+      .slice(0, 12)
+      .join('');
+    const code = `${digits.slice(0, 4)}-${digits.slice(4, 8)}-${digits.slice(8)}`;
+    await this.kv.set(EMERGENCY, JSON.stringify(await this.record(digits)));
+    await this.kv.remove(lockKey('user.emergency'));
+    return code;
+  }
+
+  async hasEmergencyCode(): Promise<boolean> {
+    return (await this.kv.get(EMERGENCY)) !== null;
+  }
+
+  /**
+   * Checks the emergency code (dashes and spaces ignored), with the same wrong-attempt lockout as
+   * a PIN. When it is right, the owner may set a new PIN for a system.
+   */
+  async checkEmergencyCode(code: string): Promise<VerifyResult> {
+    const digits = code.replace(/[^0-9]/g, '');
+    const account = 'user.emergency' as const;
+    const state = await this.lockState(account);
+    if (state.lockedUntil > this.now())
+      return { ok: false, locked: true, lockedUntil: state.lockedUntil };
+    const raw = await this.kv.get(EMERGENCY);
+    if (raw && digits.length === 12 && (await this.matches(digits, JSON.parse(raw) as PinRecord))) {
+      await this.kv.remove(lockKey(account));
+      return { ok: true };
+    }
+    const failures = state.failures + 1;
+    const delay = lockDelayMs(failures);
+    const lockedUntil = delay ? this.now() + delay : 0;
+    await this.kv.set(lockKey(account), JSON.stringify({ failures, lockedUntil }));
+    return { ok: false, attemptsLeft: Math.max(0, FREE_ATTEMPTS - failures), lockedUntil };
+  }
+
+  /** A forgotten PIN after the emergency code: the system gets a new owner PIN. */
+  async resetOwnerPin(system: SystemId, pin: string): Promise<void> {
+    await this.setPin(system, pin);
+  }
+
   /** Face ID opened the system: wrong-PIN counting starts again. */
-  async clearFailures(system: SystemId): Promise<void> {
+  async clearFailures(system: PinAccount): Promise<void> {
     await this.kv.remove(lockKey(system));
   }
 }

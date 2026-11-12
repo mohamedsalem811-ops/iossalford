@@ -185,3 +185,32 @@ describe('the slow PIN hash (PBKDF2)', () => {
     expect(await upgraded.verify('scarves', '36925814')).toEqual({ ok: true });
   });
 });
+
+describe('accounts and the emergency code', () => {
+  it('an employee has a 6-digit PIN of their own, apart from the owner', async () => {
+    const { v } = vault();
+    await v.setPin('jewelry', '25801470');
+    await expect(v.setPin('user.a1', '25801470')).rejects.toThrow('6');
+    await v.setPin('user.a1', '258014');
+    expect(await v.verify('user.a1', '258014')).toEqual({ ok: true });
+    expect((await v.verify('jewelry', '258014')).ok).toBe(false);
+    // Wrong PINs lock only that person.
+    for (let i = 0; i < 5; i++) await v.verify('user.a1', '111222');
+    expect(await v.lockedUntil('user.a1')).toBeGreaterThan(0);
+    expect(await v.lockedUntil('jewelry')).toBe(0);
+  });
+
+  it('lets the owner set a new PIN with the emergency code, shown once', async () => {
+    const { v } = vault();
+    expect(await v.hasEmergencyCode()).toBe(false);
+    const code = await v.newEmergencyCode();
+    expect(code).toMatch(/^\d{4}-\d{4}-\d{4}$/);
+    expect((await v.checkEmergencyCode('0000-0000-0000')).ok).toBe(false);
+    expect(await v.checkEmergencyCode(code.replace(/-/g, ' '))).toEqual({ ok: true });
+    await v.resetOwnerPin('scarves', '36925814');
+    expect(await v.verify('scarves', '36925814')).toEqual({ ok: true });
+    // A new code replaces the old one.
+    const next = await v.newEmergencyCode();
+    if (next !== code) expect((await v.checkEmergencyCode(code)).ok).toBe(false);
+  });
+});
