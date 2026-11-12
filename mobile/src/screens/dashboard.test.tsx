@@ -115,6 +115,8 @@ describe('the dashboard', () => {
     expect(screen.getByTestId('month-summary')).toHaveTextContent(/1,300 د\.ل/); // 3 sales
     expect(screen.getByTestId('month-summary')).toHaveTextContent(/صافي الربح/);
     expect(screen.getByTestId('month-details')).toHaveTextContent(/التكلفة/);
+    // VoiceOver reads each tile as one item.
+    expect(screen.getByLabelText(/^صافي الربح، .*د\.ل، \$/)).toBeOnTheScreen();
     // One breakdown card: by category first, the switch shows the others.
     expect(screen.getByTestId('by-category')).toBeOnTheScreen();
     await fireEvent.press(screen.getByText('الماركة'));

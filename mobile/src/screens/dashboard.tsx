@@ -104,7 +104,7 @@ export function DashboardScreen({
 
 function Title({ children }: { children: string }) {
   return (
-    <Text variant="headline" style={{ marginBottom: spacing.xs }}>
+    <Text variant="headline" accessibilityRole="header" style={{ marginBottom: spacing.xs }}>
       {children}
     </Text>
   );
@@ -181,7 +181,11 @@ function KpiTile({
   strong?: boolean;
 }) {
   return (
-    <Card style={{ flex: 1, gap: spacing.xs }}>
+    // VoiceOver reads a tile as one item: "صافي الربح، 200 د.ل، $28.57".
+    <Card
+      style={{ flex: 1, gap: spacing.xs }}
+      accessible
+      accessibilityLabel={[label, value, sub].filter(Boolean).join('، ')}>
       <Text variant="subhead" tone="secondary">
         {label}
       </Text>
