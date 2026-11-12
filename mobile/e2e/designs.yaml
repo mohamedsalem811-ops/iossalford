@@ -1,5 +1,5 @@
 # Phase 4: a scarf design with two sizes (one added with the quick-add button), shown by design.
-# On iPad the form opens beside the list; the steps are the same.
+# On iPad the designs are photo cards and the form opens as a window over them; the steps are the same.
 appId: com.salford.pos
 ---
 - runFlow: subflows/fresh-launch.yaml
