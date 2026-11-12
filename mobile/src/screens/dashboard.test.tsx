@@ -14,9 +14,31 @@ import { DashboardScreen, type DashboardActions } from './dashboard';
 jest.mock('expo-symbols', () => ({ SymbolView: () => null }));
 jest.mock('expo-haptics', () => ({ selectionAsync: jest.fn(() => Promise.resolve()) }));
 jest.mock('@expo/ui/swift-ui', () => ({ Host: () => null, Chart: () => null }));
+// The native segmented control is replaced by plain buttons so the test can switch it.
 jest.mock('@expo/ui/community/segmented-control', () => ({
   __esModule: true,
-  default: () => null,
+  default: ({
+    values,
+    onChange,
+  }: {
+    values: string[];
+    onChange: (e: { nativeEvent: { selectedSegmentIndex: number; value: string } }) => void;
+  }) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories cannot use imports
+    const { Pressable, Text: RNText, View } = require('react-native');
+    return (
+      <View>
+        {values.map((v, i) => (
+          <Pressable
+            key={v}
+            accessibilityRole="button"
+            onPress={() => onChange({ nativeEvent: { selectedSegmentIndex: i, value: v } })}>
+            <RNText>{v}</RNText>
+          </Pressable>
+        ))}
+      </View>
+    );
+  },
 }));
 let mockColumns = 1;
 jest.mock('@/hooks/use-layout', () => ({
@@ -92,9 +114,30 @@ describe('the dashboard', () => {
     expect(screen.getByTestId('month-title')).toHaveTextContent('نوفمبر 2026');
     expect(screen.getByTestId('month-summary')).toHaveTextContent(/1,300 د\.ل/); // 3 sales
     expect(screen.getByTestId('month-summary')).toHaveTextContent(/صافي الربح/);
+    expect(screen.getByTestId('month-details')).toHaveTextContent(/التكلفة/);
+    // One breakdown card: by category first, the switch shows the others.
+    expect(screen.getByTestId('by-category')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByText('الماركة'));
     expect(screen.getByTestId('by-brand')).toHaveTextContent(/Swarovski/);
+    await fireEvent.press(screen.getByText('الدفع'));
     expect(screen.getByTestId('by-payment')).toHaveTextContent(/آجل/);
+    expect(screen.queryByTestId('by-brand')).toBeNull();
     expect(screen.getByTestId('latest-sales')).toHaveTextContent(/قلادة/);
+    expect(screen.queryByTestId('empty-month')).toBeNull();
+  });
+
+  it('shows one empty card for a month without sales, and the stock still', async () => {
+    await renderScreen(
+      <DashboardScreen
+        system="jewelry"
+        data={readDashboard(ctx, '2026-10', noBackup)}
+        actions={actions()}
+      />,
+    );
+    expect(screen.getByTestId('empty-month')).toHaveTextContent(/لا مبيعات في أكتوبر 2026/);
+    expect(screen.queryByTestId('month-summary')).toBeNull();
+    expect(screen.queryByTestId('latest-sales')).toBeNull();
+    expect(screen.getByTestId('stock-summary')).toBeOnTheScreen();
   });
 
   it('lists what needs attention: stock, debts and a backup reminder', async () => {
@@ -167,6 +210,7 @@ describe('the dashboard', () => {
       />,
       'scarves',
     );
+    await fireEvent.press(screen.getByText('المقاس'));
     expect(screen.getByTestId('by-size')).toHaveTextContent(/90×90/);
     expect(screen.getByTestId('by-size')).toHaveTextContent(/في المخزون 3/);
     sc.close();

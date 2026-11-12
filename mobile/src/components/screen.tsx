@@ -44,13 +44,28 @@ export function Screen({
     );
   }
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
-      onLayout={readable.onLayout}
-      contentContainerStyle={[inner, contentStyle]}
-      contentInsetAdjustmentBehavior="never"
-      keyboardDismissMode="interactive">
-      {children}
-    </ScrollView>
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        onLayout={readable.onLayout}
+        contentContainerStyle={[inner, contentStyle]}
+        contentInsetAdjustmentBehavior="never"
+        keyboardDismissMode="interactive">
+        {children}
+      </ScrollView>
+      {/* Content scrolls under the clock and battery: a band of the page colour keeps them readable. */}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: insets.top,
+          backgroundColor: colors.background,
+          opacity: 0.94,
+        }}
+      />
+    </View>
   );
 }

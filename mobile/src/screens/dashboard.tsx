@@ -1,7 +1,18 @@
 import { Children, useState, type ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { Card, HeroCard, Icon, ListGroup, ListRow, Logo, Screen, Stat, Text } from '@/components';
+import {
+  Card,
+  HeroCard,
+  Icon,
+  ListGroup,
+  ListRow,
+  Logo,
+  Screen,
+  Segmented,
+  Stat,
+  Text,
+} from '@/components';
 import { PAYMENT_LABELS } from '@/domain/checkout';
 import { DailyChart } from '@/features/dashboard/daily-chart';
 import { cashVsCredit, type DashboardData } from '@/features/dashboard/model';
@@ -23,8 +34,9 @@ export type DashboardActions = {
 };
 
 /**
- * The first tab. iPhone: one column. iPad: two or three columns of cards using the whole width
- * (Split View narrows it back to one).
+ * The first tab. iPhone: one column. iPad: the month's numbers as a row of tiles, the daily chart
+ * wide with its details beside it, and the breakdowns in one card with a switch, so no card sits
+ * half empty (Split View narrows it back to one column).
  */
 export function DashboardScreen({
   system,
@@ -36,7 +48,10 @@ export function DashboardScreen({
   actions: DashboardActions;
 }) {
   const { dashboardColumns: columns } = useLayout();
+  const wide = columns > 1;
   const piece = system === 'scarves' ? 'وشاح' : 'قطعة';
+  const s = data.summary;
+  const empty = s.transactions === 0 && s.refunds === 0;
   return (
     <Screen tabBar maxWidth={1400} contentStyle={{ gap: spacing.lg }}>
       <Header system={system} data={data} actions={actions} />
@@ -45,41 +60,44 @@ export function DashboardScreen({
         <AttentionCard data={data} actions={actions} />
       </Grid>
       <MonthPicker month={data.month} months={data.months} onMonth={actions.onMonth} />
-      <Grid columns={Math.min(columns, 2)}>
-        <MonthCard data={data} />
-        <ChartCard data={data} />
-      </Grid>
-      <Grid columns={columns}>
-        <Card>
-          <Title>{system === 'scarves' ? 'حسب الخامة' : 'حسب الصنف'}</Title>
-          <RankedList rows={data.byCategory} unit={piece} testID="by-category" />
-        </Card>
-        <Card>
-          <Title>حسب العلامة التجارية</Title>
-          <RankedList rows={data.byBrand} unit={piece} testID="by-brand" />
-        </Card>
-        {system === 'scarves' ? (
-          <Card>
-            <Title>حسب المقاس</Title>
-            <RankedList
-              rows={data.bySize}
-              unit={piece}
-              extra={(r) => (r.stock !== undefined ? `في المخزون ${r.stock}` : null)}
-              testID="by-size"
+      {empty ? (
+        <EmptyMonth data={data} />
+      ) : (
+        <>
+          <Grid columns={wide ? 4 : 2} testID="month-summary">
+            <KpiTile
+              label="المبيعات"
+              value={formatLyd(s.grossSales)}
+              sub={formatUsd(s.grossSalesUsd)}
             />
-          </Card>
-        ) : null}
-        <Card>
-          <Title>حسب طريقة الدفع</Title>
-          <RankedList rows={data.byPayment} unit={piece} testID="by-payment" />
-        </Card>
-        <Card>
-          <Title>الأكثر مبيعاً</Title>
-          <RankedList rows={data.top} unit={piece} testID="top-products" />
-        </Card>
-        <LatestCard data={data} onOpenSale={actions.onOpenSale} />
-        <StockCard data={data} piece={piece} onOpen={actions.onOpenProducts} />
-      </Grid>
+            <KpiTile
+              label="ربح المبيعات"
+              value={formatLyd(s.grossProfit)}
+              sub={formatUsd(s.grossProfitUsd)}
+            />
+            <KpiTile
+              label="صافي الربح"
+              value={formatLyd(s.netProfit)}
+              sub={formatUsd(s.netProfitUsd)}
+              strong
+            />
+            <KpiTile
+              label={system === 'scarves' ? 'الأوشحة المباعة' : 'القطع المباعة'}
+              value={String(s.itemsSold)}
+              sub={`${s.transactions} بيعة`}
+            />
+          </Grid>
+          <Split wide={wide} ratio={2}>
+            <ChartCard data={data} />
+            <DetailsCard data={data} />
+          </Split>
+          <Split wide={wide}>
+            <BreakdownCard system={system} data={data} piece={piece} />
+            <LatestCard data={data} onOpenSale={actions.onOpenSale} />
+          </Split>
+        </>
+      )}
+      <StockTiles data={data} piece={piece} wide={wide} onOpen={actions.onOpenProducts} />
     </Screen>
   );
 }
@@ -93,13 +111,22 @@ function Title({ children }: { children: string }) {
 }
 
 /** Lays cards out in rows of `columns`, each the same width (one column: full width). */
-function Grid({ columns, children }: { columns: number; children: ReactNode }) {
+function Grid({
+  columns,
+  children,
+  testID,
+}: {
+  columns: number;
+  children: ReactNode;
+  testID?: string;
+}) {
   const [width, setWidth] = useState(0);
   const items = Children.toArray(children).filter(Boolean);
   const gap = spacing.md;
   const cell = columns > 1 && width > 0 ? (width - gap * (columns - 1)) / columns : undefined;
   return (
     <View
+      testID={testID}
       onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
       style={{ flexDirection: 'row', flexWrap: 'wrap', gap, alignItems: 'stretch' }}>
       {items.map((child, i) => (
@@ -108,6 +135,65 @@ function Grid({ columns, children }: { columns: number; children: ReactNode }) {
         </View>
       ))}
     </View>
+  );
+}
+
+/**
+ * Two cards side by side on iPad, the first `ratio` times as wide and both the same height;
+ * stacked on iPhone.
+ */
+function Split({
+  wide,
+  ratio = 1,
+  children,
+}: {
+  wide: boolean;
+  ratio?: number;
+  children: ReactNode;
+}) {
+  const [first, second] = Children.toArray(children);
+  if (!wide) {
+    return (
+      <View style={{ gap: spacing.lg }}>
+        {first}
+        {second}
+      </View>
+    );
+  }
+  return (
+    <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'stretch' }}>
+      <View style={{ flex: ratio }}>{first}</View>
+      <View style={{ flex: 1 }}>{second}</View>
+    </View>
+  );
+}
+
+/** One number of the month: label, value, and a smaller line under it. */
+function KpiTile({
+  label,
+  value,
+  sub,
+  strong = false,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  strong?: boolean;
+}) {
+  return (
+    <Card style={{ flex: 1, gap: spacing.xs }}>
+      <Text variant="subhead" tone="secondary">
+        {label}
+      </Text>
+      <Text variant="number" tone={strong ? 'accent' : 'primary'}>
+        {value}
+      </Text>
+      {sub ? (
+        <Text variant="caption" tone="secondary">
+          {sub}
+        </Text>
+      ) : null}
+    </Card>
   );
 }
 
@@ -278,7 +364,42 @@ function MonthPicker({
   );
 }
 
-function MonthCard({ data }: { data: DashboardData }) {
+/** A month without sales: one card instead of a column of empty ones. */
+function EmptyMonth({ data }: { data: DashboardData }) {
+  const { colors } = useTheme();
+  const s = data.summary;
+  return (
+    <Card
+      style={{ alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl }}
+      testID="empty-month">
+      <Icon name="chart.bar" size={28} color={colors.accent} />
+      <Text variant="headline" center>
+        {`لا مبيعات في ${monthTitle(data.month)}`}
+      </Text>
+      {s.expenses ? (
+        <Text variant="subhead" tone="secondary" center>
+          {`المصروفات ${formatLyd(s.expenses)} • صافي الربح ${formatLyd(s.netProfit)}`}
+        </Text>
+      ) : (
+        <Text variant="subhead" tone="secondary" center>
+          تظهر هنا أرقام الشهر ورسمه عند أول بيعة.
+        </Text>
+      )}
+    </Card>
+  );
+}
+
+function ChartCard({ data }: { data: DashboardData }) {
+  return (
+    <Card style={{ flex: 1, gap: spacing.ms }}>
+      <Title>المبيعات اليومية</Title>
+      <DailyChart month={data.month} days={data.daily} />
+    </Card>
+  );
+}
+
+/** What the tiles don't show: cost, returns and expenses, and how net profit comes out. */
+function DetailsCard({ data }: { data: DashboardData }) {
   const s = data.summary;
   const row = (label: string, value: string, sub?: string, strong = false) => (
     <View
@@ -296,26 +417,57 @@ function MonthCard({ data }: { data: DashboardData }) {
     </View>
   );
   return (
-    <Card style={{ flex: 1, gap: spacing.ms }} testID="month-summary">
-      <Title>{`ملخص ${monthTitle(data.month)}`}</Title>
-      {row('المبيعات', formatLyd(s.grossSales), formatUsd(s.grossSalesUsd))}
+    <Card style={{ flex: 1, gap: spacing.ms }} testID="month-details">
+      <Title>{`تفاصيل ${monthTitle(data.month)}`}</Title>
+      {row('المبيعات', formatLyd(s.grossSales))}
       {row('التكلفة', formatLyd(s.costOfSales))}
-      {row('ربح المبيعات', formatLyd(s.grossProfit), formatUsd(s.grossProfitUsd))}
       {row('المرتجعات', formatLyd(s.refunds), `${s.itemsReturned} قطعة`)}
       {row('المصروفات', formatLyd(s.expenses))}
-      {row('صافي الربح', formatLyd(s.netProfit), formatUsd(s.netProfitUsd), true)}
-      <Text variant="caption" tone="secondary">
-        {`${s.transactions} بيعة • ${s.itemsSold} قطعة`}
-      </Text>
+      {row('صافي الربح', formatLyd(s.netProfit), undefined, true)}
     </Card>
   );
 }
 
-function ChartCard({ data }: { data: DashboardData }) {
+type BreakdownKind = 'category' | 'brand' | 'size' | 'payment' | 'top';
+
+/** The month by category, brand, size (scarves), payment or best sellers: one card, one switch. */
+function BreakdownCard({
+  system,
+  data,
+  piece,
+}: {
+  system: SystemId;
+  data: DashboardData;
+  piece: string;
+}) {
+  const [kind, setKind] = useState<BreakdownKind>('category');
+  const options: { value: BreakdownKind; label: string }[] = [
+    { value: 'category', label: system === 'scarves' ? 'الخامة' : 'الصنف' },
+    { value: 'brand', label: 'الماركة' },
+    ...(system === 'scarves' ? [{ value: 'size' as const, label: 'المقاس' }] : []),
+    { value: 'payment', label: 'الدفع' },
+    { value: 'top', label: 'الأكثر' },
+  ];
   return (
     <Card style={{ flex: 1, gap: spacing.ms }}>
-      <Title>المبيعات اليومية</Title>
-      <DailyChart month={data.month} days={data.daily} />
+      <Title>{`حسب ${options.find((o) => o.value === kind)?.label ?? ''}`}</Title>
+      <Segmented options={options} value={kind} onChange={setKind} testID="breakdown-kind" />
+      {kind === 'category' ? (
+        <RankedList rows={data.byCategory} unit={piece} testID="by-category" />
+      ) : kind === 'brand' ? (
+        <RankedList rows={data.byBrand} unit={piece} testID="by-brand" />
+      ) : kind === 'size' ? (
+        <RankedList
+          rows={data.bySize}
+          unit={piece}
+          extra={(r) => (r.stock !== undefined ? `في المخزون ${r.stock}` : null)}
+          testID="by-size"
+        />
+      ) : kind === 'payment' ? (
+        <RankedList rows={data.byPayment} unit={piece} testID="by-payment" />
+      ) : (
+        <RankedList rows={data.top} unit={piece} testID="top-products" />
+      )}
     </Card>
   );
 }
@@ -328,7 +480,7 @@ function LatestCard({
   onOpenSale: (id: number) => void;
 }) {
   return (
-    <Card testID="latest-sales">
+    <Card style={{ flex: 1 }} testID="latest-sales">
       <Title>آخر المبيعات</Title>
       {data.latest.length === 0 ? (
         <Text variant="subhead" tone="secondary">
@@ -352,25 +504,34 @@ function LatestCard({
   );
 }
 
-function StockCard({
+/** The stock now, as four tiles (2 × 2 on iPhone); the first opens the products. */
+function StockTiles({
   data,
   piece,
+  wide,
   onOpen,
 }: {
   data: DashboardData;
   piece: string;
+  wide: boolean;
   onOpen: () => void;
 }) {
   const s = data.stock;
   return (
-    <Card testID="stock-summary">
-      <Title>المخزون</Title>
-      <ListGroup>
-        <ListRow title="القطع في المخزون" value={`${s.pieces} ${piece}`} onPress={onOpen} />
-        <ListRow title="الأصناف" value={String(s.items)} />
-        <ListRow title="القيمة بالتكلفة" value={formatLyd(s.costValue)} />
-        <ListRow title="القيمة بسعر البيع" value={formatLyd(s.priceValue)} />
-      </ListGroup>
-    </Card>
+    <View style={{ gap: spacing.sm }} testID="stock-summary">
+      <Text variant="title">المخزون</Text>
+      <Grid columns={wide ? 4 : 2}>
+        <Pressable
+          onPress={onOpen}
+          accessibilityRole="button"
+          accessibilityLabel={`في المخزون ${s.pieces} ${piece}، فتح المنتجات`}
+          style={{ flex: 1 }}>
+          <KpiTile label="في المخزون" value={`${s.pieces} ${piece}`} />
+        </Pressable>
+        <KpiTile label="الأصناف" value={String(s.items)} />
+        <KpiTile label="القيمة بالتكلفة" value={formatLyd(s.costValue)} />
+        <KpiTile label="القيمة بسعر البيع" value={formatLyd(s.priceValue)} />
+      </Grid>
+    </View>
   );
 }
