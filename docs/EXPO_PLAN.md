@@ -371,7 +371,7 @@ Then the dashboard:
   - **NEW:** keyboard shortcuts (⌘F search, ⌘N new product).
 - **9.4** Speed test with 2,000 products and 10,000 sales, repeated on the finished app (first done in Phase 8, step 8.0l). **NEW**
 - **9.5** App icon, launch screen, app name.
-- **9.6** Full tap-through test run and final screenshots on iPhone and iPad. **NEW**
+- **9.6** ~~Full tap-through test run and final screenshots~~: moved to step 10.0 with the owner's full test list (owner's decision, 2026-11-12).
 
 ### Phase 10: switching over
 
@@ -449,6 +449,7 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
   - **Plan changes:** the speed test moved to Phase 8 (8.0l); no chart library: the dashboard draws its own bars, with tap-to-see the day's total and breakdowns as ranked rows, and the first Phase 8 preview compares them with Apple's own charts; the missing tap-through tests written in Phase 8 (8.0f); this document brought up to date.
   - **Way of working:** a screenshot run on iPhone and iPad at the end of every phase (replaced on 2026-11-12: all simulator runs moved to step 10.0); Expo Go no longer limits the choice of libraries (a native library only when clearly better, after asking).
   - **Instant updates** (L6) brought forward to the first step of Phase 8 (8.0a): they don't need the developer account. Updates go to the installed app only with the owner's OK; offline use is unchanged.
+- After the Phase 8 test (2026-11-12): the backup picker accepts every file (iOS has no type for ".db"); one automatic backup per hour plus the newest of each of the last 7 days; date-first backup names; a new home screen and photo cards for products on iPad, sent as an instant update. Opening a backup straight from AirDrop or Files ("Open in SALFORD") was offered and declined: a backup is restored from Backup → Restore.
 - Offline: the app works fully without the internet, and every phase's self-check confirms nothing new needs it.
 - Long-life review (2026-11-11), approved by the owner: backups become copies of the database file, written safely and checked (8.0g); the copy off the device is handled one photo at a time (8.0h); database upgrades are made safe and ship only in a new `.ipa` (8.0i); restore saves its safety copy first (8.0j); errors show a retry screen and go to a log on the device (8.0k); the speed test also runs with 30,000 sales (8.0l). Standing practice: Sideloadly's automatic refresh, one Expo SDK upgrade a year, the repository kept public (section 2).
 - Owner (2026-11-11): re-signing every 7 days is mandatory until the developer account, and the yearly Expo SDK upgrade is accepted. Once the build is finished the owner gets the Apple Developer account, and the project ends with Phase 11: TestFlight, iCloud backup, final polish and submitting to the App Store (no longer optional).

@@ -7,6 +7,7 @@ import { showError } from '@/features/products/actions';
 import { parseThousandths } from '@/lib/digits';
 import { formatRate } from '@/lib/money';
 import { notifyDataChanged } from '@/state/data-events';
+import { haptic } from '@/lib/haptics';
 
 /** The typed rate in thousandths ("7.125" → 7125, Arabic digits too), or why it is refused. */
 export function checkRate(text: string): { rate: number } | { error: string } {
@@ -30,6 +31,7 @@ export function promptRate(ctx: Ctx, onSaved: () => void) {
         onPress: (text?: string) => {
           const r = checkRate(text ?? '');
           if ('error' in r) {
+            haptic.error();
             Alert.alert('لم يتم الحفظ', r.error, [{ text: 'حسناً' }]);
             return;
           }

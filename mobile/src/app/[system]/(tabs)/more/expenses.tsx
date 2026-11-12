@@ -32,6 +32,7 @@ import { useCtx } from '@/state/system-db';
 import { useReadable } from '@/hooks/use-readable';
 import { spacing, useTheme } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
+import { haptic } from '@/lib/haptics';
 
 /**
  * Management → Expenses: add an expense booked to a chosen month (a warning when that month's
@@ -55,6 +56,7 @@ export default function ExpensesRoute() {
   const save = () => {
     const check = checkExpense(description, amount);
     if (!check.ok) {
+      haptic.error();
       Alert.alert('لم يتم الحفظ', check.message);
       return;
     }

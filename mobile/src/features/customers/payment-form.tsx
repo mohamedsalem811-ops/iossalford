@@ -24,6 +24,7 @@ import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
 import { checkPayment, PAYMENT_WAYS, type PaymentWay } from './model';
+import { haptic } from '@/lib/haptics';
 
 /** Money received from a customer towards what they owe; it starts at the whole balance. */
 export function PaymentForm({
@@ -49,6 +50,7 @@ export function PaymentForm({
   const save = () => {
     const check = checkPayment(amount, owed);
     if (!check.ok) {
+      haptic.error();
       Alert.alert('لم يتم الحفظ', check.message);
       return;
     }

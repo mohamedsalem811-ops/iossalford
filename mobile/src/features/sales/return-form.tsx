@@ -27,6 +27,7 @@ import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
 import { checkReturn, returnable, RETURN_REASONS } from './model';
+import { haptic } from '@/lib/haptics';
 
 const PICK_LIMIT = 20;
 
@@ -61,11 +62,13 @@ export function ReturnForm({
 
   const save = () => {
     if (!line && !product) {
+      haptic.error();
       Alert.alert('لم يتم الحفظ', 'اختر القطعة المرتجعة');
       return;
     }
     const check = checkReturn(line ?? null, quantity, refund);
     if (!check.ok) {
+      haptic.error();
       Alert.alert('لم يتم الحفظ', check.message);
       return;
     }
