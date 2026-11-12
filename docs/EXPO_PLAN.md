@@ -368,7 +368,7 @@ Then the dashboard:
 - **9.3** iPad:
   - every orientation;
   - Split View and Stage Manager sizes.
-  - **NEW:** keyboard shortcuts (⌘F search, ⌘N new product).
+  - **NEW:** keyboard shortcuts (⌘F search, ⌘N new product). Needs a small native piece (Expo has no keyboard-shortcut support): waiting for the owner's OK.
 - **9.4** Speed test with 2,000 products and 10,000 sales, repeated on the finished app (first done in Phase 8, step 8.0l). **NEW**
 - **9.5** App icon, launch screen, app name.
 - **9.6** ~~Full tap-through test run and final screenshots~~: moved to step 10.0 with the owner's full test list (owner's decision, 2026-11-12).
@@ -456,4 +456,4 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
 
 - Phase 8 (built, owner to test): instant updates need one new `.ipa` (build 2) before they reach the devices; after installing it, it is recorded with `npm run update:record`. Backups are now copies of the database file (`.db`); `.json` backups from before still restore. A restore keeps sale and receipt numbers from ever repeating, also from an older backup (found while testing 8.0g). The speed test is `npm run speed`: with 2,000 products and 30,000 sales every screen reads in under 25 ms on a computer (Customers and Debts were changed to one query for all balances). The dashboard's daily chart has a temporary switch to Apple's charts so the owner can choose; the other one is removed afterwards. Errors are kept in a log on the device (Settings → سجل الأخطاء).
 
-Status: Phases 0 to 7 are merged; Phase 8 is built (PR open), waiting for the owner's test on the devices (chart chosen: the app's own).
+Status: Phases 0 to 8 are merged, with the fixes from the owner's Phase 8 test (sent as an instant update). Phase 9 is built (PR open): haptics and animations, VoiceOver headings, contrast, iPad window sizes, speed test passed. Waiting for the owner: keyboard shortcuts (need native code) and the icon (kept as is unless the owner wants changes).
