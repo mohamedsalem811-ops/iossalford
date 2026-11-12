@@ -15,6 +15,7 @@ import { useLayout } from '@/hooks/use-layout';
 import { useCtx } from '@/state/system-db';
 import type { SystemId } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
+import { useSearchShortcut, useShortcut } from '@/lib/key-commands';
 
 /** Jewelry lists pieces; scarves list designs with all their sizes. */
 export default function ProductsRoute() {
@@ -35,6 +36,7 @@ function Header<Q extends Filters>({
   query,
   setQuery,
   onAdd,
+  searchRef,
 }: {
   title: string;
   placeholder: string;
@@ -42,11 +44,13 @@ function Header<Q extends Filters>({
   query: Q;
   setQuery: Dispatch<SetStateAction<Q>>;
   onAdd: () => void;
+  searchRef: ReturnType<typeof useSearchShortcut>;
 }) {
   return (
     <>
       <Stack.Title>{title}</Stack.Title>
       <Stack.SearchBar
+        ref={searchRef}
         placeholder={placeholder}
         cancelButtonText="إلغاء"
         hideWhenScrolling={false}
@@ -99,6 +103,8 @@ function JewelryProducts({ ctx }: { ctx: Ctx }) {
     ({ pathname: '/[system]/product/[id]', params: { system, id: String(p.id) } }) as const;
   const add = () =>
     router.push({ pathname: '/[system]/product/[id]', params: { system, id: 'new' } });
+  const searchRef = useSearchShortcut();
+  useShortcut('new', add);
 
   return (
     <>
@@ -109,6 +115,7 @@ function JewelryProducts({ ctx }: { ctx: Ctx }) {
         query={query}
         setQuery={setQuery}
         onAdd={add}
+        searchRef={searchRef}
       />
       <BelowHeader>
         <ProductsList
@@ -147,6 +154,8 @@ function ScarvesProducts({ ctx }: { ctx: Ctx }) {
     ({ pathname: '/[system]/design/[id]', params: { system, id: d.id } }) as const;
   const add = () =>
     router.push({ pathname: '/[system]/design/[id]', params: { system, id: 'new' } });
+  const searchRef = useSearchShortcut();
+  useShortcut('new', add);
 
   return (
     <>
@@ -157,6 +166,7 @@ function ScarvesProducts({ ctx }: { ctx: Ctx }) {
         query={query}
         setQuery={setQuery}
         onAdd={add}
+        searchRef={searchRef}
       />
       <BelowHeader>
         <DesignsList

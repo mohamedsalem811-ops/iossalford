@@ -11,12 +11,17 @@ import { useCtx } from '@/state/system-db';
 import { useReadable } from '@/hooks/use-readable';
 import { spacing } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
+import { useSearchShortcut, useShortcut } from '@/lib/key-commands';
 
 /** Management → Customers: search by name, phone or area; add; open for details and debts. */
 export default function CustomersRoute() {
   const ctx = useCtx();
   const readable = useReadable();
   const system = ctx.system;
+  const searchRef = useSearchShortcut();
+  const add = () =>
+    router.push({ pathname: '/[system]/customer-form/[id]', params: { system, id: 'new' } });
+  useShortcut('new', add);
   const [search, setSearch] = useState('');
   const read = useCallback(() => {
     const balances = allBalances(ctx);
@@ -34,6 +39,7 @@ export default function CustomersRoute() {
     <>
       <Stack.Title>الزبائن</Stack.Title>
       <Stack.SearchBar
+        ref={searchRef}
         placeholder="الاسم أو الهاتف أو المنطقة"
         cancelButtonText="إلغاء"
         hideWhenScrolling={false}
@@ -41,13 +47,7 @@ export default function CustomersRoute() {
         onCancelButtonPress={() => setSearch('')}
       />
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          icon="plus"
-          accessibilityLabel="زبون جديد"
-          onPress={() =>
-            router.push({ pathname: '/[system]/customer-form/[id]', params: { system, id: 'new' } })
-          }
-        />
+        <Stack.Toolbar.Button icon="plus" accessibilityLabel="زبون جديد" onPress={add} />
       </Stack.Toolbar>
       <FlashList
         data={rows}
