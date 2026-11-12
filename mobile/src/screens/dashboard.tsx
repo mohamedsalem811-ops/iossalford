@@ -278,7 +278,7 @@ function TodayCard({ data, piece }: { data: DashboardData; piece: string }) {
 
 function AttentionCard({ data, actions }: { data: DashboardData; actions: DashboardActions }) {
   const a = data.attention;
-  const nothing = !a.lowCount && !a.outCount && !a.owed && !a.backupReminder;
+  const nothing = !a.lowCount && !a.outCount && !a.owed && !a.backupReminder && !a.dataProblem;
   return (
     <Card style={{ flex: 1 }} testID="attention">
       <Title>يحتاج انتباهك</Title>
@@ -288,6 +288,16 @@ function AttentionCard({ data, actions }: { data: DashboardData; actions: Dashbo
         </Text>
       ) : (
         <ListGroup>
+          {a.dataProblem ? (
+            <ListRow
+              icon="exclamationmark.octagon"
+              tone="warning"
+              title="فحص البيانات وجد مشكلة"
+              subtitle="افتح النسخ الاحتياطي واحفظ نسخة الآن، واحتفظ بآخر نسخة سليمة."
+              onPress={actions.onOpenBackup}
+              testID="attention-data"
+            />
+          ) : null}
           {a.outCount || a.lowCount ? (
             <ListRow
               icon="exclamationmark.triangle"

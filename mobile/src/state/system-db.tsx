@@ -4,6 +4,8 @@ import { saveUpgradeCopy } from '@/backup/store';
 import { openSystemDb, type OpenResult } from '@/db/manager';
 import type { Ctx } from '@/domain/context';
 import type { SystemId } from '@/theme';
+import { withChangeSignal } from '@/db/change-signal';
+import { scheduleDataChanged } from '@/state/data-events';
 
 /** Each system's database is opened once per app run and kept open. Errors are not kept. */
 const opened = new Map<SystemId, OpenResult>();
@@ -39,7 +41,11 @@ export function CtxProvider({
   system: SystemId;
   children: ReactNode;
 }) {
-  const value = useMemo<Ctx>(() => ({ db, system, now: () => new Date() }), [db, system]);
+  // Every change to the data refreshes the open screens (see data-events).
+  const value = useMemo<Ctx>(
+    () => ({ db: withChangeSignal(db, scheduleDataChanged), system, now: () => new Date() }),
+    [db, system],
+  );
   return <CtxContext.Provider value={value}>{children}</CtxContext.Provider>;
 }
 
