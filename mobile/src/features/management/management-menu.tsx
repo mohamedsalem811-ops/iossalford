@@ -21,6 +21,7 @@ export const SECTION_ROUTE: Record<ManageTarget, string> = {
   comparison: 'comparison',
   brands: 'brands',
   sets: 'manage-sets',
+  archived: 'archived',
   backup: 'backup',
   settings: 'settings',
 };

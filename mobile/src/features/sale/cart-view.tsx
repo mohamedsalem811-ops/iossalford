@@ -13,7 +13,7 @@ import { useOnDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
 import { showCartProblem } from './actions';
-import { cartGroups, cartTotals, stockWarnings } from './model';
+import { belowCostNote, cartGroups, cartTotals, stockWarnings } from './model';
 import { haptic } from '@/lib/haptics';
 
 /**
@@ -92,6 +92,16 @@ export function CartView({
     </Pressable>
   );
 
+  // Single pieces only: a set's discount lowering a piece's share is intended.
+  const costNote = (line: CartLine) => {
+    const note = belowCostNote(line.unitPrice, getProduct(ctx, line.productId)?.cost ?? 0);
+    return note ? (
+      <Text variant="caption" tone="warning" testID="cart-below-cost">
+        {note}
+      </Text>
+    ) : null;
+  };
+
   const warning = (productId: number) =>
     warnings.get(productId) ? (
       <Text variant="caption" tone="warning" testID="cart-warning">
@@ -139,6 +149,7 @@ export function CartView({
                   {removeButton(g.line.key, g.line.name)}
                 </View>
                 {warning(g.line.productId)}
+                {costNote(g.line)}
                 <View
                   style={{
                     flexDirection: 'row',

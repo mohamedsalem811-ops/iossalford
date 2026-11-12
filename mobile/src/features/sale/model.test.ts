@@ -2,6 +2,7 @@ import { addSet, addToCart, type CartLine } from '@/domain/cart';
 import type { Product } from '@/domain/products';
 
 import {
+  belowCostNote,
   cartGroups,
   cartTotals,
   checkAddForm,
@@ -140,5 +141,14 @@ describe('checkoutProblem', () => {
     expect(checkoutProblem(credit, cart)).toContain('البيع الآجل');
     expect(checkoutProblem({ ...credit, phone: '0912345678' }, cart)).toBeNull();
     expect(checkoutProblem({ ...credit, name: 'سارة' }, cart)).toBeNull();
+  });
+});
+
+describe('the below-cost note', () => {
+  it('shows only when a piece is priced above zero but under its cost', () => {
+    expect(belowCostNote(150_000, 200_000)).toBe('أقل من التكلفة (200 د.ل)');
+    expect(belowCostNote(200_000, 200_000)).toBeNull();
+    expect(belowCostNote(0, 200_000)).toBeNull(); // a gift
+    expect(belowCostNote(150_000, 0)).toBeNull(); // cost unknown
   });
 });

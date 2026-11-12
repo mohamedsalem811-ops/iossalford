@@ -6,6 +6,7 @@ const NAMES = [
   '(tabs)/more/index',
   '(tabs)/more/brands',
   '(tabs)/more/manage-sets',
+  '(tabs)/more/archived',
   '(tabs)/more/settings',
   'change-pin',
   '(tabs)/more/sales',

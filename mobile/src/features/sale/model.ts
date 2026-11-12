@@ -5,7 +5,7 @@ import { hasIdentity } from '@/domain/customers';
 import type { Product } from '@/domain/products';
 import type { ScarfDesign } from '@/domain/scarves';
 import { parseInteger, parseThousandths } from '@/lib/digits';
-import { lydToUsd } from '@/lib/money';
+import { lydToUsd, formatDinars } from '@/lib/money';
 import { applyQuery, DEFAULT_QUERY, type BrandFilter } from '@/features/products/model';
 import { applyDesignQuery, DEFAULT_DESIGN_QUERY } from '@/features/scarves/model';
 import type { SystemId } from '@/theme';
@@ -142,4 +142,13 @@ export function checkoutProblem(f: CheckoutForm, cart: CartLine[]): string | nul
   if (f.method === 'credit' && !hasIdentity(f.name, f.phone))
     return 'البيع الآجل يحتاج اسم الزبون أو رقم هاتفه لتسجيل الدين عليه';
   return null;
+}
+
+/**
+ * A gentle note when a piece is priced below what it cost (a typo, or a deliberate loss), or null.
+ * A free piece (price 0) and a piece with no known cost get no note.
+ */
+export function belowCostNote(unitPrice: number, cost: number): string | null {
+  if (cost <= 0 || unitPrice <= 0 || unitPrice >= cost) return null;
+  return `أقل من التكلفة (${formatDinars(cost)} د.ل)`;
 }
