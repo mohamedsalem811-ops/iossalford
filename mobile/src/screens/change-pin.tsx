@@ -3,41 +3,50 @@ import { View } from 'react-native';
 
 import { Page, Text } from '@/components';
 import { PinPad } from '@/components/pin-pad';
-import { pinProblem, type VerifyResult } from '@/security/pin';
-import { spacing, type SystemId } from '@/theme';
+import { pinLengthOf, pinProblem, type PinAccount, type VerifyResult } from '@/security/pin';
+import { spacing } from '@/theme';
 
 import { attemptsLeftText, countdown } from './login';
 import { haptic } from '@/lib/haptics';
 
 export type ChangePinDeps = {
-  verify: (system: SystemId, pin: string) => Promise<VerifyResult>;
-  setPin: (system: SystemId, pin: string) => Promise<void>;
+  verify: (account: PinAccount, pin: string) => Promise<VerifyResult>;
+  setPin: (account: PinAccount, pin: string) => Promise<void>;
   now?: () => number;
 };
 
 type Step = 'current' | 'new' | 'confirm';
 
-const PROMPTS: Record<Step, string> = {
+const prompts = (length: number): Record<Step, string> => ({
   current: 'أدخل الرمز الحالي',
-  new: 'أدخل الرمز الجديد (8 أرقام)',
+  new: `أدخل الرمز الجديد (${length} أرقام)`,
   confirm: 'أعد إدخال الرمز الجديد',
-};
+});
 
 /**
- * Changes the system's PIN: the current PIN first (wrong attempts count towards the lockout, as on
- * the login screen), then the new PIN twice. Easy PINs are refused, and so is the same PIN.
+ * Changes a PIN: the current PIN first (wrong attempts count towards the lockout, as on the login
+ * screen), then the new PIN twice. Easy PINs are refused, and so is the same PIN. With
+ * `skipCurrent` (an employee's first sign-in, or after the owner's emergency code) it starts at
+ * the new PIN.
  */
 export function ChangePinScreen({
-  system,
+  account,
   deps,
   onDone,
+  skipCurrent = false,
+  note = 'الرمز يحمي هذا النظام فقط، ويُحفظ على هذا الجهاز وحده.',
 }: {
-  system: SystemId;
+  account: PinAccount;
   deps: ChangePinDeps;
   onDone: () => void;
+  skipCurrent?: boolean;
+  /** The line under the keypad. */
+  note?: string;
 }) {
+  const length = pinLengthOf(account);
+  const PROMPTS = prompts(length);
   const now = deps.now ?? Date.now;
-  const [step, setStep] = useState<Step>('current');
+  const [step, setStep] = useState<Step>(skipCurrent ? 'new' : 'current');
   const [current, setCurrent] = useState('');
   const [first, setFirst] = useState('');
   const [value, setValue] = useState('');
@@ -59,7 +68,7 @@ export function ChangePinScreen({
     if (step === 'current') {
       setBusy(true);
       try {
-        const r = await deps.verify(system, pin);
+        const r = await deps.verify(account, pin);
         if (r.ok) {
           setCurrent(pin);
           return next('new');
@@ -73,7 +82,7 @@ export function ChangePinScreen({
       }
     }
     if (step === 'new') {
-      const problem = pinProblem(pin);
+      const problem = pinProblem(pin, length);
       if (problem) return fail(problem);
       if (pin === current) return fail('الرمز الجديد يجب أن يختلف عن الحالي');
       setFirst(pin);
@@ -86,7 +95,7 @@ export function ChangePinScreen({
     }
     setBusy(true);
     try {
-      await deps.setPin(system, pin);
+      await deps.setPin(account, pin);
       haptic.success();
       onDone();
     } catch {
@@ -111,11 +120,12 @@ export function ChangePinScreen({
         value={value}
         onChange={setValue}
         onComplete={complete}
+        length={length}
         disabled={busy}
         error={!!message}
       />
       <Text variant="caption" tone="secondary" center>
-        الرمز يحمي هذا النظام فقط، ويُحفظ على هذا الجهاز وحده.
+        {note}
       </Text>
     </Page>
   );

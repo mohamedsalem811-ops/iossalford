@@ -9,7 +9,7 @@ import {
   type FaceIdResult,
   type FaceIdStatus,
 } from '@/security/face-id';
-import type { VerifyResult } from '@/security/pin';
+import { pinLengthOf, type PinAccount, type VerifyResult } from '@/security/pin';
 import { spacing, type SystemId } from '@/theme';
 import { haptic } from '@/lib/haptics';
 
@@ -29,11 +29,11 @@ export function attemptsLeftText(n: number): string {
 }
 
 export type LoginDeps = {
-  verify: (system: SystemId, pin: string) => Promise<VerifyResult>;
-  lockedUntil: (system: SystemId) => Promise<number>;
+  verify: (account: PinAccount, pin: string) => Promise<VerifyResult>;
+  lockedUntil: (account: PinAccount) => Promise<number>;
   faceIdStatus: (system: SystemId) => Promise<FaceIdStatus>;
   askFaceId: () => Promise<FaceIdResult>;
-  clearFailures: (system: SystemId) => Promise<void>;
+  clearFailures: (account: PinAccount) => Promise<void>;
   now?: () => number;
 };
 
@@ -44,18 +44,31 @@ export type LoginDeps = {
  */
 export function LoginScreen({
   system,
+  account = system,
+  person,
   deps,
   onUnlock,
   onBack,
+  backLabel = 'تغيير النظام',
+  onForgot,
   active = true,
 }: {
   system: SystemId;
+  /** Whose PIN: the owner's of this system (the default) or an employee's. */
+  account?: PinAccount;
+  /** The name shown under the system's name ("المالك", an employee's name). */
+  person?: string;
   deps: LoginDeps;
   onUnlock: () => void;
   onBack: () => void;
+  backLabel?: string;
+  /** The owner forgot the PIN: the emergency code. */
+  onForgot?: () => void;
   /** False while the app is hidden (background, app switcher). */
   active?: boolean;
 }) {
+  // Face ID is the owner's only (it proves the device's owner, not which employee is there).
+  const ownerAccount = account === system;
   const now = deps.now ?? Date.now;
   const [value, setValue] = useState('');
   const [message, setMessage] = useState<string | null>(null);
@@ -69,25 +82,25 @@ export function LoginScreen({
     setFaceMessage(null);
     const r = await deps.askFaceId();
     if (r.ok) {
-      await deps.clearFailures(system);
+      await deps.clearFailures(account);
       onUnlock();
     } else setFaceMessage(faceIdFailure(r.error));
-  }, [deps, onUnlock, system]);
+  }, [deps, onUnlock, account]);
 
   // Read the lockout and whether Face ID is set up.
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const lockedUntil = await deps.lockedUntil(system);
+      const lockedUntil = await deps.lockedUntil(account);
       if (cancelled) return;
       setUntil(lockedUntil);
-      const status = await deps.faceIdStatus(system);
+      const status = ownerAccount ? await deps.faceIdStatus(system) : 'none';
       if (!cancelled) setFaceId(status);
     })();
     return () => {
       cancelled = true;
     };
-  }, [deps, system]);
+  }, [deps, system, account, ownerAccount]);
 
   // Offer Face ID once, as soon as the app is on screen (the login appears while the app is in
   // the background after an auto-lock; asking then would fail). Never again on a re-render.
@@ -117,7 +130,7 @@ export function LoginScreen({
   const complete = async (pin: string) => {
     setBusy(true);
     try {
-      const r = await deps.verify(system, pin);
+      const r = await deps.verify(account, pin);
       setValue('');
       if (r.ok) {
         haptic.success();
@@ -143,11 +156,12 @@ export function LoginScreen({
     <Screen contentStyle={{ alignItems: 'center', gap: spacing.lg }}>
       <View style={{ alignSelf: 'stretch' }}>
         <Button
-          title="تغيير النظام"
+          title={backLabel}
           icon="chevron.backward"
           variant="ghost"
           size="sm"
           onPress={onBack}
+          testID="login-back"
         />
       </View>
       <Logo system={system} width={150} />
@@ -155,6 +169,11 @@ export function LoginScreen({
         <Text variant="title" center>
           {NAMES[system]}
         </Text>
+        {person ? (
+          <Text variant="headline" tone="accent" center testID="login-person">
+            {person}
+          </Text>
+        ) : null}
         <Text
           variant="subhead"
           tone={message || locked ? 'warning' : 'secondary'}
@@ -169,11 +188,21 @@ export function LoginScreen({
         value={value}
         onChange={setValue}
         onComplete={complete}
+        length={pinLengthOf(account)}
         disabled={locked || busy}
         error={!!message && !locked}
       />
       {faceId === 'ready' && !locked ? (
         <Button title="الدخول بـ Face ID" icon="faceid" variant="secondary" onPress={tryFaceId} />
+      ) : null}
+      {onForgot ? (
+        <Button
+          title="نسيت الرمز؟"
+          variant="ghost"
+          size="sm"
+          onPress={onForgot}
+          testID="login-forgot"
+        />
       ) : null}
       {faceLine ? (
         <Text variant="subhead" tone="secondary" center testID="face-id-message">

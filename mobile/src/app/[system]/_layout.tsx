@@ -4,19 +4,26 @@ import { useCallback } from 'react';
 import { AutoBackup } from '@/backup/auto-backup';
 import { KeyboardBar } from '@/components/keyboard-bar';
 import { DbErrorScreen } from '@/screens/db-error';
-import { LoginScreen, type LoginDeps } from '@/screens/login';
+import { SignInScreen, type SignInDeps } from '@/screens/sign-in';
+import { activeEmployees, setMustChangePin, type Actor } from '@/staff/model';
+import { getStaff, saveStaff, useStaff } from '@/staff/store';
 import { askFaceId, faceIdStatus, pinVault, rememberSystem } from '@/security/device';
 import { useLock } from '@/state/lock';
 import { CtxProvider, useCtx, useSystemDb } from '@/state/system-db';
 import { fonts, ThemeProvider, useTheme, type SystemId } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
 
-const loginDeps: LoginDeps = {
-  verify: (system, pin) => pinVault.verify(system, pin),
-  lockedUntil: (system) => pinVault.lockedUntil(system),
-  clearFailures: (system) => pinVault.clearFailures(system),
+const signInDeps: SignInDeps = {
+  verify: (account, pin) => pinVault.verify(account, pin),
+  lockedUntil: (account) => pinVault.lockedUntil(account),
+  clearFailures: (account) => pinVault.clearFailures(account),
   faceIdStatus,
   askFaceId,
+  hasPin: (account) => pinVault.hasPin(account),
+  setPin: (account, pin) => pinVault.setPin(account, pin),
+  hasEmergencyCode: () => pinVault.hasEmergencyCode(),
+  checkEmergencyCode: (code) => pinVault.checkEmergencyCode(code),
+  pinChanged: (id) => saveStaff(setMustChangePin(getStaff(), id, false)),
 };
 
 const toChooser = () => router.replace('/');
@@ -40,16 +47,21 @@ export default function SystemLayout() {
 
 function SystemGate({ system }: { system: SystemId }) {
   const { unlocked, unlock, active } = useLock();
-  const onUnlock = useCallback(() => {
-    rememberSystem(system);
-    unlock(system);
-  }, [system, unlock]);
+  const staff = useStaff();
+  const onUnlock = useCallback(
+    (who: Actor) => {
+      rememberSystem(system);
+      unlock(system, who);
+    },
+    [system, unlock],
+  );
 
   if (unlocked !== system) {
     return (
-      <LoginScreen
+      <SignInScreen
         system={system}
-        deps={loginDeps}
+        employees={activeEmployees(staff)}
+        deps={signInDeps}
         onUnlock={onUnlock}
         onBack={toChooser}
         active={active}
