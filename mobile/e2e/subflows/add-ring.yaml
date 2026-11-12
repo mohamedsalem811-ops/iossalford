@@ -19,30 +19,30 @@ appId: com.salford.pos
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'
-- scrollUntilVisible:
-    element:
-      id: 'product-price'
-    direction: DOWN
+- runFlow:
+    file: scroll-form.yaml
+    env:
+      ID: 'product-price'
 - tapOn:
     id: 'product-price'
 - inputText: '350'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'
-- scrollUntilVisible:
-    element:
-      id: 'product-cost'
-    direction: DOWN
+- runFlow:
+    file: scroll-form.yaml
+    env:
+      ID: 'product-cost'
 - tapOn:
     id: 'product-cost'
 - inputText: '200'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'
-- scrollUntilVisible:
-    element:
-      id: 'product-stock'
-    direction: DOWN
+- runFlow:
+    file: scroll-form.yaml
+    env:
+      ID: 'product-stock'
 - tapOn:
     id: 'product-stock'
 - eraseText
@@ -50,10 +50,10 @@ appId: com.salford.pos
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'
-- scrollUntilVisible:
-    element:
-      id: 'product-save'
-    direction: DOWN
+- runFlow:
+    file: scroll-form.yaml
+    env:
+      ID: 'product-save'
 - tapOn:
     id: 'product-save'
 - extendedWaitUntil:

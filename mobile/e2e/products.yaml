@@ -33,34 +33,40 @@ appId: com.salford.pos
 - tapOn:
     id: 'keyboard.toolbar.done'
 - assertVisible: 'ماركة جديدة — ستُضاف للقائمة عند الحفظ'
-- scrollUntilVisible:
-    element:
-      id: 'product-price'
-    direction: DOWN
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'product-price'
 - tapOn:
     id: 'product-price'
 - inputText: '350'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'
-- scrollUntilVisible:
-    element:
-      id: 'product-cost'
-    direction: DOWN
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'product-cost'
 - tapOn:
     id: 'product-cost'
 - inputText: '200'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'
-- scrollUntilVisible:
-    element: '150 د.ل • 43٪'
-    direction: DOWN
+- repeat:
+    times: 8
+    while:
+      notVisible: '150 د.ل • 43٪'
+    commands:
+      - swipe:
+          start: 20%, 75%
+          end: 20%, 45%
+          duration: 600
 - takeScreenshot: ${DEVICE}-product-form
-- scrollUntilVisible:
-    element:
-      id: 'product-save'
-    direction: DOWN
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'product-save'
 - tapOn:
     id: 'product-save'
 - extendedWaitUntil:
