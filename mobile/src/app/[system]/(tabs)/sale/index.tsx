@@ -13,6 +13,7 @@ import { useLayout } from '@/hooks/use-layout';
 import { useCart } from '@/state/cart';
 import { useCtx } from '@/state/system-db';
 import { errorBoundary } from '@/components/error-screen';
+import { useSearchShortcut } from '@/lib/key-commands';
 
 /**
  * Selling: search, brand and category, then the products as a grid. Tap adds one piece (a scarf
@@ -22,6 +23,7 @@ import { errorBoundary } from '@/components/error-screen';
 export default function SaleRoute() {
   const ctx = useCtx();
   const system = ctx.system;
+  const searchRef = useSearchShortcut();
   const [query, setQuery] = useState<SaleQuery>(DEFAULT_SALE_QUERY);
   const data = useProducts(ctx, setQuery, system === 'scarves' ? firstOfEachDesign : undefined);
   const { cart } = useCart(system);
@@ -59,6 +61,7 @@ export default function SaleRoute() {
     <>
       <Stack.Title>بيع</Stack.Title>
       <Stack.SearchBar
+        ref={searchRef}
         placeholder={
           system === 'scarves'
             ? 'التصميم أو الماركة أو اللون أو الكود'

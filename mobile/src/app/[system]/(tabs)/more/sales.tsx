@@ -14,10 +14,12 @@ import { usePaged } from '@/hooks/use-paged';
 import { useReadable } from '@/hooks/use-readable';
 import { spacing } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
+import { useSearchShortcut } from '@/lib/key-commands';
 
 /** Management → Sales history: every checkout as one sale, by month and payment, searchable. */
 export default function SalesRoute() {
   const ctx = useCtx();
+  const searchRef = useSearchShortcut();
   const readable = useReadable();
   const [query, setQuery] = useState<SaleQuery>({});
   const shown = usePaged(
@@ -41,6 +43,7 @@ export default function SalesRoute() {
     <>
       <Stack.Title>سجل المبيعات</Stack.Title>
       <Stack.SearchBar
+        ref={searchRef}
         placeholder="القطعة أو الكود أو الزبون"
         cancelButtonText="إلغاء"
         hideWhenScrolling={false}

@@ -29,8 +29,10 @@ describe.each(cases)('%s %s palette', (system, mode) => {
     expect(contrast(p.text, p.surface)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('has readable secondary text on cards (4.5:1)', () => {
+  it('has readable secondary text on cards, the page and soft accent fills (4.5:1)', () => {
     expect(contrast(p.textSecondary, p.surface)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(p.textSecondary, p.background)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(p.textSecondary, p.accentSoft)).toBeGreaterThanOrEqual(4.5);
   });
 
   it('has readable text on the accent hero card (4.5:1)', () => {
@@ -42,8 +44,11 @@ describe.each(cases)('%s %s palette', (system, mode) => {
     expect(contrast(p.accent, p.accentSoft)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it('has readable warnings on cards (4.5:1)', () => {
+  it('has readable warnings on cards, the page and soft accent fills (4.5:1)', () => {
     expect(contrast(p.warning, p.surface)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(p.warning, p.background)).toBeGreaterThanOrEqual(4.5);
+    // The stock pill: "منخفض" / "نفد" on the soft accent fill.
+    expect(contrast(p.warning, p.accentSoft)).toBeGreaterThanOrEqual(4.5);
   });
 });
 

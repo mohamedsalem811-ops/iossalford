@@ -1,4 +1,5 @@
 export { Button } from './button';
+export { Appear } from './appear';
 export type { ButtonSize, ButtonVariant } from './button';
 export { Card, HeroCard } from './card';
 export { Badge, ChipRow, FilterChip, Stat } from './chips';

@@ -1,7 +1,7 @@
 import { router, Stack, useSegments } from 'expo-router';
 import { View } from 'react-native';
 
-import { LIST_PANE_WIDTH } from '@/components/split-view';
+import { useListPaneWidth } from '@/components/split-view';
 import { useTabStackOptions } from '@/components/tab-stack';
 import {
   ManagementMenu,
@@ -26,6 +26,7 @@ import { errorBoundary } from '@/components/error-screen';
 export default function ManagementLayout() {
   const { split } = useLayout();
   const { colors } = useTheme();
+  const paneWidth = useListPaneWidth();
   const options = useTabStackOptions();
   const system = useCtx().system;
   const segments = useSegments() as string[];
@@ -43,7 +44,7 @@ export default function ManagementLayout() {
     <View style={{ flex: 1, flexDirection: 'row', backgroundColor: colors.background }}>
       {split ? (
         <View
-          style={{ width: LIST_PANE_WIDTH, borderEndWidth: 1, borderEndColor: colors.separator }}
+          style={{ width: paneWidth, borderEndWidth: 1, borderEndColor: colors.separator }}
           testID="manage-sidebar">
           <ManagementMenu selected={selected} onOpen={open} />
         </View>

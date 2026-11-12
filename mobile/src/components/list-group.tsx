@@ -23,7 +23,11 @@ export function ListGroup({
   return (
     <View style={{ gap: spacing.xs }}>
       {header ? (
-        <Text variant="subhead" tone="secondary" style={{ paddingHorizontal: spacing.xs }}>
+        <Text
+          variant="subhead"
+          tone="secondary"
+          accessibilityRole="header"
+          style={{ paddingHorizontal: spacing.xs }}>
           {header}
         </Text>
       ) : null}

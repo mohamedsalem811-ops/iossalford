@@ -8,11 +8,13 @@ import { deletePhotoFile } from '@/lib/photos';
 import { notifyDataChanged } from '@/state/data-events';
 
 import { deleteMessage } from './model';
+import { haptic } from '@/lib/haptics';
 
 /** Shows a refused action's Arabic message (or a general one for an unexpected error). */
 export function showError(error: unknown) {
   const message =
     error instanceof RuleError ? error.message : 'حدث خطأ غير متوقع، لم يُحفظ أي تغيير.';
+  haptic.error();
   Alert.alert('لم يتم الحفظ', message, [{ text: 'حسناً' }]);
 }
 

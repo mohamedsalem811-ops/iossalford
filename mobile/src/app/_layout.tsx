@@ -10,6 +10,7 @@ import { KeyboardBar } from '@/components/keyboard-bar';
 import { PrivacyCover } from '@/components/privacy-cover';
 import { excludeAppDataFromBackup } from '@/backup/exclusion';
 import { installGlobalErrorLog, logError } from '@/lib/error-log';
+import { installKeyCommands } from '@/lib/key-commands';
 import { moveLegacyData } from '@/lib/storage';
 import { applySavedAppearance } from '@/state/appearance';
 import { LockProvider } from '@/state/lock';
@@ -38,6 +39,9 @@ export default function RootLayout() {
     // If a font file fails to load, continue with the system font rather than stay on the splash.
     if (loaded || error) SplashScreen.hideAsync();
   }, [loaded, error]);
+
+  // iPad keyboard shortcuts (⌘F, ⌘N), once the window exists.
+  useEffect(installKeyCommands, []);
 
   if (!loaded && !error) return null;
 

@@ -24,6 +24,7 @@ import { printReceipt, shareReceipt } from '@/receipts/output';
 import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { errorBoundary } from '@/components/error-screen';
+import { useSearchShortcut, useShortcut } from '@/lib/key-commands';
 
 /**
  * The receipts tab: every receipt, newest first. Search by number, customer or piece; filter by
@@ -33,6 +34,7 @@ import { errorBoundary } from '@/components/error-screen';
 export default function ReceiptsRoute() {
   const ctx = useCtx();
   const system = ctx.system;
+  const searchRef = useSearchShortcut();
   const [query, setQuery] = useState<ReceiptQuery>({});
   const shown = usePaged(
     useCallback(
@@ -52,6 +54,7 @@ export default function ReceiptsRoute() {
 
   const open = (id: number | 'new') =>
     router.push({ pathname: '/[system]/receipt/[id]', params: { system, id: String(id) } });
+  useShortcut('new', () => open('new'));
   const fail = () => Alert.alert('تعذّر إنشاء ملف الإيصال', 'حاول مرة أخرى.');
   // iPad: the receipt shown beside the list (read again with the list, so edits show at once).
   const { split } = useLayout();
@@ -64,6 +67,7 @@ export default function ReceiptsRoute() {
     <>
       <Stack.Title>الإيصالات</Stack.Title>
       <Stack.SearchBar
+        ref={searchRef}
         placeholder="رقم الإيصال أو الزبون أو القطعة"
         cancelButtonText="إلغاء"
         hideWhenScrolling={false}

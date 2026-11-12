@@ -39,6 +39,7 @@ import {
   type ProductForm,
 } from './form-model';
 import { PhotoPicker } from './photo-picker';
+import { haptic } from '@/lib/haptics';
 
 /**
  * Add or edit a piece: photo, details, price with live profit, and stock. Saving checks the code
@@ -93,6 +94,7 @@ export function ProductFormView({
     const problems = validateForm(form);
     const first = Object.values(problems)[0];
     if (first) {
+      haptic.error();
       Alert.alert('لم يتم الحفظ', first);
       return;
     }

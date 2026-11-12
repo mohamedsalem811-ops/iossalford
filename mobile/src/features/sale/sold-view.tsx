@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
-import { Button, EmptyState, Icon, Text } from '@/components';
+import { Appear, Button, EmptyState, Icon, Text } from '@/components';
 import { PAYMENT_LABELS } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
 import { receiptForSale } from '@/domain/receipts';
@@ -44,7 +44,9 @@ export function SoldView({
         contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}
         contentInsetAdjustmentBehavior="automatic">
         <View style={{ alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.lg }}>
-          <Icon name="checkmark.circle.fill" size={64} color={colors.accent} />
+          <Appear kind="pop">
+            <Icon name="checkmark.circle.fill" size={64} color={colors.accent} />
+          </Appear>
           <Text variant="title" center testID="sold-title">
             تم البيع بنجاح
           </Text>

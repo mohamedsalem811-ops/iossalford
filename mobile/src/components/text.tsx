@@ -28,6 +28,8 @@ export function Text({ variant = 'body', tone = 'primary', center, style, ...pro
   return (
     <RNText
       maxFontSizeMultiplier={1.6}
+      // Titles are headings for VoiceOver, so the rotor can jump between the sections of a screen.
+      accessibilityRole={variant === 'title' || variant === 'largeTitle' ? 'header' : undefined}
       style={[type[variant], { color, textAlign: center ? 'center' : 'left' }, style]}
       {...props}
     />

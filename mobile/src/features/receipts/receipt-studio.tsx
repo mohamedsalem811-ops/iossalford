@@ -50,6 +50,7 @@ import {
   type StudioItem,
 } from './model';
 import { ReceiptPreview } from './receipt-preview';
+import { haptic } from '@/lib/haptics';
 
 const PICK_LIMIT = 20;
 
@@ -104,6 +105,7 @@ export function ReceiptStudio({
     const problem = studioProblem(form);
     if (problem) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      haptic.error();
       Alert.alert('لم يتم الحفظ', problem);
       return null;
     }

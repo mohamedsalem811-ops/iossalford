@@ -17,6 +17,17 @@ async function wrap(node: ReactNode, system: SystemId = 'jewelry') {
 }
 
 describe('Text', () => {
+  it('marks titles as headings for VoiceOver, and nothing else', async () => {
+    await wrap(
+      <>
+        <Text variant="title">العنوان</Text>
+        <Text>نص</Text>
+      </>,
+    );
+    expect(screen.getByRole('header', { name: 'العنوان' })).toBeOnTheScreen();
+    expect(screen.queryByRole('header', { name: 'نص' })).toBeNull();
+  });
+
   it('aligns to the start edge and uses the theme colour', async () => {
     await wrap(<Text tone="accent">مرحبا</Text>);
     const el = screen.getByText('مرحبا');

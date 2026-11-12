@@ -368,10 +368,10 @@ Then the dashboard:
 - **9.3** iPad:
   - every orientation;
   - Split View and Stage Manager sizes.
-  - **NEW:** keyboard shortcuts (⌘F search, ⌘N new product).
+  - **NEW:** keyboard shortcuts with a hardware keyboard: ⌘F focuses the search of the screen in front (products, sale, receipts, sales, customers), ⌘N adds a new one (piece or design, receipt, customer); holding ⌘ lists them. A small native module (`modules/key-commands`), added with the owner's OK; needs a new `.ipa`.
 - **9.4** Speed test with 2,000 products and 10,000 sales, repeated on the finished app (first done in Phase 8, step 8.0l). **NEW**
-- **9.5** App icon, launch screen, app name.
-- **9.6** Full tap-through test run and final screenshots on iPhone and iPad. **NEW**
+- **9.5** App icon, launch screen, app name. Owner's choice (2026-11-12) of two drawn from the logo's typefaces: **A, "Midnight"**: a white S with gold four-point stars and SALFORD in gold on dark navy, with dark-mode and tinted versions; the launch screen shows the same mark on navy.
+- **9.6** ~~Full tap-through test run and final screenshots~~: moved to step 10.0 with the owner's full test list (owner's decision, 2026-11-12).
 
 ### Phase 10: switching over
 
@@ -449,10 +449,11 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
   - **Plan changes:** the speed test moved to Phase 8 (8.0l); no chart library: the dashboard draws its own bars, with tap-to-see the day's total and breakdowns as ranked rows, and the first Phase 8 preview compares them with Apple's own charts; the missing tap-through tests written in Phase 8 (8.0f); this document brought up to date.
   - **Way of working:** a screenshot run on iPhone and iPad at the end of every phase (replaced on 2026-11-12: all simulator runs moved to step 10.0); Expo Go no longer limits the choice of libraries (a native library only when clearly better, after asking).
   - **Instant updates** (L6) brought forward to the first step of Phase 8 (8.0a): they don't need the developer account. Updates go to the installed app only with the owner's OK; offline use is unchanged.
+- After the Phase 8 test (2026-11-12): the backup picker accepts every file (iOS has no type for ".db"); one automatic backup per hour plus the newest of each of the last 7 days; date-first backup names; a new home screen and photo cards for products on iPad, sent as an instant update. Opening a backup straight from AirDrop or Files ("Open in SALFORD") was offered and declined: a backup is restored from Backup → Restore.
 - Offline: the app works fully without the internet, and every phase's self-check confirms nothing new needs it.
 - Long-life review (2026-11-11), approved by the owner: backups become copies of the database file, written safely and checked (8.0g); the copy off the device is handled one photo at a time (8.0h); database upgrades are made safe and ship only in a new `.ipa` (8.0i); restore saves its safety copy first (8.0j); errors show a retry screen and go to a log on the device (8.0k); the speed test also runs with 30,000 sales (8.0l). Standing practice: Sideloadly's automatic refresh, one Expo SDK upgrade a year, the repository kept public (section 2).
 - Owner (2026-11-11): re-signing every 7 days is mandatory until the developer account, and the yearly Expo SDK upgrade is accepted. Once the build is finished the owner gets the Apple Developer account, and the project ends with Phase 11: TestFlight, iCloud backup, final polish and submitting to the App Store (no longer optional).
 
 - Phase 8 (built, owner to test): instant updates need one new `.ipa` (build 2) before they reach the devices; after installing it, it is recorded with `npm run update:record`. Backups are now copies of the database file (`.db`); `.json` backups from before still restore. A restore keeps sale and receipt numbers from ever repeating, also from an older backup (found while testing 8.0g). The speed test is `npm run speed`: with 2,000 products and 30,000 sales every screen reads in under 25 ms on a computer (Customers and Debts were changed to one query for all balances). The dashboard's daily chart has a temporary switch to Apple's charts so the owner can choose; the other one is removed afterwards. Errors are kept in a log on the device (Settings → سجل الأخطاء).
 
-Status: Phases 0 to 7 are merged; Phase 8 is built (PR open), waiting for the owner's test on the devices (chart chosen: the app's own).
+Status: Phases 0 to 8 are merged, with the fixes from the owner's Phase 8 test (sent as an instant update). Phase 9 is built (PR open): haptics and animations, VoiceOver headings, contrast, iPad window sizes, speed test passed. Keyboard shortcuts added and the new icon and launch screen chosen (option A, "Midnight"); both need a new `.ipa`.

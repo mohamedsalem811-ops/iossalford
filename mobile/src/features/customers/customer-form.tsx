@@ -19,6 +19,7 @@ import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
 import { customerFormFrom, customerFormToInput, type CustomerForm } from './model';
+import { haptic } from '@/lib/haptics';
 
 /** Adds or edits a customer. A phone number already used by another customer is refused. */
 export function CustomerFormView({
@@ -38,6 +39,7 @@ export function CustomerFormView({
   const set = (k: keyof CustomerForm, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const save = () => {
     if (!form.name.trim()) {
+      haptic.error();
       Alert.alert('لم يتم الحفظ', 'يرجى إدخال اسم الزبون');
       return;
     }

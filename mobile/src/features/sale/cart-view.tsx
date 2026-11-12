@@ -2,7 +2,7 @@ import * as Haptics from 'expo-haptics';
 import { useReducer } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 
-import { Button, Card, EmptyState, Icon, Stepper, Text } from '@/components';
+import { Appear, Button, Card, EmptyState, Icon, Stepper, Text } from '@/components';
 import { lineTotal, removeLine, setQuantity, setUnitPrice, type CartLine } from '@/domain/cart';
 import type { Ctx } from '@/domain/context';
 import { getProduct } from '@/domain/products';
@@ -121,66 +121,70 @@ export function CartView({
         contentInsetAdjustmentBehavior={embedded ? 'never' : 'automatic'}>
         {cartGroups(cart).map((g) =>
           g.kind === 'line' ? (
-            <Card key={g.key} testID={`cart-line-${g.line.name}`}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
-                <View style={{ flex: 1, gap: spacing.xxs }}>
-                  <Text variant="bodyStrong">{g.line.name}</Text>
-                  <Pressable
-                    onPress={() => editPrice(g.line)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`سعر القطعة ${formatLyd(g.line.unitPrice)}، اضغط للتعديل`}
-                    testID={`cart-price-${g.line.name}`}>
-                    <Text variant="subhead" tone="accent">
-                      {`${formatLyd(g.line.unitPrice)} للقطعة ✎`}
-                    </Text>
-                  </Pressable>
-                </View>
-                {removeButton(g.line.key, g.line.name)}
-              </View>
-              {warning(g.line.productId)}
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                }}>
-                <Stepper
-                  value={g.line.quantity}
-                  onChange={(q) => changeQuantity(g.line, q)}
-                  testID={`cart-qty-${g.line.name}`}
-                />
-                <Text variant="headline">{formatLyd(lineTotal(g.line))}</Text>
-              </View>
-            </Card>
-          ) : (
-            <Card key={g.key} testID={`cart-set-${g.name}`}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <Icon name="square.stack.3d.up" size={18} color={colors.accent} />
-                <Text variant="bodyStrong" style={{ flex: 1 }}>
-                  {`طقم «${g.name}»`}
-                </Text>
-                {removeButton(g.lines[0].key, g.name)}
-              </View>
-              {g.lines.map((l) => (
-                <View key={l.key} style={{ gap: spacing.xxs }}>
-                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                    <Text variant="subhead" style={{ flex: 1 }}>
-                      {`${l.name} × ${l.quantity}`}
-                    </Text>
-                    <Text variant="subhead" tone="secondary">
-                      {formatLyd(lineTotal(l))}
-                    </Text>
+            <Appear key={g.key}>
+              <Card testID={`cart-line-${g.line.name}`}>
+                <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
+                  <View style={{ flex: 1, gap: spacing.xxs }}>
+                    <Text variant="bodyStrong">{g.line.name}</Text>
+                    <Pressable
+                      onPress={() => editPrice(g.line)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`سعر القطعة ${formatLyd(g.line.unitPrice)}، اضغط للتعديل`}
+                      testID={`cart-price-${g.line.name}`}>
+                      <Text variant="subhead" tone="accent">
+                        {`${formatLyd(g.line.unitPrice)} للقطعة ✎`}
+                      </Text>
+                    </Pressable>
                   </View>
-                  {warning(l.productId)}
+                  {removeButton(g.line.key, g.line.name)}
                 </View>
-              ))}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text variant="caption" tone="secondary">
-                  يُباع الطقم كاملاً، والخصم موزع على قطعه.
-                </Text>
-                <Text variant="headline">{formatLyd(g.total)}</Text>
-              </View>
-            </Card>
+                {warning(g.line.productId)}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}>
+                  <Stepper
+                    value={g.line.quantity}
+                    onChange={(q) => changeQuantity(g.line, q)}
+                    testID={`cart-qty-${g.line.name}`}
+                  />
+                  <Text variant="headline">{formatLyd(lineTotal(g.line))}</Text>
+                </View>
+              </Card>
+            </Appear>
+          ) : (
+            <Appear key={g.key}>
+              <Card testID={`cart-set-${g.name}`}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <Icon name="square.stack.3d.up" size={18} color={colors.accent} />
+                  <Text variant="bodyStrong" style={{ flex: 1 }}>
+                    {`طقم «${g.name}»`}
+                  </Text>
+                  {removeButton(g.lines[0].key, g.name)}
+                </View>
+                {g.lines.map((l) => (
+                  <View key={l.key} style={{ gap: spacing.xxs }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                      <Text variant="subhead" style={{ flex: 1 }}>
+                        {`${l.name} × ${l.quantity}`}
+                      </Text>
+                      <Text variant="subhead" tone="secondary">
+                        {formatLyd(lineTotal(l))}
+                      </Text>
+                    </View>
+                    {warning(l.productId)}
+                  </View>
+                ))}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text variant="caption" tone="secondary">
+                    يُباع الطقم كاملاً، والخصم موزع على قطعه.
+                  </Text>
+                  <Text variant="headline">{formatLyd(g.total)}</Text>
+                </View>
+              </Card>
+            </Appear>
           ),
         )}
       </ScrollView>

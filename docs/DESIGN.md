@@ -33,7 +33,7 @@ Redrawn as lettering, not photos, so they work on any background:
 | background      | #F2F2F5       | #000000      | #F3F1EC       | #000000      |
 | surface (cell)  | #FFFFFF       | #1C1C1E      | #FFFFFF       | #1C1C1E      |
 | text            | #111114       | #F5F5F7      | #14120E       | #F5F3EE      |
-| secondary text  | #6C6C74       | #98989F      | #716B5C       | #A19B8C      |
+| secondary text  | #636369       | #98989F      | #675F51       | #A19B8C      |
 | accent          | #3A43A0       | #A9B0FF      | #806229       | #D9B977      |
 | accent soft     | #E7E8F7       | #272A52      | #F2E9D6       | #3A3221      |
 | on accent       | #FFFFFF       | #0B0C22      | #FFFFFF       | #14120E      |
@@ -41,7 +41,7 @@ Redrawn as lettering, not photos, so they work on any background:
 | chevron         | #C7C7CC       | #48484A      | #C9C5BB       | #48484A      |
 | segmented track | #E3E3E8       | #1C1C1E      | #E5E3DD       | #1C1C1E      |
 | segmented thumb | #FFFFFF       | #3A3A3C      | #FFFFFF       | #3A3A3C      |
-| warning         | #C2410C       | #FF9F6B      | #C2410C       | #FF9F6B      |
+| warning         | #B4390A       | #FF9F6B      | #B4390A       | #FF9F6B      |
 
 Card shadow (light only): `0 6px 18px rgba(18,20,46,0.06)` (jewelry), `rgba(30,26,19,0.06)` (scarves).
 
