@@ -37,6 +37,7 @@ import {
   setPreview,
   setsAvailable,
 } from './model';
+import { useSaveOnce } from '@/hooks/use-save-once';
 
 const PICK_LIMIT = 30;
 
@@ -54,6 +55,8 @@ export function SetFormView({
   onDone: () => void;
 }) {
   const { colors } = useTheme();
+  const once = useSaveOnce();
+  const saveOnce = () => once(save);
   const bottomSpace = useSheetBottomSpace();
   const [existing] = useState(() => (setId ? getSet(ctx, setId) : undefined));
   const [form, setForm] = useState(() => (existing ? setFormFrom(existing) : emptySetForm()));
@@ -77,6 +80,7 @@ export function SetFormView({
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     notifyDataChanged();
     onDone();
+    return true;
   };
 
   const remove = () =>
@@ -104,7 +108,7 @@ export function SetFormView({
         title={existing ? 'تعديل الطقم' : 'طقم جديد'}
         embedded={false}
         onCancel={onDone}
-        onSave={save}
+        onSave={saveOnce}
       />
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}

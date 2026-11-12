@@ -40,6 +40,7 @@ import {
 } from './form-model';
 import { PhotoPicker } from './photo-picker';
 import { haptic } from '@/lib/haptics';
+import { useSaveOnce } from '@/hooks/use-save-once';
 
 /**
  * Add or edit a piece: photo, details, price with live profit, and stock. Saving checks the code
@@ -60,6 +61,8 @@ export function ProductFormView({
 }) {
   const readable = useReadable();
   const { colors } = useTheme();
+  const once = useSaveOnce();
+  const saveOnce = () => once(save);
   const bottomSpace = useSheetBottomSpace();
   const [initial] = useState(() => {
     const p = productId ? getProduct(ctx, productId) : undefined;
@@ -112,6 +115,7 @@ export function ProductFormView({
     notifyDataChanged();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     onDone();
+    return true;
   };
 
   const stock = parseInteger(form.stock) ?? 0;
@@ -123,7 +127,7 @@ export function ProductFormView({
         embedded={embedded}
         cancelLabel={embedded ? 'إغلاق' : 'إلغاء'}
         onCancel={onDone}
-        onSave={save}
+        onSave={saveOnce}
       />
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
@@ -289,7 +293,7 @@ export function ProductFormView({
           icon="checkmark.circle.fill"
           size="lg"
           fullWidth
-          onPress={save}
+          onPress={saveOnce}
           testID="product-save"
         />
       </KeyboardAwareScrollView>

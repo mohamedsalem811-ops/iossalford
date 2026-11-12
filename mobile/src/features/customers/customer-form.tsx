@@ -20,6 +20,7 @@ import { spacing, useTheme } from '@/theme';
 
 import { customerFormFrom, customerFormToInput, type CustomerForm } from './model';
 import { haptic } from '@/lib/haptics';
+import { useSaveOnce } from '@/hooks/use-save-once';
 
 /** Adds or edits a customer. A phone number already used by another customer is refused. */
 export function CustomerFormView({
@@ -32,6 +33,8 @@ export function CustomerFormView({
   onDone: () => void;
 }) {
   const { colors } = useTheme();
+  const once = useSaveOnce();
+  const saveOnce = () => once(save);
   const bottomSpace = useSheetBottomSpace();
   const [form, setForm] = useState<CustomerForm>(() =>
     customerFormFrom(customerId ? getCustomer(ctx, customerId) : undefined),
@@ -52,6 +55,7 @@ export function CustomerFormView({
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     notifyDataChanged();
     onDone();
+    return true;
   };
   return (
     <>
@@ -59,7 +63,7 @@ export function CustomerFormView({
         title={customerId ? 'تعديل الزبون' : 'زبون جديد'}
         embedded={false}
         onCancel={onDone}
-        onSave={save}
+        onSave={saveOnce}
       />
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
@@ -98,7 +102,7 @@ export function CustomerFormView({
             title="حفظ"
             icon="checkmark.circle.fill"
             fullWidth
-            onPress={save}
+            onPress={saveOnce}
             testID="customer-save"
           />
         </Card>

@@ -33,6 +33,7 @@ import { useReadable } from '@/hooks/use-readable';
 import { spacing, useTheme } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
 import { haptic } from '@/lib/haptics';
+import { useSaveOnce } from '@/hooks/use-save-once';
 
 /**
  * Management → Expenses: add an expense booked to a chosen month (a warning when that month's
@@ -42,6 +43,8 @@ export default function ExpensesRoute() {
   const ctx = useCtx();
   const readable = useReadable();
   const { colors } = useTheme();
+  const once = useSaveOnce(true);
+  const saveOnce = () => once(save);
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [month, setMonth] = useState(() => monthKey(ctx.now()));
@@ -70,6 +73,7 @@ export default function ExpensesRoute() {
     setDescription('');
     setAmount('');
     notifyDataChanged();
+    return true;
   };
 
   const remove = (e: Expense) =>
@@ -131,7 +135,7 @@ export default function ExpensesRoute() {
             title="إضافة المصروف"
             icon="plus.circle.fill"
             fullWidth
-            onPress={save}
+            onPress={saveOnce}
             testID="expense-add"
           />
         </Card>

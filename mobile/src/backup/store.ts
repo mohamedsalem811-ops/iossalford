@@ -16,7 +16,7 @@ import * as Sharing from 'expo-sharing';
 import { openExpoDbAt } from '@/db/expo-db';
 import type { Db } from '@/db/types';
 import { backupContents, restoreBackup, validateBackup, type Backup } from '@/domain/backup';
-import { nowStamp, RuleError, type Ctx } from '@/domain/context';
+import { nowStamp, RuleError, timestamp, type Ctx } from '@/domain/context';
 import { photoFile, photoFolder } from '@/lib/storage';
 import { putCart } from '@/state/cart';
 import type { SystemId } from '@/theme';
@@ -170,7 +170,8 @@ export function saveBackup(ctx: Ctx, kind: BackupKind): BackupInfo | null {
  */
 export function saveUpgradeCopy(system: SystemId, db: Db, at: Date = new Date()) {
   const name = backupFileName(system, at, 'upgrade');
-  const { part } = writeCopy(db, system, folder(system), name, at.toISOString().slice(0, 19));
+  // Local time, like every other date the app shows (not UTC).
+  const { part } = writeCopy(db, system, folder(system), name, timestamp(at));
   part.rename(name);
   prune(system);
 }

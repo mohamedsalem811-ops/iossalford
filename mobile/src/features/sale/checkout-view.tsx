@@ -1,4 +1,5 @@
 import * as Haptics from 'expo-haptics';
+import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -25,6 +26,7 @@ import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
 import { cartTotals, checkoutProblem, emptyCheckoutForm, type CheckoutForm } from './model';
+import { useSaveOnce } from '@/hooks/use-save-once';
 
 /**
  * Checkout: how the customer pays, who the customer is (found by phone first, then name, or
@@ -40,6 +42,8 @@ export function CheckoutView({
   onSold: (saleId: number) => void;
 }) {
   const { colors } = useTheme();
+  const once = useSaveOnce();
+  const confirmOnce = () => once(confirm);
   const { cart } = useCart(ctx.system);
   const [form, setForm] = useState<CheckoutForm>(emptyCheckoutForm);
   const [busy, setBusy] = useState(false);
@@ -56,7 +60,10 @@ export function CheckoutView({
   if (cart.length === 0) {
     return (
       <>
-        <FormHeader title="إتمام البيع" embedded={false} onCancel={onCancel} onSave={onCancel} />
+        <Stack.Title>إتمام البيع</Stack.Title>
+        <Stack.Toolbar placement="left">
+          <Stack.Toolbar.Button onPress={onCancel}>رجوع</Stack.Toolbar.Button>
+        </Stack.Toolbar>
         <EmptyState icon="cart" title="السلة فارغة" message="أضف قطعاً من شاشة البيع أولاً." />
       </>
     );
@@ -85,6 +92,7 @@ export function CheckoutView({
       notifyDataChanged();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       onSold(r.saleId);
+      return true;
     } catch (error) {
       // Nothing was sold: stock is checked again here (it may have changed since it was added).
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
@@ -103,7 +111,7 @@ export function CheckoutView({
         title="إتمام البيع"
         embedded={false}
         onCancel={onCancel}
-        onSave={confirm}
+        onSave={confirmOnce}
         cancelLabel="رجوع"
       />
       <KeyboardAwareScrollView
@@ -208,7 +216,7 @@ export function CheckoutView({
             size="lg"
             fullWidth
             loading={busy}
-            onPress={confirm}
+            onPress={confirmOnce}
             testID="checkout-confirm"
           />
         </Card>

@@ -1,6 +1,6 @@
 import { isRunningInExpoGo } from 'expo';
 import * as Haptics from 'expo-haptics';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
@@ -85,6 +85,9 @@ export function ReceiptStudio({
   const [form, setForm] = useState<StudioForm>(() =>
     saved ? studioFrom(saved) : emptyStudio(ctx.system),
   );
+  // The receipt as saved, read at once: a quick second tap on "حفظ" updates it instead of issuing
+  // a second receipt with the next number.
+  const savedRef = useRef(saved);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState(false);
@@ -104,7 +107,6 @@ export function ReceiptStudio({
   const save = (): Receipt | null => {
     const problem = studioProblem(form);
     if (problem) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
       haptic.error();
       Alert.alert('لم يتم الحفظ', problem);
       return null;
@@ -116,7 +118,9 @@ export function ReceiptStudio({
         template: form.template,
         showPrices: form.showPrices,
       };
-      const r = saved ? updateReceipt(ctx, saved.id, input) : issueReceipt(ctx, input);
+      const current = savedRef.current;
+      const r = current ? updateReceipt(ctx, current.id, input) : issueReceipt(ctx, input);
+      savedRef.current = r;
       setSaved(r);
       setDirty(false);
       notifyDataChanged();

@@ -25,6 +25,7 @@ import { spacing, useTheme } from '@/theme';
 
 import { checkPayment, PAYMENT_WAYS, type PaymentWay } from './model';
 import { haptic } from '@/lib/haptics';
+import { useSaveOnce } from '@/hooks/use-save-once';
 
 /** Money received from a customer towards what they owe; it starts at the whole balance. */
 export function PaymentForm({
@@ -37,6 +38,8 @@ export function PaymentForm({
   onDone: () => void;
 }) {
   const { colors } = useTheme();
+  const once = useSaveOnce();
+  const saveOnce = () => once(save);
   const bottomSpace = useSheetBottomSpace();
   const [customer] = useState(() => getCustomer(ctx, customerId));
   const [owed] = useState(() => balance(ctx, customerId));
@@ -63,11 +66,12 @@ export function PaymentForm({
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     notifyDataChanged();
     onDone();
+    return true;
   };
 
   return (
     <>
-      <FormHeader title="تسجيل دفعة" embedded={false} onCancel={onDone} onSave={save} />
+      <FormHeader title="تسجيل دفعة" embedded={false} onCancel={onDone} onSave={saveOnce} />
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
@@ -95,7 +99,7 @@ export function PaymentForm({
             title="حفظ الدفعة"
             icon="checkmark.circle.fill"
             fullWidth
-            onPress={save}
+            onPress={saveOnce}
             testID="payment-save"
           />
         </Card>

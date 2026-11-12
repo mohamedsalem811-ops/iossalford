@@ -23,6 +23,7 @@ import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
 import { checkAdjustment, moveLabel, REASONS, signed, type Direction } from './model';
+import { useSaveOnce } from '@/hooks/use-save-once';
 
 /**
  * Adds or removes stock with a reason (a delivery, breakage, a count), and shows the piece's
@@ -38,6 +39,8 @@ export function StockSheet({
   onDone: () => void;
 }) {
   const { colors } = useTheme();
+  const once = useSaveOnce();
+  const saveOnce = () => once(save);
   const bottomSpace = useSheetBottomSpace();
   const [product] = useState(() => getProduct(ctx, productId));
   const [history] = useState(() => stockHistory(ctx, productId).slice(0, 30));
@@ -67,6 +70,7 @@ export function StockSheet({
     notifyDataChanged();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     onDone();
+    return true;
   };
 
   return (
@@ -76,7 +80,7 @@ export function StockSheet({
         <Stack.Toolbar.Button onPress={onDone}>إلغاء</Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button variant="done" onPress={save}>
+        <Stack.Toolbar.Button variant="done" onPress={saveOnce}>
           حفظ
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
@@ -140,7 +144,7 @@ export function StockSheet({
             title="حفظ التعديل"
             icon="checkmark.circle.fill"
             fullWidth
-            onPress={save}
+            onPress={saveOnce}
             testID="stock-save"
           />
         </Card>

@@ -36,6 +36,7 @@ import {
   type DesignForm,
   type SizeRow,
 } from './model';
+import { useSaveOnce } from '@/hooks/use-save-once';
 
 /**
  * Add or edit a scarf design: shared details (photo, name, brand, material, colour), then each
@@ -56,6 +57,8 @@ export function DesignFormView({
 }) {
   const readable = useReadable();
   const { colors } = useTheme();
+  const once = useSaveOnce();
+  const saveOnce = () => once(save);
   const bottomSpace = useSheetBottomSpace();
   const [initial] = useState(() => {
     const design = designId ? findDesign(ctx, designId) : undefined;
@@ -105,6 +108,7 @@ export function DesignFormView({
     notifyDataChanged();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     onDone();
+    return true;
   };
 
   return (
@@ -114,7 +118,7 @@ export function DesignFormView({
         embedded={embedded}
         cancelLabel={embedded ? 'إغلاق' : 'إلغاء'}
         onCancel={onDone}
-        onSave={save}
+        onSave={saveOnce}
       />
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
@@ -207,7 +211,7 @@ export function DesignFormView({
           icon="checkmark.circle.fill"
           size="lg"
           fullWidth
-          onPress={save}
+          onPress={saveOnce}
           testID="design-save"
         />
       </KeyboardAwareScrollView>
