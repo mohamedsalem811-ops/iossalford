@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { Pressable, ScrollView, View } from 'react-native';
 
 import { Icon, Text } from '@/components';
@@ -6,6 +5,7 @@ import { radius, spacing, useTheme, type SystemId } from '@/theme';
 
 import { BrandBadge } from './brand-badge';
 import type { BrandCount, BrandFilter } from './model';
+import { haptic } from '@/lib/haptics';
 
 /**
  * The brand filter pinned above the products (and, later, the selling grid). One tap shows only
@@ -27,7 +27,7 @@ export function BrandBar({
 }) {
   const { colors } = useTheme();
   const choose = (filter: BrandFilter) => {
-    Haptics.selectionAsync().catch(() => {});
+    haptic.tap();
     onSelect(filter === selected && filter !== 'all' ? 'all' : filter);
   };
 

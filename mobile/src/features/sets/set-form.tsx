@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -38,6 +37,7 @@ import {
   setsAvailable,
 } from './model';
 import { useSaveOnce } from '@/hooks/use-save-once';
+import { haptic } from '@/lib/haptics';
 
 const PICK_LIMIT = 30;
 
@@ -77,7 +77,7 @@ export function SetFormView({
       showError(error);
       return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    haptic.success();
     notifyDataChanged();
     onDone();
     return true;
@@ -106,7 +106,6 @@ export function SetFormView({
     <>
       <FormHeader
         title={existing ? 'تعديل الطقم' : 'طقم جديد'}
-        embedded={false}
         onCancel={onDone}
         onSave={saveOnce}
       />

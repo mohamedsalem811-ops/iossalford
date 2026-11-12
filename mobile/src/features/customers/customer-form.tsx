@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -52,7 +51,7 @@ export function CustomerFormView({
       showError(error);
       return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    haptic.success();
     notifyDataChanged();
     onDone();
     return true;
@@ -61,7 +60,6 @@ export function CustomerFormView({
     <>
       <FormHeader
         title={customerId ? 'تعديل الزبون' : 'زبون جديد'}
-        embedded={false}
         onCancel={onDone}
         onSave={saveOnce}
       />

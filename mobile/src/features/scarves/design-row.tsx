@@ -23,8 +23,6 @@ export function DesignRow({
   brandImage,
   onDelete,
   onAdjust,
-  onOpen,
-  selected = false,
   card,
 }: {
   system: SystemId;
@@ -34,9 +32,6 @@ export function DesignRow({
   onDelete: (d: ScarfDesign) => void;
   /** Opens the stock sheet for one size. */
   onAdjust: (productId: number) => void;
-  /** iPad split view: tapping selects the design instead of navigating. */
-  onOpen?: () => void;
-  selected?: boolean;
   /** iPad grid: drawn as a photo card this wide instead of a swipeable row. */
   card?: number;
 }) {
@@ -46,10 +41,10 @@ export function DesignRow({
   const photo = d.sizes.find((s) => s.imageFile)?.imageFile ?? null;
   const details = designDetails(d);
   // Tap edits (on iPad it opens beside the list); a long press shows every action as a menu.
-  const open = onOpen ?? (() => router.push(href));
+  const open = () => router.push(href);
   const menu = () => {
     const items = [
-      ...(onOpen ? [] : [{ title: 'تعديل التصميم والمقاسات', run: open }]),
+      { title: 'تعديل التصميم والمقاسات', run: open },
       ...d.sizes.map((s) => ({
         title: `تعديل مخزون ${s.size ?? '—'} (${s.stock})`,
         run: () => onAdjust(s.id),
@@ -136,7 +131,6 @@ export function DesignRow({
     <Pressable
       testID={`design-${first.name}`}
       accessibilityRole="button"
-      accessibilityState={{ selected }}
       accessibilityHint="اضغط لتعديل التصميم ومقاساته"
       onPress={open}
       onLongPress={menu}
@@ -146,7 +140,7 @@ export function DesignRow({
         gap: spacing.ms,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
-        backgroundColor: pressed || selected ? colors.accentSoft : colors.surface,
+        backgroundColor: pressed ? colors.accentSoft : colors.surface,
       })}>
       <ProductPhoto system={system} imageFile={photo} size={64} />
       <View style={{ flex: 1, gap: 3 }}>

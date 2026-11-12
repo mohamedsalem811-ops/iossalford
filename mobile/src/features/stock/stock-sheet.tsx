@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
@@ -24,6 +23,7 @@ import { spacing, useTheme } from '@/theme';
 
 import { checkAdjustment, moveLabel, REASONS, signed, type Direction } from './model';
 import { useSaveOnce } from '@/hooks/use-save-once';
+import { haptic } from '@/lib/haptics';
 
 /**
  * Adds or removes stock with a reason (a delivery, breakage, a count), and shows the piece's
@@ -68,7 +68,7 @@ export function StockSheet({
       return;
     }
     notifyDataChanged();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    haptic.success();
     onDone();
     return true;
   };

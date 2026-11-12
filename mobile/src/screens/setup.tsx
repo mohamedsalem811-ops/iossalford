@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -6,6 +5,7 @@ import { Logo, Screen, Text } from '@/components';
 import { PinPad } from '@/components/pin-pad';
 import { pinProblem } from '@/security/pin';
 import { spacing, ThemeProvider, type SystemId } from '@/theme';
+import { haptic } from '@/lib/haptics';
 
 const ORDER: SystemId[] = ['jewelry', 'scarves'];
 const NAMES: Record<SystemId, string> = { jewelry: 'نظام المجوهرات', scarves: 'نظام الأوشحة' };
@@ -33,7 +33,7 @@ export function SetupScreen({
   const confirming = first !== null;
 
   const fail = (text: string) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+    haptic.error();
     setMessage(text);
     setValue('');
   };
@@ -54,7 +54,7 @@ export function SetupScreen({
     setBusy(true);
     try {
       await savePin(system, pin);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      haptic.success();
       setFirst(null);
       setValue('');
       setMessage(null);

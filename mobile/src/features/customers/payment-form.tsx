@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { Alert } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -63,7 +62,7 @@ export function PaymentForm({
       showError(error);
       return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    haptic.success();
     notifyDataChanged();
     onDone();
     return true;
@@ -71,7 +70,7 @@ export function PaymentForm({
 
   return (
     <>
-      <FormHeader title="تسجيل دفعة" embedded={false} onCancel={onDone} onSave={saveOnce} />
+      <FormHeader title="تسجيل دفعة" onCancel={onDone} onSave={saveOnce} />
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}

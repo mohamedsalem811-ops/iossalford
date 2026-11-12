@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, View } from 'react-native';
@@ -69,7 +68,7 @@ export default function ExpensesRoute() {
       showError(error);
       return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    haptic.success();
     setDescription('');
     setAmount('');
     notifyDataChanged();

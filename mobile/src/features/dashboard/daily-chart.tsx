@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
@@ -8,6 +7,7 @@ import { formatLyd } from '@/lib/money';
 import { radius, spacing, useTheme } from '@/theme';
 
 import { chartBars } from './model';
+import { haptic } from '@/lib/haptics';
 
 const HEIGHT = 140;
 
@@ -49,7 +49,7 @@ export function DailyChart({
               key={b.day}
               style={{ flex: 1, height: '100%', justifyContent: 'flex-end' }}
               onPress={() => {
-                Haptics.selectionAsync().catch(() => {});
+                haptic.tap();
                 setPicked(on ? null : b.day);
               }}
               accessibilityRole="button"

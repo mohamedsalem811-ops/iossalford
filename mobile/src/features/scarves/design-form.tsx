@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -37,6 +36,7 @@ import {
   type SizeRow,
 } from './model';
 import { useSaveOnce } from '@/hooks/use-save-once';
+import { haptic } from '@/lib/haptics';
 
 /**
  * Add or edit a scarf design: shared details (photo, name, brand, material, colour), then each
@@ -46,14 +46,11 @@ export function DesignFormView({
   ctx,
   designId,
   onDone,
-  embedded = false,
 }: {
   ctx: Ctx;
   /** undefined: a new design. */
   designId?: string;
   onDone: () => void;
-  /** Shown beside the list on iPad, with its own title bar. */
-  embedded?: boolean;
 }) {
   const readable = useReadable();
   const { colors } = useTheme();
@@ -106,7 +103,7 @@ export function DesignFormView({
     }
     new Set(initial.design?.sizes.map((s) => s.imageFile)).forEach((f) => releasePhoto(ctx, f));
     notifyDataChanged();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    haptic.success();
     onDone();
     return true;
   };
@@ -115,8 +112,6 @@ export function DesignFormView({
     <>
       <FormHeader
         title={initial.design ? 'تعديل التصميم' : 'تصميم جديد'}
-        embedded={embedded}
-        cancelLabel={embedded ? 'إغلاق' : 'إلغاء'}
         onCancel={onDone}
         onSave={saveOnce}
       />

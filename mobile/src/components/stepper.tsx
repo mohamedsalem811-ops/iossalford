@@ -1,10 +1,10 @@
-import * as Haptics from 'expo-haptics';
 import { Pressable, View } from 'react-native';
 
 import { radius, spacing, useTheme } from '@/theme';
 
 import { Icon } from './icon';
 import { Text } from './text';
+import { haptic } from '@/lib/haptics';
 
 /** − quantity +, for whole numbers between min and max. */
 export function Stepper({
@@ -26,7 +26,7 @@ export function Stepper({
   const step = (delta: number) => {
     const next = value + delta;
     if (next < min || next > max) return;
-    Haptics.selectionAsync().catch(() => {});
+    haptic.tap();
     onChange(next);
   };
   const button = (delta: number, icon: 'plus' | 'minus', name: string, enabled: boolean) => (

@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { Stack } from 'expo-router';
 import { useState } from 'react';
 import { Alert, View } from 'react-native';
@@ -27,6 +26,7 @@ import { spacing, useTheme } from '@/theme';
 
 import { cartTotals, checkoutProblem, emptyCheckoutForm, type CheckoutForm } from './model';
 import { useSaveOnce } from '@/hooks/use-save-once';
+import { haptic } from '@/lib/haptics';
 
 /**
  * Checkout: how the customer pays, who the customer is (found by phone first, then name, or
@@ -72,7 +72,7 @@ export function CheckoutView({
   const confirm = () => {
     const problem = checkoutProblem(form, cart);
     if (problem) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      haptic.error();
       Alert.alert('لم يتم البيع', problem);
       return;
     }
@@ -90,12 +90,12 @@ export function CheckoutView({
       });
       putCart(ctx.system, []);
       notifyDataChanged();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      haptic.success();
       onSold(r.saleId);
       return true;
     } catch (error) {
       // Nothing was sold: stock is checked again here (it may have changed since it was added).
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      haptic.error();
       Alert.alert(
         'لم يتم البيع',
         error instanceof RuleError ? error.message : 'حدث خطأ غير متوقع، لم يُبَع أي شيء.',
@@ -107,13 +107,7 @@ export function CheckoutView({
   const credit = form.method === 'credit';
   return (
     <>
-      <FormHeader
-        title="إتمام البيع"
-        embedded={false}
-        onCancel={onCancel}
-        onSave={confirmOnce}
-        cancelLabel="رجوع"
-      />
+      <FormHeader title="إتمام البيع" onCancel={onCancel} onSave={confirmOnce} cancelLabel="رجوع" />
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}

@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { Alert } from 'react-native';
 
 import { RuleError, type Ctx } from '@/domain/context';
@@ -32,7 +31,7 @@ export function releasePhoto(ctx: Ctx, file: string | null | undefined) {
 export function stepStock(ctx: Ctx, p: Product, delta: 1 | -1) {
   try {
     adjustStock(ctx, p.id, delta, delta > 0 ? 'زيادة سريعة من القائمة' : 'إنقاص سريع من القائمة');
-    Haptics.selectionAsync().catch(() => {});
+    haptic.tap();
     notifyDataChanged();
   } catch (error) {
     showError(error);
@@ -53,7 +52,7 @@ export function confirmDelete(ctx: Ctx, p: Product) {
         try {
           deleteProduct(ctx, p.id);
           releasePhoto(ctx, p.imageFile);
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+          haptic.success();
           notifyDataChanged();
         } catch (error) {
           showError(error);

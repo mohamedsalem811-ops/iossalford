@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useReducer } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 
@@ -15,6 +14,7 @@ import { spacing, useTheme } from '@/theme';
 
 import { showCartProblem } from './actions';
 import { cartGroups, cartTotals, stockWarnings } from './model';
+import { haptic } from '@/lib/haptics';
 
 /**
  * The open cart: lines with quantity, price and remove; each set as one group removed as a
@@ -70,7 +70,7 @@ export function CartView({
     );
 
   const remove = (key: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptic.light();
     setCart(removeLine(cart, key));
   };
 

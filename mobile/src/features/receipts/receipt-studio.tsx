@@ -1,5 +1,4 @@
 import { isRunningInExpoGo } from 'expo';
-import * as Haptics from 'expo-haptics';
 import { useRef, useState } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -124,7 +123,7 @@ export function ReceiptStudio({
       setSaved(r);
       setDirty(false);
       notifyDataChanged();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      haptic.success();
       return r;
     } catch (error) {
       Alert.alert(
@@ -195,7 +194,6 @@ export function ReceiptStudio({
     <>
       <FormHeader
         title={saved ? saved.receiptNo : 'إيصال جديد'}
-        embedded={false}
         onCancel={close}
         onSave={() => save()}
         cancelLabel="إغلاق"

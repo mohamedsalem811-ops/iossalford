@@ -33,8 +33,6 @@ export function DesignsList({
   onDelete,
   onAdjust,
   onAdd,
-  onOpen,
-  selectedId,
   grid = false,
 }: {
   system: SystemId;
@@ -46,9 +44,6 @@ export function DesignsList({
   onDelete: (d: ScarfDesign) => void;
   onAdjust: (productId: number) => void;
   onAdd: () => void;
-  /** iPad split view: tapping a design opens it beside the list. */
-  onOpen?: (d: ScarfDesign) => void;
-  selectedId?: string;
   /** iPad: photo cards filling the width instead of rows (tapping opens the form as a window). */
   grid?: boolean;
 }) {
@@ -82,7 +77,6 @@ export function DesignsList({
         numColumns={columns}
         data={shown}
         keyExtractor={(d) => d.id}
-        extraData={selectedId}
         keyboardDismissMode="on-drag"
         // The space under the header is left by the route (BelowHeader); iOS adds nothing more.
         contentInsetAdjustmentBehavior="never"
@@ -152,8 +146,6 @@ export function DesignsList({
               }
               onDelete={onDelete}
               onAdjust={onAdjust}
-              onOpen={onOpen ? () => onOpen(item) : undefined}
-              selected={item.id === selectedId}
               card={card}
             />
           );

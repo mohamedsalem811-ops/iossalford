@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -50,14 +49,11 @@ export function ProductFormView({
   ctx,
   productId,
   onDone,
-  embedded = false,
 }: {
   ctx: Ctx;
   /** undefined: a new piece. */
   productId?: number;
   onDone: () => void;
-  /** Shown beside the list on iPad, with its own title bar. */
-  embedded?: boolean;
 }) {
   const readable = useReadable();
   const { colors } = useTheme();
@@ -113,7 +109,7 @@ export function ProductFormView({
     // The photo this piece had before, if it was replaced or removed and nothing else shows it.
     releasePhoto(ctx, initial.product?.imageFile);
     notifyDataChanged();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    haptic.success();
     onDone();
     return true;
   };
@@ -124,8 +120,6 @@ export function ProductFormView({
     <>
       <FormHeader
         title={productId ? 'تعديل القطعة' : 'قطعة جديدة'}
-        embedded={embedded}
-        cancelLabel={embedded ? 'إغلاق' : 'إلغاء'}
         onCancel={onDone}
         onSave={saveOnce}
       />

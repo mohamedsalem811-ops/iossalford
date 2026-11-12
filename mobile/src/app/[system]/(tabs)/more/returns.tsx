@@ -1,5 +1,4 @@
 import { FlashList } from '@shopify/flash-list';
-import * as Haptics from 'expo-haptics';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { ActionSheetIOS, Alert, Pressable, View } from 'react-native';
@@ -22,6 +21,7 @@ import { usePaged } from '@/hooks/use-paged';
 import { useReadable } from '@/hooks/use-readable';
 import { radius, spacing, useTheme } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
+import { haptic } from '@/lib/haptics';
 
 /** Management → Returns: every return by month; a return without a sale; delete one by mistake. */
 export default function ReturnsRoute() {
@@ -62,7 +62,7 @@ export default function ReturnsRoute() {
               showError(error);
               return;
             }
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            haptic.success();
             notifyDataChanged();
           },
         },

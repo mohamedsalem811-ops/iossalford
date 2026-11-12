@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { Alert, Linking, Pressable, View } from 'react-native';
 
 import { Button, Card, EmptyState, ListGroup, ListRow, Page, Text } from '@/components';
@@ -15,6 +14,7 @@ import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
 import { balanceText, paymentWayLabel } from './model';
+import { haptic } from '@/lib/haptics';
 
 const LINE_LABEL: Record<StatementLine['kind'], string> = {
   sale: 'بيع آجل',
@@ -85,7 +85,7 @@ export function CustomerDetail({
             showError(error);
             return;
           }
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+          haptic.success();
           notifyDataChanged();
           onDeleted();
         },
