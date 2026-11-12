@@ -1,10 +1,10 @@
-import * as Haptics from 'expo-haptics';
 import { Pressable, View } from 'react-native';
 
 import { radius, spacing, useTheme } from '@/theme';
 
 import { Icon } from './icon';
 import { Text } from './text';
+import { haptic } from '@/lib/haptics';
 
 const ROWS = [
   ['1', '2', '3'],
@@ -40,13 +40,13 @@ export function PinPad({
     if (disabled) return;
     if (key === 'del') {
       if (value.length) {
-        Haptics.selectionAsync().catch(() => {});
+        haptic.tap();
         onChange(value.slice(0, -1));
       }
       return;
     }
     if (value.length >= length) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptic.light();
     const next = value + key;
     onChange(next);
     if (next.length === length) onComplete?.(next);

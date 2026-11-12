@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { Alert } from 'react-native';
 
 import { addSet, addToCart, problemMessage, type CartProblem, type Result } from '@/domain/cart';
@@ -6,10 +5,11 @@ import type { Ctx } from '@/domain/context';
 import { displayName, getProduct, type Product } from '@/domain/products';
 import { getSet, setForCart } from '@/domain/sets';
 import { getCart, putCart } from '@/state/cart';
+import { haptic } from '@/lib/haptics';
 
 /** Says why the cart did not change, with the piece's name (and size for scarves). */
 export function showCartProblem(problem: CartProblem) {
-  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+  haptic.error();
   Alert.alert('لم تتم الإضافة', problemMessage(problem), [{ text: 'حسناً' }]);
 }
 
@@ -19,7 +19,7 @@ function apply(ctx: Ctx, result: Result): boolean {
     return false;
   }
   putCart(ctx.system, result.cart);
-  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  haptic.light();
   return true;
 }
 

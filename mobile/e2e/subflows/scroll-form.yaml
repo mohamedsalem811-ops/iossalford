@@ -1,6 +1,5 @@
-# Scrolls the product form until the element with id ${ID} shows. It swipes inside the form
-# itself: on iPad the form is the left pane, and Maestro's scrollUntilVisible swipes in the middle
-# of the screen, which moves the product list beside it instead.
+# Scrolls the product form until the element with id ${ID} shows, swiping in the middle of the
+# form: a sheet on iPhone, a window centred over the product cards on iPad.
 appId: com.salford.pos
 ---
 - repeat:
@@ -10,6 +9,6 @@ appId: com.salford.pos
         id: ${ID}
     commands:
       - swipe:
-          start: 20%, 75%
-          end: 20%, 45%
+          start: 50%, 75%
+          end: 50%, 45%
           duration: 600

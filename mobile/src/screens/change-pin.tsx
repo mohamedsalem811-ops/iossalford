@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { View } from 'react-native';
 
@@ -8,6 +7,7 @@ import { pinProblem, type VerifyResult } from '@/security/pin';
 import { spacing, type SystemId } from '@/theme';
 
 import { attemptsLeftText, countdown } from './login';
+import { haptic } from '@/lib/haptics';
 
 export type ChangePinDeps = {
   verify: (system: SystemId, pin: string) => Promise<VerifyResult>;
@@ -45,7 +45,7 @@ export function ChangePinScreen({
   const [busy, setBusy] = useState(false);
 
   const fail = (text: string) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+    haptic.error();
     setMessage(text);
     setValue('');
   };
@@ -87,7 +87,7 @@ export function ChangePinScreen({
     setBusy(true);
     try {
       await deps.setPin(system, pin);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      haptic.success();
       onDone();
     } catch {
       fail('تعذّر حفظ الرمز، لم يتغير شيء');

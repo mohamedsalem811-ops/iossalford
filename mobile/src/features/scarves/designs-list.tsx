@@ -4,13 +4,8 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { ChipRow, EmptyState, TAB_BAR_CLEARANCE, Text } from '@/components';
-import {
-  CATEGORIES,
-  groupDesigns,
-  sizeSortKey,
-  type Product,
-  type ScarfDesign,
-} from '@/domain/products';
+import { CATEGORIES, type Product } from '@/domain/products';
+import { groupDesigns, sizeSortKey, type ScarfDesign } from '@/domain/scarves';
 import { BrandBar } from '@/features/products/brand-bar';
 import { brandCounts } from '@/features/products/model';
 import { gridColumns } from '@/hooks/use-layout';
@@ -33,8 +28,6 @@ export function DesignsList({
   onDelete,
   onAdjust,
   onAdd,
-  onOpen,
-  selectedId,
   grid = false,
 }: {
   system: SystemId;
@@ -46,9 +39,6 @@ export function DesignsList({
   onDelete: (d: ScarfDesign) => void;
   onAdjust: (productId: number) => void;
   onAdd: () => void;
-  /** iPad split view: tapping a design opens it beside the list. */
-  onOpen?: (d: ScarfDesign) => void;
-  selectedId?: string;
   /** iPad: photo cards filling the width instead of rows (tapping opens the form as a window). */
   grid?: boolean;
 }) {
@@ -82,7 +72,6 @@ export function DesignsList({
         numColumns={columns}
         data={shown}
         keyExtractor={(d) => d.id}
-        extraData={selectedId}
         keyboardDismissMode="on-drag"
         // The space under the header is left by the route (BelowHeader); iOS adds nothing more.
         contentInsetAdjustmentBehavior="never"
@@ -152,8 +141,6 @@ export function DesignsList({
               }
               onDelete={onDelete}
               onAdjust={onAdjust}
-              onOpen={onOpen ? () => onOpen(item) : undefined}
-              selected={item.id === selectedId}
               card={card}
             />
           );

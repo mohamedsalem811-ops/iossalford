@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { Alert } from 'react-native';
 
 import type { Ctx } from '@/domain/context';
@@ -41,7 +40,7 @@ export function promptRate(ctx: Ctx, onSaved: () => void) {
             showError(error);
             return;
           }
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+          haptic.success();
           notifyDataChanged();
           onSaved();
         },

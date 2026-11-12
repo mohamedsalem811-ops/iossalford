@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
 
@@ -14,6 +13,7 @@ import { useCart } from '@/state/cart';
 import { useCtx } from '@/state/system-db';
 import { errorBoundary } from '@/components/error-screen';
 import { useSearchShortcut } from '@/lib/key-commands';
+import { haptic } from '@/lib/haptics';
 
 /**
  * Selling: search, brand and category, then the products as a grid. Tap adds one piece (a scarf
@@ -34,7 +34,7 @@ export default function SaleRoute() {
   const onTap = (item: SaleItem) =>
     item.kind === 'design' ? openSizes(item.design.id) : addPiece(ctx, item.product);
   const onLongPress = (item: SaleItem) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    haptic.medium();
     return item.kind === 'design'
       ? openSizes(item.design.id)
       : router.push({

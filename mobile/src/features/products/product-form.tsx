@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -40,6 +39,7 @@ import {
 } from './form-model';
 import { PhotoPicker } from './photo-picker';
 import { haptic } from '@/lib/haptics';
+import { useSaveOnce } from '@/hooks/use-save-once';
 
 /**
  * Add or edit a piece: photo, details, price with live profit, and stock. Saving checks the code
@@ -49,17 +49,16 @@ export function ProductFormView({
   ctx,
   productId,
   onDone,
-  embedded = false,
 }: {
   ctx: Ctx;
   /** undefined: a new piece. */
   productId?: number;
   onDone: () => void;
-  /** Shown beside the list on iPad, with its own title bar. */
-  embedded?: boolean;
 }) {
   const readable = useReadable();
   const { colors } = useTheme();
+  const once = useSaveOnce();
+  const saveOnce = () => once(save);
   const bottomSpace = useSheetBottomSpace();
   const [initial] = useState(() => {
     const p = productId ? getProduct(ctx, productId) : undefined;
@@ -110,8 +109,9 @@ export function ProductFormView({
     // The photo this piece had before, if it was replaced or removed and nothing else shows it.
     releasePhoto(ctx, initial.product?.imageFile);
     notifyDataChanged();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    haptic.success();
     onDone();
+    return true;
   };
 
   const stock = parseInteger(form.stock) ?? 0;
@@ -120,10 +120,8 @@ export function ProductFormView({
     <>
       <FormHeader
         title={productId ? 'تعديل القطعة' : 'قطعة جديدة'}
-        embedded={embedded}
-        cancelLabel={embedded ? 'إغلاق' : 'إلغاء'}
         onCancel={onDone}
-        onSave={save}
+        onSave={saveOnce}
       />
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
@@ -289,7 +287,7 @@ export function ProductFormView({
           icon="checkmark.circle.fill"
           size="lg"
           fullWidth
-          onPress={save}
+          onPress={saveOnce}
           testID="product-save"
         />
       </KeyboardAwareScrollView>

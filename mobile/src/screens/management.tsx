@@ -16,6 +16,7 @@ export type ManageTarget =
   | 'comparison'
   | 'brands'
   | 'sets'
+  | 'archived'
   | 'backup'
   | 'settings';
 
@@ -50,6 +51,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
     rows: [
       { target: 'brands', icon: 'seal', title: 'الماركات' },
       { target: 'sets', icon: 'square.stack.3d.up', title: 'الأطقم' },
+      { target: 'archived', icon: 'archivebox', title: 'القطع المؤرشفة' },
     ],
   },
   {

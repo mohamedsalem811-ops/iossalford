@@ -1,18 +1,13 @@
-import * as Haptics from 'expo-haptics';
 import { Alert } from 'react-native';
 
 import type { Ctx } from '@/domain/context';
-import {
-  deleteProduct,
-  deleteScarfDesign,
-  groupDesigns,
-  listProducts,
-  type ScarfDesign,
-} from '@/domain/products';
+import { deleteProduct, listProducts } from '@/domain/products';
+import { deleteScarfDesign, groupDesigns, type ScarfDesign } from '@/domain/scarves';
 import { releasePhoto, showError } from '@/features/products/actions';
 import { notifyDataChanged } from '@/state/data-events';
 
 import { deleteDesignMessage } from './model';
+import { haptic } from '@/lib/haptics';
 
 /** A design by its id (a scarf saved without a design is "single-<product id>"). */
 export function findDesign(ctx: Ctx, id: string): ScarfDesign | undefined {
@@ -37,7 +32,7 @@ export function confirmDeleteDesign(ctx: Ctx, d: ScarfDesign) {
           if (id) deleteScarfDesign(ctx, id);
           else d.sizes.forEach((s) => deleteProduct(ctx, s.id));
           new Set(d.sizes.map((s) => s.imageFile)).forEach((f) => releasePhoto(ctx, f));
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+          haptic.success();
           notifyDataChanged();
         } catch (error) {
           showError(error);

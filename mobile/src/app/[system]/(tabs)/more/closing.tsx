@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, View } from 'react-native';
@@ -19,6 +18,7 @@ import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { spacing } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
+import { haptic } from '@/lib/haptics';
 
 /**
  * Management → Quarterly closing: choose a quarter, see what it totals (only its own sales,
@@ -55,7 +55,7 @@ export default function ClosingRoute() {
           text: data.existing ? 'إعادة إصدار' : 'إقفال',
           onPress: () => {
             closeQuarter(ctx, q, notes);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            haptic.success();
             setNotes('');
             notifyDataChanged();
           },

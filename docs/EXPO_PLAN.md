@@ -378,10 +378,14 @@ Then the dashboard:
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):
   - the simulator tap-through tests (Maestro) and screenshots on an iPhone and an iPad, upright and sideways; I fix what fails and every layout problem the screenshots show;
   - a complete test list for you: every screen and action of both systems, step by step, to tick off on your iPhone and iPad.
-- **10.1** Release build, version 1.0.0.
-- **10.2** You set up both PINs and enter your products and brands.
-- **10.3** A few days of use with the current app still installed.
-- **10.4** Delete the old app.
+- **10.1** Release build, version 1.0.0:
+  - version 1.0.0, a new build number, the test-only screens (component gallery, test data) confirmed absent;
+  - speed test and the full checks once more; the `.ipa` installed on both devices and recorded for instant updates;
+  - the Expo Go preview retired (the installed app is the only way to test from here).
+- **10.2** You set up both PINs and enter your products and brands (the new app starts empty, as decided). Then the first backup, copied to the other device.
+- **10.3** A few days of real use with the current app still installed. What you find is fixed and sent as instant updates (or a new `.ipa` when native).
+- **10.4** Delete the old app, only after a fresh backup has been copied off the device.
+- **10.5** **NEW** Retire the old SwiftUI app in the repository: its build workflow switched off and its code kept in history, so only the Expo app is built from then on (with your OK).
 
 ### Phase 11: Apple Developer account and the App Store
 
@@ -450,10 +454,11 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
   - **Way of working:** a screenshot run on iPhone and iPad at the end of every phase (replaced on 2026-11-12: all simulator runs moved to step 10.0); Expo Go no longer limits the choice of libraries (a native library only when clearly better, after asking).
   - **Instant updates** (L6) brought forward to the first step of Phase 8 (8.0a): they don't need the developer account. Updates go to the installed app only with the owner's OK; offline use is unchanged.
 - After the Phase 8 test (2026-11-12): the backup picker accepts every file (iOS has no type for ".db"); one automatic backup per hour plus the newest of each of the last 7 days; date-first backup names; a new home screen and photo cards for products on iPad, sent as an instant update. Opening a backup straight from AirDrop or Files ("Open in SALFORD") was offered and declined: a backup is restored from Backup → Restore.
+- Full review (2026-11-12), all approved by the owner: a quick second tap can no longer save twice (sale, payment, expense, product, return, receipt); the open cart is kept across iOS closing the app; the database signals every change so screens can't miss a refresh; a weekly database check shown on the home screen; PINs stored with PBKDF2; the receipt preview runs no scripts; archived pieces can be brought back from Management; a note when a piece is priced below its cost; the biggest files split and leftover code removed.
 - Offline: the app works fully without the internet, and every phase's self-check confirms nothing new needs it.
 - Long-life review (2026-11-11), approved by the owner: backups become copies of the database file, written safely and checked (8.0g); the copy off the device is handled one photo at a time (8.0h); database upgrades are made safe and ship only in a new `.ipa` (8.0i); restore saves its safety copy first (8.0j); errors show a retry screen and go to a log on the device (8.0k); the speed test also runs with 30,000 sales (8.0l). Standing practice: Sideloadly's automatic refresh, one Expo SDK upgrade a year, the repository kept public (section 2).
 - Owner (2026-11-11): re-signing every 7 days is mandatory until the developer account, and the yearly Expo SDK upgrade is accepted. Once the build is finished the owner gets the Apple Developer account, and the project ends with Phase 11: TestFlight, iCloud backup, final polish and submitting to the App Store (no longer optional).
 
 - Phase 8 (built, owner to test): instant updates need one new `.ipa` (build 2) before they reach the devices; after installing it, it is recorded with `npm run update:record`. Backups are now copies of the database file (`.db`); `.json` backups from before still restore. A restore keeps sale and receipt numbers from ever repeating, also from an older backup (found while testing 8.0g). The speed test is `npm run speed`: with 2,000 products and 30,000 sales every screen reads in under 25 ms on a computer (Customers and Debts were changed to one query for all balances). The dashboard's daily chart has a temporary switch to Apple's charts so the owner can choose; the other one is removed afterwards. Errors are kept in a log on the device (Settings → سجل الأخطاء).
 
-Status: Phases 0 to 8 are merged, with the fixes from the owner's Phase 8 test (sent as an instant update). Phase 9 is built (PR open): haptics and animations, VoiceOver headings, contrast, iPad window sizes, speed test passed. Keyboard shortcuts added and the new icon and launch screen chosen (option A, "Midnight"); both need a new `.ipa`.
+Status: Phases 0 to 9 are merged. The full review's fixes are built (PR open). Next: Phase 10, switching over.

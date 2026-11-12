@@ -162,6 +162,20 @@ describe('the dashboard', () => {
     expect(a.onOpenDebts).toHaveBeenCalled();
   });
 
+  it('warns when the weekly check found a problem in the data file', async () => {
+    ctx.db.run("INSERT OR REPLACE INTO settings (key, value) VALUES ('health_problem', 'x')");
+    const a = actions();
+    await renderScreen(
+      <DashboardScreen
+        system="jewelry"
+        data={readDashboard(ctx, '2026-11', noBackup)}
+        actions={a}
+      />,
+    );
+    await fireEvent.press(screen.getByTestId('attention-data'));
+    expect(a.onOpenBackup).toHaveBeenCalled();
+  });
+
   it('taps a day of the chart to see its total', async () => {
     await renderScreen(
       <DashboardScreen

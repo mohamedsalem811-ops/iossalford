@@ -1,5 +1,5 @@
 # Phase 4: adding a piece with a new brand, the list and its brand filter, then the brands screen.
-# On iPad the form opens beside the list; the steps are the same.
+# On iPad the pieces are photo cards and the form opens as a window over them; the steps are the same.
 appId: com.salford.pos
 ---
 - runFlow: subflows/fresh-launch.yaml
@@ -59,8 +59,8 @@ appId: com.salford.pos
       notVisible: '150 د.ل • 43٪'
     commands:
       - swipe:
-          start: 20%, 75%
-          end: 20%, 45%
+          start: 50%, 75%
+          end: 50%, 45%
           duration: 600
 - takeScreenshot: ${DEVICE}-product-form
 - runFlow:

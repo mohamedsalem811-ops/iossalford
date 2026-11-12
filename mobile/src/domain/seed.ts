@@ -8,7 +8,8 @@ import { RuleError, type Ctx } from './context';
 import { saveCustomer } from './customers';
 import { recordPayment } from './debts';
 import { addExpense } from './expenses';
-import { getProduct, saveProduct, saveScarfDesign, displayName } from './products';
+import { getProduct, saveProduct, displayName } from './products';
+import { saveScarfDesign } from './scarves';
 import { saveSet } from './sets';
 import { setRate } from './settings';
 

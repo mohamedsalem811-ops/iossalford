@@ -1,5 +1,4 @@
 import { isRunningInExpoGo } from 'expo';
-import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { ActionSheetIOS, Alert, View } from 'react-native';
 
@@ -21,6 +20,7 @@ import {
 import { formatDate, formatTime } from '@/lib/dates';
 import { notifyDataChanged } from '@/state/data-events';
 import { spacing } from '@/theme';
+import { haptic } from '@/lib/haptics';
 
 const SYSTEM_NAMES = { jewelry: 'المجوهرات', scarves: 'الأوشحة' } as const;
 
@@ -59,7 +59,7 @@ export function BackupScreen({
     } catch (error) {
       return fail(error, 'لم تُحفظ النسخة');
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    haptic.success();
     onChanged();
   };
 
@@ -102,7 +102,7 @@ export function BackupScreen({
             } finally {
               setBusy(false);
             }
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            haptic.success();
             notifyDataChanged();
             onChanged();
             Alert.alert(

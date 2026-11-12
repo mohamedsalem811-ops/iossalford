@@ -33,8 +33,6 @@ export function ProductRow({
   editHref,
   brandImage,
   actions,
-  onOpen,
-  selected = false,
   card,
 }: {
   system: SystemId;
@@ -42,13 +40,6 @@ export function ProductRow({
   editHref: Href;
   brandImage: string | null;
   actions: ProductActions;
-  /**
-   * iPad split view: tapping selects the piece (its form opens beside the list) instead of
-   * navigating, and a long press shows the actions as an action sheet.
-   */
-  onOpen?: () => void;
-  /** Highlighted as the piece open beside the list. */
-  selected?: boolean;
   /** iPad grid: drawn as a photo card this wide instead of a swipeable row. */
   card?: number;
 }) {
@@ -61,10 +52,10 @@ export function ProductRow({
   // Tap edits (on iPad it opens beside the list); a long press shows every action as a menu.
   // A plain press is used rather than a native link preview: inside a swipeable list row the
   // preview view lost the row's layout on device.
-  const open = onOpen ?? (() => router.push(editHref));
+  const open = () => router.push(editHref);
   const menu = () => {
     const items: { title: string; run: () => void; destructive?: boolean }[] = [
-      ...(onOpen ? [] : [{ title: 'تعديل', run: open }]),
+      { title: 'تعديل', run: open },
       ...(p.imageFile ? [{ title: 'عرض الصورة', run: () => actions.onPhoto(p) }] : []),
       { title: '+1 مخزون', run: () => actions.onStep(p, 1) },
       ...(p.stock > 0 ? [{ title: '−1 مخزون', run: () => actions.onStep(p, -1) }] : []),
@@ -127,7 +118,6 @@ export function ProductRow({
     <Pressable
       testID={`product-${p.sku}`}
       accessibilityRole="button"
-      accessibilityState={{ selected }}
       accessibilityHint="اضغط للتعديل، أو اضغط مطولاً لمزيد من الخيارات"
       onPress={open}
       onLongPress={menu}
@@ -137,7 +127,7 @@ export function ProductRow({
         gap: spacing.ms,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.md,
-        backgroundColor: pressed || selected ? colors.accentSoft : colors.surface,
+        backgroundColor: pressed ? colors.accentSoft : colors.surface,
       })}>
       <Pressable
         accessibilityRole="button"

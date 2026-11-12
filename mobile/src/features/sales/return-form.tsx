@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -28,6 +27,7 @@ import { spacing, useTheme } from '@/theme';
 
 import { checkReturn, returnable, RETURN_REASONS } from './model';
 import { haptic } from '@/lib/haptics';
+import { useSaveOnce } from '@/hooks/use-save-once';
 
 const PICK_LIMIT = 20;
 
@@ -46,6 +46,8 @@ export function ReturnForm({
   onDone: () => void;
 }) {
   const { colors } = useTheme();
+  const once = useSaveOnce();
+  const saveOnce = () => once(save);
   const bottomSpace = useSheetBottomSpace();
   const [line] = useState(() => (saleLineId ? getSaleLine(ctx, saleLineId) : undefined));
   const [products] = useState(() => (saleLineId ? [] : listProducts(ctx)));
@@ -85,9 +87,10 @@ export function ReturnForm({
       showError(error);
       return;
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    haptic.success();
     notifyDataChanged();
     onDone();
+    return true;
   };
 
   const matches = line
@@ -96,7 +99,7 @@ export function ReturnForm({
 
   return (
     <>
-      <FormHeader title="مرتجع" embedded={false} onCancel={onDone} onSave={save} />
+      <FormHeader title="مرتجع" onCancel={onDone} onSave={saveOnce} />
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
@@ -212,7 +215,7 @@ export function ReturnForm({
             title="حفظ المرتجع"
             icon="checkmark.circle.fill"
             fullWidth
-            onPress={save}
+            onPress={saveOnce}
             testID="return-save"
           />
         </Card>

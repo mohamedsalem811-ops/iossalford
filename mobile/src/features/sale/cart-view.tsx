@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useReducer } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 
@@ -14,7 +13,8 @@ import { useOnDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
 import { showCartProblem } from './actions';
-import { cartGroups, cartTotals, stockWarnings } from './model';
+import { belowCostNote, cartGroups, cartTotals, stockWarnings } from './model';
+import { haptic } from '@/lib/haptics';
 
 /**
  * The open cart: lines with quantity, price and remove; each set as one group removed as a
@@ -70,7 +70,7 @@ export function CartView({
     );
 
   const remove = (key: string) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    haptic.light();
     setCart(removeLine(cart, key));
   };
 
@@ -91,6 +91,16 @@ export function CartView({
       <Icon name="trash" size={18} color={colors.warning} />
     </Pressable>
   );
+
+  // Single pieces only: a set's discount lowering a piece's share is intended.
+  const costNote = (line: CartLine) => {
+    const note = belowCostNote(line.unitPrice, getProduct(ctx, line.productId)?.cost ?? 0);
+    return note ? (
+      <Text variant="caption" tone="warning" testID="cart-below-cost">
+        {note}
+      </Text>
+    ) : null;
+  };
 
   const warning = (productId: number) =>
     warnings.get(productId) ? (
@@ -139,6 +149,7 @@ export function CartView({
                   {removeButton(g.line.key, g.line.name)}
                 </View>
                 {warning(g.line.productId)}
+                {costNote(g.line)}
                 <View
                   style={{
                     flexDirection: 'row',

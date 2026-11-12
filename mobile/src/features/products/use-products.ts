@@ -3,7 +3,8 @@ import { useCallback, useState, type Dispatch, type SetStateAction } from 'react
 
 import { listBrands } from '@/domain/brands';
 import type { Ctx } from '@/domain/context';
-import { groupDesigns, listProducts, type Product } from '@/domain/products';
+import { listProducts, type Product } from '@/domain/products';
+import { groupDesigns } from '@/domain/scarves';
 import { useOnDataChanged } from '@/state/data-events';
 
 import { brandCounts, keepBrandFilter, type BrandFilter } from './model';

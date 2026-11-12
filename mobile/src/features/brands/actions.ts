@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { ActionSheetIOS, Alert } from 'react-native';
 
 import {
@@ -14,6 +13,7 @@ import { newPhotoName } from '@/domain/photos';
 import { releasePhoto, showError } from '@/features/products/actions';
 import { pickPhoto, type PhotoSource } from '@/lib/photos';
 import { notifyDataChanged } from '@/state/data-events';
+import { haptic } from '@/lib/haptics';
 
 /** Adds a brand. Returns false (and says why) when the name is empty or already in the list. */
 export function addBrandNamed(ctx: Ctx, name: string): boolean {
@@ -28,7 +28,7 @@ export function addBrandNamed(ctx: Ctx, name: string): boolean {
     showError(error);
     return false;
   }
-  Haptics.selectionAsync().catch(() => {});
+  haptic.tap();
   notifyDataChanged();
   return true;
 }

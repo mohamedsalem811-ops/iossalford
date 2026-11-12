@@ -4,7 +4,8 @@ import { View } from 'react-native';
 
 import { ChipRow, EmptyState, TAB_BAR_CLEARANCE } from '@/components';
 import type { CartLine } from '@/domain/cart';
-import { CATEGORIES, groupDesigns, type Product } from '@/domain/products';
+import { CATEGORIES, type Product } from '@/domain/products';
+import { groupDesigns } from '@/domain/scarves';
 import { BrandBar } from '@/features/products/brand-bar';
 import { brandCounts } from '@/features/products/model';
 import { gridColumns } from '@/hooks/use-layout';

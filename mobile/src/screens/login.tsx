@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 
@@ -12,6 +11,7 @@ import {
 } from '@/security/face-id';
 import type { VerifyResult } from '@/security/pin';
 import { spacing, type SystemId } from '@/theme';
+import { haptic } from '@/lib/haptics';
 
 const NAMES: Record<SystemId, string> = { jewelry: 'نظام المجوهرات', scarves: 'نظام الأوشحة' };
 
@@ -120,11 +120,11 @@ export function LoginScreen({
       const r = await deps.verify(system, pin);
       setValue('');
       if (r.ok) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        haptic.success();
         onUnlock();
         return;
       }
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      haptic.error();
       if (r.lockedUntil) {
         setUntil(r.lockedUntil);
         setMessage('محاولات خاطئة كثيرة');

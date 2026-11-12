@@ -28,8 +28,6 @@ export function ProductsList({
   editHref,
   actions,
   onAdd,
-  onOpen,
-  selectedId,
   grid = false,
 }: {
   system: SystemId;
@@ -41,9 +39,6 @@ export function ProductsList({
   editHref: (p: Product) => Href;
   actions: ProductActions;
   onAdd: () => void;
-  /** iPad split view: tapping a row opens it beside the list. */
-  onOpen?: (p: Product) => void;
-  selectedId?: number;
   /** iPad: photo cards filling the width instead of rows (tapping opens the form as a window). */
   grid?: boolean;
 }) {
@@ -76,7 +71,6 @@ export function ProductsList({
         numColumns={columns}
         data={shown}
         keyExtractor={(p) => String(p.id)}
-        extraData={selectedId}
         keyboardDismissMode="on-drag"
         // The space under the header is left by the route (BelowHeader); iOS adds nothing more.
         contentInsetAdjustmentBehavior="never"
@@ -134,8 +128,6 @@ export function ProductsList({
               editHref={editHref(item)}
               brandImage={item.brandId !== null ? (brandImages.get(item.brandId) ?? null) : null}
               actions={actions}
-              onOpen={onOpen ? () => onOpen(item) : undefined}
-              selected={item.id === selectedId}
               card={card}
             />
           );

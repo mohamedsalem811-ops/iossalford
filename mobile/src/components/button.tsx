@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { ActivityIndicator, Pressable, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { radius, spacing, touchTarget, useTheme } from '@/theme';
@@ -6,6 +5,7 @@ import { radius, spacing, touchTarget, useTheme } from '@/theme';
 import { Icon } from './icon';
 import { Text } from './text';
 import type { SymbolViewProps } from 'expo-symbols';
+import { haptic } from '@/lib/haptics';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -57,7 +57,7 @@ export function Button({
       accessibilityState={{ disabled: inactive, busy: loading }}
       disabled={inactive}
       onPress={() => {
-        Haptics.selectionAsync().catch(() => {});
+        haptic.tap();
         onPress?.();
       }}
       style={({ pressed }) => [

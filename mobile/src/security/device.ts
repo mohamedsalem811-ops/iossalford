@@ -1,5 +1,7 @@
 /** The PIN vault and Face ID wired to the device (Keychain, SHA-256, LocalAuthentication). */
 import { isRunningInExpoGo } from 'expo';
+import { pbkdf2Async } from '@noble/hashes/pbkdf2';
+import { sha256 } from '@noble/hashes/sha256';
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
 import * as SecureStore from 'expo-secure-store';
@@ -7,7 +9,7 @@ import * as SecureStore from 'expo-secure-store';
 import type { SystemId } from '@/theme';
 
 import type { FaceIdResult, FaceIdStatus } from './face-id';
-import { PinVault, type SecureKv } from './pin';
+import { PIN_ROUNDS, PinVault, type SecureKv } from './pin';
 
 /** Kept in the Keychain, readable only while the device is unlocked, never synced or backed up. */
 const options: SecureStore.SecureStoreOptions = {
@@ -27,6 +29,9 @@ export const pinVault = new PinVault(
   keychain,
   (text) => Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, text),
   () => toHex(Crypto.getRandomBytes(16)),
+  Date.now,
+  async (pin, salt) =>
+    toHex(await pbkdf2Async(sha256, pin, `salford-pos:${salt}`, { c: PIN_ROUNDS, dkLen: 32 })),
 );
 
 /**

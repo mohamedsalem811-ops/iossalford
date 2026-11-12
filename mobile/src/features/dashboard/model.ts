@@ -22,6 +22,7 @@ import {
 import { listSales, saleMonths, type Sale } from '@/domain/sales';
 import { getRate } from '@/domain/settings';
 import { monthKey, type MonthKey } from '@/lib/dates';
+import { healthProblem } from '@/db/health';
 
 /** Months the picker offers: this month and every month with sales, newest first (24 at most). */
 export function monthChoices(withSales: MonthKey[], now: Date, max = 24): MonthKey[] {
@@ -82,6 +83,8 @@ export type DashboardData = {
     owed: number;
     debtors: number;
     backupReminder: string | null;
+    /** The weekly check found a problem in the database file. */
+    dataProblem: boolean;
   };
   byCategory: RankedRow[];
   byBrand: RankedRow[];
@@ -117,6 +120,7 @@ export function readDashboard(
       owed: balances.reduce((t, b) => t + b, 0),
       debtors: balances.length,
       backupReminder: copyReminder(backup.lastCopied, now, backup.firstBackup),
+      dataProblem: healthProblem(ctx.db) !== null,
     },
     byCategory: ranked(breakdown(ctx, [month], 'category')),
     byBrand: ranked(breakdown(ctx, [month], 'brand')),

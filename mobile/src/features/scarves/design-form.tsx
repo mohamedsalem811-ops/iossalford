@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -18,7 +17,8 @@ import {
 } from '@/components';
 import { listBrands } from '@/domain/brands';
 import { RuleError, type Ctx } from '@/domain/context';
-import { CATEGORIES, saveScarfDesign } from '@/domain/products';
+import { CATEGORIES } from '@/domain/products';
+import { saveScarfDesign } from '@/domain/scarves';
 import { releasePhoto } from '@/features/products/actions';
 import { BrandField } from '@/features/products/brand-field';
 import { PhotoPicker } from '@/features/products/photo-picker';
@@ -36,6 +36,8 @@ import {
   type DesignForm,
   type SizeRow,
 } from './model';
+import { useSaveOnce } from '@/hooks/use-save-once';
+import { haptic } from '@/lib/haptics';
 
 /**
  * Add or edit a scarf design: shared details (photo, name, brand, material, colour), then each
@@ -45,17 +47,16 @@ export function DesignFormView({
   ctx,
   designId,
   onDone,
-  embedded = false,
 }: {
   ctx: Ctx;
   /** undefined: a new design. */
   designId?: string;
   onDone: () => void;
-  /** Shown beside the list on iPad, with its own title bar. */
-  embedded?: boolean;
 }) {
   const readable = useReadable();
   const { colors } = useTheme();
+  const once = useSaveOnce();
+  const saveOnce = () => once(save);
   const bottomSpace = useSheetBottomSpace();
   const [initial] = useState(() => {
     const design = designId ? findDesign(ctx, designId) : undefined;
@@ -103,18 +104,17 @@ export function DesignFormView({
     }
     new Set(initial.design?.sizes.map((s) => s.imageFile)).forEach((f) => releasePhoto(ctx, f));
     notifyDataChanged();
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    haptic.success();
     onDone();
+    return true;
   };
 
   return (
     <>
       <FormHeader
         title={initial.design ? 'تعديل التصميم' : 'تصميم جديد'}
-        embedded={embedded}
-        cancelLabel={embedded ? 'إغلاق' : 'إلغاء'}
         onCancel={onDone}
-        onSave={save}
+        onSave={saveOnce}
       />
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
@@ -207,7 +207,7 @@ export function DesignFormView({
           icon="checkmark.circle.fill"
           size="lg"
           fullWidth
-          onPress={save}
+          onPress={saveOnce}
           testID="design-save"
         />
       </KeyboardAwareScrollView>

@@ -1,6 +1,7 @@
 import type { SystemId } from '@/theme';
 
 import { openExpoDb } from './expo-db';
+import { weeklyHealthCheck } from './health';
 import { DatabaseTooNewError, configure, migrate, needsUpgrade } from './migrate';
 import type { Db } from './types';
 
@@ -35,6 +36,7 @@ export function openSystemDb(
     if (beforeUpgrade && needsUpgrade(db)) beforeUpgrade(db);
     migrate(db);
     db.exec('PRAGMA journal_mode = WAL;');
+    weeklyHealthCheck(db, new Date());
     return { status: 'ok', db };
   } catch (error) {
     try {

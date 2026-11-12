@@ -1,4 +1,3 @@
-import * as Haptics from 'expo-haptics';
 import { Alert, View } from 'react-native';
 
 import { Badge, Button, Card, EmptyState, ListGroup, ListRow, Page, Text } from '@/components';
@@ -13,6 +12,7 @@ import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
 import { returnable, saleReturned } from './model';
+import { haptic } from '@/lib/haptics';
 
 /**
  * One sale: when, how it was paid, who bought, every line (its set, price, and how many came back),
@@ -63,7 +63,7 @@ export function SaleDetail({
               showError(error);
               return;
             }
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+            haptic.success();
             notifyDataChanged();
             onDeleted();
           },
