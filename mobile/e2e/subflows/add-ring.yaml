@@ -57,5 +57,5 @@ appId: com.salford.pos
 - tapOn:
     id: 'product-save'
 - extendedWaitUntil:
-    visible: 'Ring Zircon'
+    visible: '.*Ring Zircon.*'
     timeout: 30000

@@ -15,6 +15,7 @@ import {
   Stepper,
   Text,
   TextField,
+  useSheetBottomSpace,
 } from '@/components';
 import type { Ctx } from '@/domain/context';
 import { displayName, listProducts, type Product } from '@/domain/products';
@@ -44,6 +45,7 @@ export function ReturnForm({
   onDone: () => void;
 }) {
   const { colors } = useTheme();
+  const bottomSpace = useSheetBottomSpace();
   const [line] = useState(() => (saleLineId ? getSaleLine(ctx, saleLineId) : undefined));
   const [products] = useState(() => (saleLineId ? [] : listProducts(ctx)));
   const [product, setProduct] = useState<Product | null>(null);
@@ -95,7 +97,7 @@ export function ReturnForm({
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
-        contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: bottomSpace, gap: spacing.md }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled">
         {line ? (

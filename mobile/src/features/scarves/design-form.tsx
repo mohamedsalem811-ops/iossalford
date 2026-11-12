@@ -14,6 +14,7 @@ import {
   Text,
   TextField,
   KEYBOARD_GAP,
+  useSheetBottomSpace,
 } from '@/components';
 import { listBrands } from '@/domain/brands';
 import { RuleError, type Ctx } from '@/domain/context';
@@ -55,6 +56,7 @@ export function DesignFormView({
 }) {
   const readable = useReadable();
   const { colors } = useTheme();
+  const bottomSpace = useSheetBottomSpace();
   const [initial] = useState(() => {
     const design = designId ? findDesign(ctx, designId) : undefined;
     const form = design ? designFormFrom(design) : emptyDesignForm();
@@ -120,7 +122,8 @@ export function DesignFormView({
         onLayout={readable.onLayout}
         contentContainerStyle={{
           ...readable.padding,
-          paddingVertical: spacing.md,
+          paddingTop: spacing.md,
+          paddingBottom: bottomSpace,
           gap: spacing.md,
         }}
         contentInsetAdjustmentBehavior="automatic"

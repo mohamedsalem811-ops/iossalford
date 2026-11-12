@@ -18,7 +18,7 @@ appId: com.salford.pos
 - tapOn:
     id: 'sale-1'
 - extendedWaitUntil:
-    visible: 'Ring Zircon × 1'
+    visible: '.*Ring Zircon × 1.*'
     timeout: 30000
 - takeScreenshot: ${DEVICE}-sale-detail
 - tapOn:

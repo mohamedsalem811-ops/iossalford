@@ -14,6 +14,7 @@ import {
   Text,
   TextField,
   KEYBOARD_GAP,
+  useSheetBottomSpace,
 } from '@/components';
 import { RuleError, type Ctx } from '@/domain/context';
 import { adjustStock, displayName, getProduct, stockHistory } from '@/domain/products';
@@ -37,6 +38,7 @@ export function StockSheet({
   onDone: () => void;
 }) {
   const { colors } = useTheme();
+  const bottomSpace = useSheetBottomSpace();
   const [product] = useState(() => getProduct(ctx, productId));
   const [history] = useState(() => stockHistory(ctx, productId).slice(0, 30));
   const [direction, setDirection] = useState<Direction>('add');
@@ -81,7 +83,7 @@ export function StockSheet({
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
-        contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: bottomSpace, gap: spacing.md }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled">
         <Card>

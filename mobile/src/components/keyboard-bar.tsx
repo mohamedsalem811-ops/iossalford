@@ -1,8 +1,9 @@
 import type { ComponentProps } from 'react';
 import { TouchableOpacity } from 'react-native';
 import { KeyboardToolbar } from 'react-native-keyboard-controller';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { palettes, useTheme } from '@/theme';
+import { palettes, spacing, useTheme } from '@/theme';
 
 /**
  * The bar above the keyboard with a "تم" (Done) button. Number pads have no return key, so this is
@@ -59,3 +60,11 @@ export const ArabicButton: ToolbarButton = ({ children, onPress, disabled, testI
  * never covers it: forms scroll the field being typed in above both.
  */
 export const KEYBOARD_GAP = 72;
+
+/**
+ * Space under the last item of a sheet's form (usually its save button), so it clears the home
+ * bar: a sheet reaches the bottom edge of the screen and its scroll view does not add that space.
+ */
+export function useSheetBottomSpace() {
+  return spacing.md + useSafeAreaInsets().bottom;
+}

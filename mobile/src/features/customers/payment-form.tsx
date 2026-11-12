@@ -13,6 +13,7 @@ import {
   Segmented,
   Text,
   TextField,
+  useSheetBottomSpace,
 } from '@/components';
 import type { Ctx } from '@/domain/context';
 import { getCustomer } from '@/domain/customers';
@@ -35,6 +36,7 @@ export function PaymentForm({
   onDone: () => void;
 }) {
   const { colors } = useTheme();
+  const bottomSpace = useSheetBottomSpace();
   const [customer] = useState(() => getCustomer(ctx, customerId));
   const [owed] = useState(() => balance(ctx, customerId));
   const [amount, setAmount] = useState(() => (owed > 0 ? editableDinars(owed) : ''));
@@ -67,7 +69,7 @@ export function PaymentForm({
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
-        contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: bottomSpace, gap: spacing.md }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled">
         <Card>

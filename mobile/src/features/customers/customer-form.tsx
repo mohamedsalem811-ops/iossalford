@@ -3,7 +3,15 @@ import { useState } from 'react';
 import { Alert } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
-import { Button, Card, FormHeader, KEYBOARD_GAP, NumberField, TextField } from '@/components';
+import {
+  Button,
+  Card,
+  FormHeader,
+  KEYBOARD_GAP,
+  NumberField,
+  TextField,
+  useSheetBottomSpace,
+} from '@/components';
 import type { Ctx } from '@/domain/context';
 import { getCustomer, saveCustomer } from '@/domain/customers';
 import { showError } from '@/features/products/actions';
@@ -23,6 +31,7 @@ export function CustomerFormView({
   onDone: () => void;
 }) {
   const { colors } = useTheme();
+  const bottomSpace = useSheetBottomSpace();
   const [form, setForm] = useState<CustomerForm>(() =>
     customerFormFrom(customerId ? getCustomer(ctx, customerId) : undefined),
   );
@@ -53,7 +62,7 @@ export function CustomerFormView({
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
-        contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: bottomSpace, gap: spacing.md }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled">
         <Card>

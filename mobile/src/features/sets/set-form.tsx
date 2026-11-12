@@ -13,6 +13,7 @@ import {
   Stepper,
   Text,
   TextField,
+  useSheetBottomSpace,
 } from '@/components';
 import type { Ctx } from '@/domain/context';
 import { displayName, getProduct, listProducts } from '@/domain/products';
@@ -53,6 +54,7 @@ export function SetFormView({
   onDone: () => void;
 }) {
   const { colors } = useTheme();
+  const bottomSpace = useSheetBottomSpace();
   const [existing] = useState(() => (setId ? getSet(ctx, setId) : undefined));
   const [form, setForm] = useState(() => (existing ? setFormFrom(existing) : emptySetForm()));
   const [search, setSearch] = useState('');
@@ -107,7 +109,7 @@ export function SetFormView({
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
-        contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: bottomSpace, gap: spacing.md }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled">
         <Card>
