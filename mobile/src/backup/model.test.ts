@@ -5,6 +5,7 @@ import {
   copyReminder,
   daysBetween,
   parseBackupName,
+  replacedAuto,
   toDelete,
   type BackupInfo,
 } from './model';
@@ -12,18 +13,19 @@ import {
 const at = (d: number, h = 10) => new Date(2026, 10, d, h, 5, 12);
 
 describe('backup names', () => {
-  it('names a backup by system, time and kind, and reads it back', () => {
+  it('names a backup by time and kind, date first, and reads it back', () => {
     const name = backupFileName('jewelry', at(10, 14), 'auto');
-    expect(name).toBe('SALFORD-jewelry-2026-11-10-140512-auto.db');
+    expect(name).toBe('2026-11-10_14.05.12_auto.db');
     expect(parseBackupName(name)).toEqual({ name, kind: 'auto', at: at(10, 14), format: 'db' });
-    expect(copyFileName('scarves', at(10, 14))).toBe('SALFORD-scarves-2026-11-10-140512-copy.db');
+    // A copy for the other device says its system (it lands in Downloads, not in a system folder).
+    expect(copyFileName('scarves', at(10, 14))).toBe('scarves_2026-11-10_14.05.db');
     expect(parseBackupName('notes.json')).toBeNull();
-    expect(parseBackupName('SALFORD-scarves-2026-11-10-140512-copy.db')).toBeNull();
+    expect(parseBackupName('scarves_2026-11-10_14.05.db')).toBeNull();
     // A file still being written is never listed.
     expect(parseBackupName(`${name}.part`)).toBeNull();
   });
 
-  it('still reads the names of backups made before Phase 8 (.json)', () => {
+  it('still reads the names used before (Phase 7 .json and Phase 8 .db)', () => {
     const old = 'SALFORD-jewelry-2026-11-10-140512-manual.json';
     expect(parseBackupName(old)).toEqual({
       name: old,
@@ -35,25 +37,50 @@ describe('backup names', () => {
   });
 });
 
-describe('keeping the last 10', () => {
+describe('which backups are kept', () => {
+  const b = (name: string, when: Date, kind: BackupInfo['kind'] = 'auto'): BackupInfo => ({
+    name,
+    kind,
+    at: when,
+    format: 'db',
+  });
   const list = (n: number, kind: BackupInfo['kind'] = 'auto') =>
-    Array.from({ length: n }, (_, i) => ({
-      name: `${kind}${i}`,
-      kind,
-      at: at(i + 1),
-      format: 'db' as const,
-    }));
+    Array.from({ length: n }, (_, i) => b(`${kind}${i}`, at(i + 1), kind));
 
   it('deletes the oldest beyond 10, counting safety copies on their own', () => {
-    const regular = list(12);
-    const gone = toDelete([...regular, ...list(3, 'safety')]);
-    expect(gone.map((b) => b.name)).toEqual(['auto1', 'auto0']);
+    // 12 backups on 12 different days: the 10 newest stay, and the 2 older ones go (more than
+    // 7 days with a backup are already kept).
+    const gone = toDelete([...list(12), ...list(3, 'safety')]);
+    expect(gone.map((x) => x.name)).toEqual(['auto1', 'auto0']);
     expect(toDelete(list(10))).toEqual([]);
-    expect(toDelete(list(12, 'safety')).map((b) => b.name)).toEqual(['safety1', 'safety0']);
+    expect(toDelete(list(12, 'safety')).map((x) => x.name)).toEqual(['safety1', 'safety0']);
     // Copies made before an upgrade never push out the owner's backups either.
-    expect(toDelete([...list(10), ...list(11, 'upgrade')]).map((b) => b.name)).toEqual([
+    expect(toDelete([...list(10), ...list(11, 'upgrade')]).map((x) => x.name)).toEqual([
       'upgrade0',
     ]);
+  });
+
+  it("keeps the newest of each of the last 7 days, so a busy day never pushes out yesterday's", () => {
+    const older = [8, 7, 6, 5, 4, 3].map((d) => b(`day${d}`, at(d, 20)));
+    const busy = Array.from({ length: 12 }, (_, i) => b(`today${i}`, at(10, 8 + i)));
+    const morning = b('day9-morning', at(9, 8));
+    const evening = b('day9-evening', at(9, 21));
+    const gone = toDelete([...older, morning, evening, ...busy]).map((x) => x.name);
+    // Today's 10 newest stay; the 2 oldest of today go. Each of the 6 earlier days with a backup
+    // up to 7 days in all keeps its newest: day 3 is the 8th day back, so it goes.
+    expect(gone).toEqual(['today1', 'today0', 'day9-morning', 'day3']);
+  });
+
+  it('replaces an automatic backup made less than an hour ago', () => {
+    const last = b('a', at(10, 14));
+    expect(replacedAuto([last], new Date(2026, 10, 10, 14, 50))).toBe(last);
+    expect(replacedAuto([last], new Date(2026, 10, 10, 15, 6))).toBeNull();
+    // Never a manual backup, a safety copy, or when the newest one isn't automatic.
+    expect(replacedAuto([b('m', at(10, 14), 'manual')], new Date(2026, 10, 10, 14, 10))).toBeNull();
+    expect(
+      replacedAuto([last, b('m', new Date(2026, 10, 10, 14, 30), 'manual')], at(10, 15)),
+    ).toBeNull();
+    expect(replacedAuto([], at(10))).toBeNull();
   });
 });
 
