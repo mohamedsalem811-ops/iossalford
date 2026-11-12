@@ -232,16 +232,14 @@ export async function shareCopy(ctx: Ctx): Promise<void> {
   }
 }
 
-/** Picks a backup file from the device (Files, or what AirDrop saved). Null if cancelled. */
+/**
+ * Picks a backup file from the device (Files, or what AirDrop saved). Null if cancelled. Every file
+ * can be chosen: iOS has no type for a ".db" file, so asking for database types greyed out every
+ * backup. The chosen file is checked before anything happens (readBackupFile).
+ */
 export async function pickBackupFile(): Promise<string | null> {
   const r = await DocumentPicker.getDocumentAsync({
-    type: [
-      'public.database',
-      'application/x-sqlite3',
-      'application/json',
-      'public.json',
-      'public.data',
-    ],
+    type: '*/*',
     copyToCacheDirectory: true,
     multiple: false,
   });

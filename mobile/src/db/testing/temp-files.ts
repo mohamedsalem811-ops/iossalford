@@ -5,6 +5,8 @@ const fs = require('node:fs') as {
   rmSync(path: string, o: { recursive: boolean; force: boolean }): void;
   writeFileSync(path: string, data: string): void;
   existsSync(path: string): boolean;
+  statSync(path: string): { size: number };
+  truncateSync(path: string, size: number): void;
 };
 const os = require('node:os') as { tmpdir(): string };
 /* eslint-enable @typescript-eslint/no-require-imports */
@@ -14,6 +16,8 @@ export type TempDir = {
   at: (name: string) => string;
   write: (name: string, content: string) => void;
   exists: (name: string) => boolean;
+  /** Cuts the file to a fraction of its size, like a copy that stopped half way. */
+  cut: (name: string, fraction: number) => void;
   remove: () => void;
 };
 
@@ -23,6 +27,8 @@ export function tempDir(): TempDir {
     at: (name) => `${dir}/${name}`,
     write: (name, content) => fs.writeFileSync(`${dir}/${name}`, content),
     exists: (name) => fs.existsSync(`${dir}/${name}`),
+    cut: (name, fraction) =>
+      fs.truncateSync(`${dir}/${name}`, Math.floor(fs.statSync(`${dir}/${name}`).size * fraction)),
     remove: () => fs.rmSync(dir, { recursive: true, force: true }),
   };
 }

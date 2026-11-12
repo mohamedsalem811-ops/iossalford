@@ -17,6 +17,7 @@ import {
   firstBackup,
   lastCopied,
   listBackups,
+  pickBackupFile,
   readBackupFile,
   restore,
   saveBackup,
@@ -39,7 +40,11 @@ jest.mock('expo-secure-store', () => {
   };
 });
 jest.mock('expo-sharing', () => ({ shareAsync: jest.fn(() => Promise.resolve()) }));
-jest.mock('expo-document-picker', () => ({}));
+jest.mock('expo-document-picker', () => ({
+  getDocumentAsync: jest.fn(() =>
+    Promise.resolve({ canceled: false, assets: [{ uri: 'file:///picked.db' }] }),
+  ),
+}));
 
 const fsMock = jest.requireMock('expo-file-system');
 const { File, Directory, Paths } = fsMock;
@@ -155,11 +160,20 @@ describe('copying off the device', () => {
   });
 });
 
+describe('picking a backup', () => {
+  it('lets every file be chosen: iOS has no type for a ".db" file, so asking for one greyed out every backup', async () => {
+    const picker = jest.requireMock('expo-document-picker');
+    await expect(pickBackupFile()).resolves.toBe('file:///picked.db');
+    expect(picker.getDocumentAsync).toHaveBeenCalledWith(expect.objectContaining({ type: '*/*' }));
+  });
+});
+
 describe('restoring', () => {
   it('refuses a damaged file, another system and anything that is not a backup', async () => {
-    const bad = new File(Paths.cache, 'bad.db');
+    // Every file can be picked in Files (iOS has no type for ".db"): a photo is "not a backup".
+    const bad = new File(Paths.cache, 'IMG_0001.jpg');
     bad.writeSync('not a database');
-    await expect(readBackupFile(ctx, bad.uri)).rejects.toThrow('تالف');
+    await expect(readBackupFile(ctx, bad.uri)).rejects.toThrow('ليس نسخة');
     const scarves = makeCtx('scarves');
     const other = new File(Paths.cache, 'scarves.db');
     engine.writeSnapshot(scarves.db, openFileDb, other.uri, { system: 'scarves', madeAt: 'x' });
