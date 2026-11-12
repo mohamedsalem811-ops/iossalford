@@ -7,7 +7,7 @@ import ReanimatedSwipeable, {
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
 import { Icon, Text } from '@/components';
-import type { ScarfDesign } from '@/domain/products';
+import type { ScarfDesign } from '@/domain/scarves';
 import { BrandBadge } from '@/features/products/brand-badge';
 import { ProductPhoto } from '@/features/products/product-photo';
 import { stockState } from '@/features/products/model';

@@ -1,6 +1,6 @@
 import { isRunningInExpoGo } from 'expo';
 import { useRef, useState } from 'react';
-import { Alert, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import {
@@ -22,10 +22,8 @@ import {
   deleteReceipt,
   getReceipt,
   issueReceipt,
-  templatesFor,
   updateReceipt,
   type Receipt,
-  type TemplateId,
 } from '@/domain/receipts';
 import { applyQuery, DEFAULT_QUERY } from '@/features/products/model';
 import { formatLyd } from '@/lib/money';
@@ -44,23 +42,14 @@ import {
   studioFrom,
   studioItems,
   studioProblem,
-  templateName,
   type StudioForm,
   type StudioItem,
 } from './model';
 import { ReceiptPreview } from './receipt-preview';
+import { TemplatePicker } from './template-picker';
 import { haptic } from '@/lib/haptics';
 
 const PICK_LIMIT = 20;
-
-/** The small colour sample on each design card. */
-const SWATCH: Record<TemplateId, { bg: string; fg: string; label: string }> = {
-  salford_dark: { bg: '#0B0B18', fg: '#FFFFFF', label: 'SJ' },
-  salford_light: { bg: '#FFFFFF', fg: '#000000', label: 'SJ' },
-  swarovski: { bg: '#FFFFFF', fg: '#000000', label: 'SALFORD' },
-  scarves_libya: { bg: '#FFFFFF', fg: '#000000', label: 'SALFORD' },
-  scarves_salford: { bg: '#6E1E3E', fg: '#FFFFFF', label: 'SALFORD' },
-};
 
 /**
  * The receipt studio: its number, date and time; the design; official with prices or a gift
@@ -236,53 +225,11 @@ export function ReceiptStudio({
         <Text variant="subhead" tone="secondary" style={{ paddingHorizontal: spacing.xs }}>
           التصميم
         </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            {templatesFor(ctx.system).map((t) => {
-              const on = form.template === t;
-              const s = SWATCH[t];
-              return (
-                <Pressable
-                  key={t}
-                  onPress={() => change((f) => ({ ...f, template: t }))}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: on }}
-                  accessibilityLabel={`تصميم ${templateName(t)}`}
-                  testID={`template-${t}`}
-                  style={{
-                    width: 132,
-                    padding: spacing.sm,
-                    gap: spacing.xs,
-                    borderRadius: radius.lg,
-                    borderCurve: 'continuous',
-                    backgroundColor: colors.surface,
-                    borderWidth: 2,
-                    borderColor: on ? colors.accent : colors.separator,
-                  }}>
-                  <View
-                    style={{
-                      height: 52,
-                      borderRadius: radius.sm,
-                      backgroundColor: s.bg,
-                      borderWidth: 1,
-                      borderColor: '#d9d9d9',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                    <Text
-                      variant="headline"
-                      style={{ color: s.fg, fontFamily: undefined, fontWeight: '900' }}>
-                      {s.label}
-                    </Text>
-                  </View>
-                  <Text variant="caption" numberOfLines={1} center>
-                    {templateName(t)}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </ScrollView>
+        <TemplatePicker
+          system={ctx.system}
+          value={form.template}
+          onChange={(template) => change((f) => ({ ...f, template }))}
+        />
 
         <Card>
           <Segmented

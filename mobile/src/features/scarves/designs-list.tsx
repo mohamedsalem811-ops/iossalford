@@ -4,13 +4,8 @@ import { useState } from 'react';
 import { View } from 'react-native';
 
 import { ChipRow, EmptyState, TAB_BAR_CLEARANCE, Text } from '@/components';
-import {
-  CATEGORIES,
-  groupDesigns,
-  sizeSortKey,
-  type Product,
-  type ScarfDesign,
-} from '@/domain/products';
+import { CATEGORIES, type Product } from '@/domain/products';
+import { groupDesigns, sizeSortKey, type ScarfDesign } from '@/domain/scarves';
 import { BrandBar } from '@/features/products/brand-bar';
 import { brandCounts } from '@/features/products/model';
 import { gridColumns } from '@/hooks/use-layout';

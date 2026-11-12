@@ -13,7 +13,7 @@ import {
   sizeRow,
   type DesignQuery,
 } from './model';
-import { groupDesigns } from '@/domain/products';
+import { groupDesigns } from '@/domain/scarves';
 
 let nextId = 0;
 const scarf = (over: Partial<Product>): Product => ({

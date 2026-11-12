@@ -1,13 +1,8 @@
 import { Alert } from 'react-native';
 
 import type { Ctx } from '@/domain/context';
-import {
-  deleteProduct,
-  deleteScarfDesign,
-  groupDesigns,
-  listProducts,
-  type ScarfDesign,
-} from '@/domain/products';
+import { deleteProduct, listProducts } from '@/domain/products';
+import { deleteScarfDesign, groupDesigns, type ScarfDesign } from '@/domain/scarves';
 import { releasePhoto, showError } from '@/features/products/actions';
 import { notifyDataChanged } from '@/state/data-events';
 

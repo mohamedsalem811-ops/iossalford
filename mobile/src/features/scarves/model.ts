@@ -2,16 +2,13 @@
  * The scarves products tab works by design (one design, many sizes): filters, summary, the
  * design form and its size rows.
  */
+import { CATEGORIES, isLowStock, STANDARD_SCARF_SIZES, type Product } from '@/domain/products';
 import {
-  CATEGORIES,
   groupDesigns,
-  isLowStock,
   sizeSortKey,
-  STANDARD_SCARF_SIZES,
-  type Product,
   type ScarfDesign,
   type ScarfDesignInput,
-} from '@/domain/products';
+} from '@/domain/scarves';
 import type { BrandFilter, SortOrder, StockFilter } from '@/features/products/model';
 import { latinDigits, parseInteger, parseThousandths } from '@/lib/digits';
 import { editableDinars, formatDinars } from '@/lib/money';

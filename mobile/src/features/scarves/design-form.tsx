@@ -17,7 +17,8 @@ import {
 } from '@/components';
 import { listBrands } from '@/domain/brands';
 import { RuleError, type Ctx } from '@/domain/context';
-import { CATEGORIES, saveScarfDesign } from '@/domain/products';
+import { CATEGORIES } from '@/domain/products';
+import { saveScarfDesign } from '@/domain/scarves';
 import { releasePhoto } from '@/features/products/actions';
 import { BrandField } from '@/features/products/brand-field';
 import { PhotoPicker } from '@/features/products/photo-picker';

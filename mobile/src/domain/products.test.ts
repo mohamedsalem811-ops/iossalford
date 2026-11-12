@@ -6,21 +6,18 @@ import { RuleError } from './context';
 import {
   adjustStock,
   deleteProduct,
-  deleteScarfDesign,
   displayName,
   generateSku,
   getProduct,
-  groupDesigns,
   listProducts,
   moveStock,
   productUsage,
   restoreProduct,
   saveProduct,
-  saveScarfDesign,
-  sizesInUse,
   stockHistory,
   type ProductInput,
 } from './products';
+import { deleteScarfDesign, groupDesigns, saveScarfDesign, sizesInUse } from './scarves';
 import { saveSet } from './sets';
 import { DEFAULT_RATE, getRate, setRate } from './settings';
 import { makeCtx, type TestCtx } from './testing/ctx';

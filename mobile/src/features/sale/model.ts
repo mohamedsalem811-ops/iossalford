@@ -2,7 +2,8 @@
 import { cartTotal, cartPieces, lineTotal, problemMessage, type CartLine } from '@/domain/cart';
 import type { PaymentMethod } from '@/domain/checkout';
 import { hasIdentity } from '@/domain/customers';
-import type { Product, ScarfDesign } from '@/domain/products';
+import type { Product } from '@/domain/products';
+import type { ScarfDesign } from '@/domain/scarves';
 import { parseInteger, parseThousandths } from '@/lib/digits';
 import { lydToUsd } from '@/lib/money';
 import { applyQuery, DEFAULT_QUERY, type BrandFilter } from '@/features/products/model';

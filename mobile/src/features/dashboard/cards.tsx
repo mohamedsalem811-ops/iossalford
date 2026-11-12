@@ -1,0 +1,286 @@
+import { useState } from 'react';
+import { Pressable, View } from 'react-native';
+import { Card, HeroCard, Icon, ListGroup, ListRow, Segmented, Stat, Text } from '@/components';
+import { PAYMENT_LABELS } from '@/domain/checkout';
+import { DailyChart } from '@/features/dashboard/daily-chart';
+import { cashVsCredit, type DashboardData } from '@/features/dashboard/model';
+import { RankedList } from '@/features/dashboard/ranked-list';
+import { formatTime, monthTitle, type MonthKey } from '@/lib/dates';
+import { formatDinars, formatLyd } from '@/lib/money';
+import { spacing, useTheme, type SystemId } from '@/theme';
+
+import { Grid, KpiTile, Title } from './layout';
+
+/** What the home screen's cards and header can open. */
+export type DashboardActions = {
+  /** The logo: switch system or lock. */
+  onSystemMenu: () => void;
+  onEditRate: () => void;
+  onMonth: (month: MonthKey) => void;
+  onOpenSale: (id: number) => void;
+  onOpenDebts: () => void;
+  onOpenBackup: () => void;
+  onOpenProducts: () => void;
+};
+
+/** The cards of the home screen. */
+export function TodayCard({ data, piece }: { data: DashboardData; piece: string }) {
+  const money = cashVsCredit(data.today.byMethod);
+  return (
+    <HeroCard style={{ flex: 1 }}>
+      <Text variant="subhead" tone="onAccent">
+        مبيعات اليوم
+      </Text>
+      <Text variant="hero" tone="onAccent" testID="today-total">
+        {formatLyd(data.today.total)}
+      </Text>
+      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        <Stat value={formatDinars(data.today.profit)} label="الربح" onAccent />
+        <Stat value={String(data.today.sales)} label="فواتير" onAccent />
+        <Stat value={String(data.today.pieces)} label={piece} onAccent />
+      </View>
+      <Text variant="caption" tone="onAccent" testID="today-cash-credit">
+        {`مدفوع ${formatLyd(money.paid)} • ${PAYMENT_LABELS.credit} ${formatLyd(money.credit)}`}
+      </Text>
+    </HeroCard>
+  );
+}
+
+export function AttentionCard({
+  data,
+  actions,
+}: {
+  data: DashboardData;
+  actions: DashboardActions;
+}) {
+  const a = data.attention;
+  const nothing = !a.lowCount && !a.outCount && !a.owed && !a.backupReminder && !a.dataProblem;
+  return (
+    <Card style={{ flex: 1 }} testID="attention">
+      <Title>يحتاج انتباهك</Title>
+      {nothing ? (
+        <Text variant="subhead" tone="secondary">
+          لا شيء الآن: المخزون والديون والنسخ الاحتياطي بخير.
+        </Text>
+      ) : (
+        <ListGroup>
+          {a.dataProblem ? (
+            <ListRow
+              icon="exclamationmark.octagon"
+              tone="warning"
+              title="فحص البيانات وجد مشكلة"
+              subtitle="افتح النسخ الاحتياطي واحفظ نسخة الآن، واحتفظ بآخر نسخة سليمة."
+              onPress={actions.onOpenBackup}
+              testID="attention-data"
+            />
+          ) : null}
+          {a.outCount || a.lowCount ? (
+            <ListRow
+              icon="exclamationmark.triangle"
+              tone="warning"
+              title={`نفد ${a.outCount} • قارب على النفاد ${a.lowCount}`}
+              subtitle={a.low
+                .map((p) => `${p.name}${p.size ? ` ${p.size}` : ''} (${p.stock})`)
+                .join('، ')}
+              onPress={actions.onOpenProducts}
+              testID="attention-stock"
+            />
+          ) : null}
+          {a.owed ? (
+            <ListRow
+              icon="person.crop.circle.badge.exclamationmark"
+              title="ديون الزبائن"
+              subtitle={`${a.debtors} زبون`}
+              value={formatLyd(a.owed)}
+              tone="warning"
+              onPress={actions.onOpenDebts}
+              testID="attention-debts"
+            />
+          ) : null}
+          {a.backupReminder ? (
+            <ListRow
+              icon="externaldrive.badge.exclamationmark"
+              title="نسخة احتياطية خارج الجهاز"
+              subtitle={a.backupReminder}
+              tone="warning"
+              onPress={actions.onOpenBackup}
+              testID="attention-backup"
+            />
+          ) : null}
+        </ListGroup>
+      )}
+    </Card>
+  );
+}
+
+/** ‹ نوفمبر 2026 ›: the previous month on the leading side, as time runs in Arabic. */
+export function EmptyMonth({ data }: { data: DashboardData }) {
+  const { colors } = useTheme();
+  const s = data.summary;
+  return (
+    <Card
+      style={{ alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl }}
+      testID="empty-month">
+      <Icon name="chart.bar" size={28} color={colors.accent} />
+      <Text variant="headline" center>
+        {`لا مبيعات في ${monthTitle(data.month)}`}
+      </Text>
+      {s.expenses ? (
+        <Text variant="subhead" tone="secondary" center>
+          {`المصروفات ${formatLyd(s.expenses)} • صافي الربح ${formatLyd(s.netProfit)}`}
+        </Text>
+      ) : (
+        <Text variant="subhead" tone="secondary" center>
+          تظهر هنا أرقام الشهر ورسمه عند أول بيعة.
+        </Text>
+      )}
+    </Card>
+  );
+}
+
+export function ChartCard({ data }: { data: DashboardData }) {
+  return (
+    <Card style={{ flex: 1, gap: spacing.ms }}>
+      <Title>المبيعات اليومية</Title>
+      <DailyChart month={data.month} days={data.daily} />
+    </Card>
+  );
+}
+
+/** What the tiles don't show: cost, returns and expenses, and how net profit comes out. */
+export function DetailsCard({ data }: { data: DashboardData }) {
+  const s = data.summary;
+  const row = (label: string, value: string, sub?: string, strong = false) => (
+    <View
+      key={label}
+      style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' }}>
+      <Text variant={strong ? 'bodyStrong' : 'body'}>{label}</Text>
+      <View style={{ alignItems: 'flex-end' }}>
+        <Text variant={strong ? 'headline' : 'bodyStrong'}>{value}</Text>
+        {sub ? (
+          <Text variant="caption" tone="secondary">
+            {sub}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  );
+  return (
+    <Card style={{ flex: 1, gap: spacing.ms }} testID="month-details">
+      <Title>{`تفاصيل ${monthTitle(data.month)}`}</Title>
+      {row('المبيعات', formatLyd(s.grossSales))}
+      {row('التكلفة', formatLyd(s.costOfSales))}
+      {row('المرتجعات', formatLyd(s.refunds), `${s.itemsReturned} قطعة`)}
+      {row('المصروفات', formatLyd(s.expenses))}
+      {row('صافي الربح', formatLyd(s.netProfit), undefined, true)}
+    </Card>
+  );
+}
+
+export type BreakdownKind = 'category' | 'brand' | 'size' | 'payment' | 'top';
+
+/** The month by category, brand, size (scarves), payment or best sellers: one card, one switch. */
+export function BreakdownCard({
+  system,
+  data,
+  piece,
+}: {
+  system: SystemId;
+  data: DashboardData;
+  piece: string;
+}) {
+  const [kind, setKind] = useState<BreakdownKind>('category');
+  const options: { value: BreakdownKind; label: string }[] = [
+    { value: 'category', label: system === 'scarves' ? 'الخامة' : 'الصنف' },
+    { value: 'brand', label: 'الماركة' },
+    ...(system === 'scarves' ? [{ value: 'size' as const, label: 'المقاس' }] : []),
+    { value: 'payment', label: 'الدفع' },
+    { value: 'top', label: 'الأكثر' },
+  ];
+  return (
+    <Card style={{ flex: 1, gap: spacing.ms }}>
+      <Title>{`حسب ${options.find((o) => o.value === kind)?.label ?? ''}`}</Title>
+      <Segmented options={options} value={kind} onChange={setKind} testID="breakdown-kind" />
+      {kind === 'category' ? (
+        <RankedList rows={data.byCategory} unit={piece} testID="by-category" />
+      ) : kind === 'brand' ? (
+        <RankedList rows={data.byBrand} unit={piece} testID="by-brand" />
+      ) : kind === 'size' ? (
+        <RankedList
+          rows={data.bySize}
+          unit={piece}
+          extra={(r) => (r.stock !== undefined ? `في المخزون ${r.stock}` : null)}
+          testID="by-size"
+        />
+      ) : kind === 'payment' ? (
+        <RankedList rows={data.byPayment} unit={piece} testID="by-payment" />
+      ) : (
+        <RankedList rows={data.top} unit={piece} testID="top-products" />
+      )}
+    </Card>
+  );
+}
+
+export function LatestCard({
+  data,
+  onOpenSale,
+}: {
+  data: DashboardData;
+  onOpenSale: (id: number) => void;
+}) {
+  return (
+    <Card style={{ flex: 1 }} testID="latest-sales">
+      <Title>آخر المبيعات</Title>
+      {data.latest.length === 0 ? (
+        <Text variant="subhead" tone="secondary">
+          لا مبيعات بعد.
+        </Text>
+      ) : (
+        <ListGroup>
+          {data.latest.map((s) => (
+            <ListRow
+              key={s.id}
+              title={s.lines.map((l) => l.name).join('، ')}
+              subtitle={`${formatTime(new Date(s.createdAt))} • ${PAYMENT_LABELS[s.paymentMethod]}${s.customerName ? ` • ${s.customerName}` : ''}`}
+              value={formatLyd(s.total)}
+              onPress={() => onOpenSale(s.id)}
+              testID={`latest-${s.id}`}
+            />
+          ))}
+        </ListGroup>
+      )}
+    </Card>
+  );
+}
+
+/** The stock now, as four tiles (2 × 2 on iPhone); the first opens the products. */
+export function StockTiles({
+  data,
+  piece,
+  wide,
+  onOpen,
+}: {
+  data: DashboardData;
+  piece: string;
+  wide: boolean;
+  onOpen: () => void;
+}) {
+  const s = data.stock;
+  return (
+    <View style={{ gap: spacing.sm }} testID="stock-summary">
+      <Text variant="title">المخزون</Text>
+      <Grid columns={wide ? 4 : 2}>
+        <Pressable
+          onPress={onOpen}
+          accessibilityRole="button"
+          accessibilityLabel={`في المخزون ${s.pieces} ${piece}، فتح المنتجات`}
+          style={{ flex: 1 }}>
+          <KpiTile label="في المخزون" value={`${s.pieces} ${piece}`} />
+        </Pressable>
+        <KpiTile label="الأصناف" value={String(s.items)} />
+        <KpiTile label="القيمة بالتكلفة" value={formatLyd(s.costValue)} />
+        <KpiTile label="القيمة بسعر البيع" value={formatLyd(s.priceValue)} />
+      </Grid>
+    </View>
+  );
+}

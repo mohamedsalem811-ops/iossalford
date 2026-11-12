@@ -3,7 +3,8 @@
  */
 import { ensureBrand, setBrandImage } from './brands';
 import { newPhotoName, photoInUse } from './photos';
-import { deleteProduct, saveProduct, saveScarfDesign } from './products';
+import { deleteProduct, saveProduct } from './products';
+import { saveScarfDesign } from './scarves';
 import { makeCtx, type TestCtx } from './testing/ctx';
 
 let ctx: TestCtx;

@@ -3,7 +3,8 @@ import { useState, type Dispatch, type SetStateAction } from 'react';
 
 import { BelowHeader } from '@/components/below-header';
 import type { Ctx } from '@/domain/context';
-import type { Product, ScarfDesign } from '@/domain/products';
+import type { Product } from '@/domain/products';
+import type { ScarfDesign } from '@/domain/scarves';
 import { confirmDelete, stepStock } from '@/features/products/actions';
 import { DEFAULT_QUERY, SORTS, STOCK_FILTERS, type ListQuery } from '@/features/products/model';
 import { ProductsList } from '@/features/products/products-list';

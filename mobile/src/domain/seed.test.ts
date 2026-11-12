@@ -2,7 +2,8 @@
  * @jest-environment node
  */
 import { debtors } from './debts';
-import { groupDesigns, listProducts } from './products';
+import { listProducts } from './products';
+import { groupDesigns } from './scarves';
 import { listReceipts } from './receipts';
 import { summary } from './reports';
 import { seedDemo } from './seed';

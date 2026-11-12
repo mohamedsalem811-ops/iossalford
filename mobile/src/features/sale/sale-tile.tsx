@@ -1,7 +1,8 @@
 import { Pressable, View } from 'react-native';
 
 import { Badge, Text } from '@/components';
-import type { Product, ScarfDesign } from '@/domain/products';
+import type { Product } from '@/domain/products';
+import type { ScarfDesign } from '@/domain/scarves';
 import { ProductPhoto } from '@/features/products/product-photo';
 import { priceRange } from '@/features/scarves/model';
 import { formatLyd } from '@/lib/money';
