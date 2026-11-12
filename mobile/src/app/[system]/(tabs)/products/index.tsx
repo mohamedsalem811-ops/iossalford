@@ -1,17 +1,14 @@
 import { router, Stack } from 'expo-router';
 import { useState, type Dispatch, type SetStateAction } from 'react';
 
-import { EmptyState, SplitView } from '@/components';
 import { BelowHeader } from '@/components/below-header';
 import type { Ctx } from '@/domain/context';
-import { groupDesigns, type Product, type ScarfDesign } from '@/domain/products';
+import type { Product, ScarfDesign } from '@/domain/products';
 import { confirmDelete, stepStock } from '@/features/products/actions';
 import { DEFAULT_QUERY, SORTS, STOCK_FILTERS, type ListQuery } from '@/features/products/model';
-import { ProductFormView } from '@/features/products/product-form';
 import { ProductsList } from '@/features/products/products-list';
 import { firstOfEachDesign, useProducts } from '@/features/products/use-products';
 import { confirmDeleteDesign } from '@/features/scarves/actions';
-import { DesignFormView } from '@/features/scarves/design-form';
 import { DesignsList } from '@/features/scarves/designs-list';
 import { DEFAULT_DESIGN_QUERY, type DesignQuery } from '@/features/scarves/model';
 import { useLayout } from '@/hooks/use-layout';
@@ -95,46 +92,13 @@ function Header<Q extends Filters>({
 function JewelryProducts({ ctx }: { ctx: Ctx }) {
   const [query, setQuery] = useState<ListQuery>(DEFAULT_QUERY);
   const data = useProducts(ctx, setQuery);
+  // iPad: photo cards filling the width; a piece opens as a window (sheet) over them.
   const { split } = useLayout();
-  // iPad: the piece open beside the list ('new' for a new one).
-  const [open, setOpen] = useState<number | 'new' | null>(null);
   const system = ctx.system;
   const editHref = (p: Product) =>
     ({ pathname: '/[system]/product/[id]', params: { system, id: String(p.id) } }) as const;
   const add = () =>
-    split
-      ? setOpen('new')
-      : router.push({ pathname: '/[system]/product/[id]', params: { system, id: 'new' } });
-  // A piece deleted while open closes its form.
-  const shown = open === 'new' || data.products.some((p) => p.id === open) ? open : null;
-
-  const list = (
-    <ProductsList
-      system={system}
-      products={data.products}
-      brandImages={data.brandImages}
-      query={query}
-      onQuery={setQuery}
-      editHref={editHref}
-      onAdd={add}
-      onOpen={split ? (p) => setOpen(p.id) : undefined}
-      selectedId={typeof shown === 'number' ? shown : undefined}
-      actions={{
-        onPhoto: (p) =>
-          p.imageFile
-            ? router.push({
-                pathname: '/[system]/photo/[id]',
-                params: { system, id: String(p.id) },
-              })
-            : split
-              ? setOpen(p.id)
-              : router.push(editHref(p)),
-        onStep: (p, delta) => stepStock(ctx, p, delta),
-        onAdjust: (p) => adjustSheet(system, p.id),
-        onDelete: (p) => confirmDelete(ctx, p),
-      }}
-    />
-  );
+    router.push({ pathname: '/[system]/product/[id]', params: { system, id: 'new' } });
 
   return (
     <>
@@ -147,32 +111,27 @@ function JewelryProducts({ ctx }: { ctx: Ctx }) {
         onAdd={add}
       />
       <BelowHeader>
-        {split ? (
-          <SplitView
-            list={list}
-            detail={
-              shown === null ? (
-                <EmptyState
-                  icon="shippingbox"
-                  title="اختر قطعة من القائمة"
-                  message="تظهر هنا لتعديلها، أو أضف قطعة جديدة."
-                  action="إضافة قطعة"
-                  onAction={add}
-                />
-              ) : (
-                <ProductFormView
-                  key={String(shown)}
-                  ctx={ctx}
-                  productId={shown === 'new' ? undefined : shown}
-                  embedded
-                  onDone={() => setOpen(null)}
-                />
-              )
-            }
-          />
-        ) : (
-          list
-        )}
+        <ProductsList
+          system={system}
+          products={data.products}
+          brandImages={data.brandImages}
+          query={query}
+          onQuery={setQuery}
+          editHref={editHref}
+          onAdd={add}
+          grid={split}
+          actions={{
+            onPhoto: (p) =>
+              router.push(
+                p.imageFile
+                  ? { pathname: '/[system]/photo/[id]', params: { system, id: String(p.id) } }
+                  : editHref(p),
+              ),
+            onStep: (p, delta) => stepStock(ctx, p, delta),
+            onAdjust: (p) => adjustSheet(system, p.id),
+            onDelete: (p) => confirmDelete(ctx, p),
+          }}
+        />
       </BelowHeader>
     </>
   );
@@ -181,35 +140,13 @@ function JewelryProducts({ ctx }: { ctx: Ctx }) {
 function ScarvesProducts({ ctx }: { ctx: Ctx }) {
   const [query, setQuery] = useState<DesignQuery>(DEFAULT_DESIGN_QUERY);
   const data = useProducts(ctx, setQuery, firstOfEachDesign);
+  // iPad: design cards filling the width; a design opens as a window (sheet) over them.
   const { split } = useLayout();
-  // iPad: the design open beside the list ('new' for a new one).
-  const [open, setOpen] = useState<string | null>(null);
   const system = ctx.system;
   const href = (d: ScarfDesign) =>
     ({ pathname: '/[system]/design/[id]', params: { system, id: d.id } }) as const;
   const add = () =>
-    split
-      ? setOpen('new')
-      : router.push({ pathname: '/[system]/design/[id]', params: { system, id: 'new' } });
-  // A design deleted while open closes its form.
-  const shown =
-    open === 'new' || groupDesigns(data.products).some((d) => d.id === open) ? open : null;
-
-  const list = (
-    <DesignsList
-      system={system}
-      products={data.products}
-      brandImages={data.brandImages}
-      query={query}
-      onQuery={setQuery}
-      href={href}
-      onDelete={(d) => confirmDeleteDesign(ctx, d)}
-      onAdjust={(id) => adjustSheet(system, id)}
-      onAdd={add}
-      onOpen={split ? (d) => setOpen(d.id) : undefined}
-      selectedId={shown ?? undefined}
-    />
-  );
+    router.push({ pathname: '/[system]/design/[id]', params: { system, id: 'new' } });
 
   return (
     <>
@@ -222,32 +159,18 @@ function ScarvesProducts({ ctx }: { ctx: Ctx }) {
         onAdd={add}
       />
       <BelowHeader>
-        {split ? (
-          <SplitView
-            list={list}
-            detail={
-              shown === null ? (
-                <EmptyState
-                  icon="wind"
-                  title="اختر تصميماً من القائمة"
-                  message="يظهر هنا بكل مقاساته لتعديله، أو أضف تصميماً جديداً."
-                  action="تصميم جديد"
-                  onAction={add}
-                />
-              ) : (
-                <DesignFormView
-                  key={shown}
-                  ctx={ctx}
-                  designId={shown === 'new' ? undefined : shown}
-                  embedded
-                  onDone={() => setOpen(null)}
-                />
-              )
-            }
-          />
-        ) : (
-          list
-        )}
+        <DesignsList
+          system={system}
+          products={data.products}
+          brandImages={data.brandImages}
+          query={query}
+          onQuery={setQuery}
+          href={href}
+          onDelete={(d) => confirmDeleteDesign(ctx, d)}
+          onAdjust={(id) => adjustSheet(system, id)}
+          onAdd={add}
+          grid={split}
+        />
       </BelowHeader>
     </>
   );

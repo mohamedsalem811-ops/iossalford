@@ -1,5 +1,6 @@
 import { FlashList } from '@shopify/flash-list';
 import type { Href } from 'expo-router';
+import { useState } from 'react';
 import { View } from 'react-native';
 
 import { ChipRow, EmptyState, TAB_BAR_CLEARANCE, Text } from '@/components';
@@ -12,10 +13,14 @@ import {
 } from '@/domain/products';
 import { BrandBar } from '@/features/products/brand-bar';
 import { brandCounts } from '@/features/products/model';
+import { gridColumns } from '@/hooks/use-layout';
 import { spacing, useTheme, type SystemId } from '@/theme';
 
 import { DesignRow } from './design-row';
 import { applyDesignQuery, designSummary, type DesignQuery } from './model';
+
+/** Space between the cards of the iPad grid. */
+const GAP = spacing.ms;
 
 /** The scarves products tab: designs with all their sizes, filtered by brand, material and size. */
 export function DesignsList({
@@ -30,6 +35,7 @@ export function DesignsList({
   onAdd,
   onOpen,
   selectedId,
+  grid = false,
 }: {
   system: SystemId;
   products: Product[];
@@ -43,8 +49,13 @@ export function DesignsList({
   /** iPad split view: tapping a design opens it beside the list. */
   onOpen?: (d: ScarfDesign) => void;
   selectedId?: string;
+  /** iPad: photo cards filling the width instead of rows (tapping opens the form as a window). */
+  grid?: boolean;
 }) {
   const { colors } = useTheme();
+  const [width, setWidth] = useState(0);
+  const columns = grid && width > 0 ? gridColumns(width, 220, GAP) : 1;
+  const card = columns > 1 ? (width - spacing.md * 2 - GAP * (columns - 1)) / columns : undefined;
   // The brand bar counts designs, not sizes.
   const counts = brandCounts(groupDesigns(products).map((d) => d.sizes[0]));
   const shown = applyDesignQuery(products, query);
@@ -54,7 +65,9 @@ export function DesignsList({
   const all = { value: '', label: 'الكل' };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    <View
+      style={{ flex: 1, backgroundColor: colors.background }}
+      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}>
       <View style={{ paddingHorizontal: spacing.md, paddingBottom: spacing.sm }}>
         <BrandBar
           system={system}
@@ -65,19 +78,33 @@ export function DesignsList({
         />
       </View>
       <FlashList
+        key={columns}
+        numColumns={columns}
         data={shown}
         keyExtractor={(d) => d.id}
         extraData={selectedId}
         keyboardDismissMode="on-drag"
         // The space under the header is left by the route (BelowHeader); iOS adds nothing more.
         contentInsetAdjustmentBehavior="never"
-        contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE + spacing.lg }}
-        ItemSeparatorComponent={() => (
-          <View style={{ height: 1, marginStart: 92, backgroundColor: colors.separator }} />
-        )}
+        contentContainerStyle={{
+          paddingBottom: TAB_BAR_CLEARANCE + spacing.lg,
+          paddingHorizontal: card ? spacing.md - GAP / 2 : 0,
+        }}
+        ItemSeparatorComponent={
+          card
+            ? undefined
+            : () => (
+                <View style={{ height: 1, marginStart: 92, backgroundColor: colors.separator }} />
+              )
+        }
         ListHeaderComponent={
           <View
-            style={{ gap: spacing.sm, paddingHorizontal: spacing.md, paddingBottom: spacing.sm }}>
+            style={{
+              gap: spacing.sm,
+              // In the grid the list itself is already padded at the sides.
+              paddingHorizontal: card ? GAP / 2 : spacing.md,
+              paddingBottom: spacing.sm,
+            }}>
             <ChipRow
               options={[all, ...CATEGORIES.scarves.map((c) => ({ value: c, label: c }))]}
               value={query.category}
@@ -112,22 +139,30 @@ export function DesignsList({
             />
           )
         }
-        renderItem={({ item }) => (
-          <DesignRow
-            system={system}
-            design={item}
-            href={href(item)}
-            brandImage={
-              item.sizes[0].brandId !== null
-                ? (brandImages.get(item.sizes[0].brandId) ?? null)
-                : null
-            }
-            onDelete={onDelete}
-            onAdjust={onAdjust}
-            onOpen={onOpen ? () => onOpen(item) : undefined}
-            selected={item.id === selectedId}
-          />
-        )}
+        renderItem={({ item }) => {
+          const row = (
+            <DesignRow
+              system={system}
+              design={item}
+              href={href(item)}
+              brandImage={
+                item.sizes[0].brandId !== null
+                  ? (brandImages.get(item.sizes[0].brandId) ?? null)
+                  : null
+              }
+              onDelete={onDelete}
+              onAdjust={onAdjust}
+              onOpen={onOpen ? () => onOpen(item) : undefined}
+              selected={item.id === selectedId}
+              card={card}
+            />
+          );
+          return card ? (
+            <View style={{ paddingHorizontal: GAP / 2, paddingBottom: GAP }}>{row}</View>
+          ) : (
+            row
+          );
+        }}
       />
     </View>
   );
