@@ -10,6 +10,7 @@ import { Alert } from 'react-native';
 import RootLayout from '@/app/_layout';
 import SystemLayout from '@/app/[system]/_layout';
 import TabsLayout from '@/app/[system]/(tabs)/_layout';
+import ManagementLayout from '@/app/[system]/(tabs)/more/_layout';
 import SaleStack from '@/app/[system]/(tabs)/sale/_layout';
 import Sale from '@/app/[system]/(tabs)/sale/index';
 import AddRoute from '@/app/[system]/add/[id]';
@@ -115,6 +116,7 @@ const routes = {
   index: () => null,
   '[system]/_layout': SystemLayout,
   '[system]/(tabs)/_layout': TabsLayout,
+  '[system]/(tabs)/more/_layout': ManagementLayout,
   '[system]/(tabs)/sale/_layout': SaleStack,
   '[system]/(tabs)/sale/index': Sale,
   '[system]/cart': CartRoute,
@@ -126,8 +128,8 @@ const routes = {
   '[system]/sets': SetsRoute,
   '[system]/set/[id]': SetRoute,
   // Screens of other phases, not opened here.
-  '[system]/brands': () => null,
-  '[system]/manage-sets': () => null,
+  '[system]/(tabs)/more/brands': () => null,
+  '[system]/(tabs)/more/manage-sets': () => null,
   '[system]/product/[id]': () => null,
   '[system]/photo/[id]': () => null,
   '[system]/design/[id]': () => null,

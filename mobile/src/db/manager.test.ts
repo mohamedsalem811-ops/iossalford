@@ -57,6 +57,57 @@ describe('openSystemDb', () => {
   });
 });
 
+describe('before an upgrade (8.0i)', () => {
+  // This app knows one more migration than the database on the device.
+  const { migrations } = jest.requireActual<typeof import('./schema')>('./schema');
+  const next = [
+    ...migrations,
+    { version: LATEST_VERSION + 1, name: 'next', sql: 'CREATE TABLE extra (x INTEGER);' },
+  ];
+  const withNewerApp = <T>(run: (m: typeof import('./manager')) => T): T => {
+    let out!: T;
+    jest.isolateModules(() => {
+      jest.doMock('./schema', () => ({ migrations: next, LATEST_VERSION: LATEST_VERSION + 1 }));
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- a fresh copy of the module
+      out = run(require('./manager') as typeof import('./manager'));
+    });
+    return out;
+  };
+  const deviceDb = () => {
+    const db = openMemoryDb();
+    jest.requireActual<typeof import('./migrate')>('./migrate').migrate(db, migrations);
+    db.exec("INSERT INTO settings (key, value) VALUES ('exchange_rate', '7000')");
+    return db;
+  };
+
+  it('saves a copy of the data as it was, then upgrades', () => {
+    const versionsSeen: number[] = [];
+    const result = withNewerApp((m) =>
+      m.openSystemDb('jewelry', deviceDb, (db) =>
+        versionsSeen.push(db.get<{ user_version: number }>('PRAGMA user_version')!.user_version),
+      ),
+    );
+    expect(versionsSeen).toEqual([LATEST_VERSION]);
+    expect(result.status).toBe('ok');
+  });
+
+  it('does not upgrade when the copy cannot be saved, and keeps the data', () => {
+    const result = withNewerApp((m) =>
+      m.openSystemDb('jewelry', deviceDb, () => {
+        throw new Error('no space left on device');
+      }),
+    );
+    expect(result.status).toBe('unreadable');
+  });
+
+  it('saves nothing when there is no upgrade (every normal start)', () => {
+    const before = jest.fn();
+    const result = openSystemDb('jewelry', openMemoryDb, before);
+    expect(before).not.toHaveBeenCalled();
+    expect(result.status).toBe('ok');
+  });
+});
+
 describe('setAsideName', () => {
   it('keeps the system name and adds a date', () => {
     expect(setAsideName('jewelry', new Date('2026-11-09T10:15:00Z'))).toBe(

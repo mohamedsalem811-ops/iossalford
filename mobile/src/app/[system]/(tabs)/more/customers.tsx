@@ -4,12 +4,13 @@ import { useCallback, useState } from 'react';
 
 import { EmptyState, Text } from '@/components';
 import { listCustomers } from '@/domain/customers';
-import { balance } from '@/domain/debts';
+import { allBalances } from '@/domain/debts';
 import { CustomerRow } from '@/features/customers/customer-row';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { useReadable } from '@/hooks/use-readable';
 import { spacing } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 /** Management → Customers: search by name, phone or area; add; open for details and debts. */
 export default function CustomersRoute() {
@@ -17,10 +18,13 @@ export default function CustomersRoute() {
   const readable = useReadable();
   const system = ctx.system;
   const [search, setSearch] = useState('');
-  const read = useCallback(
-    () => listCustomers(ctx, search).map((c) => ({ customer: c, balance: balance(ctx, c.id) })),
-    [ctx, search],
-  );
+  const read = useCallback(() => {
+    const balances = allBalances(ctx);
+    return listCustomers(ctx, search).map((c) => ({
+      customer: c,
+      balance: balances.get(c.id) ?? 0,
+    }));
+  }, [ctx, search]);
   const [rows, setRows] = useState(read);
   const refresh = useCallback(() => setRows(read()), [read]);
   useFocusEffect(refresh);
@@ -76,7 +80,7 @@ export default function CustomersRoute() {
             balance={item.balance}
             onPress={() =>
               router.push({
-                pathname: '/[system]/customer/[id]',
+                pathname: '/[system]/more/customer/[id]',
                 params: { system, id: String(item.customer.id) },
               })
             }
@@ -86,3 +90,6 @@ export default function CustomersRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/customers');

@@ -9,10 +9,11 @@ import { Alert } from 'react-native';
 import RootLayout from '@/app/_layout';
 import SystemLayout from '@/app/[system]/_layout';
 import TabsLayout from '@/app/[system]/(tabs)/_layout';
-import CustomerRoute from '@/app/[system]/customer/[id]';
+import ManagementLayout from '@/app/[system]/(tabs)/more/_layout';
+import CustomerRoute from '@/app/[system]/(tabs)/more/customer/[id]';
 import CustomerFormRoute from '@/app/[system]/customer-form/[id]';
-import CustomersRoute from '@/app/[system]/customers';
-import DebtsRoute from '@/app/[system]/debts';
+import CustomersRoute from '@/app/[system]/(tabs)/more/customers';
+import DebtsRoute from '@/app/[system]/(tabs)/more/debts';
 import PaymentRoute from '@/app/[system]/payment/[id]';
 import { addToCart, type CartLine } from '@/domain/cart';
 import { checkout } from '@/domain/checkout';
@@ -105,11 +106,12 @@ const routes = {
   index: () => null,
   '[system]/_layout': SystemLayout,
   '[system]/(tabs)/_layout': TabsLayout,
+  '[system]/(tabs)/more/_layout': ManagementLayout,
   '[system]/(tabs)/index': () => null,
-  '[system]/customers': CustomersRoute,
-  '[system]/customer/[id]': CustomerRoute,
+  '[system]/(tabs)/more/customers': CustomersRoute,
+  '[system]/(tabs)/more/customer/[id]': CustomerRoute,
   '[system]/customer-form/[id]': CustomerFormRoute,
-  '[system]/debts': DebtsRoute,
+  '[system]/(tabs)/more/debts': DebtsRoute,
   '[system]/payment/[id]': PaymentRoute,
 };
 
@@ -133,10 +135,10 @@ afterEach(() => jest.restoreAllMocks());
 
 it('shows the debts total, the statement, and takes a payment', async () => {
   const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-  const app = await renderRouter(routes, { initialUrl: '/jewelry/debts' });
+  const app = await renderRouter(routes, { initialUrl: '/jewelry/more/debts' });
   expect(await screen.findByTestId('debts-total')).toHaveTextContent('350 د.ل');
   await fireEvent.press(screen.getByTestId('customer-سارة'));
-  expect(app.getPathname()).toBe(`/jewelry/customer/${sara}`);
+  expect(app.getPathname()).toBe(`/jewelry/more/customer/${sara}`);
   expect(await screen.findByTestId('customer-balance')).toHaveTextContent('عليه 350 د.ل');
   expect(screen.getByText('بيع آجل رقم 1')).toBeOnTheScreen();
 
@@ -184,7 +186,7 @@ it('adds a customer, and refuses a phone number that belongs to another customer
 });
 
 it('finds customers by name or phone, with what they owe', async () => {
-  await renderRouter(routes, { initialUrl: '/jewelry/customers' });
+  await renderRouter(routes, { initialUrl: '/jewelry/more/customers' });
   expect(await screen.findByText('2 زبون')).toBeOnTheScreen();
   expect(screen.getByText('عليه 350 د.ل')).toBeOnTheScreen();
 });

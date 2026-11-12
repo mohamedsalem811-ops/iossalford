@@ -19,11 +19,17 @@ export type ReceiptActions = {
 /** The receipt history, newest first. Tap opens it; a long press prints, shares or deletes. */
 export function ReceiptsList({
   receipts,
+  total,
+  onEndReached,
   filtered,
   actions,
   onNew,
 }: {
   receipts: Receipt[];
+  /** How many receipts match (the list itself is read a page at a time). */
+  total?: number;
+  /** Reads the next page when the end of the list comes into view. */
+  onEndReached?: () => void;
   /** A search or filter is on (the empty state says so). */
   filtered: boolean;
   actions: ReceiptActions;
@@ -52,6 +58,8 @@ export function ReceiptsList({
   return (
     <FlashList
       data={receipts}
+      onEndReached={onEndReached}
+      onEndReachedThreshold={0.5}
       keyExtractor={(r) => String(r.id)}
       contentInsetAdjustmentBehavior="automatic"
       keyboardDismissMode="on-drag"
@@ -68,7 +76,7 @@ export function ReceiptsList({
             tone="secondary"
             style={{ paddingBottom: spacing.sm }}
             testID="receipts-summary">
-            {`${receipts.length} إيصال`}
+            {`${total ?? receipts.length} إيصال`}
           </Text>
         ) : null
       }

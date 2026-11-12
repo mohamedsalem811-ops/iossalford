@@ -6,6 +6,7 @@ import { getSale } from '@/domain/sales';
 import { SaleDetail } from '@/features/sales/sale-detail';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /** /jewelry/sale/12: sale 12 with its lines, returns and receipt. */
 export default function SaleRoute() {
@@ -38,7 +39,7 @@ export default function SaleRoute() {
         }
         onCustomer={(customerId) =>
           router.push({
-            pathname: '/[system]/customer/[id]',
+            pathname: '/[system]/more/customer/[id]',
             params: { system, id: String(customerId) },
           })
         }
@@ -47,3 +48,6 @@ export default function SaleRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/sale/[id]');

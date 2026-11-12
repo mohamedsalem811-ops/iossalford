@@ -23,48 +23,62 @@ appId: com.salford.pos
 - tapOn:
     id: 'product-name'
 - inputText: 'Ring Zircon'
-- hideKeyboard
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn:
+    id: 'keyboard.toolbar.done'
 - tapOn:
     id: 'product-brand'
 - inputText: 'Pandora'
-- hideKeyboard
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn:
+    id: 'keyboard.toolbar.done'
 - assertVisible: 'ماركة جديدة — ستُضاف للقائمة عند الحفظ'
-- scrollUntilVisible:
-    element:
-      id: 'product-price'
-    direction: DOWN
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'product-price'
 - tapOn:
     id: 'product-price'
 - inputText: '350'
-- hideKeyboard
-- scrollUntilVisible:
-    element:
-      id: 'product-cost'
-    direction: DOWN
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'product-cost'
 - tapOn:
     id: 'product-cost'
 - inputText: '200'
-- hideKeyboard
-- scrollUntilVisible:
-    element: '150 د.ل • 43٪'
-    direction: DOWN
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- repeat:
+    times: 8
+    while:
+      notVisible: '150 د.ل • 43٪'
+    commands:
+      - swipe:
+          start: 20%, 75%
+          end: 20%, 45%
+          duration: 600
 - takeScreenshot: ${DEVICE}-product-form
-- scrollUntilVisible:
-    element:
-      id: 'product-save'
-    direction: DOWN
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'product-save'
 - tapOn:
     id: 'product-save'
 - extendedWaitUntil:
-    visible: 'Ring Zircon'
+    visible: '.*Ring Zircon.*'
     timeout: 30000
-- assertVisible: 'RNG-0001 • خواتم'
+- assertVisible: '.*RNG-0001 • خواتم.*'
 - assertVisible: '1 صنف • 1 قطعة في المخزن'
 - takeScreenshot: ${DEVICE}-products-list
 # One tap on the brand shows its pieces; a second tap shows all again.
 - tapOn:
     id: 'brand-chip-Pandora'
-- assertVisible: 'Ring Zircon'
+- assertVisible: '.*Ring Zircon.*'
 - tapOn:
     id: 'brand-chip-Pandora'
 # Management → Brands lists the brand added with the piece.

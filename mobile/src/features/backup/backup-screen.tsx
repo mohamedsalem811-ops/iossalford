@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { ActionSheetIOS, Alert, View } from 'react-native';
 
 import { Button, Card, ListGroup, ListRow, Page, Text } from '@/components';
-import { backupContents } from '@/domain/backup';
 import { RuleError, type Ctx } from '@/domain/context';
 import { canExcludeFromBackup, isAppDataExcluded } from '@/backup/exclusion';
 import { agoText, copyReminder, KIND_LABELS, type BackupInfo } from '@/backup/model';
@@ -16,7 +15,8 @@ import {
   saveBackup,
   savedBackupUri,
   shareCopy,
-  type BackupFile,
+  discardPicked,
+  type PickedBackup,
 } from '@/backup/store';
 import { formatDate, formatTime } from '@/lib/dates';
 import { notifyDataChanged } from '@/state/data-events';
@@ -76,19 +76,19 @@ export function BackupScreen({
   };
 
   /** Shows what the backup holds and asks; restores only on "استعادة". */
-  const confirmRestore = (file: BackupFile) => {
-    const c = backupContents(file);
+  const confirmRestore = (file: PickedBackup) => {
+    const c = file.contents;
     const when = new Date(c.exportedAt);
     Alert.alert(
       `استعادة نسخة نظام ${system}؟`,
       [
         `نسخة ${formatDate(when)} ${formatTime(when)}:`,
-        `${c.products} قطعة، ${c.sales} بيعة، ${c.customers} زبون، ${c.receipts} إيصال${file.photos ? `، ${Object.keys(file.photos).length} صورة` : ''}.`,
+        `${c.products} قطعة، ${c.sales} بيعة، ${c.customers} زبون، ${c.receipts} إيصال${c.photos ? `، ${c.photos} صورة` : ''}.`,
         '',
         `تحل محل كل بيانات نظام ${system} الحالية. تُحفظ نسخة أمان من البيانات الحالية أولاً، فيمكن التراجع.`,
       ].join('\n'),
       [
-        { text: 'إلغاء', style: 'cancel' },
+        { text: 'إلغاء', style: 'cancel', onPress: () => discardPicked(file) },
         {
           text: 'استعادة',
           style: 'destructive',

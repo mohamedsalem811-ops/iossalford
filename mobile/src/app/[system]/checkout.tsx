@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 
 import { CheckoutView } from '@/features/sale/checkout-view';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /** Checkout of the system's cart; on success the sheet becomes the success screen. */
 export default function CheckoutRoute() {
@@ -19,3 +20,6 @@ export default function CheckoutRoute() {
     />
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('checkout');

@@ -1,12 +1,13 @@
 /**
  * Product and brand photos on the device: taken with the camera or chosen from the library,
- * resized, and kept in the app's own documents folder (one folder per system). Only the file
- * name is stored in the database. Nothing is uploaded anywhere.
+ * resized, and kept in the app's private folder (one folder per system; see storage.ts). Only the
+ * file name is stored in the database. Nothing is uploaded anywhere.
  */
-import { Directory, File, Paths } from 'expo-file-system';
+import { File } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
+import { photoFile, photoFolder } from '@/lib/storage';
 import type { SystemId } from '@/theme';
 
 /** Longest side of a saved photo, in pixels: sharp on an iPad, small on disk. */
@@ -21,15 +22,9 @@ export type PickResult =
   /** The owner said no to the camera or photos; the message explains how to allow it. */
   | { status: 'denied'; message: string };
 
-function folder(system: SystemId): Directory {
-  const dir = new Directory(Paths.document, 'photos', system);
-  if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
-  return dir;
-}
-
 /** The address to show a saved photo with expo-image. */
 export function photoUri(system: SystemId, file: string): string {
-  return new File(Paths.document, 'photos', system, file).uri;
+  return photoFile(system, file).uri;
 }
 
 const DENIED = {
@@ -65,12 +60,12 @@ export async function pickPhoto(
     maxHeight: PHOTO_MAX_SIDE,
   }).renderAsync();
   const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: JPEG_QUALITY });
-  await new File(saved.uri).move(new File(folder(system), name));
+  await new File(saved.uri).move(new File(photoFolder(system), name));
   return { status: 'picked', file: name };
 }
 
 /** Removes a photo file. Call only when nothing uses it any more (see photoInUse). */
 export function deletePhotoFile(system: SystemId, file: string) {
-  const f = new File(Paths.document, 'photos', system, file);
+  const f = photoFile(system, file);
   if (f.exists) f.delete();
 }

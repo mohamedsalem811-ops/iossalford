@@ -4,13 +4,14 @@
  * in-memory Keychain, no Face ID, and a database stand-in.
  */
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library';
-import { AppState, type AppStateStatus } from 'react-native';
+import { ActionSheetIOS, AppState, type AppStateStatus } from 'react-native';
 
 import RootLayout from '@/app/_layout';
 import SystemLayout from '@/app/[system]/_layout';
 import TabsLayout from '@/app/[system]/(tabs)/_layout';
+import ManagementLayout from '@/app/[system]/(tabs)/more/_layout';
 import Dashboard from '@/app/[system]/(tabs)/index';
-import More from '@/app/[system]/(tabs)/more';
+import More from '@/app/[system]/(tabs)/more/index';
 import Index from '@/app/index';
 import Setup from '@/app/setup';
 
@@ -55,15 +56,49 @@ jest.mock('@/db/manager', () => ({
   openSystemDb: jest.fn(() => ({ status: 'ok', db: {} })),
   setAsideUnreadable: jest.fn(),
 }));
-jest.mock('@/domain/reports', () => ({
-  today: () => ({
-    total: 1_250_000,
-    profit: 300_000,
-    sales: 2,
-    pieces: 3,
-    byMethod: { cash: 0, card: 0, transfer: 0, credit: 0 },
+// The dashboard's figures (this test is about PINs and locking, not the numbers).
+jest.mock('@/features/dashboard/model', () => ({
+  ...jest.requireActual('@/features/dashboard/model'),
+  readDashboard: () => ({
+    date: new Date(2026, 10, 9),
+    rate: 7_000,
+    today: {
+      total: 1_250_000,
+      profit: 300_000,
+      sales: 2,
+      pieces: 3,
+      byMethod: { cash: 1_250_000, card: 0, transfer: 0, credit: 0 },
+    },
+    month: '2026-11',
+    months: ['2026-11'],
+    summary: {
+      grossSales: 0,
+      costOfSales: 0,
+      grossProfit: 0,
+      refunds: 0,
+      returnedCost: 0,
+      expenses: 0,
+      transactions: 0,
+      itemsSold: 0,
+      itemsReturned: 0,
+      netSales: 0,
+      netProfit: 0,
+      grossSalesUsd: 0,
+      grossProfitUsd: 0,
+      netProfitUsd: 0,
+    },
+    daily: [],
+    attention: { low: [], lowCount: 0, outCount: 0, owed: 0, debtors: 0, backupReminder: null },
+    byCategory: [],
+    byBrand: [],
+    byPayment: [],
+    bySize: [],
+    top: [],
+    latest: [],
+    stock: { items: 0, pieces: 0, costValue: 0, priceValue: 0, low: 0, out: 0 },
   }),
 }));
+jest.mock('@expo/ui/swift-ui', () => ({ Host: () => null, Chart: () => null }));
 jest.mock('@/domain/settings', () => ({ getRate: () => 7_000 }));
 
 const JEWELRY = '19283746';
@@ -94,8 +129,9 @@ it('sets up both PINs, opens a system, switches, and locks in the background', a
     setup: Setup,
     '[system]/_layout': SystemLayout,
     '[system]/(tabs)/_layout': TabsLayout,
+    '[system]/(tabs)/more/_layout': ManagementLayout,
     '[system]/(tabs)/index': Dashboard,
-    '[system]/(tabs)/more': More,
+    '[system]/(tabs)/more/index': More,
     '[system]/product/[id]': () => null,
     '[system]/photo/[id]': () => null,
   });
@@ -136,7 +172,12 @@ it('sets up both PINs, opens a system, switches, and locks in the background', a
   expect(await screen.findByText('مبيعات اليوم')).toBeOnTheScreen();
 
   // Switching goes back to the choice, highlights the last system, and asks for the PIN again.
-  await fireEvent.press(screen.getByRole('button', { name: 'تبديل النظام' }));
+  // The logo opens the system menu; its first choice switches.
+  const sheet = jest
+    .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+    .mockImplementation((_options, choose) => choose(0));
+  await fireEvent.press(screen.getByTestId('dashboard-system'));
+  sheet.mockRestore();
   expect(await screen.findByText('اختر النظام')).toBeOnTheScreen();
   expect(screen.getByTestId('system-jewelry')).toBeSelected();
   await fireEvent.press(screen.getByRole('button', { name: 'نظام المجوهرات' }));

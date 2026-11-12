@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import { SizePicker } from '@/features/sale/size-picker';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /** /scarves/sizes/<design>: choose the size of a scarf to add to the cart. */
 export default function SizesRoute() {
@@ -22,3 +23,6 @@ export default function SizesRoute() {
     />
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('sizes/[id]');

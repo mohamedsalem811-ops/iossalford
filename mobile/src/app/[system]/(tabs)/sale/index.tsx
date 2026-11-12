@@ -12,6 +12,7 @@ import { SaleGrid } from '@/features/sale/sale-grid';
 import { useLayout } from '@/hooks/use-layout';
 import { useCart } from '@/state/cart';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /**
  * Selling: search, brand and category, then the products as a grid. Tap adds one piece (a scarf
@@ -85,3 +86,6 @@ export default function SaleRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('sale');

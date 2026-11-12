@@ -68,6 +68,8 @@ export function ManagementScreen({
   onLock,
   badges = {},
   reminder,
+  updateReady = false,
+  selected,
 }: {
   onOpen: (target: ManageTarget) => void;
   onSwitch: () => void;
@@ -76,6 +78,10 @@ export function ManagementScreen({
   badges?: Partial<Record<ManageTarget, string>>;
   /** No recent backup copied off the device: a banner that opens the backup screen. */
   reminder?: string | null;
+  /** An instant update was downloaded: a banner that opens Settings to restart. */
+  updateReady?: boolean;
+  /** iPad: the section open beside the menu. */
+  selected?: ManageTarget;
 }) {
   return (
     <Screen tabBar contentStyle={{ gap: spacing.lg }}>
@@ -95,6 +101,19 @@ export function ManagementScreen({
           </Card>
         </Pressable>
       ) : null}
+      {updateReady ? (
+        <Pressable
+          onPress={() => onOpen('settings')}
+          accessibilityRole="button"
+          testID="manage-update-ready">
+          <Card>
+            <Text variant="bodyStrong">تحديث جاهز للتطبيق</Text>
+            <Text variant="caption" tone="accent">
+              يعمل عند الفتح القادم، أو أعد التشغيل من الإعدادات
+            </Text>
+          </Card>
+        </Pressable>
+      ) : null}
       {GROUPS.map((g) => (
         <ListGroup key={g.title} header={g.title}>
           {g.rows.map((r) => (
@@ -103,6 +122,7 @@ export function ManagementScreen({
               icon={r.icon}
               title={r.title}
               value={badges[r.target]}
+              selected={selected === r.target}
               onPress={() => onOpen(r.target)}
               testID={`manage-${r.target}`}
             />

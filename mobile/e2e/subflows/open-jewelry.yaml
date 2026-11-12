@@ -1,0 +1,11 @@
+# A new install, both PINs created, the jewelry system opened on its dashboard.
+appId: com.salford.pos
+---
+- runFlow: fresh-launch.yaml
+- runFlow: setup-pins.yaml
+- tapOn: 'نظام المجوهرات'
+- runFlow: pin-jewelry.yaml
+# The first Face ID check on a fresh CI simulator can hold the PIN check for 30 seconds or more.
+- extendedWaitUntil:
+    visible: 'مبيعات اليوم'
+    timeout: 90000

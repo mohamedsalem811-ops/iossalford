@@ -2,7 +2,7 @@ import type { SymbolViewProps } from 'expo-symbols';
 import { Children, Fragment, isValidElement, type ReactNode } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { spacing, touchTarget, useTheme } from '@/theme';
+import { radius, spacing, touchTarget, useTheme } from '@/theme';
 
 import { Card } from './card';
 import { Icon } from './icon';
@@ -54,6 +54,7 @@ export function ListRow({
   tone = 'normal',
   onPress,
   chevron = !!onPress,
+  selected = false,
   testID,
 }: {
   title: string;
@@ -64,6 +65,8 @@ export function ListRow({
   tone?: 'normal' | 'warning';
   onPress?: () => void;
   chevron?: boolean;
+  /** The row whose screen is open beside the list (iPad sidebar). */
+  selected?: boolean;
   testID?: string;
 }) {
   const { colors } = useTheme();
@@ -76,6 +79,15 @@ export function ListRow({
         alignItems: 'center',
         gap: spacing.ms,
         paddingVertical: spacing.sm,
+        ...(selected
+          ? {
+              backgroundColor: colors.accentSoft,
+              borderRadius: radius.md,
+              borderCurve: 'continuous' as const,
+              marginHorizontal: -spacing.sm,
+              paddingHorizontal: spacing.sm,
+            }
+          : null),
       }}>
       {icon ? (
         <View
@@ -115,6 +127,7 @@ export function ListRow({
     <Pressable
       testID={testID}
       accessibilityRole="button"
+      accessibilityState={selected ? { selected: true } : undefined}
       accessibilityLabel={value ? `${title}، ${value}` : title}
       onPress={onPress}
       style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>

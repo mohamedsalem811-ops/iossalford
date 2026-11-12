@@ -7,6 +7,7 @@ import { listSales } from '@/domain/sales';
 import { CustomerDetail } from '@/features/customers/customer-detail';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /** /jewelry/customer/4: a customer's details, statement, purchases and payments. */
 export default function CustomerRoute() {
@@ -39,10 +40,16 @@ export default function CustomerRoute() {
         }
         onPay={() => router.push({ pathname: '/[system]/payment/[id]', params: { system, id } })}
         onSale={(saleId) =>
-          router.push({ pathname: '/[system]/sale/[id]', params: { system, id: String(saleId) } })
+          router.push({
+            pathname: '/[system]/more/sale/[id]',
+            params: { system, id: String(saleId) },
+          })
         }
         onDeleted={() => router.back()}
       />
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/customer/[id]');

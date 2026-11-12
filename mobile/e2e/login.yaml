@@ -18,15 +18,17 @@ appId: com.salford.pos
     timeout: 90000
 - takeScreenshot: ${DEVICE}-dashboard-jewelry
 - tapOn: 'بيع'
-- assertVisible: 'قريباً'
+- assertVisible: 'لا توجد منتجات للبيع بعد'
 - tapOn: 'المنتجات'
 - extendedWaitUntil:
     visible: 'لا توجد قطع بعد'
     timeout: 30000
 - tapOn: 'الإيصالات'
-- assertVisible: 'قريباً'
+- assertVisible: 'لا توجد إيصالات بعد'
 - tapOn: 'الإدارة'
-- assertVisible: 'قفل النظام'
+- scrollUntilVisible:
+    element: 'قفل النظام'
+    direction: DOWN
 - takeScreenshot: ${DEVICE}-management-jewelry
 # The lock button shows the login again in place of the screens.
 - tapOn: 'قفل النظام'

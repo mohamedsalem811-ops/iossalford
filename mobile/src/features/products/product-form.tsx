@@ -14,6 +14,7 @@ import {
   Text,
   TextField,
   KEYBOARD_GAP,
+  useSheetBottomSpace,
 } from '@/components';
 import { listBrands } from '@/domain/brands';
 import type { Ctx } from '@/domain/context';
@@ -58,6 +59,7 @@ export function ProductFormView({
 }) {
   const readable = useReadable();
   const { colors } = useTheme();
+  const bottomSpace = useSheetBottomSpace();
   const [initial] = useState(() => {
     const p = productId ? getProduct(ctx, productId) : undefined;
     return { product: p, form: p ? formFromProduct(p) : emptyForm(ctx.system) };
@@ -127,7 +129,8 @@ export function ProductFormView({
         onLayout={readable.onLayout}
         contentContainerStyle={{
           ...readable.padding,
-          paddingVertical: spacing.md,
+          paddingTop: spacing.md,
+          paddingBottom: bottomSpace,
           gap: spacing.md,
         }}
         contentInsetAdjustmentBehavior="automatic"

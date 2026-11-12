@@ -9,14 +9,24 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { KeyboardBar } from '@/components/keyboard-bar';
 import { PrivacyCover } from '@/components/privacy-cover';
 import { excludeAppDataFromBackup } from '@/backup/exclusion';
+import { installGlobalErrorLog, logError } from '@/lib/error-log';
+import { moveLegacyData } from '@/lib/storage';
 import { applySavedAppearance } from '@/state/appearance';
 import { LockProvider } from '@/state/lock';
 import { ThemeProvider } from '@/theme';
 import { fontAssets } from '@/theme/font-assets';
+import { errorBoundary } from '@/components/error-screen';
 
+// Unexpected errors are written to the log on the device (Settings → سجل الأخطاء).
+installGlobalErrorLog();
 SplashScreen.preventAutoHideAsync();
 // The owner's light/dark choice (Settings) applies before anything is drawn.
 applySavedAppearance();
+// Databases and photos live in the app's private folder (older installs are moved there once),
+// before any database opens.
+const moved = moveLegacyData(['jewelry', 'scarves']);
+if (moved.leftBehind > 0)
+  logError('نقل البيانات إلى المجلد الخاص', new Error(`${moved.leftBehind} ملف لم يُنقل بعد`));
 // The shop's data stays on this device: out of the device's iCloud backup (installed app only).
 excludeAppDataFromBackup();
 
@@ -50,3 +60,6 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('app');

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react';
 
+import { saveUpgradeCopy } from '@/backup/store';
 import { openSystemDb, type OpenResult } from '@/db/manager';
 import type { Ctx } from '@/domain/context';
 import type { SystemId } from '@/theme';
@@ -10,7 +11,8 @@ const opened = new Map<SystemId, OpenResult>();
 function open(system: SystemId): OpenResult {
   const cached = opened.get(system);
   if (cached) return cached;
-  const result = openSystemDb(system);
+  // Before an app update upgrades the database, a copy of the data as it was is saved.
+  const result = openSystemDb(system, undefined, (db) => saveUpgradeCopy(system, db));
   // Only an open database is kept; after an error the next visit (or Retry) tries again.
   if (result.status === 'ok') opened.set(system, result);
   return result;

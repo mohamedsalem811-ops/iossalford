@@ -1,38 +1,71 @@
 /**
- * Backups on the device. Each system keeps its last 10 in the app's own folder (visible in the
- * Files app and in Finder over a cable: On My iPhone/iPad → SALFORD POS → Backups). Nothing is
- * sent anywhere: a copy leaves the device only when the owner shares it (AirDrop, Files, a
- * computer). Restoring checks the file first and keeps a safety copy of the data it replaces.
+ * Backups on the device. Each system keeps its last 10 in Documents/Backups (visible in the Files
+ * app and in Finder over a cable: On My iPhone/iPad → SALFORD POS → Backups). Nothing is sent
+ * anywhere: a copy leaves the device only when the owner shares it (AirDrop, Files, a computer).
+ *
+ * From Phase 8 a backup is a copy of the database file made by SQLite (see engine.ts): fast, small
+ * and with no memory spike, however many years of sales there are. Every file is written under a
+ * temporary name and renamed only when complete, so a half-written backup can't exist. Backups
+ * made before Phase 8 (.json) are still listed and still restore.
  */
 import * as DocumentPicker from 'expo-document-picker';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import * as Sharing from 'expo-sharing';
 
-import { exportBackup, restoreBackup, validateBackup, type Backup } from '@/domain/backup';
-import type { Ctx } from '@/domain/context';
+import { openExpoDbAt } from '@/db/expo-db';
+import type { Db } from '@/db/types';
+import { backupContents, restoreBackup, validateBackup, type Backup } from '@/domain/backup';
+import { nowStamp, RuleError, type Ctx } from '@/domain/context';
+import { photoFile, photoFolder } from '@/lib/storage';
 import { putCart } from '@/state/cart';
 import type { SystemId } from '@/theme';
 
+import {
+  addPhotos,
+  checkSnapshot,
+  copyDatabase,
+  eachPhoto,
+  labelSnapshot,
+  restoreSnapshot,
+  type OpenDb,
+} from './engine';
 import {
   backupFileName,
   copyFileName,
   newestFirst,
   parseBackupName,
+  PART,
   toDelete,
   type BackupInfo,
   type BackupKind,
 } from './model';
 
-/** A backup copied off the device also carries the system's photos, by file name. */
+/** A backup copied off the device before Phase 8 also carried the system's photos, by name. */
 export type BackupFile = Backup & { photos?: Record<string, string> };
+
+/** What the restore screen shows before asking ("120 قطعة، 340 بيعة…"). */
+export type BackupSummary = {
+  products: number;
+  sales: number;
+  customers: number;
+  receipts: number;
+  exportedAt: string;
+  photos: number;
+};
+
+/** A backup chosen to restore, checked and ready. */
+export type PickedBackup =
+  | { format: 'db'; work: string; contents: BackupSummary }
+  | { format: 'json'; file: BackupFile; contents: BackupSummary };
+
+const open: OpenDb = (uri) => openExpoDbAt(uri);
 
 const folder = (system: SystemId) => {
   const dir = new Directory(Paths.document, 'Backups', system);
   if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
   return dir;
 };
-const photoFolder = (system: SystemId) => new Directory(Paths.document, 'photos', system);
 
 const key = (what: 'checksum' | 'copied' | 'first', system: SystemId) => `backup-${what}.${system}`;
 const read = (k: string) => {
@@ -50,7 +83,15 @@ const write = (k: string, v: string) => {
   }
 };
 
-/** The system's backups on the device, newest first. */
+const removeQuietly = (f: File) => {
+  try {
+    if (f.exists) f.delete();
+  } catch {
+    // A leftover temporary file only takes space; it is never listed.
+  }
+};
+
+/** The system's backups on the device, newest first (files still being written are left out). */
 export function listBackups(system: SystemId): BackupInfo[] {
   const dir = new Directory(Paths.document, 'Backups', system);
   if (!dir.exists) return [];
@@ -64,34 +105,73 @@ export function listBackups(system: SystemId): BackupInfo[] {
 }
 
 function prune(system: SystemId) {
-  for (const b of toDelete(listBackups(system))) {
-    try {
-      new File(folder(system), b.name).delete();
-    } catch {
-      // A copy left behind only takes space.
-    }
-  }
+  for (const b of toDelete(listBackups(system))) removeQuietly(new File(folder(system), b.name));
+  // Temporary files left by a backup the app could not finish (closed by iOS in the middle).
+  for (const f of folder(system).list())
+    if (f instanceof File && f.name.endsWith(PART)) removeQuietly(f);
 }
 
+/** Writes counted by SQLite on this connection since the app opened it. */
+const changes = (db: Db) => db.get<{ n: number }>('SELECT total_changes() AS n')?.n ?? 0;
+/** The write count at the last backup of each system in this run of the app. */
+const lastBackedUp = new Map<SystemId, number>();
+
 /**
- * Saves a backup of the system now. An automatic backup is skipped when nothing changed since
- * the last one, so ten identical copies never push out older, different ones.
+ * Writes a labelled copy of `db` as `name` in `dir`, under a temporary name; the caller renames it
+ * when it should count. Returns the file and its fingerprint (the same data, the same fingerprint).
  */
-export function saveBackup(ctx: Ctx, kind: BackupKind, data: Backup = exportBackup(ctx)) {
-  if (kind === 'auto' && data.checksum === read(key('checksum', ctx.system))) return null;
-  const name = backupFileName(ctx.system, ctx.now(), kind);
-  const file = new File(folder(ctx.system), name);
-  file.create({ overwrite: true });
-  file.writeSync(JSON.stringify(data));
-  if (kind !== 'safety') write(key('checksum', ctx.system), data.checksum);
-  if (!read(key('first', ctx.system))) write(key('first', ctx.system), ctx.now().toISOString());
-  prune(ctx.system);
+function writeCopy(db: Db, system: SystemId, dir: Directory, name: string, madeAt: string) {
+  const part = new File(dir, `${name}${PART}`);
+  removeQuietly(part);
+  copyDatabase(db, part.uri);
+  const fingerprint = part.md5;
+  labelSnapshot(open, part.uri, { system, madeAt });
+  return { part, fingerprint };
+}
+
+const ownKind = (kind: BackupKind) => kind === 'auto' || kind === 'manual';
+
+/**
+ * Saves a backup of the system now. An automatic backup is skipped when nothing changed since the
+ * last one (so ten identical copies never push out older, different ones), without even reading
+ * the database when nothing was written in this run of the app.
+ */
+export function saveBackup(ctx: Ctx, kind: BackupKind): BackupInfo | null {
+  const system = ctx.system;
+  const now = changes(ctx.db);
+  if (kind === 'auto' && lastBackedUp.get(system) === now) return null;
+  const name = backupFileName(system, ctx.now(), kind);
+  const { part, fingerprint } = writeCopy(ctx.db, system, folder(system), name, nowStamp(ctx));
+  if (kind === 'auto' && fingerprint && fingerprint === read(key('checksum', system))) {
+    removeQuietly(part);
+    lastBackedUp.set(system, now);
+    return null;
+  }
+  removeQuietly(new File(folder(system), name));
+  part.rename(name);
+  if (ownKind(kind)) {
+    if (fingerprint) write(key('checksum', system), fingerprint);
+    lastBackedUp.set(system, now);
+  }
+  if (!read(key('first', system))) write(key('first', system), ctx.now().toISOString());
+  prune(system);
   return parseBackupName(name);
 }
 
+/**
+ * Before the app upgrades a database (a new version with changed tables), a copy of the data as
+ * it was is saved with the backups ("قبل تحديث التطبيق"). If the copy can't be made, the upgrade
+ * does not run (the error screen shows; nothing is lost).
+ */
+export function saveUpgradeCopy(system: SystemId, db: Db, at: Date = new Date()) {
+  const name = backupFileName(system, at, 'upgrade');
+  const { part } = writeCopy(db, system, folder(system), name, at.toISOString().slice(0, 19));
+  part.rename(name);
+  prune(system);
+}
+
 export function deleteBackup(system: SystemId, name: string) {
-  const f = new File(folder(system), name);
-  if (f.exists) f.delete();
+  removeQuietly(new File(folder(system), name));
 }
 
 const readDate = (k: string) => {
@@ -118,76 +198,143 @@ function photoNames(ctx: Ctx): string[] {
 
 /**
  * Shares a full copy (the data and its photos in one file) through the iOS share sheet: AirDrop to
- * the other device, Save to Files, or a message to oneself. Also saved as a backup on this device.
+ * the other device, Save to Files, or a message to oneself. Photos are added one at a time, so
+ * memory stays small however many there are. Also saved as a backup on this device.
  */
 export async function shareCopy(ctx: Ctx): Promise<void> {
-  const data = exportBackup(ctx);
-  saveBackup(ctx, 'manual', data);
-  const photos: Record<string, string> = {};
-  const dir = photoFolder(ctx.system);
-  for (const name of photoNames(ctx)) {
-    const f = new File(dir, name);
-    if (f.exists) photos[name] = await f.base64();
+  saveBackup(ctx, 'manual');
+  const name = copyFileName(ctx.system, ctx.now());
+  const cache = new Directory(Paths.cache);
+  const { part } = writeCopy(ctx.db, ctx.system, cache, name, nowStamp(ctx));
+  addPhotos(
+    open,
+    part.uri,
+    photoNames(ctx).map((photo) => ({
+      name: photo,
+      read: () => {
+        const f = photoFile(ctx.system, photo);
+        return f.exists ? f.bytesSync() : null;
+      },
+    })),
+  );
+  const file = new File(cache, name);
+  removeQuietly(file);
+  part.rename(name);
+  try {
+    await Sharing.shareAsync(file.uri, {
+      mimeType: 'application/x-sqlite3',
+      UTI: 'public.database',
+      dialogTitle: file.name,
+    });
+    write(key('copied', ctx.system), ctx.now().toISOString());
+  } finally {
+    removeQuietly(file);
   }
-  const file = new File(Paths.cache, copyFileName(ctx.system, ctx.now()));
-  file.create({ overwrite: true });
-  file.writeSync(JSON.stringify({ ...data, photos } satisfies BackupFile));
-  await Sharing.shareAsync(file.uri, {
-    mimeType: 'application/json',
-    UTI: 'public.json',
-    dialogTitle: file.name,
-  });
-  write(key('copied', ctx.system), ctx.now().toISOString());
 }
 
 /** Picks a backup file from the device (Files, or what AirDrop saved). Null if cancelled. */
 export async function pickBackupFile(): Promise<string | null> {
   const r = await DocumentPicker.getDocumentAsync({
-    type: ['application/json', 'public.json', 'public.data'],
+    type: [
+      'public.database',
+      'application/x-sqlite3',
+      'application/json',
+      'public.json',
+      'public.data',
+    ],
     copyToCacheDirectory: true,
     multiple: false,
   });
   return r.canceled ? null : (r.assets[0]?.uri ?? null);
 }
 
-/** Reads and checks a backup file. Throws a RuleError explaining what is wrong. */
-export async function readBackupFile(ctx: Ctx, uri: string): Promise<BackupFile> {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(await new File(uri).text());
-  } catch {
-    parsed = null;
-  }
-  const backup = validateBackup(ctx, parsed);
-  const photos = (parsed as BackupFile).photos;
-  return { ...backup, photos: photos && typeof photos === 'object' ? photos : undefined };
-}
-
-/** A backup saved on this device, read and checked. */
+/** A backup saved on this device, by name. */
 export function savedBackupUri(system: SystemId, name: string) {
   return new File(folder(system), name).uri;
 }
 
 /**
- * Replaces the system's data with the backup. The data it replaces is saved first as a safety
- * copy (on the device, in the backups list), photos the backup carries are put back, and the open
- * cart is emptied (its pieces may no longer exist).
+ * Reads and checks a backup file without changing it. A database copy is checked on a working
+ * copy (the chosen file itself is never touched). Throws a RuleError explaining what is wrong.
  */
-export async function restore(ctx: Ctx, file: BackupFile): Promise<void> {
-  const { photos, ...backup } = file;
-  const { safetyCopy } = restoreBackup(ctx, backup);
-  saveBackup(ctx, 'safety', safetyCopy);
-  write(key('checksum', ctx.system), backup.checksum);
-  if (photos) {
-    const dir = photoFolder(ctx.system);
-    if (!dir.exists) dir.create({ intermediates: true, idempotent: true });
-    for (const [name, base64] of Object.entries(photos)) {
-      if (!/^[\w.-]+$/.test(name)) continue;
-      const f = new File(dir, name);
-      if (f.exists) continue;
-      f.create();
-      f.writeSync(base64, { encoding: 'base64' });
+export async function readBackupFile(ctx: Ctx, uri: string): Promise<PickedBackup> {
+  const source = new File(uri);
+  if (source.name.endsWith('.json')) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await source.text());
+    } catch {
+      parsed = null;
     }
+    const backup = validateBackup(ctx, parsed);
+    const photos = (parsed as BackupFile).photos;
+    const file = { ...backup, photos: photos && typeof photos === 'object' ? photos : undefined };
+    return {
+      format: 'json',
+      file,
+      contents: { ...backupContents(backup), photos: Object.keys(file.photos ?? {}).length },
+    };
   }
+  if (!source.exists) throw new RuleError('لم يُعثر على ملف النسخة الاحتياطية');
+  const work = new File(Paths.cache, `restore-${ctx.system}-${ctx.now().getTime()}.db`);
+  removeQuietly(work);
+  source.copySync(work);
+  try {
+    const info = checkSnapshot(open, work.uri, ctx.system);
+    return {
+      format: 'db',
+      work: work.uri,
+      contents: {
+        products: info.products,
+        sales: info.sales,
+        customers: info.customers,
+        receipts: info.receipts,
+        exportedAt: info.madeAt,
+        photos: info.photos,
+      },
+    };
+  } catch (error) {
+    removeQuietly(work);
+    throw error;
+  }
+}
+
+/** The owner chose not to restore: the working copy is removed. */
+export function discardPicked(picked: PickedBackup) {
+  if (picked.format === 'db') removeQuietly(new File(picked.work));
+}
+
+/** Writes a photo the backup carries, unless the device already has it. */
+function putPhoto(system: SystemId, name: string, content: Uint8Array | string) {
+  if (!/^[\w.-]+$/.test(name)) return;
+  if (photoFile(system, name).exists) return;
+  const f = new File(photoFolder(system), name);
+  if (typeof content === 'string') f.writeSync(content, { encoding: 'base64' });
+  else f.writeSync(content);
+}
+
+/**
+ * Replaces the system's data with the backup. The data it replaces is saved FIRST, as a safety
+ * copy on the device (in the backups list): if that can't be saved, nothing is replaced. Then the
+ * photos the backup carries are put back, and the open cart is emptied (its pieces may no longer
+ * exist).
+ */
+export async function restore(ctx: Ctx, picked: PickedBackup): Promise<void> {
+  saveBackup(ctx, 'safety');
+  if (picked.format === 'db') {
+    try {
+      restoreSnapshot(ctx.db, open, picked.work);
+      eachPhoto(open, picked.work, (name, bytes) => putPhoto(ctx.system, name, bytes));
+    } finally {
+      removeQuietly(new File(picked.work));
+    }
+  } else {
+    const { photos, ...backup } = picked.file;
+    restoreBackup(ctx, backup);
+    for (const [name, base64] of Object.entries(photos ?? {})) putPhoto(ctx.system, name, base64);
+  }
+  // The restored data is new to the backups: the next automatic backup saves it.
+  lastBackedUp.delete(ctx.system);
+  write(key('checksum', ctx.system), '');
   putCart(ctx.system, []);
 }

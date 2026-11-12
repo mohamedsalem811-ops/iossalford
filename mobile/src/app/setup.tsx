@@ -5,6 +5,7 @@ import { Button, EmptyState, Screen } from '@/components';
 import { SetupScreen } from '@/screens/setup';
 import { pinVault } from '@/security/device';
 import type { SystemId } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 const SYSTEMS: SystemId[] = ['jewelry', 'scarves'];
 
@@ -47,3 +48,6 @@ export default function Setup() {
     />
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('setup');

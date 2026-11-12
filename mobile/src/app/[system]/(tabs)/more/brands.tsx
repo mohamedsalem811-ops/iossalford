@@ -5,6 +5,7 @@ import { listBrands } from '@/domain/brands';
 import { BrandsScreen } from '@/features/brands/brands-screen';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /** Management → Brands. */
 export default function BrandsRoute() {
@@ -21,3 +22,6 @@ export default function BrandsRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/brands');

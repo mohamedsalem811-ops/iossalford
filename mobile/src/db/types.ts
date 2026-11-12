@@ -3,7 +3,8 @@
  * expo-sqlite in the app (expo-db.ts) and Node's built-in SQLite in tests (testing/node-db.ts).
  */
 
-export type SqlValue = string | number | null;
+/** A value SQLite stores; Uint8Array is a BLOB (photos inside a copy made to leave the device). */
+export type SqlValue = string | number | null | Uint8Array;
 export type Params = readonly (SqlValue | undefined | boolean)[];
 
 export type RunResult = { changes: number; lastInsertRowId: number };

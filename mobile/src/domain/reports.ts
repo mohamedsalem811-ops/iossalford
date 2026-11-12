@@ -203,3 +203,16 @@ export function stockBySize(ctx: Ctx): { size: string; pieces: number }[] {
     `SELECT size, sum(stock) AS pieces FROM products WHERE archived = 0 AND size IS NOT NULL GROUP BY size`,
   );
 }
+
+/** Pieces that need attention: out of stock first, then the lowest, by name. */
+export function lowStock(
+  ctx: Ctx,
+  limit = 5,
+): { id: number; name: string; size: string | null; stock: number }[] {
+  return ctx.db.all(
+    `SELECT id, name, size, stock FROM products
+      WHERE archived = 0 AND stock <= low_stock
+      ORDER BY stock, name LIMIT ?`,
+    [limit],
+  );
+}

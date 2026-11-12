@@ -1,0 +1,39 @@
+# Phase 7 + 8 (critical: saving data): a backup on the device, a change after it, and restoring
+# the backup with a safety copy saved first.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- tapOn: 'الإدارة'
+- tapOn:
+    id: 'manage-backup'
+- tapOn:
+    id: 'backup-now'
+- extendedWaitUntil:
+    visible: 'يدوية • اليوم'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-backup-saved
+# A change after the backup: the piece is sold.
+- runFlow: subflows/sell-ring.yaml
+- tapOn:
+    id: 'sold-new-sale'
+- tapOn: 'الإدارة'
+- tapOn:
+    id: 'manage-backup'
+- tapOn: 'يدوية • اليوم'
+- tapOn: 'استعادة هذه النسخة'
+- extendedWaitUntil:
+    visible: 'استعادة نسخة نظام المجوهرات؟'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-backup-confirm
+- tapOn: 'استعادة'
+- extendedWaitUntil:
+    visible: 'تمت الاستعادة'
+    timeout: 30000
+- tapOn: 'OK'
+# The safety copy of the data before the restore is in the list.
+- assertVisible: 'قبل الاستعادة.*'
+- takeScreenshot: ${DEVICE}-backup-restored
+# The sale made after the backup is gone; the piece is back to 3 in stock.
+- tapOn: 'الرئيسية'
+- assertVisible: '0 د.ل'

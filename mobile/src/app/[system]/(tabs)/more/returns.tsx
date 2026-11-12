@@ -5,15 +5,23 @@ import { useCallback, useState } from 'react';
 import { ActionSheetIOS, Alert, Pressable, View } from 'react-native';
 
 import { Badge, EmptyState, Text } from '@/components';
-import { deleteReturn, getSaleLine, listReturns, type ReturnRecord } from '@/domain/sales';
+import {
+  deleteReturn,
+  getSaleLine,
+  listReturns,
+  returnMonths,
+  returnsSummary,
+  type ReturnRecord,
+} from '@/domain/sales';
 import { showError } from '@/features/products/actions';
-import { monthsOf } from '@/features/sales/model';
 import { formatDate, monthTitle } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
 import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import { usePaged } from '@/hooks/use-paged';
 import { useReadable } from '@/hooks/use-readable';
 import { radius, spacing, useTheme } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 /** Management → Returns: every return by month; a return without a sale; delete one by mistake. */
 export default function ReturnsRoute() {
@@ -22,15 +30,21 @@ export default function ReturnsRoute() {
   const { colors } = useTheme();
   const system = ctx.system;
   const [month, setMonth] = useState<string | undefined>();
-  const read = useCallback(
-    () => ({ shown: listReturns(ctx, month), months: monthsOf(listReturns(ctx)) }),
+  const shown = usePaged(
+    useCallback(
+      (limit: number, offset: number) => listReturns(ctx, month, { limit, offset }),
+      [ctx, month],
+    ),
+  );
+  const readFacts = useCallback(
+    () => ({ months: returnMonths(ctx), summary: returnsSummary(ctx, month) }),
     [ctx, month],
   );
-  const [data, setData] = useState(read);
-  const refresh = useCallback(() => setData(read()), [read]);
-  useFocusEffect(refresh);
-  useOnDataChanged(refresh);
-  const total = data.shown.reduce((t, r) => t + r.refund, 0);
+  const [facts, setFacts] = useState(readFacts);
+  const refreshFacts = useCallback(() => setFacts(readFacts()), [readFacts]);
+  useFocusEffect(refreshFacts);
+  useOnDataChanged(refreshFacts);
+  const data = { shown: shown.items, months: facts.months };
 
   const remove = (r: ReturnRecord) =>
     Alert.alert(
@@ -64,7 +78,7 @@ export default function ReturnsRoute() {
               title: `فتح البيعة رقم ${saleId}`,
               run: () =>
                 router.push({
-                  pathname: '/[system]/sale/[id]',
+                  pathname: '/[system]/more/sale/[id]',
                   params: { system, id: String(saleId) },
                 }),
             },
@@ -110,6 +124,8 @@ export default function ReturnsRoute() {
       </Stack.Toolbar>
       <FlashList
         data={data.shown}
+        onEndReached={shown.loadMore}
+        onEndReachedThreshold={0.5}
         keyExtractor={(r) => String(r.id)}
         contentInsetAdjustmentBehavior="automatic"
         onLayout={readable.onLayout}
@@ -117,7 +133,7 @@ export default function ReturnsRoute() {
         ListHeaderComponent={
           <Text variant="caption" tone="secondary" style={{ paddingBottom: spacing.sm }}>
             {data.shown.length
-              ? `${data.shown.length} مرتجع • ${formatLyd(total)}${month ? ` • ${monthTitle(month)}` : ''}`
+              ? `${facts.summary.count} مرتجع • ${formatLyd(facts.summary.total)}${month ? ` • ${monthTitle(month)}` : ''}`
               : 'لإرجاع قطعة من بيعة، افتح البيعة من سجل المبيعات. زر + لقطعة بيعت قبل التطبيق.'}
           </Text>
         }
@@ -154,3 +170,6 @@ export default function ReturnsRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/returns');

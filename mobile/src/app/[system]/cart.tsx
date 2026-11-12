@@ -2,6 +2,7 @@ import { router, Stack } from 'expo-router';
 
 import { CartView } from '@/features/sale/cart-view';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /** The cart sheet (iPhone, and iPad when the cart is not beside the products). */
 export default function CartRoute() {
@@ -21,3 +22,6 @@ export default function CartRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('cart');

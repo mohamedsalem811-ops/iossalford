@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import { SetFormView } from '@/features/sets/set-form';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /** /jewelry/set/new creates a set; /jewelry/set/3 edits set 3. */
 export default function SetRoute() {
@@ -17,3 +18,6 @@ export default function SetRoute() {
     />
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('set/[id]');

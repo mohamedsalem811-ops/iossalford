@@ -14,17 +14,35 @@ const at = (d: number, h = 10) => new Date(2026, 10, d, h, 5, 12);
 describe('backup names', () => {
   it('names a backup by system, time and kind, and reads it back', () => {
     const name = backupFileName('jewelry', at(10, 14), 'auto');
-    expect(name).toBe('SALFORD-jewelry-2026-11-10-140512-auto.json');
-    expect(parseBackupName(name)).toEqual({ name, kind: 'auto', at: at(10, 14) });
-    expect(copyFileName('scarves', at(10, 14))).toBe('SALFORD-scarves-2026-11-10-140512-copy.json');
+    expect(name).toBe('SALFORD-jewelry-2026-11-10-140512-auto.db');
+    expect(parseBackupName(name)).toEqual({ name, kind: 'auto', at: at(10, 14), format: 'db' });
+    expect(copyFileName('scarves', at(10, 14))).toBe('SALFORD-scarves-2026-11-10-140512-copy.db');
     expect(parseBackupName('notes.json')).toBeNull();
-    expect(parseBackupName('SALFORD-scarves-2026-11-10-140512-copy.json')).toBeNull();
+    expect(parseBackupName('SALFORD-scarves-2026-11-10-140512-copy.db')).toBeNull();
+    // A file still being written is never listed.
+    expect(parseBackupName(`${name}.part`)).toBeNull();
+  });
+
+  it('still reads the names of backups made before Phase 8 (.json)', () => {
+    const old = 'SALFORD-jewelry-2026-11-10-140512-manual.json';
+    expect(parseBackupName(old)).toEqual({
+      name: old,
+      kind: 'manual',
+      at: at(10, 14),
+      format: 'json',
+    });
+    expect(parseBackupName('SALFORD-jewelry-2026-11-10-140512-upgrade.db')?.kind).toBe('upgrade');
   });
 });
 
 describe('keeping the last 10', () => {
   const list = (n: number, kind: BackupInfo['kind'] = 'auto') =>
-    Array.from({ length: n }, (_, i) => ({ name: `${kind}${i}`, kind, at: at(i + 1) }));
+    Array.from({ length: n }, (_, i) => ({
+      name: `${kind}${i}`,
+      kind,
+      at: at(i + 1),
+      format: 'db' as const,
+    }));
 
   it('deletes the oldest beyond 10, counting safety copies on their own', () => {
     const regular = list(12);
@@ -32,6 +50,10 @@ describe('keeping the last 10', () => {
     expect(gone.map((b) => b.name)).toEqual(['auto1', 'auto0']);
     expect(toDelete(list(10))).toEqual([]);
     expect(toDelete(list(12, 'safety')).map((b) => b.name)).toEqual(['safety1', 'safety0']);
+    // Copies made before an upgrade never push out the owner's backups either.
+    expect(toDelete([...list(10), ...list(11, 'upgrade')]).map((b) => b.name)).toEqual([
+      'upgrade0',
+    ]);
   });
 });
 

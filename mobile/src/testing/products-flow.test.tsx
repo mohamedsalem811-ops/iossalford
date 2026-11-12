@@ -9,9 +9,10 @@ import { Alert } from 'react-native';
 import RootLayout from '@/app/_layout';
 import SystemLayout from '@/app/[system]/_layout';
 import TabsLayout from '@/app/[system]/(tabs)/_layout';
+import ManagementLayout from '@/app/[system]/(tabs)/more/_layout';
 import ProductsStack from '@/app/[system]/(tabs)/products/_layout';
 import Products from '@/app/[system]/(tabs)/products/index';
-import BrandsRoute from '@/app/[system]/brands';
+import BrandsRoute from '@/app/[system]/(tabs)/more/brands';
 import DesignRoute from '@/app/[system]/design/[id]';
 import ProductRoute from '@/app/[system]/product/[id]';
 import StockRoute from '@/app/[system]/stock/[id]';
@@ -92,11 +93,12 @@ const routes = {
   '[system]/photo/[id]': () => null,
   '[system]/_layout': SystemLayout,
   '[system]/(tabs)/_layout': TabsLayout,
+  '[system]/(tabs)/more/_layout': ManagementLayout,
   '[system]/(tabs)/products/_layout': ProductsStack,
   '[system]/(tabs)/products/index': Products,
   '[system]/product/[id]': ProductRoute,
   '[system]/design/[id]': DesignRoute,
-  '[system]/brands': BrandsRoute,
+  '[system]/(tabs)/more/brands': BrandsRoute,
   '[system]/stock/[id]': StockRoute,
 };
 
@@ -207,7 +209,7 @@ it('adds, refuses a duplicate, renames and deletes a brand', async () => {
   type Button = { text?: string; onPress?: (value?: string) => void };
   const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   const prompt = jest.spyOn(Alert, 'prompt').mockImplementation(() => {});
-  await renderRouter(routes, { initialUrl: '/jewelry/brands' });
+  await renderRouter(routes, { initialUrl: '/jewelry/more/brands' });
 
   // Pandora was added through the first piece's form; Swarovski is added here.
   expect(await screen.findByTestId('brand-row-Pandora')).toBeOnTheScreen();

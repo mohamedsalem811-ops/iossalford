@@ -8,6 +8,7 @@ import { useLayout } from '@/hooks/use-layout';
 import { useCart } from '@/state/cart';
 import { useCtx } from '@/state/system-db';
 import { useTheme } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 /**
  * The five tabs, as native iOS 26 Liquid Glass tabs in the system's accent colour. While a sale
@@ -60,3 +61,6 @@ export default function TabsLayout() {
     </NativeTabs>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('tabs');

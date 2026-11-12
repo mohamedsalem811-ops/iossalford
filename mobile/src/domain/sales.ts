@@ -2,7 +2,7 @@ import { latinDigits } from '@/lib/digits';
 import { divRound, formatDinars } from '@/lib/money';
 
 import type { PaymentMethod } from './checkout';
-import { clean, nowMonth, nowStamp, RuleError, type Ctx } from './context';
+import { clean, nowMonth, nowStamp, pageSql, RuleError, type Ctx, type Page } from './context';
 import { getProduct, moveStock } from './products';
 
 export type SaleLine = {
@@ -95,7 +95,21 @@ type SaleRow = {
   total_cost: number;
 };
 
-function toSale(ctx: Ctx, r: SaleRow): Sale {
+/** The lines of several sales in one query (in chunks, well under SQLite's parameter limit). */
+function linesOf(ctx: Ctx, saleIds: number[]): Map<number, SaleLine[]> {
+  const bySale = new Map<number, SaleLine[]>(saleIds.map((id) => [id, []]));
+  for (let i = 0; i < saleIds.length; i += 500) {
+    const ids = saleIds.slice(i, i + 500);
+    const rows = ctx.db.all<LineRow>(
+      `${LINE_SELECT} WHERE l.sale_id IN (${ids.map(() => '?').join(', ')}) ORDER BY l.id`,
+      ids,
+    );
+    for (const r of rows) bySale.get(r.sale_id)?.push(toLine(r));
+  }
+  return bySale;
+}
+
+function toSale(r: SaleRow, lines: SaleLine[]): Sale {
   return {
     id: r.id,
     createdAt: r.created_at,
@@ -107,15 +121,21 @@ function toSale(ctx: Ctx, r: SaleRow): Sale {
     rate: r.rate,
     total: r.total,
     totalCost: r.total_cost,
-    lines: ctx.db
-      .all<LineRow>(`${LINE_SELECT} WHERE l.sale_id = ? ORDER BY l.id`, [r.id])
-      .map(toLine),
+    lines,
   };
 }
 
+const withLines = (ctx: Ctx, rows: SaleRow[]): Sale[] => {
+  const lines = linesOf(
+    ctx,
+    rows.map((r) => r.id),
+  );
+  return rows.map((r) => toSale(r, lines.get(r.id) ?? []));
+};
+
 export function getSale(ctx: Ctx, id: number): Sale | undefined {
   const r = ctx.db.get<SaleRow>('SELECT * FROM sales WHERE id = ?', [id]);
-  return r ? toSale(ctx, r) : undefined;
+  return r ? withLines(ctx, [r])[0] : undefined;
 }
 
 export function getSaleLine(ctx: Ctx, lineId: number): SaleLine | undefined {
@@ -130,8 +150,7 @@ export type SaleQuery = {
   search?: string;
 };
 
-/** Sales history, newest first: by month, payment method, customer, or search (item, code, customer). */
-export function listSales(ctx: Ctx, q: SaleQuery = {}): Sale[] {
+function saleFilter(q: SaleQuery) {
   const where: string[] = [];
   const params: (string | number)[] = [];
   if (q.month) {
@@ -153,8 +172,39 @@ export function listSales(ctx: Ctx, q: SaleQuery = {}): Sale[] {
     );
     params.push(...Array(4).fill(`%${s}%`));
   }
-  const sql = `SELECT s.* FROM sales s ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY s.id DESC`;
-  return ctx.db.all<SaleRow>(sql, params).map((r) => toSale(ctx, r));
+  return { where: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
+}
+
+/**
+ * Sales history, newest first: by month, payment method, customer, or search (item, code,
+ * customer). Long lists ask for one page at a time; each page reads its lines in one query.
+ */
+export function listSales(ctx: Ctx, q: SaleQuery = {}, page?: Page): Sale[] {
+  const f = saleFilter(q);
+  return withLines(
+    ctx,
+    ctx.db.all<SaleRow>(
+      `SELECT s.* FROM sales s ${f.where} ORDER BY s.id DESC${pageSql(page)}`,
+      f.params,
+    ),
+  );
+}
+
+/** How many sales match and their total, without reading them. */
+export function salesSummary(ctx: Ctx, q: SaleQuery = {}): { count: number; total: number } {
+  const f = saleFilter(q);
+  const r = ctx.db.get<{ n: number; t: number }>(
+    `SELECT count(*) n, coalesce(sum(s.total), 0) t FROM sales s ${f.where}`,
+    f.params,
+  );
+  return { count: r?.n ?? 0, total: r?.t ?? 0 };
+}
+
+/** Months that have sales, newest first ("2026-11"), from the month index. */
+export function saleMonths(ctx: Ctx): string[] {
+  return ctx.db
+    .all<{ month: string }>('SELECT DISTINCT month FROM sales ORDER BY month DESC')
+    .map((r) => r.month);
 }
 
 /**
@@ -319,9 +369,32 @@ export function deleteReturn(ctx: Ctx, returnId: number) {
   });
 }
 
-export function listReturns(ctx: Ctx, month?: string): ReturnRecord[] {
+export function listReturns(ctx: Ctx, month?: string, page?: Page): ReturnRecord[] {
   const rows = month
-    ? ctx.db.all<ReturnRow>('SELECT * FROM returns WHERE month = ? ORDER BY id DESC', [month])
-    : ctx.db.all<ReturnRow>('SELECT * FROM returns ORDER BY id DESC');
+    ? ctx.db.all<ReturnRow>(
+        `SELECT * FROM returns WHERE month = ? ORDER BY id DESC${pageSql(page)}`,
+        [month],
+      )
+    : ctx.db.all<ReturnRow>(`SELECT * FROM returns ORDER BY id DESC${pageSql(page)}`);
   return rows.map(toReturn);
+}
+
+/** How many returns (in a month, or all) and the total refunded, without reading them. */
+export function returnsSummary(ctx: Ctx, month?: string): { count: number; total: number } {
+  const r = month
+    ? ctx.db.get<{ n: number; t: number }>(
+        'SELECT count(*) n, coalesce(sum(refund), 0) t FROM returns WHERE month = ?',
+        [month],
+      )
+    : ctx.db.get<{ n: number; t: number }>(
+        'SELECT count(*) n, coalesce(sum(refund), 0) t FROM returns',
+      );
+  return { count: r?.n ?? 0, total: r?.t ?? 0 };
+}
+
+/** Months that have returns, newest first. */
+export function returnMonths(ctx: Ctx): string[] {
+  return ctx.db
+    .all<{ month: string }>('SELECT DISTINCT month FROM returns ORDER BY month DESC')
+    .map((r) => r.month);
 }

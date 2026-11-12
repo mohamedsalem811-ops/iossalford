@@ -10,6 +10,7 @@ import { formatLyd } from '@/lib/money';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { radius, spacing, useTheme } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 const RANGES = [
   { value: '3', label: '3 أشهر' },
@@ -133,3 +134,6 @@ function Legend({ color, label }: { color: string; label: string }) {
     </View>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/comparison');

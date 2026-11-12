@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 
 import { SoldView } from '@/features/sale/sold-view';
 import { useCtx } from '@/state/system-db';
+import { errorBoundary } from '@/components/error-screen';
 
 /** /jewelry/sold/12: sale 12 was just saved. */
 export default function SoldRoute() {
@@ -22,3 +23,6 @@ export default function SoldRoute() {
     />
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('sold/[id]');

@@ -10,10 +10,11 @@ import { ActionSheetIOS, Alert } from 'react-native';
 import RootLayout from '@/app/_layout';
 import SystemLayout from '@/app/[system]/_layout';
 import TabsLayout from '@/app/[system]/(tabs)/_layout';
+import ManagementLayout from '@/app/[system]/(tabs)/more/_layout';
 import ReturnRoute from '@/app/[system]/return/[id]';
-import ReturnsRoute from '@/app/[system]/returns';
-import SaleRoute from '@/app/[system]/sale/[id]';
-import SalesRoute from '@/app/[system]/sales';
+import ReturnsRoute from '@/app/[system]/(tabs)/more/returns';
+import SaleRoute from '@/app/[system]/(tabs)/more/sale/[id]';
+import SalesRoute from '@/app/[system]/(tabs)/more/sales';
 import { addToCart, type CartLine } from '@/domain/cart';
 import { checkout } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
@@ -104,10 +105,11 @@ const routes = {
   index: () => null,
   '[system]/_layout': SystemLayout,
   '[system]/(tabs)/_layout': TabsLayout,
+  '[system]/(tabs)/more/_layout': ManagementLayout,
   '[system]/(tabs)/index': () => null,
-  '[system]/sales': SalesRoute,
-  '[system]/sale/[id]': SaleRoute,
-  '[system]/returns': ReturnsRoute,
+  '[system]/(tabs)/more/sales': SalesRoute,
+  '[system]/(tabs)/more/sale/[id]': SaleRoute,
+  '[system]/(tabs)/more/returns': ReturnsRoute,
   '[system]/return/[id]': ReturnRoute,
 };
 
@@ -135,10 +137,10 @@ afterEach(() => jest.restoreAllMocks());
 
 it('shows the sale, takes a return against its line, lists it, and undoes it', async () => {
   const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-  const app = await renderRouter(routes, { initialUrl: '/jewelry/sales' });
+  const app = await renderRouter(routes, { initialUrl: '/jewelry/more/sales' });
   expect(await screen.findByTestId('sales-summary')).toHaveTextContent('1 بيعة • 1,050 د.ل');
   await fireEvent.press(screen.getByTestId(`sale-${saleId}`));
-  expect(app.getPathname()).toBe(`/jewelry/sale/${saleId}`);
+  expect(app.getPathname()).toBe(`/jewelry/more/sale/${saleId}`);
   expect(await screen.findByText('Ring × 3')).toBeOnTheScreen();
   expect(screen.getByText('450 د.ل')).toBeOnTheScreen(); // profit: 1,050 − 600
 
@@ -161,7 +163,7 @@ it('shows the sale, takes a return against its line, lists it, and undoes it', a
   expect(await screen.findByText('أُرجع 2 من 3')).toBeOnTheScreen();
 
   // The returns list; undoing the return takes the pieces out of stock again.
-  await act(() => router.push('/jewelry/returns'));
+  await act(() => router.push('/jewelry/more/returns'));
   const [ret] = listReturns(ctx());
   expect(await screen.findByText('Ring × 2')).toBeOnTheScreen();
   // The row's action sheet is native: here it answers with "إلغاء المرتجع".
@@ -177,7 +179,7 @@ it('shows the sale, takes a return against its line, lists it, and undoes it', a
 
 it('deletes a sale, putting back only the pieces not already returned', async () => {
   const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-  await renderRouter(routes, { initialUrl: `/jewelry/sale/${saleId}` });
+  await renderRouter(routes, { initialUrl: `/jewelry/more/sale/${saleId}` });
   await fireEvent.press(await screen.findByTestId('sale-delete'));
   expect(alert.mock.lastCall![0]).toBe(`حذف البيعة رقم ${saleId}؟`);
   await answer(alert, 'حذف البيعة');

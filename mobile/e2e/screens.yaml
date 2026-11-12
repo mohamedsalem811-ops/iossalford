@@ -1,0 +1,47 @@
+# End of Phase 8: the phase's new screens, upright and sideways, on iPhone and iPad, for review.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- runFlow: subflows/sell-ring.yaml
+- tapOn:
+    id: 'sold-new-sale'
+# Dashboard.
+- tapOn: 'الرئيسية'
+- takeScreenshot: ${DEVICE}-p8-dashboard-portrait
+- setOrientation: LANDSCAPE_LEFT
+- takeScreenshot: ${DEVICE}-p8-dashboard-landscape
+- setOrientation: PORTRAIT
+# Management: the tab bar stays; on iPad the menu stays beside the section.
+- tapOn: 'الإدارة'
+- takeScreenshot: ${DEVICE}-p8-management-portrait
+- tapOn:
+    id: 'manage-sales'
+- extendedWaitUntil:
+    visible:
+      id: 'sales-summary'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-p8-sales-portrait
+- setOrientation: LANDSCAPE_LEFT
+- takeScreenshot: ${DEVICE}-p8-sales-landscape
+- setOrientation: PORTRAIT
+- tapOn:
+    id: 'manage-settings'
+- runFlow:
+    when:
+      notVisible:
+        id: 'settings-errors'
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: 'settings-errors'
+          direction: DOWN
+- takeScreenshot: ${DEVICE}-p8-settings
+# Receipts: on iPad the receipt beside the list.
+- tapOn: 'الإيصالات'
+- tapOn:
+    text: 'GR-.*'
+- takeScreenshot: ${DEVICE}-p8-receipts-portrait
+- setOrientation: LANDSCAPE_LEFT
+- takeScreenshot: ${DEVICE}-p8-receipts-landscape
+- setOrientation: PORTRAIT

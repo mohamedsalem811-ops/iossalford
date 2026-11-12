@@ -9,9 +9,10 @@ import { Alert } from 'react-native';
 import RootLayout from '@/app/_layout';
 import SystemLayout from '@/app/[system]/_layout';
 import TabsLayout from '@/app/[system]/(tabs)/_layout';
-import ClosingRoute from '@/app/[system]/closing';
-import ComparisonRoute from '@/app/[system]/comparison';
-import ExpensesRoute from '@/app/[system]/expenses';
+import ManagementLayout from '@/app/[system]/(tabs)/more/_layout';
+import ClosingRoute from '@/app/[system]/(tabs)/more/closing';
+import ComparisonRoute from '@/app/[system]/(tabs)/more/comparison';
+import ExpensesRoute from '@/app/[system]/(tabs)/more/expenses';
 import { addToCart, type CartLine } from '@/domain/cart';
 import { checkout } from '@/domain/checkout';
 import { listClosings } from '@/domain/closing';
@@ -103,10 +104,11 @@ const routes = {
   index: () => null,
   '[system]/_layout': SystemLayout,
   '[system]/(tabs)/_layout': TabsLayout,
+  '[system]/(tabs)/more/_layout': ManagementLayout,
   '[system]/(tabs)/index': () => null,
-  '[system]/expenses': ExpensesRoute,
-  '[system]/closing': ClosingRoute,
-  '[system]/comparison': ComparisonRoute,
+  '[system]/(tabs)/more/expenses': ExpensesRoute,
+  '[system]/(tabs)/more/closing': ClosingRoute,
+  '[system]/(tabs)/more/comparison': ComparisonRoute,
 };
 
 async function answer(alert: jest.SpyInstance, text: string) {
@@ -129,7 +131,7 @@ afterEach(() => jest.restoreAllMocks());
 
 it('adds an expense to this month and lists it under the month total', async () => {
   const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-  await renderRouter(routes, { initialUrl: '/jewelry/expenses' });
+  await renderRouter(routes, { initialUrl: '/jewelry/more/expenses' });
   expect(await screen.findByText('لا توجد مصروفات بعد')).toBeOnTheScreen();
   await fireEvent.press(screen.getByTestId('expense-add'));
   expect(alert).toHaveBeenLastCalledWith('لم يتم الحفظ', 'اكتب وصف المصروف');
@@ -143,7 +145,7 @@ it('adds an expense to this month and lists it under the month total', async () 
 
 it('closes the quarter with its net profit, and warns about an expense added after', async () => {
   const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-  await renderRouter(routes, { initialUrl: '/jewelry/closing' });
+  await renderRouter(routes, { initialUrl: '/jewelry/more/closing' });
   // 1,000 sales − 600 cost − 150 expenses.
   expect(await screen.findByTestId('closing-net')).toHaveTextContent('250 د.ل');
   await fireEvent.press(screen.getByTestId('closing-issue'));
@@ -153,12 +155,12 @@ it('closes the quarter with its net profit, and warns about an expense added aft
   expect(screen.getByText('إعادة إصدار الإقفال')).toBeOnTheScreen();
 
   await act(async () => {
-    await renderRouter(routes, { initialUrl: '/jewelry/expenses' });
+    await renderRouter(routes, { initialUrl: '/jewelry/more/expenses' });
   });
   expect(await screen.findByTestId('expense-closed')).toBeOnTheScreen();
 });
 
 it('compares the months with their totals', async () => {
-  await renderRouter(routes, { initialUrl: '/jewelry/comparison' });
+  await renderRouter(routes, { initialUrl: '/jewelry/more/comparison' });
   expect(await screen.findByTestId('comparison-total')).toHaveTextContent('المبيعات 1,000 د.ل');
 });

@@ -9,6 +9,7 @@ import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { useReadable } from '@/hooks/use-readable';
 import { spacing, useTheme } from '@/theme';
+import { errorBoundary } from '@/components/error-screen';
 
 /** Management → Sets: create, edit and delete the sets the shop sells. */
 export default function ManageSetsRoute() {
@@ -57,3 +58,6 @@ export default function ManageSetsRoute() {
     </>
   );
 }
+
+/** If this screen hits an unexpected error: a retry screen, and the error goes to the log. */
+export const ErrorBoundary = errorBoundary('more/manage-sets');

@@ -9,35 +9,45 @@ export const KEEP = 10;
 /** Days without a copy off the device before the reminder shows. */
 export const REMIND_AFTER_DAYS = 7;
 
-/** auto: on leaving the app; manual: "نسخة الآن"; safety: the data a restore replaced. */
-export type BackupKind = 'auto' | 'manual' | 'safety';
+/**
+ * auto: on leaving the app; manual: "نسخة الآن"; safety: the data a restore replaced; upgrade:
+ * the data as it was before the app upgraded its database.
+ */
+export type BackupKind = 'auto' | 'manual' | 'safety' | 'upgrade';
+
+/** Backups are copies of the database file (.db); older ones (before Phase 8) are .json. */
+export type BackupFormat = 'db' | 'json';
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
-/** "SALFORD-jewelry-2026-11-10-140512-auto.json": sorts by time, says the system and kind. */
+/** "SALFORD-jewelry-2026-11-10-140512-auto.db": sorts by time, says the system and kind. */
 export function backupFileName(system: SystemId, at: Date, kind: BackupKind): string {
   const stamp = `${at.getFullYear()}-${pad(at.getMonth() + 1)}-${pad(at.getDate())}-${pad(at.getHours())}${pad(at.getMinutes())}${pad(at.getSeconds())}`;
-  return `SALFORD-${system}-${stamp}-${kind}.json`;
+  return `SALFORD-${system}-${stamp}-${kind}.db`;
 }
 
 /** The file to copy off the device: the data and its photos in one file. */
 export function copyFileName(system: SystemId, at: Date): string {
-  return backupFileName(system, at, 'manual').replace('-manual.json', '-copy.json');
+  return backupFileName(system, at, 'manual').replace('-manual.db', '-copy.db');
 }
 
-export type BackupInfo = { name: string; kind: BackupKind; at: Date };
+/** A file being written: renamed to its real name only when complete. */
+export const PART = '.part';
+
+export type BackupInfo = { name: string; kind: BackupKind; at: Date; format: BackupFormat };
 
 /** Reads a backup file name back (null for any other file). */
 export function parseBackupName(name: string): BackupInfo | null {
   const m =
-    /^SALFORD-(jewelry|scarves)-(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})-(auto|manual|safety)\.json$/.exec(
+    /^SALFORD-(jewelry|scarves)-(\d{4})-(\d{2})-(\d{2})-(\d{2})(\d{2})(\d{2})-(auto|manual|safety|upgrade)\.(db|json)$/.exec(
       name,
     );
   if (!m) return null;
-  const [, , y, mo, d, h, mi, s, kind] = m;
+  const [, , y, mo, d, h, mi, s, kind, ext] = m;
   return {
     name,
     kind: kind as BackupKind,
+    format: ext as BackupFormat,
     at: new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s)),
   };
 }
@@ -47,13 +57,14 @@ export const newestFirst = (list: BackupInfo[]) =>
   [...list].sort((a, b) => b.at.getTime() - a.at.getTime());
 
 /**
- * Which backups to delete so that `keep` remain, oldest first. Safety copies are counted on their
- * own, so restoring never pushes out the owner's own backups.
+ * Which backups to delete so that `keep` remain, oldest first. Safety copies and copies made
+ * before an upgrade are counted on their own, so neither ever pushes out the owner's own backups.
  */
 export function toDelete(list: BackupInfo[], keep = KEEP): BackupInfo[] {
-  const regular = newestFirst(list.filter((b) => b.kind !== 'safety'));
+  const regular = newestFirst(list.filter((b) => b.kind === 'auto' || b.kind === 'manual'));
   const safety = newestFirst(list.filter((b) => b.kind === 'safety'));
-  return [...regular.slice(keep), ...safety.slice(keep)];
+  const upgrade = newestFirst(list.filter((b) => b.kind === 'upgrade'));
+  return [...regular.slice(keep), ...safety.slice(keep), ...upgrade.slice(keep)];
 }
 
 /** Whole days from `then` to `now`. */
@@ -99,4 +110,5 @@ export const KIND_LABELS: Record<BackupKind, string> = {
   auto: 'تلقائية',
   manual: 'يدوية',
   safety: 'قبل الاستعادة',
+  upgrade: 'قبل تحديث التطبيق',
 };

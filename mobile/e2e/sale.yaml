@@ -1,0 +1,64 @@
+# Phase 5 + 8: a cash sale and a credit sale, the receipt, and the dashboard after them.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- runFlow: subflows/sell-ring.yaml
+- assertVisible:
+    id: 'sold-total'
+- takeScreenshot: ${DEVICE}-sold
+# The receipt opens in the studio with its number.
+- tapOn:
+    id: 'sold-show-receipt'
+- extendedWaitUntil:
+    visible:
+      id: 'studio-number'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-receipt-studio
+- tapOn: 'إغلاق'
+# A credit sale needs the customer.
+- tapOn: 'بيع'
+- tapOn:
+    id: 'sale-tile-Ring Zircon'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
+- tapOn:
+    id: 'cart-checkout'
+- tapOn: 'آجل'
+- tapOn:
+    id: 'checkout-name'
+- inputText: 'Sara'
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'checkout-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'sold-title'
+    timeout: 30000
+- tapOn:
+    id: 'sold-new-sale'
+# The dashboard: 700 today, half on credit, and the debt under "needs attention".
+- tapOn: 'الرئيسية'
+- assertVisible:
+    id: 'today-total'
+- assertVisible: 'مدفوع 350 د.ل • آجل 350 د.ل'
+- assertVisible:
+    id: 'attention-debts'
+- takeScreenshot: ${DEVICE}-dashboard-top
+- scrollUntilVisible:
+    element:
+      id: 'daily-chart'
+    direction: DOWN
+- takeScreenshot: ${DEVICE}-dashboard-chart
+- scrollUntilVisible:
+    element:
+      id: 'stock-summary'
+    direction: DOWN
+- takeScreenshot: ${DEVICE}-dashboard-bottom

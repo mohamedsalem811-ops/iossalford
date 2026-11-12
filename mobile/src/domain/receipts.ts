@@ -1,7 +1,7 @@
 import { latinDigits } from '@/lib/digits';
 import type { SystemId } from '@/theme';
 
-import { clean, nowStamp, RuleError, type Ctx } from './context';
+import { clean, nowStamp, pageSql, RuleError, type Ctx, type Page } from './context';
 import { getSetting, setSetting } from './settings';
 
 /**
@@ -185,20 +185,32 @@ type ReceiptRow = {
   updated_at: string | null;
 };
 
-function toReceipt(ctx: Ctx, r: ReceiptRow): Receipt {
-  const items = ctx.db
-    .all<{
-      name: string;
-      brand: string | null;
-      color: string | null;
-      code: string | null;
-      quantity: number;
-      price: number;
-    }>(
-      'SELECT name, brand, color, code, quantity, price FROM receipt_items WHERE receipt_id = ? ORDER BY position',
-      [r.id],
-    )
-    .map((i) => ({ ...i }));
+type ItemRow = {
+  receipt_id: number;
+  name: string;
+  brand: string | null;
+  color: string | null;
+  code: string | null;
+  quantity: number;
+  price: number;
+};
+
+/** The items of several receipts in one query (in chunks, well under SQLite's parameter limit). */
+function itemsOf(ctx: Ctx, ids: number[]): Map<number, ReceiptItem[]> {
+  const byReceipt = new Map<number, ReceiptItem[]>(ids.map((id) => [id, []]));
+  for (let i = 0; i < ids.length; i += 500) {
+    const chunk = ids.slice(i, i + 500);
+    const rows = ctx.db.all<ItemRow>(
+      `SELECT receipt_id, name, brand, color, code, quantity, price FROM receipt_items
+       WHERE receipt_id IN (${chunk.map(() => '?').join(', ')}) ORDER BY receipt_id, position`,
+      chunk,
+    );
+    for (const { receipt_id, ...item } of rows) byReceipt.get(receipt_id)?.push(item);
+  }
+  return byReceipt;
+}
+
+function toReceipt(r: ReceiptRow, items: ReceiptItem[]): Receipt {
   return {
     id: r.id,
     receiptNo: r.receipt_no,
@@ -215,22 +227,29 @@ function toReceipt(ctx: Ctx, r: ReceiptRow): Receipt {
   };
 }
 
+const withItems = (ctx: Ctx, rows: ReceiptRow[]): Receipt[] => {
+  const items = itemsOf(
+    ctx,
+    rows.map((r) => r.id),
+  );
+  return rows.map((r) => toReceipt(r, items.get(r.id) ?? []));
+};
+
 export function getReceipt(ctx: Ctx, id: number): Receipt | undefined {
   const r = ctx.db.get<ReceiptRow>('SELECT * FROM receipts WHERE id = ?', [id]);
-  return r ? toReceipt(ctx, r) : undefined;
+  return r ? withItems(ctx, [r])[0] : undefined;
 }
 
 export function receiptForSale(ctx: Ctx, saleId: number): Receipt | undefined {
   const r = ctx.db.get<ReceiptRow>('SELECT * FROM receipts WHERE sale_id = ? ORDER BY id LIMIT 1', [
     saleId,
   ]);
-  return r ? toReceipt(ctx, r) : undefined;
+  return r ? withItems(ctx, [r])[0] : undefined;
 }
 
 export type ReceiptQuery = { search?: string; month?: string; template?: TemplateId };
 
-/** Receipt history, newest first: search by number, customer or item name; filter by month or design. */
-export function listReceipts(ctx: Ctx, q: ReceiptQuery = {}): Receipt[] {
+function receiptFilter(q: ReceiptQuery) {
   const where: string[] = [];
   const params: string[] = [];
   const s = clean(latinDigits(q.search ?? ''));
@@ -248,8 +267,37 @@ export function listReceipts(ctx: Ctx, q: ReceiptQuery = {}): Receipt[] {
     where.push('r.template = ?');
     params.push(q.template);
   }
-  const sql = `SELECT r.* FROM receipts r ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY r.id DESC`;
-  return ctx.db.all<ReceiptRow>(sql, params).map((r) => toReceipt(ctx, r));
+  return { where: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
+}
+
+/**
+ * Receipt history, newest first: search by number, customer or item name; filter by month or
+ * design. Long lists ask for one page at a time; each page reads its items in one query.
+ */
+export function listReceipts(ctx: Ctx, q: ReceiptQuery = {}, page?: Page): Receipt[] {
+  const f = receiptFilter(q);
+  return withItems(
+    ctx,
+    ctx.db.all<ReceiptRow>(
+      `SELECT r.* FROM receipts r ${f.where} ORDER BY r.id DESC${pageSql(page)}`,
+      f.params,
+    ),
+  );
+}
+
+/** How many receipts match, without reading them. */
+export function countReceipts(ctx: Ctx, q: ReceiptQuery = {}): number {
+  const f = receiptFilter(q);
+  return (
+    ctx.db.get<{ n: number }>(`SELECT count(*) n FROM receipts r ${f.where}`, f.params)?.n ?? 0
+  );
+}
+
+/** Months that have receipts, newest first ("2026-11"). */
+export function receiptMonths(ctx: Ctx): string[] {
+  return ctx.db
+    .all<{ m: string }>('SELECT DISTINCT substr(created_at, 1, 7) m FROM receipts ORDER BY m DESC')
+    .map((r) => r.m);
 }
 
 /** Deletes a receipt. Its number is not given out again. */
