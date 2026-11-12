@@ -1,6 +1,6 @@
 # SALFORD POS: Expo rebuild execution plan (version 3)
 
-Status: **in progress** (see the end of this file).
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Next: the staff phases S1 to S6 (employees, permissions, returns, shifts), then Phase 10, switching over.
 
 Every feature of the current app is kept. Items marked **NEW** don't exist in the current app. Unmarked items are the same as the current app, rebuilt with a new design.
 
@@ -373,11 +373,165 @@ Then the dashboard:
 - **9.5** App icon, launch screen, app name. Owner's choice (2026-11-12) of two drawn from the logo's typefaces: **A, "Midnight"**: a white S with gold four-point stars and SALFORD in gold on dark navy, with dark-mode and tinted versions; the launch screen shows the same mark on navy.
 - **9.6** ~~Full tap-through test run and final screenshots~~: moved to step 10.0 with the owner's full test list (owner's decision, 2026-11-12).
 
+### Staff phases S1 to S6: employees, permissions and shop controls
+
+**NEW** (owner's request and decisions, 2026-11-12). The shop has employees: each one signs in with their own name and PIN, and the owner alone keeps what belongs to the owner. Built in six phases, each delivered, checked and tested by the owner on the iPhone and iPad before the next one starts. They come before Phase 10, so the switch-over starts with the staff in place; the simulator tests of all of it are at the very end, in step 10.0, on both devices.
+
+**The owner's decisions:**
+
+- Two roles only: **owner** and **employee** (no manager).
+- An employee's PIN is **6 digits**; an employee works in **both systems**; an employee sees **only their own sales total**.
+- The **discount limits** are amounts in dinars, one **per piece** and one **per sale**, set by the owner in Settings; above them, the owner approves on the spot.
+- **Returns:** within **24 hours** of the sale, with conditions checked and a **photo** of the returned piece, both required. A used item (warranty sticker removed, scarf worn, washed or perfumed) can't be returned by an employee. The owner may override the time limit and the conditions, with a reason.
+- **Charged to the employee:** if a return turns out to break the conditions, the owner marks it "على حساب الموظف" and it goes on that employee's account; the owner may also waive it.
+- **Auto-lock** of an employee after **7 minutes** without touching the screen. **2 minutes** before, a distinctive sound, a vibration and a countdown banner; one touch resets it. Both times are owner settings.
+- **Shifts and cash count:** yes. Also every suggestion: automatic alerts, a reason for every exception, an owner emergency code, a stock count, an exchange, readiness for syncing, and a guide to lock the device itself (Guided Access, Screen Time).
+
+**Engineering rules for all six phases** (how shops, banks and point-of-sale systems are built):
+
+- **Least privilege, deny by default:** an account can do only what its permissions say; a new permission belongs to the owner until it is given to employees on purpose. If a permission or a setting can't be read, the action is refused (fail closed).
+- **Permissions, not roles, in the code:** every action asks "may this person do `returns.create`?", never "is this an employee?". One file lists every permission (fixed names that TypeScript checks), and one table says which role has which. The app does not build if a permission is missing from the table.
+- **Defence in layers:** the check runs inside the business rules themselves (the first line of every action that changes data), and every action knows who does it: the compiler refuses a call without the person. Owner-only screens are guarded as a whole (they can't open, even from a link), and buttons are hidden as well. If one layer is forgotten, the next one still refuses, with an Arabic message, before anything is written.
+- **Two people for sensitive actions (maker and checker):** the owner's approval on the spot covers that one action only. The employee stays signed in.
+- **Separation of duties:** the person who sells can't change stock, delete a sale or edit the log, so nobody can hide their own mistake.
+- **A log that can only grow:** every action and its log line are saved in one transaction (both or neither). Each line carries a fingerprint of the line before it (a hash chain, as in bank ledgers), so any change made to the file outside the app is detected and the owner is told.
+- **Policies are data:** the 24 hours, the discount limits, the lock times and the return conditions are owner settings with their change history, so a rule changes without an app update, and every action records the policy it was done under.
+- **Nothing is really deleted:** an employee who leaves is suspended, not deleted. Every sale keeps a copy of the seller's name, as it already keeps the piece's name and price.
+- **The clock is not trusted blindly:** the app remembers the latest time it has seen. If the device clock goes back (to get around the 24 hours), time-based actions are refused and the owner is alerted.
+- **Every record gets a unique id and the device's id,** so the iPhone and iPad can be synced later (Phase 11) without collisions.
+- **Tests:**
+  - every action × every role, checking that a refused action wrote nothing;
+  - a test that fails if a new action that changes data has no permission check;
+  - edge tests: 23:59 and 24:01 after a sale, a discount at the limit and one dirham over, a clock going back, a suspended employee, the warning at exactly 5 minutes.
+- **Database upgrades follow the existing rules:** a copy first; older rows are attributed to the owner; restoring older backups is tested; a schema change ships in a new `.ipa`.
+
+**iPhone and iPad, as usual:** every new screen follows the iPad rules (lists with details beside them, cards filling the width, forms as windows), upright and sideways, in light and dark mode, in Arabic right to left with digits 0-9, fully offline.
+
+#### Phase S1: accounts, sign-in and auto-lock
+
+- **S1.1** Staff accounts, shared by both systems:
+  - a small app-level store in the private folder (id, name, role, active, created at, must change PIN);
+  - each PIN in the Keychain, hashed with PBKDF2, one per person.
+- **S1.2** The owner account:
+  - the current PIN of each system becomes the owner's PIN for that system, so nothing changes for the owner;
+  - Face ID stays the owner's only;
+  - an **emergency code** shown once at setup, to keep off the device; it lets the owner set a new PIN.
+- **S1.3** Sign-in:
+  - after choosing the system, the active people appear as name cards (a grid on iPad), then the PIN pad (6 digits for an employee);
+  - each person has their own wrong-PIN count and lockout;
+  - an employee changes the temporary PIN at their first sign-in.
+- **S1.4** Staff management (owner only, Management → الموظفون):
+  - add an employee with a temporary PIN;
+  - reset a PIN;
+  - suspend and reactivate;
+  - on iPad, the list with the person's details beside it.
+- **S1.5** The session:
+  - every action knows who is signed in;
+  - a "switch user" button;
+  - the open cart is kept per person, and nobody else sees it.
+- **S1.6** Auto-lock of an employee after 7 minutes without a touch:
+  - 2 minutes before, a distinctive sound (it plays even on silent), a vibration and a countdown banner ("سيُقفل الحساب بعد 2:00، المس للمتابعة");
+  - one touch resets it;
+  - the owner chooses their own lock (the same, or only on leaving the app);
+  - both times are settings.
+- **S1.7** Copy the staff list to the other device by AirDrop, without the PINs: each employee sets their PIN there at their first sign-in.
+- **S1.8** Checks and tests, a new `.ipa` (new tables), owner test on both devices.
+
+**You check:** add two employees; sign in as each on the iPhone and the iPad; a wrong PIN locks only that person; the warning sound at 5 minutes; the lock at 7; your own sign-in unchanged.
+
+#### Phase S2: permissions and what an employee sees
+
+- **S2.1** The permission list and role table; the check inside every business rule that changes data; owner-only screens guarded as a whole.
+- **S2.2** An employee's app:
+  - selling, receipts, customers and debt payments;
+  - no cost, profit, margin, month summary, reports or comparison;
+  - products shown with their price and stock only;
+  - Management shows only what they may open.
+- **S2.3** An employee's home screen: the shortcuts, and their own sales today and this month only.
+- **S2.4** The full test matrix (every action × both roles) and the test that catches an action without a check.
+- **S2.5** Checks; an instant update if no table changes, otherwise with S3's `.ipa`; owner test.
+
+**You check:** as an employee, nothing about cost or profit appears anywhere, on both devices, and owner screens can't be opened; as the owner, everything is as before.
+
+#### Phase S3: who did what, the activity log and the clock
+
+- **S3.1** Every sale, return, payment, stock change, receipt and expense records who did it (with a copy of the name). Database upgrade with a copy first; older records are attributed to the owner.
+- **S3.2** The activity log:
+  - every action, every sign-in and every wrong PIN;
+  - append-only with the hash chain;
+  - checked when the system opens, and the owner is alerted if it was changed.
+- **S3.3** Owner screens:
+  - the log filtered by person and day (on iPad, the line's details beside it);
+  - sales per employee in "ملخص الشهر".
+- **S3.4** The clock guard: the latest time seen is kept; a clock going back refuses time-based actions and alerts the owner.
+- **S3.5** A unique id and the device id on every new record, for syncing later.
+- **S3.6** Checks and tests (including restoring older backups), a new `.ipa`, owner test.
+
+**You check:** sell as an employee, then see the sale under their name in the log and in sales per employee; set the device clock back and see it refused and reported.
+
+#### Phase S4: discounts, approvals, returns and the employee's account
+
+- **S4.1** Discount limits in dinars, per piece and per sale, set in Settings. Above them, **the owner's approval on the spot** (Face ID or PIN) for that sale only. A reason is required, chosen from a list ("زبون دائم", "عرض"…) or typed.
+- **S4.2** Returns, new rules:
+  - only from the sale or its receipt number, and only pieces sold in it;
+  - within 24 hours (a setting);
+  - a condition checklist per system, editable by the owner (jewelry: warranty sticker intact, piece unworn; scarves: unworn, unwashed, no perfume, in its packaging);
+  - a **photo of the returned piece is required**;
+  - the refund is what the customer paid, and an employee can't change it;
+  - a return of a credit sale lowers the customer's debt.
+- **S4.3** Any condition answered "no", or past 24 hours, refuses the return for an employee, with no way around it. The owner may override, with a reason, logged.
+- **S4.4** Exchange: a returned piece and a new one in one step, the difference paid or refunded, under the same return rules.
+- **S4.5** The employee's account:
+  - the owner can mark a return "على حساب الموظف" (or waive it);
+  - each employee has a statement of amounts charged and repaid;
+  - the owner records repayments.
+- **S4.6** Checks and tests (the edges at the limit, 24 hours, overrides), owner test.
+
+**You check:**
+
+- a discount within and over each limit, with your approval;
+- a return at 1 hour, refused at 25 hours, refused with a condition "no", then overridden by you;
+- an exchange;
+- a return charged to an employee, then waived.
+
+#### Phase S5: shifts and the cash count
+
+- **S5.1** Opening a shift: the employee enters the cash in the drawer; selling needs an open shift.
+- **S5.2** Cash in and out during the shift (paying a supplier, a change top-up), with a reason.
+- **S5.3** Closing:
+  - the employee counts the cash;
+  - the app shows what should be there (opening + cash sales − cash refunds ± cash moves) and the shortage or extra in that person's name;
+  - the owner can charge a shortage to the employee's account.
+- **S5.4** The shift report: sales by payment method, returns, discounts, approvals, the count. Shown to the owner, and printable as a PDF.
+- **S5.5** Checks and tests, owner test on both devices.
+
+**You check:** a full shift as an employee with a cash sale, a card sale and a return; a count with a shortage of 5 د.ل; the report and the shortage on the employee's account.
+
+#### Phase S6: alerts, stock count and device protection
+
+- **S6.1** Automatic alerts for the owner in "يحتاج انتباهك":
+  - many discounts or approvals by one person in a day;
+  - a return minutes after its sale;
+  - repeated wrong PINs;
+  - a cash shortage;
+  - the clock going back;
+  - a log that was changed.
+  - The thresholds are settings.
+- **S6.2** Stock count:
+  - an employee counts the pieces without seeing the expected numbers (a blind count);
+  - the owner sees the differences and applies them as stock changes, with the reason "جرد".
+- **S6.3** A guide in Arabic to protect the devices with iOS itself:
+  - Guided Access keeps an employee inside the app;
+  - Screen Time with the owner's code stops the app from being deleted (deleting it deletes the data) and locks "Set Automatically" for the date and time.
+- **S6.4** Self-check of the six phases against these decisions; the Maestro flows for every staff feature written, ready for 10.0; docs; owner test.
+
+**You check:** each alert by causing it; a stock count with one piece missing; the devices set up with the guide.
+
 ### Phase 10: switching over
 
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):
-  - the simulator tap-through tests (Maestro) and screenshots on an iPhone and an iPad, upright and sideways; I fix what fails and every layout problem the screenshots show;
-  - a complete test list for you: every screen and action of both systems, step by step, to tick off on your iPhone and iPad.
+  - the simulator tap-through tests (Maestro) and screenshots on an iPhone and an iPad, upright and sideways, including every staff feature of phases S1 to S6 (signing in as owner and as employee, what an employee can't see, the auto-lock warning, discounts and approvals, returns refused and overridden, a full shift); I fix what fails and every layout problem the screenshots show;
+  - a complete test list for you: every screen and action of both systems, as owner and as employee, step by step, to tick off on your iPhone and iPad.
 - **10.1** Release build, version 1.0.0:
   - version 1.0.0, a new build number, the test-only screens (component gallery, test data) confirmed absent;
   - speed test and the full checks once more; the `.ipa` installed on both devices and recorded for instant updates;
@@ -456,10 +610,11 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
 - After the Phase 8 test (2026-11-12): the backup picker accepts every file (iOS has no type for ".db"); one automatic backup per hour plus the newest of each of the last 7 days; date-first backup names; a new home screen and photo cards for products on iPad, sent as an instant update. Opening a backup straight from AirDrop or Files ("Open in SALFORD") was offered and declined: a backup is restored from Backup → Restore.
 - Full review (2026-11-12), all approved by the owner: a quick second tap can no longer save twice (sale, payment, expense, product, return, receipt); the open cart is kept across iOS closing the app; the database signals every change so screens can't miss a refresh; a weekly database check shown on the home screen; PINs stored with PBKDF2; the receipt preview runs no scripts; archived pieces can be brought back from Management; a note when a piece is priced below its cost; the biggest files split and leftover code removed.
 - Home screen like the old app (owner's request, 2026-11-12), in both systems: three shortcuts at the top (بيعة جديدة, إيصال جديد, قطعة جديدة / تصميم جديد) and "ملخص الشهر" with a calendar chip for the month and four tiles (صافي المبيعات, ربح المبيعات with the margin, المصاريف والمرتجعات, صافي الربح in dollars), each with a dot comparing with the month before.
+- Staff (2026-11-12): owner and employees with their own PINs, permissions, returns within 24 hours with conditions and a photo, discount limits per piece and per sale, shifts and cash count, an activity log, alerts, stock count; planned as phases S1 to S6 before Phase 10 (see the staff phases).
 - Offline: the app works fully without the internet, and every phase's self-check confirms nothing new needs it.
 - Long-life review (2026-11-11), approved by the owner: backups become copies of the database file, written safely and checked (8.0g); the copy off the device is handled one photo at a time (8.0h); database upgrades are made safe and ship only in a new `.ipa` (8.0i); restore saves its safety copy first (8.0j); errors show a retry screen and go to a log on the device (8.0k); the speed test also runs with 30,000 sales (8.0l). Standing practice: Sideloadly's automatic refresh, one Expo SDK upgrade a year, the repository kept public (section 2).
 - Owner (2026-11-11): re-signing every 7 days is mandatory until the developer account, and the yearly Expo SDK upgrade is accepted. Once the build is finished the owner gets the Apple Developer account, and the project ends with Phase 11: TestFlight, iCloud backup, final polish and submitting to the App Store (no longer optional).
 
 - Phase 8 (built, owner to test): instant updates need one new `.ipa` (build 2) before they reach the devices; after installing it, it is recorded with `npm run update:record`. Backups are now copies of the database file (`.db`); `.json` backups from before still restore. A restore keeps sale and receipt numbers from ever repeating, also from an older backup (found while testing 8.0g). The speed test is `npm run speed`: with 2,000 products and 30,000 sales every screen reads in under 25 ms on a computer (Customers and Debts were changed to one query for all balances). The dashboard's daily chart has a temporary switch to Apple's charts so the owner can choose; the other one is removed afterwards. Errors are kept in a log on the device (Settings → سجل الأخطاء).
 
-Status: Phases 0 to 9 are merged. The full review's fixes are built (PR open). Next: Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Next: the staff phases S1 to S6 (employees, permissions, returns, shifts), then Phase 10, switching over.
