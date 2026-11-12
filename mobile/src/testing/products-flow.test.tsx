@@ -316,25 +316,22 @@ it('adds stock with a reason from the stock sheet and shows it in the history', 
   expect(screen.getByText('المخزون الأول')).toBeOnTheScreen();
 });
 
-it('on iPad, edits a piece beside the list and updates the list', async () => {
+it('on iPad, shows the pieces as photo cards; a piece opens as a window over them', async () => {
   mockUnlocked = 'jewelry';
   mockWidth = 1180;
   const app = await renderRouter(routes, { initialUrl: '/jewelry/products' });
 
-  expect(await screen.findByText('اختر قطعة من القائمة')).toBeOnTheScreen();
+  // No empty "choose a piece" pane beside a narrow list any more.
+  expect(await screen.findByText('بروش')).toBeOnTheScreen();
+  expect(screen.queryByText('اختر قطعة من القائمة')).toBeNull();
   await fireEvent.press(screen.getByText('بروش'));
-  // The form opens beside the list; the address does not change.
   expect(await screen.findByDisplayValue('بروش')).toBeOnTheScreen();
-  expect(app.getPathname()).toBe('/jewelry/products');
+  expect(app.getPathname()).toMatch(/^\/jewelry\/product\/\d+$/);
 
   await fireEvent.changeText(screen.getByTestId('product-price'), '95');
-  await fireEvent.press(screen.getByRole('button', { name: 'حفظ' }));
+  await fireEvent.press(screen.getByTestId('product-save'));
   expect(await screen.findByText('95 د.ل')).toBeOnTheScreen();
-  expect(screen.getByText('اختر قطعة من القائمة')).toBeOnTheScreen();
-
-  // A new piece also opens beside the list.
-  await fireEvent.press(screen.getByRole('button', { name: 'إضافة قطعة' }));
-  expect(await screen.findByText('قطعة جديدة')).toBeOnTheScreen();
   expect(app.getPathname()).toBe('/jewelry/products');
+
   mockWidth = 390;
 });

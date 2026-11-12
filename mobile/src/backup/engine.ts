@@ -132,6 +132,8 @@ const SYSTEM_NAMES: Record<SystemId, string> = { jewelry: 'المجوهرات', 
  * Checks a copy without changing it: a sound database file, labelled as a SALFORD POS backup of
  * this system, not from a newer app. Throws a RuleError explaining what is wrong.
  */
+const NOT_A_BACKUP = 'هذا الملف ليس نسخة احتياطية من SALFORD POS';
+
 export function checkSnapshot(open: OpenDb, path: string, system: SystemId): SnapshotInfo {
   let copy: Db;
   try {
@@ -144,7 +146,9 @@ export function checkSnapshot(open: OpenDb, path: string, system: SystemId): Sna
     try {
       const ok = copy.get<{ quick_check: string }>('PRAGMA quick_check')?.quick_check;
       if (ok !== 'ok') throw new Error(ok);
-    } catch {
+    } catch (error) {
+      // Any file can be picked: one that isn't a database at all (a photo, a PDF) is not a backup.
+      if (/not a database/i.test(String(error))) throw new RuleError(NOT_A_BACKUP);
       throw new RuleError('ملف النسخة الاحتياطية تالف أو غير مكتمل');
     }
     try {
@@ -154,7 +158,7 @@ export function checkSnapshot(open: OpenDb, path: string, system: SystemId): Sna
           .map((r) => [r.key, r.value]),
       );
     } catch {
-      throw new RuleError('هذا الملف ليس نسخة احتياطية من SALFORD POS');
+      throw new RuleError(NOT_A_BACKUP);
     }
     const schema = schemaVersion(copy);
     if (schema > LATEST_VERSION) {

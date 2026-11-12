@@ -36,6 +36,7 @@ import {
   newestFirst,
   parseBackupName,
   PART,
+  replacedAuto,
   toDelete,
   type BackupInfo,
   type BackupKind,
@@ -134,7 +135,8 @@ const ownKind = (kind: BackupKind) => kind === 'auto' || kind === 'manual';
 /**
  * Saves a backup of the system now. An automatic backup is skipped when nothing changed since the
  * last one (so ten identical copies never push out older, different ones), without even reading
- * the database when nothing was written in this run of the app.
+ * the database when nothing was written in this run of the app; one made within an hour of the
+ * last automatic backup replaces it.
  */
 export function saveBackup(ctx: Ctx, kind: BackupKind): BackupInfo | null {
   const system = ctx.system;
@@ -147,8 +149,11 @@ export function saveBackup(ctx: Ctx, kind: BackupKind): BackupInfo | null {
     lastBackedUp.set(system, now);
     return null;
   }
+  // Within an hour of the last automatic backup, the new one replaces it (one per hour).
+  const replaced = kind === 'auto' ? replacedAuto(listBackups(system), ctx.now()) : null;
   removeQuietly(new File(folder(system), name));
   part.rename(name);
+  if (replaced && replaced.name !== name) removeQuietly(new File(folder(system), replaced.name));
   if (ownKind(kind)) {
     if (fingerprint) write(key('checksum', system), fingerprint);
     lastBackedUp.set(system, now);
@@ -232,16 +237,14 @@ export async function shareCopy(ctx: Ctx): Promise<void> {
   }
 }
 
-/** Picks a backup file from the device (Files, or what AirDrop saved). Null if cancelled. */
+/**
+ * Picks a backup file from the device (Files, or what AirDrop saved). Null if cancelled. Every file
+ * can be chosen: iOS has no type for a ".db" file, so asking for database types greyed out every
+ * backup. The chosen file is checked before anything happens (readBackupFile).
+ */
 export async function pickBackupFile(): Promise<string | null> {
   const r = await DocumentPicker.getDocumentAsync({
-    type: [
-      'public.database',
-      'application/x-sqlite3',
-      'application/json',
-      'public.json',
-      'public.data',
-    ],
+    type: '*/*',
     copyToCacheDirectory: true,
     multiple: false,
   });

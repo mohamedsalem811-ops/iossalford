@@ -72,8 +72,13 @@ describe('a copy of the database', () => {
     writeSnapshot(live, openFileDb, at('b.db'), label);
     expect(() => checkSnapshot(openFileDb, at('b.db'), 'scarves')).toThrow('نظام المجوهرات');
 
-    dir.write('junk.db', 'not a database at all');
-    expect(() => checkSnapshot(openFileDb, at('junk.db'), 'jewelry')).toThrow('تالف');
+    // Any file can be picked in Files: a file that isn't a database is "not a backup".
+    dir.write('photo.jpg', 'not a database at all');
+    expect(() => checkSnapshot(openFileDb, at('photo.jpg'), 'jewelry')).toThrow('ليس نسخة');
+
+    writeSnapshot(live, openFileDb, at('half.db'), label);
+    dir.cut('half.db', 0.5);
+    expect(() => checkSnapshot(openFileDb, at('half.db'), 'jewelry')).toThrow('تالف');
 
     const other = openFileDb(at('other.db'));
     other.exec('CREATE TABLE t (x INTEGER)');

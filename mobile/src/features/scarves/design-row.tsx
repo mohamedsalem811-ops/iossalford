@@ -25,6 +25,7 @@ export function DesignRow({
   onAdjust,
   onOpen,
   selected = false,
+  card,
 }: {
   system: SystemId;
   design: ScarfDesign;
@@ -36,6 +37,8 @@ export function DesignRow({
   /** iPad split view: tapping selects the design instead of navigating. */
   onOpen?: () => void;
   selected?: boolean;
+  /** iPad grid: drawn as a photo card this wide instead of a swipeable row. */
+  card?: number;
 }) {
   const { colors } = useTheme();
   const swipe = useRef<SwipeableMethods>(null);
@@ -63,6 +66,71 @@ export function DesignRow({
       (index) => items[index]?.run(),
     );
   };
+
+  const sizeChips = (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+      {d.sizes.map((s) => {
+        const state = stockState(s);
+        return (
+          <View
+            key={s.id}
+            style={{
+              paddingHorizontal: 6,
+              paddingVertical: 1,
+              borderRadius: radius.full,
+              backgroundColor: colors.accentSoft,
+            }}>
+            <Text
+              variant="caption"
+              style={{ color: state === 'ok' ? colors.accent : colors.warning }}>
+              {`${s.size ?? '—'}: ${s.stock}`}
+            </Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+
+  if (card) {
+    return (
+      <Pressable
+        testID={`design-${first.name}`}
+        accessibilityRole="button"
+        accessibilityHint="اضغط لتعديل التصميم ومقاساته"
+        onPress={open}
+        onLongPress={menu}
+        style={({ pressed }) => ({
+          width: card,
+          padding: spacing.sm,
+          gap: spacing.xs,
+          borderRadius: radius.lg,
+          borderCurve: 'continuous',
+          backgroundColor: pressed ? colors.accentSoft : colors.surface,
+        })}>
+        <ProductPhoto system={system} imageFile={photo} size={card - spacing.sm * 2} />
+        {first.brand && first.brandId !== null ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <BrandBadge name={first.brand} imageFile={brandImage} system={system} size={16} />
+            <Text variant="caption" tone="accent" numberOfLines={1}>
+              {first.brand}
+            </Text>
+          </View>
+        ) : null}
+        <Text variant="bodyStrong" numberOfLines={1}>
+          {first.name}
+        </Text>
+        {details ? (
+          <Text variant="caption" tone="secondary" numberOfLines={1}>
+            {details}
+          </Text>
+        ) : null}
+        {sizeChips}
+        <Text variant="headline" tone="accent" numberOfLines={1}>
+          {priceRange(d)}
+        </Text>
+      </Pressable>
+    );
+  }
 
   const body = (
     <Pressable
@@ -98,27 +166,7 @@ export function DesignRow({
             {details}
           </Text>
         ) : null}
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
-          {d.sizes.map((s) => {
-            const state = stockState(s);
-            return (
-              <View
-                key={s.id}
-                style={{
-                  paddingHorizontal: 6,
-                  paddingVertical: 1,
-                  borderRadius: radius.full,
-                  backgroundColor: colors.accentSoft,
-                }}>
-                <Text
-                  variant="caption"
-                  style={{ color: state === 'ok' ? colors.accent : colors.warning }}>
-                  {`${s.size ?? '—'}: ${s.stock}`}
-                </Text>
-              </View>
-            );
-          })}
-        </View>
+        {sizeChips}
         <Text variant="subhead" tone="accent">
           {priceRange(d)}
         </Text>

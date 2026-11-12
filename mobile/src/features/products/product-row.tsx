@@ -35,6 +35,7 @@ export function ProductRow({
   actions,
   onOpen,
   selected = false,
+  card,
 }: {
   system: SystemId;
   product: Product;
@@ -48,6 +49,8 @@ export function ProductRow({
   onOpen?: () => void;
   /** Highlighted as the piece open beside the list. */
   selected?: boolean;
+  /** iPad grid: drawn as a photo card this wide instead of a swipeable row. */
+  card?: number;
 }) {
   const { colors } = useTheme();
   const swipe = useRef<SwipeableMethods>(null);
@@ -78,6 +81,47 @@ export function ProductRow({
       (index) => items[index]?.run(),
     );
   };
+
+  if (card) {
+    return (
+      <Pressable
+        testID={`product-${p.sku}`}
+        accessibilityRole="button"
+        accessibilityHint="اضغط للتعديل، أو اضغط مطولاً لمزيد من الخيارات"
+        onPress={open}
+        onLongPress={menu}
+        style={({ pressed }) => ({
+          width: card,
+          padding: spacing.sm,
+          gap: spacing.xs,
+          borderRadius: radius.lg,
+          borderCurve: 'continuous',
+          backgroundColor: pressed ? colors.accentSoft : colors.surface,
+        })}>
+        <ProductPhoto system={system} imageFile={p.imageFile} size={card - spacing.sm * 2} />
+        {p.brand && p.brandId !== null ? (
+          <BrandTag system={system} name={p.brand} imageFile={brandImage} />
+        ) : null}
+        <Text variant="bodyStrong" numberOfLines={1}>
+          {p.name}
+        </Text>
+        <Text variant="caption" tone="secondary" numberOfLines={1}>
+          {productDetails(p)}
+        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <View style={{ flex: 1 }}>
+            <Text variant="headline" tone="accent" numberOfLines={1}>
+              {formatLyd(p.price)}
+            </Text>
+            <Text variant="caption" tone="secondary" numberOfLines={1}>
+              تكلفة {formatDinars(p.cost)}
+            </Text>
+          </View>
+          <StockPill stock={p.stock} lowStock={p.lowStock} />
+        </View>
+      </Pressable>
+    );
+  }
 
   const body = (
     <Pressable
