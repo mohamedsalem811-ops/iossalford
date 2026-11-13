@@ -3,6 +3,7 @@ import {
   cartProblems,
   lineTotal,
   needsApproval,
+  priceChanges,
   problemMessage,
   type CartDiscount,
   type CartLine,
@@ -14,6 +15,7 @@ import { allow, clean, nowMonth, nowStamp, ownerSays, RuleError, type Ctx } from
 import { ensureCustomer, hasIdentity } from './customers';
 import { displayName, getProduct, moveStock } from './products';
 import { issueReceipt, type Receipt, type TemplateId } from './receipts';
+import { getSet, setForCart } from './sets';
 import { getRate } from './settings';
 import { actorKey, actorName } from '@/staff/model';
 import { logAction } from './activity';
@@ -88,6 +90,18 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
   return ctx.db.transaction(() => {
     const problems = cartProblems(input.cart, (id) => getProduct(ctx, id));
     if (problems.length) throw new CheckoutError(problems);
+    // A kept cart can be hours old: never sell at a price that has changed since (audit F-1).
+    const changed = priceChanges(
+      input.cart,
+      (id) => getProduct(ctx, id),
+      (id) => {
+        const set = getSet(ctx, id);
+        return set ? setForCart(ctx, set) : undefined;
+      },
+    );
+    if (changed.length) throw new CheckoutError(changed);
+    // Before the approval below: a sale refused for no open shift must not use it up (F-7).
+    const shiftId = shiftFor(ctx, seller);
 
     // Discounts over the employee limits need the owner, with a reason (phase S4).
     const policies = getPolicies(ctx);
@@ -102,7 +116,6 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       approvedBy = 'owner';
     }
 
-    const shiftId = shiftFor(ctx, seller);
     const customerId = ensureCustomer(ctx, c.name, c.phone, c.area);
     const customerName = clean(c.name);
     const stamp = nowStamp(ctx);

@@ -195,7 +195,8 @@ it('deletes a sale, putting back only the pieces not already returned', async ()
   await renderRouter(routes, { initialUrl: `/jewelry/more/sale/${saleId}` });
   await fireEvent.press(await screen.findByTestId('sale-delete'));
   expect(alert.mock.lastCall![0]).toBe(`حذف البيعة رقم ${saleId}؟`);
-  await answer(alert, 'حذف البيعة');
+  // It has a receipt: delete it too, or keep it with its number.
+  await answer(alert, 'حذف البيعة وإبقاء الإيصال');
   expect(listSales(ctx())).toHaveLength(0);
   // All 3 pieces come back (none is returned any more).
   expect(getProduct(ctx(), ring)!.stock).toBe(5);

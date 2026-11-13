@@ -140,16 +140,19 @@ describe('returns', () => {
 });
 
 describe('deleting a sale', () => {
-  it('puts back only the pieces not already returned and removes its returns; the receipt stays', () => {
+  it('is refused while it has returns; once undone, all pieces go back and the receipt stays', () => {
     const ring = product('خاتم', 350_000, 5);
     const { saleId } = sell(ring, 3);
     const line = getSale(ctx, saleId)!.lines[0];
-    addReturn(ctx, { ...passing(ctx), saleLineId: line.id, quantity: 1 });
+    const ret = addReturn(ctx, { ...passing(ctx), saleLineId: line.id, quantity: 1 });
     expect(getProduct(ctx, ring.id)?.stock).toBe(3);
     const receiptId = receiptForSale(ctx, saleId)!.id;
+    // A refund paid out never disappears with its sale (audit F-2).
+    expect(() => deleteSale(ctx, saleId)).toThrow('ألغِ مرتجعاتها أولاً');
+    expect(listReturns(ctx)).toHaveLength(1);
+    deleteReturn(ctx, ret);
     deleteSale(ctx, saleId);
     expect(getProduct(ctx, ring.id)?.stock).toBe(5);
-    expect(listReturns(ctx)).toHaveLength(0);
     expect(getSale(ctx, saleId)).toBeUndefined();
     expect(
       ctx.db.get<{ sale_id: number | null }>('SELECT sale_id FROM receipts WHERE id = ?', [

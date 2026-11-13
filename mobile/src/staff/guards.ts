@@ -93,6 +93,16 @@ export const readAnchor = (system: SystemId) => json<Anchor | null>(`log.anchor.
 export const saveAnchor = (system: SystemId, a: Anchor) =>
   write(`log.anchor.${system}`, JSON.stringify(a));
 
+/**
+ * The last line the check found unchanged, and when the whole chain was last walked (audit F-6):
+ * each open checks only newer lines, and the whole chain once a week.
+ */
+export type Verified = Anchor & { fullAt: string };
+export const readVerified = (system: SystemId) =>
+  json<Verified | null>(`log.verified.${system}`, null);
+export const saveVerified = (system: SystemId, v: Verified) =>
+  write(`log.verified.${system}`, JSON.stringify(v));
+
 /** Breaks already reported (a log line was written) and those the owner has acknowledged. */
 export const reportedBreaks = (system: SystemId) => json<number[]>(`log.reported.${system}`, []);
 export const saveReported = (system: SystemId, ids: number[]) =>
@@ -102,6 +112,7 @@ const acked = (system: SystemId) => json<number[]>(`log.ack.${system}`, []);
 /** After a restore the log is the backup's: what was remembered of the old one no longer applies. */
 export function forgetLog(system: SystemId) {
   write(`log.anchor.${system}`, '');
+  write(`log.verified.${system}`, '');
   write(`log.reported.${system}`, '[]');
   write(`log.ack.${system}`, '[]');
   useLogAlerts.getState().set(system, []);

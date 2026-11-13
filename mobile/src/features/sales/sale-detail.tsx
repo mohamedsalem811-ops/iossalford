@@ -4,7 +4,7 @@ import { Badge, Button, Card, EmptyState, ListGroup, ListRow, Page, Text } from 
 import { PAYMENT_LABELS } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
 import type { Receipt } from '@/domain/receipts';
-import { deleteSale, type Sale } from '@/domain/sales';
+import { deleteSale, saleDeleteCheck, type Sale } from '@/domain/sales';
 import { showError } from '@/features/products/actions';
 import { formatDate, formatTime } from '@/lib/dates';
 import { formatLyd, formatRate } from '@/lib/money';
@@ -46,35 +46,49 @@ export function SaleDetail({
   const profit = sale.total - sale.totalCost;
   const returned = saleReturned(sale);
 
-  const remove = () =>
+  const run = (deleteReceipt: boolean) => {
+    try {
+      deleteSale(ctx, sale.id, { deleteReceipt });
+    } catch (error) {
+      showError(error);
+      return;
+    }
+    haptic.success();
+    notifyDataChanged();
+    onDeleted();
+  };
+
+  const remove = () => {
+    // Refused up front with the reason (returns, a closed quarter or shift): nothing to confirm.
+    const refused = saleDeleteCheck(ctx, sale.id);
+    if (refused) {
+      haptic.error();
+      Alert.alert('لا يمكن حذف البيعة', refused);
+      return;
+    }
     Alert.alert(
       `حذف البيعة رقم ${sale.id}؟`,
       [
-        'للبيعة المسجلة بالخطأ. تعود للمخزون القطع التي لم تُرجع بعد، وتُحذف مرتجعات هذه البيعة.',
-        receipt ? `الإيصال ${receipt.receiptNo} يبقى في سجل الإيصالات برقمه.` : null,
+        'للبيعة المسجلة بالخطأ. تعود قطعها للمخزون.',
         sale.paymentMethod === 'credit' ? 'ويُلغى دين هذه البيعة على الزبون.' : null,
+        receipt
+          ? `الإيصال ${receipt.receiptNo}: احذفه معها، أو أبقه في سجل الإيصالات برقمه.`
+          : null,
       ]
         .filter(Boolean)
         .join('\n'),
-      [
-        { text: 'إلغاء', style: 'cancel' },
-        {
-          text: 'حذف البيعة',
-          style: 'destructive',
-          onPress: () => {
-            try {
-              deleteSale(ctx, sale.id);
-            } catch (error) {
-              showError(error);
-              return;
-            }
-            haptic.success();
-            notifyDataChanged();
-            onDeleted();
-          },
-        },
-      ],
+      receipt
+        ? [
+            { text: 'إلغاء', style: 'cancel' },
+            { text: 'حذف البيعة والإيصال', style: 'destructive', onPress: () => run(true) },
+            { text: 'حذف البيعة وإبقاء الإيصال', style: 'destructive', onPress: () => run(false) },
+          ]
+        : [
+            { text: 'إلغاء', style: 'cancel' },
+            { text: 'حذف البيعة', style: 'destructive', onPress: () => run(false) },
+          ],
     );
+  };
 
   return (
     <Page>

@@ -1,4 +1,5 @@
 import { latinDigits } from '@/lib/digits';
+import { quarterKey, quarterOf, quarterTitle } from '@/lib/dates';
 import { divRound, formatDinars, formatLyd } from '@/lib/money';
 
 import type { PaymentMethod } from './checkout';
@@ -262,22 +263,87 @@ export function saleMonths(ctx: Ctx): string[] {
  * Deletes a sale entered by mistake. Its returns go with it, and only pieces that had not already
  * come back through a return go back into stock. Its receipt stays (unlinked) with its number.
  */
-export function deleteSale(ctx: Ctx, saleId: number) {
+/**
+ * A record of a closed period can't be removed (audit F-2): a closed quarter's snapshot and a
+ * closed shift's cash count must keep agreeing with what is recorded.
+ */
+function refuseIfClosed(
+  ctx: Ctx,
+  what: string,
+  r: { month: string; shiftId: number | null },
+  instead: string,
+) {
+  const q = quarterOf(r.month);
+  if (q && ctx.db.get('SELECT 1 FROM closings WHERE period_key = ?', [quarterKey(q)]))
+    throw new RuleError(
+      `لا يمكن حذف ${what}: ${quarterTitle(q)} مُقفل. احذف إقفاله أولاً من الإقفال الربعي إن كان الحذف ضرورياً.`,
+    );
+  if (
+    r.shiftId !== null &&
+    ctx.db.get('SELECT 1 FROM shifts WHERE id = ? AND closed_at IS NOT NULL', [r.shiftId])
+  )
+    throw new RuleError(`لا يمكن حذف ${what}: ورديتها أُغلقت وعُدّ نقدها. ${instead}`);
+}
+
+/** Pieces of a sale already returned, and whether it has a receipt, for the delete question. */
+export function saleDeleteCheck(ctx: Ctx, saleId: number): string | null {
+  const row = ctx.db.get<{ month: string; shift_id: number | null }>(
+    'SELECT month, shift_id FROM sales WHERE id = ?',
+    [saleId],
+  );
+  if (!row) return 'البيعة غير موجودة';
+  if (
+    ctx.db.get(
+      'SELECT 1 FROM returns r JOIN sale_lines l ON l.id = r.sale_line_id WHERE l.sale_id = ?',
+      [saleId],
+    )
+  )
+    return 'لهذه البيعة مرتجعات. ألغِ مرتجعاتها أولاً، ثم احذف البيعة، حتى لا يختفي مبلغ رُدّ للزبون من التقارير.';
+  try {
+    refuseIfClosed(
+      ctx,
+      'البيعة',
+      { month: row.month, shiftId: row.shift_id },
+      'سجّل مرتجعاً بدلاً من الحذف.',
+    );
+  } catch (error) {
+    if (error instanceof RuleError) return error.message;
+    throw error;
+  }
+  return null;
+}
+
+/**
+ * Deletes a sale recorded by mistake: its pieces go back to stock. Refused when it has returns
+ * (undo them first, so no refund paid out disappears), or when its quarter or shift is closed.
+ * Its receipt is deleted too when `deleteReceipt`, otherwise kept with its number.
+ */
+export function deleteSale(ctx: Ctx, saleId: number, opts: { deleteReceipt?: boolean } = {}) {
   allow(ctx, 'sales.delete');
   ctx.db.transaction(() => {
     const sale = getSale(ctx, saleId);
     if (!sale) throw new RuleError('البيعة غير موجودة');
+    const refused = saleDeleteCheck(ctx, saleId);
+    if (refused) throw new RuleError(refused);
     for (const line of sale.lines) {
       const back = line.quantity - line.returned;
       if (back > 0 && getProduct(ctx, line.productId))
         moveStock(ctx, line.productId, back, 'sale_deleted', line.id);
     }
+    const receipts = opts.deleteReceipt
+      ? ctx.db.all<{ id: number; receipt_no: string }>(
+          'SELECT id, receipt_no FROM receipts WHERE sale_id = ?',
+          [saleId],
+        )
+      : [];
+    for (const r of receipts) ctx.db.run('DELETE FROM receipts WHERE id = ?', [r.id]);
     ctx.db.run('DELETE FROM sales WHERE id = ?', [saleId]);
-    logAction(ctx, 'sale.delete', `حذف البيعة رقم ${saleId} (${formatLyd(sale.total)})`, {
-      saleId,
-      total: sale.total,
-      seller: sale.sellerName,
-    });
+    logAction(
+      ctx,
+      'sale.delete',
+      `حذف البيعة رقم ${saleId} (${formatLyd(sale.total)})${receipts.length ? ` وإيصالها ${receipts.map((r) => r.receipt_no).join('، ')}` : ''}`,
+      { saleId, total: sale.total, seller: sale.sellerName, receipts: receipts.map((r) => r.id) },
+    );
   });
 }
 
@@ -322,6 +388,7 @@ type ReturnRow = {
   conditions: string | null;
   override_reason: string | null;
   exchange_sale_id: number | null;
+  shift_id?: number | null;
 };
 
 const parseAnswers = (text: string | null) => {
@@ -621,6 +688,12 @@ export function deleteReturn(ctx: Ctx, returnId: number) {
   ctx.db.transaction(() => {
     const r = ctx.db.get<ReturnRow>('SELECT * FROM returns WHERE id = ?', [returnId]);
     if (!r) throw new RuleError('المرتجع غير موجود');
+    refuseIfClosed(
+      ctx,
+      'المرتجع',
+      { month: r.month, shiftId: r.shift_id ?? null },
+      'يبقى المرتجع كما سُجّل.',
+    );
     if (
       getProduct(ctx, r.product_id) &&
       !moveStock(ctx, r.product_id, -r.quantity, 'return_deleted', returnId)

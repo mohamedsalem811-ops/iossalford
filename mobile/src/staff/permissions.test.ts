@@ -49,6 +49,7 @@ type Seed = {
   chain: number;
   customer: number;
   sale: number;
+  plainSale: number;
   saleLine: number;
   receipt: number;
   /** A receipt the employee issued (an employee edits only their own). */
@@ -87,8 +88,9 @@ function seed(ctx: TestCtx): Seed {
     paymentMethod: 'credit',
     customer: { name: 'منى', phone: '0912345678' },
   });
-  // A second sale, so one archived piece has a sale and is kept when deleted.
-  checkout(ctx, { cart: cartOf(ctx, archived), paymentMethod: 'cash' });
+  // A second sale, so one archived piece has a sale and is kept when deleted. It has no
+  // returns, so it can be deleted.
+  const plainSale = checkout(ctx, { cart: cartOf(ctx, archived), paymentMethod: 'cash' }).saleId;
   deleteProduct(ctx, archived);
   const saleLine = getSale(ctx, sold.saleId)!.lines[0].id;
   const ret = addReturn(ctx, { ...passing(ctx), saleLineId: saleLine, quantity: 1 });
@@ -134,6 +136,7 @@ function seed(ctx: TestCtx): Seed {
     chain,
     customer,
     sale: sold.saleId,
+    plainSale,
     saleLine,
     receipt: sold.receipt.id,
     payment,
@@ -153,7 +156,7 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
       permission: 'sales.create',
       run: (ctx, s) => checkout(ctx, { cart: cartOf(ctx, s.chain), paymentMethod: 'cash' }),
     },
-    deleteSale: { permission: 'sales.delete', run: (ctx, s) => deleteSale(ctx, s.sale) },
+    deleteSale: { permission: 'sales.delete', run: (ctx, s) => deleteSale(ctx, s.plainSale) },
     addReturn: {
       permission: 'returns.create',
       run: (ctx, s) => addReturn(ctx, { ...passing(ctx), saleLineId: s.saleLine, quantity: 1 }),
