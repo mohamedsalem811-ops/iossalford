@@ -14,6 +14,9 @@ export const PERMISSIONS = {
   'sales.delete': 'حذف بيع',
   'returns.create': 'تسجيل مرتجع',
   'returns.delete': 'حذف مرتجع',
+  'returns.noSale': 'مرتجع بدون فاتورة',
+  'returns.charge': 'تحميل المرتجع على الموظف',
+  'staff.ledger': 'حساب الموظف',
   'receipts.create': 'إصدار إيصال',
   'receipts.edit': 'تعديل إيصال',
   'receipts.delete': 'حذف إيصال',
@@ -44,9 +47,12 @@ export type Permission = keyof typeof PERMISSIONS;
 export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'sales.create': true,
   'sales.delete': false,
-  // Returns open to employees in S4, with the 24 hours, the conditions and the photo.
-  'returns.create': false,
+  // Within the return window, every condition "yes" and a photo (S4); past them, the owner.
+  'returns.create': true,
   'returns.delete': false,
+  'returns.noSale': false,
+  'returns.charge': false,
+  'staff.ledger': false,
   'receipts.create': true,
   // Choosing the design and hiding prices after a sale edits its receipt.
   'receipts.edit': true,

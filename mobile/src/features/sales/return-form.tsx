@@ -18,7 +18,24 @@ import {
 } from '@/components';
 import type { Ctx } from '@/domain/context';
 import { displayName, listProducts, type Product } from '@/domain/products';
-import { addReturn, addReturnWithoutSale, getSaleLine, maxRefund } from '@/domain/sales';
+import { cartTotal } from '@/domain/cart';
+import { PAYMENT_LABELS, type PaymentMethod } from '@/domain/checkout';
+import { differenceText, exchange } from '@/domain/exchange';
+import { getPolicies } from '@/domain/policies';
+import {
+  addReturn,
+  addReturnWithoutSale,
+  getSaleLine,
+  hoursSince,
+  soldAtOfLine,
+  maxRefund,
+  ReturnRefused,
+  type ReturnInput,
+} from '@/domain/sales';
+import { PhotoPicker } from '@/features/products/photo-picker';
+import { putCart, useCart } from '@/state/cart';
+import { askOwner, chooseReason } from '@/staff/approvals';
+import { useActor } from '@/staff/use-can';
 import { showError } from '@/features/products/actions';
 import { applyQuery, DEFAULT_QUERY } from '@/features/products/model';
 import { editableDinars, formatLyd } from '@/lib/money';
@@ -56,34 +73,62 @@ export function ReturnForm({
   const [quantity, setQuantity] = useState(1);
   const [refund, setRefund] = useState('');
   const [reason, setReason] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, boolean>>({});
+  const [swap, setSwap] = useState(false);
+  const [swapMethod, setSwapMethod] = useState<PaymentMethod>('cash');
+  const [policies] = useState(() => getPolicies(ctx));
+  const [soldAt] = useState(() => (saleLineId ? soldAtOfLine(ctx, saleLineId) : undefined));
+  const owner = useActor()?.kind === 'owner';
+  const { cart } = useCart(ctx.system);
+  const swapTotal = cartTotal(cart);
 
   if (saleLineId && !line) return <EmptyState icon="cart" title="البيعة غير موجودة" />;
   const left = line ? returnable(line) : Number.MAX_SAFE_INTEGER;
   if (line && left === 0)
     return <EmptyState icon="arrow.uturn.backward" title="كل قطع هذه البيعة مُرتجعة بالفعل" />;
 
-  const save = () => {
-    if (!line && !product) {
-      haptic.error();
-      Alert.alert('لم يتم الحفظ', 'اختر القطعة المرتجعة');
-      return;
-    }
-    const check = checkReturn(line ?? null, quantity, refund);
+  /** Saves the return (or the exchange); on a refusal by the rules, asks the owner. */
+  const commit = (override?: ReturnInput['override']) => {
+    const check = checkReturn(line ?? null, quantity, owner ? refund : '');
     if (!check.ok) {
       haptic.error();
       Alert.alert('لم يتم الحفظ', check.message);
       return;
     }
     try {
-      if (line) addReturn(ctx, { saleLineId: line.id, quantity, refund: check.refund, reason });
-      else
+      if (line) {
+        const input: ReturnInput = {
+          saleLineId: line.id,
+          quantity,
+          refund: check.refund,
+          reason,
+          photo: photo ?? undefined,
+          answers,
+          override,
+        };
+        if (swap && cart.length) {
+          const r = exchange(ctx, {
+            ret: input,
+            sale: { cart, paymentMethod: swapMethod },
+          });
+          putCart(ctx.system, []);
+          Alert.alert('تم الاستبدال', differenceText(r.difference));
+        } else addReturn(ctx, input);
+      } else
         addReturnWithoutSale(ctx, {
           productId: product!.id,
           quantity,
           refund: check.refund!,
           reason,
+          photo: photo ?? undefined,
         });
     } catch (error) {
+      if (error instanceof ReturnRefused && !override) {
+        haptic.error();
+        askToOverride(error);
+        return;
+      }
       showError(error);
       return;
     }
@@ -91,6 +136,44 @@ export function ReturnForm({
     notifyDataChanged();
     onDone();
     return true;
+  };
+
+  /** Past the rules: the owner allows it with a reason (signed in, or on the spot). */
+  const askToOverride = (e: ReturnRefused) =>
+    Alert.alert('المرتجع مرفوض', e.problems.join('\n'), [
+      { text: 'إغلاق', style: 'cancel' },
+      {
+        text: owner ? 'السماح به' : 'موافقة المالك',
+        onPress: async () => {
+          const why = await chooseReason('سبب السماح بالمرتجع', [
+            'زبون دائم',
+            'عيب من المصنع',
+            'خطأ في البيع',
+          ]);
+          if (!why) return;
+          if (owner) return commit({ reason: why });
+          const approval = await askOwner(
+            ctx.system,
+            'return',
+            `مرتجع «${line?.name ?? ''}»: ${e.problems.join(' ')}\nالسبب: ${why}`,
+          );
+          if (approval) commit({ reason: why, approval });
+        },
+      },
+    ]);
+
+  const save = () => {
+    if (!line && !product) {
+      haptic.error();
+      Alert.alert('لم يتم الحفظ', 'اختر القطعة المرتجعة');
+      return;
+    }
+    if (!photo) {
+      haptic.error();
+      Alert.alert('لم يتم الحفظ', 'صوّر القطعة المرتجعة قبل الحفظ.');
+      return;
+    }
+    return commit();
   };
 
   const matches = line
@@ -181,19 +264,25 @@ export function ReturnForm({
             الكمية
           </Text>
           <Stepper value={quantity} onChange={setQuantity} max={left} testID="return-quantity" />
-          <NumberField
-            label="المبلغ المُعاد للزبون"
-            hint={
-              line
-                ? `اتركه فارغاً لإعادة ما دفعه: ${formatLyd(maxRefund(line, quantity))}`
-                : 'المبلغ الذي أُعيد للزبون'
-            }
-            value={refund}
-            onChangeText={setRefund}
-            suffix="د.ل"
-            placeholder={line ? editableDinars(maxRefund(line, quantity)) : ''}
-            testID="return-refund"
-          />
+          {owner || !line ? (
+            <NumberField
+              label="المبلغ المُعاد للزبون"
+              hint={
+                line
+                  ? `اتركه فارغاً لإعادة ما دفعه: ${formatLyd(maxRefund(line, quantity))}`
+                  : 'المبلغ الذي أُعيد للزبون'
+              }
+              value={refund}
+              onChangeText={setRefund}
+              suffix="د.ل"
+              placeholder={line ? editableDinars(maxRefund(line, quantity)) : ''}
+              testID="return-refund"
+            />
+          ) : (
+            <Text variant="headline" testID="return-refund-fixed">
+              {`يُعاد للزبون ${formatLyd(maxRefund(line, quantity))}: ما دفعه`}
+            </Text>
+          )}
           <Text variant="subhead" tone="secondary">
             السبب
           </Text>
@@ -208,11 +297,84 @@ export function ReturnForm({
             placeholder="أو اكتب السبب"
             testID="return-reason"
           />
+        </Card>
+
+        {line ? (
+          <Card testID="return-conditions">
+            <Text variant="subhead" tone="secondary">
+              {soldAt
+                ? `الشروط • بيعت قبل ${Math.max(0, Math.floor(hoursSince(soldAt, ctx.now())))} ساعة، المدة ${policies.returnHours} ساعة`
+                : 'الشروط'}
+            </Text>
+            {policies.returnConditions.map((c, i) => (
+              <View key={c} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <Text variant="body" style={{ flex: 1 }}>
+                  {c}
+                </Text>
+                <FilterChip
+                  label="نعم"
+                  selected={answers[c] === true}
+                  onPress={() => setAnswers((a) => ({ ...a, [c]: true }))}
+                  testID={`cond-yes-${i}`}
+                />
+                <FilterChip
+                  label="لا"
+                  selected={answers[c] === false}
+                  onPress={() => setAnswers((a) => ({ ...a, [c]: false }))}
+                  testID={`cond-no-${i}`}
+                />
+              </View>
+            ))}
+          </Card>
+        ) : null}
+
+        <Card testID="return-photo">
+          <Text variant="subhead" tone="secondary">
+            صورة القطعة المرتجعة (مطلوبة)
+          </Text>
+          <PhotoPicker
+            ctx={ctx}
+            imageFile={photo}
+            onPicked={setPhoto}
+            onRemove={() => setPhoto(null)}
+            placeholder="صوّر القطعة كما أعادها الزبون"
+          />
+        </Card>
+
+        {line && cart.length ? (
+          <Card testID="return-exchange">
+            <FilterChip
+              label={`استبدال بما في السلة: ${cart.length} قطعة بـ ${formatLyd(swapTotal)}`}
+              selected={swap}
+              onPress={() => setSwap((v) => !v)}
+              testID="return-swap"
+            />
+            {swap ? (
+              <>
+                <Text variant="subhead" testID="return-difference">
+                  {differenceText(swapTotal - maxRefund(line, quantity))}
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                  {(['cash', 'card', 'transfer'] as const).map((m) => (
+                    <FilterChip
+                      key={m}
+                      label={PAYMENT_LABELS[m]}
+                      selected={swapMethod === m}
+                      onPress={() => setSwapMethod(m)}
+                    />
+                  ))}
+                </View>
+              </>
+            ) : null}
+          </Card>
+        ) : null}
+
+        <Card>
           <Text variant="caption" tone="secondary">
             تعود القطع إلى المخزون عند الحفظ.
           </Text>
           <Button
-            title="حفظ المرتجع"
+            title={swap && cart.length ? 'حفظ الاستبدال' : 'حفظ المرتجع'}
             icon="checkmark.circle.fill"
             fullWidth
             onPress={saveOnce}

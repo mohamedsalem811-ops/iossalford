@@ -21,7 +21,29 @@ export type Ctx = {
    * latest time seen. Absent in tests that don't test it.
    */
   clock?: { check(now: Date): string | null };
+  /**
+   * The owner's approval on the spot (phase S4): the owner types their PIN (or uses Face ID) on
+   * the employee's screen, which gives a one-time token for that one sale or return. `take` uses
+   * it up. Absent: nothing can be approved (tests that don't test it, a fail-closed default).
+   */
+  approvals?: { take(token: string, purpose: ApprovalPurpose): boolean };
 };
+
+export type ApprovalPurpose = 'discount' | 'return';
+
+/**
+ * Who allows going past an employee rule: 'owner' when the owner is signed in, 'approved' when
+ * the owner approved on the spot with a valid one-time token, null otherwise.
+ */
+export function ownerSays(
+  ctx: Ctx,
+  purpose: ApprovalPurpose,
+  token?: string,
+): 'owner' | 'approved' | null {
+  if (ctx.actor?.kind === 'owner') return 'owner';
+  if (token && ctx.approvals?.take(token, purpose)) return 'approved';
+  return null;
+}
 
 /** Local ISO timestamp without a time-zone suffix: "2026-11-09T14:05:00". */
 export function timestamp(date: Date): string {

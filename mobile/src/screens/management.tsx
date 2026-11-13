@@ -9,6 +9,8 @@ import { spacing } from '@/theme';
 export type ManageTarget =
   | 'sales'
   | 'returns'
+  | 'returnFind'
+  | 'policies'
   | 'customers'
   | 'debts'
   | 'expenses'
@@ -30,6 +32,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
     title: 'المبيعات',
     rows: [
       { target: 'sales', icon: 'list.bullet.rectangle', title: 'سجل المبيعات' },
+      { target: 'returnFind', icon: 'arrow.left.arrow.right.circle', title: 'مرتجع أو استبدال' },
       { target: 'returns', icon: 'arrow.uturn.backward', title: 'المرتجعات' },
     ],
   },
@@ -61,6 +64,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
     rows: [
       { target: 'backup', icon: 'externaldrive', title: 'النسخ الاحتياطي' },
       { target: 'staff', icon: 'person.2.badge.gearshape', title: 'الموظفون' },
+      { target: 'policies', icon: 'checklist', title: 'قواعد البيع والمرتجعات' },
       { target: 'log', icon: 'list.bullet.clipboard', title: 'سجل النشاط' },
       { target: 'settings', icon: 'gearshape', title: 'الإعدادات' },
     ],

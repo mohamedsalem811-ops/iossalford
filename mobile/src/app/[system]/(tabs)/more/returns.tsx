@@ -12,7 +12,10 @@ import {
   returnsSummary,
   type ReturnRecord,
 } from '@/domain/sales';
+import { chargeReturn, returnCharge, waiveCharge } from '@/domain/staff-ledger';
 import { showError } from '@/features/products/actions';
+import { activeEmployees } from '@/staff/model';
+import { getStaff } from '@/staff/store';
 import { formatDate, monthTitle } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
 import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
@@ -70,6 +73,48 @@ function ReturnsRouteScreen() {
       ],
     );
 
+  /** "على حساب الموظف", or waiving it (phase S4). */
+  const chargeItems = (r: ReturnRecord) => {
+    if (r.refund <= 0) return [];
+    const charge = returnCharge(ctx, r.id);
+    const done = (run: () => unknown) => {
+      try {
+        run();
+      } catch (error) {
+        showError(error);
+        return;
+      }
+      haptic.success();
+      notifyDataChanged();
+    };
+    if (charge)
+      return [
+        {
+          title: `إعفاء ${charge.employeeName} (${formatLyd(charge.amount)})`,
+          run: () => done(() => waiveCharge(ctx, r.id)),
+        },
+      ];
+    const people = activeEmployees(getStaff());
+    if (people.length === 0) return [];
+    return [
+      {
+        title: 'على حساب الموظف…',
+        run: () =>
+          ActionSheetIOS.showActionSheetWithOptions(
+            {
+              title: `${formatLyd(r.refund)} على حساب`,
+              options: [...people.map((e) => e.name), 'إلغاء'],
+              cancelButtonIndex: people.length,
+            },
+            (i) => {
+              const e = people[i];
+              if (e) done(() => chargeReturn(ctx, r.id, { key: `emp-${e.id}`, name: e.name }));
+            },
+          ),
+      },
+    ];
+  };
+
   const menu = (r: ReturnRecord) => {
     const saleId = r.saleLineId ? getSaleLine(ctx, r.saleLineId)?.saleId : undefined;
     const items = [
@@ -85,6 +130,15 @@ function ReturnsRouteScreen() {
             },
           ]
         : []),
+      {
+        title: 'التفاصيل والصورة',
+        run: () =>
+          router.push({
+            pathname: '/[system]/return-detail/[id]',
+            params: { system, id: String(r.id) },
+          }),
+      },
+      ...chargeItems(r),
       { title: 'إلغاء المرتجع', run: () => remove(r) },
     ];
     ActionSheetIOS.showActionSheetWithOptions(
@@ -160,10 +214,12 @@ function ReturnsRouteScreen() {
               </Text>
             </View>
             <Text variant="caption" tone="secondary">
-              {[formatDate(new Date(r.createdAt)), r.reason].filter(Boolean).join(' • ')}
+              {[formatDate(new Date(r.createdAt)), r.byName, r.reason].filter(Boolean).join(' • ')}
             </Text>
             <View style={{ flexDirection: 'row' }}>
               <Badge label={r.saleLineId ? 'من بيعة' : 'بدون فاتورة'} />
+              {r.overrideReason ? <Badge label="بموافقة المالك" /> : null}
+              {r.exchangeSaleId ? <Badge label="استبدال" /> : null}
             </View>
           </Pressable>
         )}

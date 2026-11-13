@@ -23,6 +23,11 @@ import { getProduct, saveProduct } from '@/domain/products';
 import { getSale, listReturns, listSales } from '@/domain/sales';
 import { routeStubs } from '@/testing/route-stubs';
 
+// The camera: a photo is "taken" at once (phase S4 returns need one).
+jest.mock('@/lib/photos', () => ({
+  ...jest.requireActual('@/lib/photos'),
+  pickPhoto: jest.fn(() => Promise.resolve({ status: 'picked', file: 'return.jpg' })),
+}));
 jest.mock('expo-haptics', () => ({
   selectionAsync: jest.fn(() => Promise.resolve()),
   impactAsync: jest.fn(() => Promise.resolve()),
@@ -151,6 +156,10 @@ it('shows the sale, takes a return against its line, lists it, and undoes it', a
   await fireEvent.press(screen.getByTestId(`sale-return-${line.id}`));
   await fireEvent.press(await screen.findByTestId('return-quantity-plus'));
   expect(screen.getByText('اتركه فارغاً لإعادة ما دفعه: 700 د.ل')).toBeOnTheScreen();
+  // The photo of the piece and the conditions (phase S4).
+  await fireEvent.press(screen.getByText('الكاميرا'));
+  await fireEvent.press(await screen.findByTestId('cond-yes-0'));
+  await fireEvent.press(screen.getByTestId('cond-yes-1'));
   await fireEvent.changeText(screen.getByTestId('return-refund'), '701');
   await fireEvent.press(screen.getByTestId('return-save'));
   expect(alert).toHaveBeenLastCalledWith(
@@ -160,7 +169,9 @@ it('shows the sale, takes a return against its line, lists it, and undoes it', a
   await fireEvent.changeText(screen.getByTestId('return-refund'), '');
   await fireEvent.changeText(screen.getByTestId('return-reason'), 'المقاس');
   await fireEvent.press(screen.getByTestId('return-save'));
-  expect(listReturns(ctx())).toMatchObject([{ quantity: 2, refund: 700_000, reason: 'المقاس' }]);
+  expect(listReturns(ctx())).toMatchObject([
+    { quantity: 2, refund: 700_000, reason: 'المقاس', photo: 'return.jpg' },
+  ]);
   expect(getProduct(ctx(), ring)!.stock).toBe(4); // 5 − 3 sold + 2 back
   expect(await screen.findByText('أُرجع 2 من 3')).toBeOnTheScreen();
 
@@ -194,6 +205,9 @@ it('records a return of a piece sold before the app, with the amount given back'
   const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   await renderRouter(routes, { initialUrl: '/jewelry/return/new' });
   await fireEvent.press(await screen.findByTestId('return-pick-Ring'));
+  await fireEvent.press(screen.getByTestId('return-save'));
+  expect(alert).toHaveBeenLastCalledWith('لم يتم الحفظ', 'صوّر القطعة المرتجعة قبل الحفظ.');
+  await fireEvent.press(screen.getByText('الكاميرا'));
   await fireEvent.press(screen.getByTestId('return-save'));
   expect(alert).toHaveBeenLastCalledWith('لم يتم الحفظ', 'اكتب المبلغ الذي أُعيد للزبون');
   await fireEvent.changeText(screen.getByTestId('return-refund'), '300');

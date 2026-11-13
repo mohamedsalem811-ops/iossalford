@@ -5,6 +5,7 @@ import { OWNER, type Actor } from '@/staff/model';
 import type { SystemId } from '@/theme';
 
 import type { Ctx } from '../context';
+import { getPolicies } from '../policies';
 
 export type TestCtx = Ctx & {
   setNow: (d: Date) => void;
@@ -37,5 +38,13 @@ export function makeCtx(
       actor = a;
     },
     close: () => db.close(),
+  };
+}
+
+/** A return that passes the rules: a photo, and every condition answered "yes". */
+export function passing(ctx: Ctx) {
+  return {
+    photo: 'piece.jpg',
+    answers: Object.fromEntries(getPolicies(ctx).returnConditions.map((c) => [c, true])),
   };
 }

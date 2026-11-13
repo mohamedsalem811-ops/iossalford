@@ -1,5 +1,15 @@
-import { cartProblems, lineTotal, problemMessage, type CartLine, type CartProblem } from './cart';
-import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx } from './context';
+import {
+  cartDiscount,
+  cartProblems,
+  lineTotal,
+  needsApproval,
+  problemMessage,
+  type CartDiscount,
+  type CartLine,
+  type CartProblem,
+} from './cart';
+import { getPolicies, type Policies } from './policies';
+import { allow, clean, nowMonth, nowStamp, ownerSays, RuleError, type Ctx } from './context';
 import { ensureCustomer, hasIdentity } from './customers';
 import { displayName, getProduct, moveStock } from './products';
 import { issueReceipt, type Receipt, type TemplateId } from './receipts';
@@ -24,6 +34,29 @@ export class CheckoutError extends RuleError {
   }
 }
 
+/**
+ * The discount is over an employee limit and the owner has not approved it (phase S4). The
+ * screen asks the owner on the spot, then checks out again with the approval.
+ */
+export class ApprovalNeeded extends RuleError {
+  constructor(
+    public readonly discount: CartDiscount,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ApprovalNeeded';
+  }
+}
+
+export function discountMessage(d: CartDiscount, p: Policies): string {
+  const parts: string[] = [];
+  if (d.overPiece.length)
+    parts.push(`خصم القطعة أكثر من ${formatLyd(p.discountPerPiece)} (${d.overPiece.join('، ')})`);
+  if (d.overSale)
+    parts.push(`خصم البيعة ${formatLyd(d.total)} أكثر من ${formatLyd(p.discountPerSale)}`);
+  return `${parts.join('، و')}: يحتاج موافقة المالك.`;
+}
+
 export type CheckoutInput = {
   cart: CartLine[];
   paymentMethod: PaymentMethod;
@@ -31,6 +64,10 @@ export type CheckoutInput = {
   note?: string;
   template?: TemplateId;
   showPrices?: boolean;
+  /** Why the price went down (required when the owner approves on the spot). */
+  discountReason?: string;
+  /** The owner's one-time approval for a discount over the limits. */
+  approval?: string;
 };
 
 export type CheckoutResult = { saleId: number; receipt: Receipt; total: number };
@@ -51,6 +88,19 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
     const problems = cartProblems(input.cart, (id) => getProduct(ctx, id));
     if (problems.length) throw new CheckoutError(problems);
 
+    // Discounts over the employee limits need the owner, with a reason (phase S4).
+    const policies = getPolicies(ctx);
+    const discount = cartDiscount(input.cart, (id) => getProduct(ctx, id)?.price, policies);
+    const reason = clean(input.discountReason);
+    let approvedBy: string | null = null;
+    if (seller.kind !== 'owner' && needsApproval(discount)) {
+      if (!reason) throw new ApprovalNeeded(discount, 'اختر سبب الخصم أو اكتبه.');
+      // Checked last: an approval is used up only by a sale that is otherwise ready.
+      if (ownerSays(ctx, 'discount', input.approval) !== 'approved')
+        throw new ApprovalNeeded(discount, discountMessage(discount, policies));
+      approvedBy = 'owner';
+    }
+
     const customerId = ensureCustomer(ctx, c.name, c.phone, c.area);
     const customerName = clean(c.name);
     const stamp = nowStamp(ctx);
@@ -62,8 +112,9 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
     const totalCost = lines.reduce((t, x) => t + x.cost, 0);
 
     const saleId = ctx.db.run(
-      `INSERT INTO sales (created_at, month, payment_method, customer_id, customer_name, note, rate, total, total_cost, seller, seller_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO sales (created_at, month, payment_method, customer_id, customer_name, note, rate, total, total_cost, seller, seller_name,
+         discount, discount_reason, approved_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         stamp,
         nowMonth(ctx),
@@ -76,6 +127,9 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
         totalCost,
         actorKey(seller),
         actorName(seller),
+        discount.total,
+        discount.total > 0 ? reason : null,
+        approvedBy,
       ],
     ).lastInsertRowId;
 
@@ -131,8 +185,19 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
     logAction(
       ctx,
       'sale.create',
-      `بيعة رقم ${saleId}: ${pieces} قطعة بـ ${formatLyd(total)} (${PAYMENT_LABELS[input.paymentMethod]})`,
-      { saleId, total, pieces, payment: input.paymentMethod, receipt: receipt.receiptNo },
+      `بيعة رقم ${saleId}: ${pieces} قطعة بـ ${formatLyd(total)} (${PAYMENT_LABELS[input.paymentMethod]})${
+        discount.total
+          ? `، خصم ${formatLyd(discount.total)}${approvedBy ? ' بموافقة المالك' : ''}`
+          : ''
+      }`,
+      {
+        saleId,
+        total,
+        pieces,
+        payment: input.paymentMethod,
+        receipt: receipt.receiptNo,
+        ...(discount.total ? { discount: discount.total, reason, approvedBy } : {}),
+      },
     );
     return { saleId, receipt, total };
   });

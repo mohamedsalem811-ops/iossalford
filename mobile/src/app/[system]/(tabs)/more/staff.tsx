@@ -1,4 +1,7 @@
-import { Stack, useFocusEffect } from 'expo-router';
+import { router, Stack, useFocusEffect } from 'expo-router';
+
+import { ledgerBalances } from '@/domain/staff-ledger';
+import { useCtx } from '@/state/system-db';
 import { useCallback, useState } from 'react';
 
 import { errorBoundary } from '@/components/error-screen';
@@ -33,12 +36,16 @@ function StaffRouteScreen() {
     pinVault.hasEmergencyCode().then(setHasCode);
   }, []);
   useFocusEffect(readCode);
+  const ctx = useCtx();
+  const [balances, setBalances] = useState(() => ledgerBalances(ctx));
+  useFocusEffect(useCallback(() => setBalances(ledgerBalances(ctx)), [ctx]));
   return (
     <>
       <Stack.Title>الموظفون</Stack.Title>
       <StaffScreen
         staff={staff}
         hasEmergencyCode={hasCode}
+        balances={balances}
         actions={{
           onAdd: addEmployeeFlow,
           onResetPin: resetPinFlow,
@@ -48,6 +55,11 @@ function StaffRouteScreen() {
           onEmergencyCode: () => emergencyCodeFlow(hasCode, readCode),
           onSendList: sendStaffList,
           onReceiveList: receiveStaffList,
+          onAccount: (e) =>
+            router.push({
+              pathname: '/[system]/more/account/[id]',
+              params: { system: ctx.system, id: e.id },
+            }),
         }}
       />
     </>

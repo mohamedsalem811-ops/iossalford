@@ -26,7 +26,7 @@ import {
 } from './reports';
 import { addReturn, getSale } from './sales';
 import { setRate } from './settings';
-import { makeCtx, type TestCtx } from './testing/ctx';
+import { makeCtx, passing, type TestCtx } from './testing/ctx';
 
 let ctx: TestCtx;
 beforeEach(() => {
@@ -73,7 +73,11 @@ describe('summary', () => {
     const neck = product('قلادة', 700_000, 10, 300_000, { brand: 'Swarovski', category: 'قلادات' });
     const s1 = sell(ring, 2); // 700 sales, 300 profit
     sell(neck, 1, 'credit', { name: 'سارة' }); // 700 sales, 400 profit
-    addReturn(ctx, { saleLineId: getSale(ctx, s1.saleId)!.lines[0].id, quantity: 1 }); // refund 350, cost back 200
+    addReturn(ctx, {
+      ...passing(ctx),
+      saleLineId: getSale(ctx, s1.saleId)!.lines[0].id,
+      quantity: 1,
+    }); // refund 350, cost back 200
     addExpense(ctx, { description: 'إيجار', amount: 100_000 });
     const s = summary(ctx, ['2026-11']);
     expect(s).toMatchObject({
