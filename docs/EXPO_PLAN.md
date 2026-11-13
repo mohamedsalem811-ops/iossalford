@@ -1,6 +1,6 @@
 # SALFORD POS: Expo rebuild execution plan (version 3)
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 (accounts, sign-in, auto-lock) and S2 (permissions, what an employee sees) are merged; S3 (who did what, the activity log, the clock guard) is built (PR open); then S4 to S6, then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S3 (accounts, permissions, the activity log and the clock guard) are merged; S4 (discounts, approvals, returns, the employee's account) is built (PR open); then S5 and S6, then Phase 10, switching over.
 
 Every feature of the current app is kept. Items marked **NEW** don't exist in the current app. Unmarked items are the same as the current app, rebuilt with a new design.
 
@@ -509,6 +509,15 @@ Then the dashboard:
   - the owner records repayments.
 - **S4.6** Checks and tests (the edges at the limit, 24 hours, overrides), owner test.
 
+**How S4 works:**
+
+- schema 4: a sale keeps its discount (off the list prices, sets excluded), the reason and whether the owner approved it; a return keeps its photo, the conditions as answered, the owner's reason when allowed past the rules, and the sale it was exchanged for; `staff_ledger` holds the employees' accounts;
+- the rules are per system, in its settings (`src/domain/policies.ts`), set in Management → قواعد البيع والمرتجعات; until set: no discount without approval, 24 hours, the default conditions;
+- the owner's approval on the spot (`src/staff/approvals.ts`): Face ID where it is set up, or the owner PIN, gives a one-time token for that one sale or return, valid two minutes; the business rule uses it up (`ownerSays`);
+- returns: from the sale (its number or receipt number, in Management → مرتجع أو استبدال, or from the sale's details); a photo always; past the window or with a condition "no", only the owner allows it, with a reason; the refund is what the customer paid, and only the owner may give back less;
+- an exchange is the return and the sale of what is in the cart, in one transaction;
+- the returns list puts a refund "على حساب الموظف" or waives it; each employee's account (Management → الموظفون → the person → حساب الموظف) shows charges, waivers and repayments; an employee sees what they owe on their home screen.
+
 **You check:**
 
 - a discount within and over each limit, with your approval;
@@ -639,4 +648,4 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
 
 - Phase 8 (built, owner to test): instant updates need one new `.ipa` (build 2) before they reach the devices; after installing it, it is recorded with `npm run update:record`. Backups are now copies of the database file (`.db`); `.json` backups from before still restore. A restore keeps sale and receipt numbers from ever repeating, also from an older backup (found while testing 8.0g). The speed test is `npm run speed`: with 2,000 products and 30,000 sales every screen reads in under 25 ms on a computer (Customers and Debts were changed to one query for all balances). The dashboard's daily chart has a temporary switch to Apple's charts so the owner can choose; the other one is removed afterwards. Errors are kept in a log on the device (Settings → سجل الأخطاء).
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 (accounts, sign-in, auto-lock) and S2 (permissions, what an employee sees) are merged; S3 (who did what, the activity log, the clock guard) is built (PR open); then S4 to S6, then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S3 (accounts, permissions, the activity log and the clock guard) are merged; S4 (discounts, approvals, returns, the employee's account) is built (PR open); then S5 and S6, then Phase 10, switching over.

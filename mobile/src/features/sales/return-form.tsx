@@ -19,7 +19,12 @@ import {
 import type { Ctx } from '@/domain/context';
 import { displayName, listProducts, type Product } from '@/domain/products';
 import { cartTotal } from '@/domain/cart';
-import { PAYMENT_LABELS, type PaymentMethod } from '@/domain/checkout';
+import {
+  ApprovalNeeded,
+  discountMessage,
+  PAYMENT_LABELS,
+  type PaymentMethod,
+} from '@/domain/checkout';
 import { differenceText, exchange } from '@/domain/exchange';
 import { getPolicies } from '@/domain/policies';
 import {
@@ -89,7 +94,10 @@ export function ReturnForm({
     return <EmptyState icon="arrow.uturn.backward" title="كل قطع هذه البيعة مُرتجعة بالفعل" />;
 
   /** Saves the return (or the exchange); on a refusal by the rules, asks the owner. */
-  const commit = (override?: ReturnInput['override']) => {
+  const commit = (
+    override?: ReturnInput['override'],
+    discount?: { discountReason: string; approval: string },
+  ) => {
     const check = checkReturn(line ?? null, quantity, owner ? refund : '');
     if (!check.ok) {
       haptic.error();
@@ -110,7 +118,7 @@ export function ReturnForm({
         if (swap && cart.length) {
           const r = exchange(ctx, {
             ret: input,
-            sale: { cart, paymentMethod: swapMethod },
+            sale: { cart, paymentMethod: swapMethod, ...discount },
           });
           putCart(ctx.system, []);
           Alert.alert('تم الاستبدال', differenceText(r.difference));
@@ -127,6 +135,11 @@ export function ReturnForm({
       if (error instanceof ReturnRefused && !override) {
         haptic.error();
         askToOverride(error);
+        return;
+      }
+      // The new piece of an exchange has a discount over the limits: the owner, on the spot.
+      if (error instanceof ApprovalNeeded && !discount) {
+        askForDiscount(error, override);
         return;
       }
       showError(error);
@@ -161,6 +174,20 @@ export function ReturnForm({
         },
       },
     ]);
+
+  const askForDiscount = async (e: ApprovalNeeded, override?: ReturnInput['override']) => {
+    const why = await chooseReason(
+      `سبب الخصم (${formatLyd(e.discount.total)})`,
+      policies.discountReasons,
+    );
+    if (!why) return;
+    const approval = await askOwner(
+      ctx.system,
+      'discount',
+      `${discountMessage(e.discount, policies)}\nالسبب: ${why}`,
+    );
+    if (approval) commit(override, { discountReason: why, approval });
+  };
 
   const save = () => {
     if (!line && !product) {
