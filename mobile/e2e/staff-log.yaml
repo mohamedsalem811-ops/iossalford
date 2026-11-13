@@ -19,7 +19,7 @@ appId: com.salford.pos
 - tapOn: 'البائع'
 - assertVisible:
     id: 'by-seller'
-- assertVisible: 'سارة'
+- assertVisible: 'سارة.*'
 - takeScreenshot: ${DEVICE}-sales-per-seller
 # The activity log: her sale, by her, and the owner's sign-in.
 - runFlow:
@@ -29,6 +29,6 @@ appId: com.salford.pos
 - extendedWaitUntil:
     visible: 'بيعة رقم .*'
     timeout: 15000
-- assertVisible: 'سارة • .*'
-- assertVisible: 'دخول المالك'
+- assertVisible: 'بيعة رقم .*سارة.*'
+- assertVisible: 'دخول المالك.*'
 - takeScreenshot: ${DEVICE}-activity-log

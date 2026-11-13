@@ -10,8 +10,11 @@ appId: com.salford.pos
       ID: 'manage-backup'
 - tapOn:
     id: 'backup-now'
+# A backup row reads as its date and time (its kind and age are not part of what Maestro sees);
+# the kind is in the row's id: backup-<date>_<time>_manual.db.
 - extendedWaitUntil:
-    visible: 'يدوية • اليوم'
+    visible:
+      id: 'backup-.*_manual\.db'
     timeout: 30000
 - takeScreenshot: ${DEVICE}-backup-saved
 # A change after the backup: the piece is sold.
@@ -22,7 +25,8 @@ appId: com.salford.pos
     file: subflows/open-section.yaml
     env:
       ID: 'manage-backup'
-- tapOn: 'يدوية • اليوم'
+- tapOn:
+    id: 'backup-.*_manual\.db'
 - tapOn: 'استعادة هذه النسخة'
 - extendedWaitUntil:
     visible: 'استعادة نسخة نظام المجوهرات؟'
@@ -34,7 +38,8 @@ appId: com.salford.pos
     timeout: 30000
 - tapOn: 'OK'
 # The safety copy of the data before the restore is in the list.
-- assertVisible: 'قبل الاستعادة.*'
+- assertVisible:
+    id: 'backup-.*_safety\.db'
 - takeScreenshot: ${DEVICE}-backup-restored
 # The sale made after the backup is gone; the piece is back to 3 in stock.
 - tapOn: 'الرئيسية'

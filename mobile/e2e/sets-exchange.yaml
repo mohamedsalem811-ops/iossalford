@@ -96,8 +96,7 @@ appId: com.salford.pos
 - assertVisible:
     id: 'return-difference'
 - takeScreenshot: ${DEVICE}-exchange
-- tapOn:
-    id: 'return-save'
+- runFlow: subflows/save-return.yaml
 - extendedWaitUntil:
     visible: 'تم الاستبدال'
     timeout: 15000

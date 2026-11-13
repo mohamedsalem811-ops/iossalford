@@ -45,7 +45,7 @@ appId: com.salford.pos
     visible: 'أهلاً، سارة'
     timeout: 30000
 # An employee does not see the staff screen.
-- tapOn: 'الإدارة'
+- runFlow: subflows/management-menu.yaml
 - assertNotVisible:
     id: 'manage-staff'
 - takeScreenshot: ${DEVICE}-employee-management

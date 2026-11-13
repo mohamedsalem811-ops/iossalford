@@ -1,0 +1,10 @@
+# Saves the return form: its save button is at the end of the form (below the first screen on
+# iPhone).
+appId: com.salford.pos
+---
+- runFlow:
+    file: scroll-form.yaml
+    env:
+      ID: 'return-save'
+- tapOn:
+    id: 'return-save'

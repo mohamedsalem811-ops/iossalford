@@ -81,8 +81,7 @@ appId: com.salford.pos
     id: 'return-refund-fixed'
 - runFlow: subflows/return-photo.yaml
 - takeScreenshot: ${DEVICE}-return-form
-- tapOn:
-    id: 'return-save'
+- runFlow: subflows/save-return.yaml
 - extendedWaitUntil:
     notVisible:
       id: 'return-save'

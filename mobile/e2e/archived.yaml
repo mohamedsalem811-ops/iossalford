@@ -10,7 +10,9 @@ appId: com.salford.pos
 - tapOn: 'المنتجات'
 - longPressOn: '.*Ring Zircon.*'
 - tapOn: 'حذف القطعة'
-- tapOn: 'حذف'
+- tapOn:
+    text: 'حذف'
+    below: 'حذف «Ring Zircon»؟'
 - extendedWaitUntil:
     notVisible: '.*Ring Zircon.*'
     timeout: 15000

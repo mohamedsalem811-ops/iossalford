@@ -81,8 +81,8 @@ appId: com.salford.pos
 - extendedWaitUntil:
     visible: '.*Silk Classic.*'
     timeout: 30000
-- assertVisible: '90×90: 1'
-- assertVisible: '120×120: 1'
-- assertVisible: '90 – 120 د.ل'
-- assertVisible: '1 تصميم • 2 قطعة'
+- assertVisible: '.*90×90: 1.*'
+- assertVisible: '.*120×120: 1.*'
+- assertVisible: '.*90 – 120 د.ل.*'
+- assertVisible: '.*1 تصميم • 2 قطعة.*'
 - takeScreenshot: ${DEVICE}-designs-list

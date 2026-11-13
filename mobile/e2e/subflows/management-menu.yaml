@@ -1,0 +1,11 @@
+# Shows the Management menu, back at its first screen. iPhone: the tab keeps the section that was
+# last open there, so a second tap on the tab goes back to the menu (and to its top). iPad: the
+# menu is always beside the section.
+appId: com.salford.pos
+---
+- tapOn: 'الإدارة'
+- runFlow:
+    when:
+      true: ${DEVICE != 'iPad'}
+    commands:
+      - tapOn: 'الإدارة'

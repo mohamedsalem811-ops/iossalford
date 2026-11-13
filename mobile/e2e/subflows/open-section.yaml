@@ -1,11 +1,11 @@
-# Opens a Management section by its row (id ${ID}, like manage-expenses): the menu is first
-# scrolled back to its top, then down to the row, so it works wherever the menu was left.
+# Opens a Management section by its row (id ${ID}, like manage-expenses), from wherever the app is.
 # iPad: the menu is the column on the right and the section fills the rest; scrollUntilVisible
 # swipes the middle of the screen, outside the menu, so the swipes are made at 85% across.
-# iPhone: the menu fills the screen; the row is brought to the middle, clear of the tab bar.
+# iPhone: the row is brought to the middle of the screen: a row left at the bottom is under the
+# floating tab bar, and a tap there lands on a tab.
 appId: com.salford.pos
 ---
-- tapOn: 'الإدارة'
+- runFlow: management-menu.yaml
 - runFlow:
     when:
       true: ${DEVICE == 'iPad'}

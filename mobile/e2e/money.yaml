@@ -61,7 +61,7 @@ appId: com.salford.pos
 - tapOn:
     id: 'expense-add'
 - extendedWaitUntil:
-    visible: 'Electricity'
+    visible: '.*Electricity.*'
     timeout: 15000
 - takeScreenshot: ${DEVICE}-expenses
 # The quarter: net profit 100, then closed.

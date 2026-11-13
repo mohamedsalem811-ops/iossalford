@@ -7,12 +7,12 @@ appId: com.salford.pos
 - runFlow: subflows/open-jewelry.yaml
 - runFlow: subflows/add-ring.yaml
 - runFlow: subflows/add-employee.yaml
-- assertNotVisible: 'الربح'
+- assertNotVisible: '.*الربح.*'
 - assertNotVisible:
     id: 'quick-product'
 - takeScreenshot: ${DEVICE}-employee-home
 # Management: no expenses, backups or returns list.
-- tapOn: 'الإدارة'
+- runFlow: subflows/management-menu.yaml
 - assertVisible:
     id: 'manage-sales'
 - assertNotVisible:
@@ -26,7 +26,7 @@ appId: com.salford.pos
 - runFlow: subflows/open-shift.yaml
 # Products: price and stock, no cost.
 - tapOn: 'المنتجات'
-- assertNotVisible: 'تكلفة.*'
+- assertNotVisible: '.*تكلفة.*'
 - takeScreenshot: ${DEVICE}-employee-products
 # A sale, then its details: no cost, profit or delete.
 - runFlow: subflows/sell-ring.yaml
@@ -39,7 +39,7 @@ appId: com.salford.pos
 - tapOn:
     index: 0
     id: 'sale-[0-9]+'
-- assertNotVisible: 'التكلفة'
+- assertNotVisible: '.*التكلفة.*'
 - assertNotVisible:
     id: 'sale-delete'
 - takeScreenshot: ${DEVICE}-employee-sale

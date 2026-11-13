@@ -1,32 +1,53 @@
 # On the return form (jewelry): both conditions answered "yes" and a photo of the piece chosen
-# from the simulator's photo library (S4 rules: a return needs both).
-# Apple's photo picker runs outside the app, so Maestro can't see its photos on iPad: the first
-# one is tapped where it is (the library sidebar on the left, the photos to its right).
+# from the simulator's photo library (S4 rules: a return needs both). Ends with the photo shown.
+# Apple's photo picker runs outside the app and Maestro can't see its photos, so the first row
+# of photos is tapped where it shows: on iPad right of the library's sidebar, on iPhone under the
+# picker's title. If the picker is still open, a second spot in that row is tried.
 appId: com.salford.pos
 ---
 - tapOn:
     id: 'cond-yes-0'
 - tapOn:
     id: 'cond-yes-1'
-- tapOn: 'الألبوم'
+- runFlow:
+    file: scroll-form.yaml
+    env:
+      ID: 'photo-library'
+- tapOn:
+    id: 'photo-library'
+# The picker slides up; the app under it may or may not stay visible to Maestro.
+- waitForAnimationToEnd:
+    timeout: 10000
 - runFlow:
     when:
       true: ${DEVICE == 'iPad'}
     commands:
-      - extendedWaitUntil:
-          notVisible:
-            id: 'return-save'
-          timeout: 15000
       - tapOn:
           point: 41%, 15%
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - runFlow:
+          when:
+            notVisible:
+              id: 'photo-library'
+          commands:
+            - tapOn:
+                point: 60%, 15%
 - runFlow:
     when:
       true: ${DEVICE != 'iPad'}
     commands:
       - tapOn:
-          index: 0
-          text: '.*Photo.*'
+          point: 50%, 24%
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - runFlow:
+          when:
+            notVisible:
+              id: 'photo-library'
+          commands:
+            - tapOn:
+                point: 50%, 33%
 - extendedWaitUntil:
-    visible:
-      id: 'return-save'
+    visible: 'حذف الصورة'
     timeout: 30000
