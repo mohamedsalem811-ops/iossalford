@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
-import { lastLine, recordLogBroken, recordStaff, verifyLog } from '@/domain/activity';
+import { lastLine, recordLogBroken, recordStaff, walkLog, type LogCheck } from '@/domain/activity';
 import type { Ctx } from '@/domain/context';
 import { logError } from '@/lib/error-log';
 
@@ -41,8 +41,21 @@ export function LogGuard({ ctx }: { ctx: Ctx }) {
         }
       },
     });
-    // After the first screen is drawn: a long log never delays opening the system.
-    const timer = setTimeout(() => checkLog(ctx), 400);
+    // After the first screen is drawn, a page at a time with a pause between pages: a long log
+    // (years of use) never holds the screen.
+    let stopped = false;
+    const walk = walkLog(ctx, readAnchor(ctx.system));
+    const step = () => {
+      if (stopped) return;
+      try {
+        const next = walk.next();
+        if (next.done) reportLog(ctx, next.value);
+        else timer = setTimeout(step, 16);
+      } catch (error) {
+        logError('فحص سجل النشاط', error);
+      }
+    };
+    let timer = setTimeout(step, 400);
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'background') {
         try {
@@ -53,6 +66,7 @@ export function LogGuard({ ctx }: { ctx: Ctx }) {
       }
     });
     return () => {
+      stopped = true;
       clearTimeout(timer);
       sub.remove();
       setOpenLog(null);
@@ -61,9 +75,22 @@ export function LogGuard({ ctx }: { ctx: Ctx }) {
   return null;
 }
 
+/** The whole check at once (tests). */
 export function checkLog(ctx: Ctx) {
   try {
-    const result = verifyLog(ctx, readAnchor(ctx.system));
+    const walk = walkLog(ctx, readAnchor(ctx.system));
+    for (;;) {
+      const next = walk.next();
+      if (next.done) return reportLog(ctx, next.value);
+    }
+  } catch (error) {
+    logError('فحص سجل النشاط', error);
+  }
+}
+
+/** A break is written to the log once, shown to the owner, and the newest line remembered. */
+function reportLog(ctx: Ctx, result: LogCheck) {
+  try {
     const reported = new Set(reportedBreaks(ctx.system));
     const fresh = result.broken.filter((id) => !reported.has(id));
     if (fresh.length) {

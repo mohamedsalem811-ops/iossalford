@@ -145,19 +145,25 @@ export type LogCheck = {
 };
 
 /**
- * Walks the whole chain (a page at a time, so memory stays small). `anchor` is the last line
+ * Walks the whole chain a page at a time (memory stays small), pausing after each page so the
+ * app can run the walk in pieces (`yield`) without holding the screen. `anchor` is the last line
  * remembered outside the database: it must still be there with the same fingerprint, so removing
  * lines from the end is found too.
  */
-export function verifyLog(ctx: Ctx, anchor?: { id: number; hash: string } | null): LogCheck {
+export function* walkLog(
+  ctx: Ctx,
+  anchor?: { id: number; hash: string } | null,
+  pageSize = 500,
+): Generator<void, LogCheck, void> {
   let prev = GENESIS;
   let lines = 0;
   let last = { id: 0, hash: GENESIS };
   let after = 0;
   const broken: number[] = [];
   for (;;) {
-    const rows = ctx.db.all<Row>('SELECT * FROM activity WHERE id > ? ORDER BY id LIMIT 1000', [
+    const rows = ctx.db.all<Row>('SELECT * FROM activity WHERE id > ? ORDER BY id LIMIT ?', [
       after,
+      pageSize,
     ]);
     if (rows.length === 0) break;
     for (const r of rows) {
@@ -167,6 +173,7 @@ export function verifyLog(ctx: Ctx, anchor?: { id: number; hash: string } | null
       lines++;
     }
     after = rows[rows.length - 1].id;
+    yield;
   }
   if (anchor && anchor.id > 0) {
     const kept = ctx.db.get<{ hash: string }>('SELECT hash FROM activity WHERE id = ?', [
@@ -175,6 +182,15 @@ export function verifyLog(ctx: Ctx, anchor?: { id: number; hash: string } | null
     if ((!kept || kept.hash !== anchor.hash) && !broken.includes(anchor.id)) broken.push(anchor.id);
   }
   return { ok: broken.length === 0, lines, last, broken };
+}
+
+/** The whole walk at once (tests, small logs). */
+export function verifyLog(ctx: Ctx, anchor?: { id: number; hash: string } | null): LogCheck {
+  const walk = walkLog(ctx, anchor, 1000);
+  for (;;) {
+    const step = walk.next();
+    if (step.done) return step.value;
+  }
 }
 
 export type ActivityQuery = { actor?: string; day?: string };
