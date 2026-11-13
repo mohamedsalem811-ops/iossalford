@@ -260,6 +260,35 @@ it('uses a customer’s credit (له رصيد) for a new piece', async () => {
   expect(balance(ctx, mona)).toBe(-150_000);
 });
 
+it('asks about a price changed in a kept cart, and can keep a price agreed before the update', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  const ctx = ctxOf('jewelry');
+  const brooch = saveProduct(ctx, { name: 'Brooch', category: 'دبابيس', price: 400_000, stock: 3 });
+  // A cart kept by the app before it remembered list prices: 350 may be agreed, or the old price.
+  putCart('jewelry', [
+    { key: 'k1', productId: brooch, name: 'Brooch', quantity: 1, unitPrice: 350_000 },
+  ]);
+  const sold = listSales(ctx).length;
+  await renderRouter(routes, { initialUrl: '/jewelry/checkout' });
+  await fireEvent.press(await screen.findByTestId('checkout-confirm'));
+  expect(listSales(ctx)).toHaveLength(sold);
+  const [title, message, buttons] = alert.mock.calls.at(-1)! as [
+    string,
+    string,
+    { text: string; onPress?: () => void }[],
+  ];
+  expect(title).toBe('تغيّرت الأسعار');
+  expect(message).toMatch(/في السلة بسعر 350 د\.ل وسعره الآن 400 د\.ل/);
+  expect(buttons.map((b) => b.text)).toEqual(['رجوع', 'إبقاء السعر المتفق عليه', 'تحديث الأسعار']);
+  await act(() => buttons[1].onPress!());
+  expect(getCart('jewelry')).toMatchObject([{ unitPrice: 350_000, listPrice: 400_000 }]);
+  // The owner sells at the kept price; the discount is recorded against today's price.
+  await fireEvent.press(screen.getByTestId('checkout-confirm'));
+  expect(await screen.findByTestId('sold-title')).toHaveTextContent('تم البيع بنجاح');
+  expect(listSales(ctx)).toHaveLength(sold + 1);
+  expect(listSales(ctx)[0]).toMatchObject({ total: 350_000, discount: 50_000 });
+});
+
 it('adds a scarf by its size', async () => {
   mockUnlocked = 'scarves';
   const ctx = ctxOf('scarves');

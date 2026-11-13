@@ -132,23 +132,25 @@ export function CheckoutView({
       // Nothing was sold: stock is checked again here (it may have changed since it was added).
       haptic.error();
       if (error instanceof CheckoutError && error.problems.some((p) => p.kind === 'price')) {
+        const update = (keepUnsure: boolean) =>
+          putCart(
+            ctx.system,
+            updatePrices(
+              cart,
+              (id) => getProduct(ctx, id),
+              (id) => {
+                const s = getSet(ctx, id);
+                return s ? setForCart(ctx, s) : undefined;
+              },
+              { keepUnsure },
+            ),
+          );
+        // A cart kept from before the update can't tell an agreed price from an old one: ask.
+        const unsure = error.problems.some((p) => p.kind === 'price' && p.unsure);
         Alert.alert('تغيّرت الأسعار', error.message, [
           { text: 'رجوع', style: 'cancel' },
-          {
-            text: 'تحديث الأسعار',
-            onPress: () =>
-              putCart(
-                ctx.system,
-                updatePrices(
-                  cart,
-                  (id) => getProduct(ctx, id),
-                  (id) => {
-                    const s = getSet(ctx, id);
-                    return s ? setForCart(ctx, s) : undefined;
-                  },
-                ),
-              ),
-          },
+          ...(unsure ? [{ text: 'إبقاء السعر المتفق عليه', onPress: () => update(true) }] : []),
+          { text: 'تحديث الأسعار', onPress: () => update(false) },
         ]);
         return;
       }
