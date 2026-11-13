@@ -2,7 +2,7 @@ import { Text as RNText, type TextProps as RNTextProps } from 'react-native';
 
 import { type, useTheme, type TypeVariant } from '@/theme';
 
-export type TextTone = 'primary' | 'secondary' | 'accent' | 'onAccent' | 'warning';
+export type TextTone = 'primary' | 'secondary' | 'accent' | 'onAccent' | 'warning' | 'negative';
 
 export type TextProps = RNTextProps & {
   variant?: TypeVariant;
@@ -24,6 +24,7 @@ export function Text({ variant = 'body', tone = 'primary', center, style, ...pro
     accent: colors.accent,
     onAccent: colors.onAccent,
     warning: colors.warning,
+    negative: colors.negative,
   }[tone];
   return (
     <RNText

@@ -364,7 +364,7 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
   };
 
 /** Actions outside the business rules (files on the device), checked in backup/store.test.ts. */
-const FILE_ACTIONS = ['restore', 'shareCopy', 'deleteBackup'];
+const FILE_ACTIONS = ['restore', 'shareCopy', 'confirmCopied', 'deleteBackup'];
 
 /** Every row of every table: what a refused action must leave exactly as it was. */
 function dump(ctx: Ctx): string {

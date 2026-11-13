@@ -65,8 +65,11 @@ export function ListRow({
   subtitle?: string;
   value?: string;
   icon?: SymbolViewProps['name'];
-  /** "warning" colours the icon and value to draw attention (low stock, debts). */
-  tone?: 'normal' | 'warning';
+  /**
+   * "warning" colours the icon and value to draw attention (low stock, debts); "danger" also
+   * colours the title red, for what can cost the shop its data.
+   */
+  tone?: 'normal' | 'warning' | 'danger';
   onPress?: () => void;
   chevron?: boolean;
   /** The row whose screen is open beside the list (iPad sidebar). */
@@ -74,7 +77,9 @@ export function ListRow({
   testID?: string;
 }) {
   const { colors } = useTheme();
-  const tint = tone === 'warning' ? colors.warning : colors.accent;
+  const tint =
+    tone === 'warning' ? colors.warning : tone === 'danger' ? colors.negative : colors.accent;
+  const strong = tone === 'warning' ? 'warning' : tone === 'danger' ? 'negative' : 'primary';
   const content = (
     <View
       style={{
@@ -108,7 +113,11 @@ export function ListRow({
         </View>
       ) : null}
       <View style={{ flex: 1 }}>
-        <Text variant="body">{title}</Text>
+        <Text
+          variant={tone === 'danger' ? 'bodyStrong' : 'body'}
+          tone={tone === 'danger' ? 'negative' : 'primary'}>
+          {title}
+        </Text>
         {subtitle ? (
           <Text variant="caption" tone="secondary">
             {subtitle}
@@ -116,7 +125,7 @@ export function ListRow({
         ) : null}
       </View>
       {value ? (
-        <Text variant="bodyStrong" tone={tone === 'warning' ? 'warning' : 'primary'}>
+        <Text variant="bodyStrong" tone={strong}>
           {value}
         </Text>
       ) : null}

@@ -2,6 +2,7 @@ import type { SymbolViewProps } from 'expo-symbols';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Card, HeroCard, Icon, ListGroup, ListRow, Segmented, Stat, Text } from '@/components';
+import { copyReminderTitle } from '@/backup/model';
 import type { AlertKind, OwnerAlert } from '@/domain/alerts';
 import { PAYMENT_LABELS } from '@/domain/checkout';
 import { DailyChart } from '@/features/dashboard/daily-chart';
@@ -92,6 +93,17 @@ export function AttentionCard({
         </Text>
       ) : (
         <ListGroup>
+          {a.backupReminder ? (
+            // First and in red: losing the device loses everything since the last copy off it.
+            <ListRow
+              icon="externaldrive.badge.exclamationmark"
+              title={copyReminderTitle(a.backupReminder.days)}
+              subtitle={a.backupReminder.text}
+              tone="danger"
+              onPress={actions.onOpenBackup}
+              testID="attention-backup"
+            />
+          ) : null}
           {alerts.slice(0, MAX_ALERTS).map((alert) => (
             <ListRow
               key={alert.key}
@@ -142,16 +154,6 @@ export function AttentionCard({
               tone="warning"
               onPress={actions.onOpenDebts}
               testID="attention-debts"
-            />
-          ) : null}
-          {a.backupReminder ? (
-            <ListRow
-              icon="externaldrive.badge.exclamationmark"
-              title="نسخة احتياطية خارج الجهاز"
-              subtitle={a.backupReminder}
-              tone="warning"
-              onPress={actions.onOpenBackup}
-              testID="attention-backup"
             />
           ) : null}
         </ListGroup>

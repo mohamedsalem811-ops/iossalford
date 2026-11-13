@@ -2,7 +2,9 @@ import {
   agoText,
   backupFileName,
   copyFileName,
+  copyOverdueDays,
   copyReminder,
+  copyReminderTitle,
   daysBetween,
   parseBackupName,
   replacedAuto,
@@ -85,6 +87,17 @@ describe('which backups are kept', () => {
 });
 
 describe('the copy reminder', () => {
+  it('counts the days since a copy left the device, from the 7th day', () => {
+    expect(copyOverdueDays(at(4), at(10))).toBeNull();
+    expect(copyOverdueDays(at(3), at(10))).toBe(7);
+    expect(copyOverdueDays(null, at(10))).toBeNull();
+    expect(copyOverdueDays(null, at(10), at(1))).toBe(9);
+    // A copy confirmed after the first backup counts, not the first backup.
+    expect(copyOverdueDays(at(8), at(10), at(1))).toBeNull();
+    expect(copyReminderTitle(9)).toBe('لا نسخة خارج الجهاز منذ 9 أيام');
+    expect(copyReminderTitle(21)).toBe('لا نسخة خارج الجهاز منذ 21 يوماً');
+  });
+
   it('shows after 7 days without a copy off the device', () => {
     expect(copyReminder(at(4), at(10))).toBeNull();
     expect(copyReminder(at(3), at(10))).toBe(

@@ -168,7 +168,10 @@ describe('the dashboard', () => {
     // The necklace sold out; the debt is the credit sale.
     expect(screen.getByTestId('attention-stock')).toHaveTextContent(/نفد 1/);
     expect(screen.getByTestId('attention-debts')).toHaveTextContent(/600 د\.ل/);
-    expect(screen.getByTestId('attention-backup')).toBeOnTheScreen();
+    // The backup line comes first, with the days since a copy left the device.
+    expect(screen.getByTestId('attention-backup')).toHaveTextContent(
+      /لا نسخة خارج الجهاز منذ \d+ (أيام|يوماً)/,
+    );
     await fireEvent.press(screen.getByTestId('attention-debts'));
     expect(a.onOpenDebts).toHaveBeenCalled();
   });

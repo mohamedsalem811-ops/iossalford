@@ -213,7 +213,7 @@ function photoNames(ctx: Ctx): string[] {
  */
 export async function shareCopy(ctx: Ctx): Promise<void> {
   allow(ctx, 'backup.manage');
-  logAction(ctx, 'backup.share', 'نسخ نسخة احتياطية إلى خارج الجهاز');
+  logAction(ctx, 'backup.share', 'فتح مشاركة نسخة احتياطية إلى خارج الجهاز');
   saveBackup(ctx, 'manual');
   const name = copyFileName(ctx.system, ctx.now());
   const cache = new Directory(Paths.cache);
@@ -238,10 +238,20 @@ export async function shareCopy(ctx: Ctx): Promise<void> {
       UTI: 'public.database',
       dialogTitle: file.name,
     });
-    write(key('copied', ctx.system), ctx.now().toISOString());
   } finally {
     removeQuietly(file);
   }
+}
+
+/**
+ * The owner confirms that the copy reached the other device, Files (iCloud) or a computer. iOS
+ * reports the share sheet closing the same way whether the copy was sent or cancelled, so only
+ * this confirmation resets the reminder.
+ */
+export function confirmCopied(ctx: Ctx) {
+  allow(ctx, 'backup.manage');
+  logAction(ctx, 'backup.copied', 'تأكيد حفظ نسخة احتياطية خارج الجهاز');
+  write(key('copied', ctx.system), ctx.now().toISOString());
 }
 
 /**
