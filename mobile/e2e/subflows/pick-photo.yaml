@@ -1,22 +1,38 @@
-# Opens Apple's photo picker from the form's "الألبوم" button and taps a photo where it shows
-# (see return-photo.yaml): iPad 41%, 15%; iPhone 45%, 24%.
+# Opens Apple's photo picker from the form's "الألبوم" button and taps a photo.
+# The picker's photos are named like "Photo, March 30, 2018, 7:14 PM" (the simulator's log shows
+# them in the screen details): it waits until they have loaded (run 57's iPad picture was still
+# "Loading…" when it tapped) and taps the first. If they can't be found by name, it taps where
+# a photo shows: iPad (run 55) 6 in a row right of the picker's sidebar, the first at 41%, 15%;
+# iPhone (run 57) 3 in a row under its title, the second at 45%, 24%.
 appId: com.salford.pos
 ---
 - tapOn:
     id: 'photo-library'
-# The picker slides up; its picture shows where the photos are on this device.
+- extendedWaitUntil:
+    visible: 'Photo, [^,]+, [0-9]{4}, [^,]+'
+    timeout: 30000
+    optional: true
 - waitForAnimationToEnd:
     timeout: 10000
 - takeScreenshot: ${DEVICE}-photo-picker
+- evalScript: ${output.photoTapped = false}
 - runFlow:
     when:
-      true: ${DEVICE == 'iPad'}
+      visible: 'Photo, [^,]+, [0-9]{4}, [^,]+'
+    commands:
+      - tapOn:
+          text: 'Photo, [^,]+, [0-9]{4}, [^,]+'
+          index: 0
+      - evalScript: ${output.photoTapped = true}
+- runFlow:
+    when:
+      true: ${!output.photoTapped && DEVICE == 'iPad'}
     commands:
       - tapOn:
           point: 41%, 15%
 - runFlow:
     when:
-      true: ${DEVICE != 'iPad'}
+      true: ${!output.photoTapped && DEVICE != 'iPad'}
     commands:
       - tapOn:
           point: 45%, 24%
