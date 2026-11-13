@@ -84,6 +84,12 @@ function EmployeeHome() {
         onOpenSale: (id) => openSale(system, id),
         onNewSale: () => newSale(system),
         onNewReceipt: () => newReceipt(system),
+        onOpenAccount: () =>
+          actor?.kind === 'employee' &&
+          router.push({
+            pathname: '/[system]/more/account/[id]',
+            params: { system, id: actor.id },
+          }),
       }}
     />
   );

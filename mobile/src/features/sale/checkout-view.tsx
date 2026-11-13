@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
@@ -15,7 +15,19 @@ import {
   Text,
   TextField,
 } from '@/components';
-import { checkout, PAYMENT_LABELS, PAYMENT_METHODS, type PaymentMethod } from '@/domain/checkout';
+import {
+  ApprovalNeeded,
+  checkout,
+  discountMessage,
+  PAYMENT_LABELS,
+  PAYMENT_METHODS,
+  type PaymentMethod,
+} from '@/domain/checkout';
+import { cartDiscount, needsApproval } from '@/domain/cart';
+import { getPolicies } from '@/domain/policies';
+import { getProduct } from '@/domain/products';
+import { askOwner, chooseReason } from '@/staff/approvals';
+import { useActor } from '@/staff/use-can';
 import { RuleError, type Ctx } from '@/domain/context';
 import { customerByPhone, customerSuggestions, type Customer } from '@/domain/customers';
 import { getRate } from '@/domain/settings';
@@ -47,8 +59,11 @@ export function CheckoutView({
   const { cart } = useCart(ctx.system);
   const [form, setForm] = useState<CheckoutForm>(emptyCheckoutForm);
   const [busy, setBusy] = useState(false);
+  const asking = useRef(false);
   const rate = getRate(ctx);
   const totals = cartTotals(cart, rate);
+  const isOwner = useActor()?.kind === 'owner';
+  const discount = cartDiscount(cart, (id) => getProduct(ctx, id)?.price, getPolicies(ctx));
   const set = <K extends keyof CheckoutForm>(k: K, v: CheckoutForm[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
@@ -69,13 +84,8 @@ export function CheckoutView({
     );
   }
 
-  const confirm = () => {
-    const problem = checkoutProblem(form, cart);
-    if (problem) {
-      haptic.error();
-      Alert.alert('لم يتم البيع', problem);
-      return;
-    }
+  /** Sells; on a discount over the limits, asks the owner on the spot and sells again. */
+  const sell = (extra: { discountReason?: string; approval?: string } = {}) => {
     setBusy(true);
     try {
       const r = checkout(ctx, {
@@ -87,6 +97,7 @@ export function CheckoutView({
           area: form.area,
         },
         note: form.note,
+        ...extra,
       });
       putCart(ctx.system, []);
       notifyDataChanged();
@@ -94,14 +105,48 @@ export function CheckoutView({
       onSold(r.saleId);
       return true;
     } catch (error) {
+      setBusy(false);
+      if (error instanceof ApprovalNeeded && !asking.current) {
+        asking.current = true;
+        askForDiscount(error).finally(() => {
+          asking.current = false;
+        });
+        return;
+      }
       // Nothing was sold: stock is checked again here (it may have changed since it was added).
       haptic.error();
       Alert.alert(
         'لم يتم البيع',
         error instanceof RuleError ? error.message : 'حدث خطأ غير متوقع، لم يُبَع أي شيء.',
       );
-      setBusy(false);
     }
+  };
+
+  const askForDiscount = async (e: ApprovalNeeded) => {
+    haptic.medium();
+    const policies = getPolicies(ctx);
+    const reason = await chooseReason(
+      `سبب الخصم (${formatLyd(e.discount.total)})`,
+      policies.discountReasons,
+    );
+    if (!reason) return;
+    const approval = await askOwner(
+      ctx.system,
+      'discount',
+      `${discountMessage(e.discount, policies)}\nالسبب: ${reason}`,
+    );
+    if (!approval) return;
+    sell({ discountReason: reason, approval });
+  };
+
+  const confirm = () => {
+    const problem = checkoutProblem(form, cart);
+    if (problem) {
+      haptic.error();
+      Alert.alert('لم يتم البيع', problem);
+      return;
+    }
+    return sell();
   };
 
   const credit = form.method === 'credit';
@@ -198,6 +243,19 @@ export function CheckoutView({
               {`${formatUsd(totals.usd)} (${formatRate(rate)})`}
             </Text>
           </View>
+          {discount.total > 0 ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text variant="subhead" tone="secondary">
+                الخصم
+              </Text>
+              <Text
+                variant="subhead"
+                tone={!isOwner && needsApproval(discount) ? 'warning' : 'secondary'}
+                testID="checkout-discount">
+                {`${formatLyd(discount.total)}${!isOwner && needsApproval(discount) ? ' • يحتاج موافقة المالك' : ''}`}
+              </Text>
+            </View>
+          ) : null}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text variant="headline">المجموع</Text>
             <Text variant="title" tone="accent" testID="checkout-total">

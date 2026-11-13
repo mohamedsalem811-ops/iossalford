@@ -5,7 +5,7 @@
  * products with their price and stock only. The owner, the same screens: everything as before.
  */
 import { act, fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
-import { Alert } from 'react-native';
+import { ActionSheetIOS, Alert } from 'react-native';
 
 import RootLayout from '@/app/_layout';
 import SystemLayout from '@/app/[system]/_layout';
@@ -15,6 +15,9 @@ import ManagementLayout from '@/app/[system]/(tabs)/more/_layout';
 import More from '@/app/[system]/(tabs)/more/index';
 import ExpensesRoute from '@/app/[system]/(tabs)/more/expenses';
 import LogRoute from '@/app/[system]/(tabs)/more/log';
+import ReturnFindRoute from '@/app/[system]/(tabs)/more/return-find';
+import CheckoutRoute from '@/app/[system]/checkout';
+import ReturnRoute from '@/app/[system]/return/[id]';
 import ReturnsRoute from '@/app/[system]/(tabs)/more/returns';
 import SaleRoute from '@/app/[system]/(tabs)/more/sale/[id]';
 import StaffRoute from '@/app/[system]/(tabs)/more/staff';
@@ -26,6 +29,10 @@ import { addToCart, type CartLine } from '@/domain/cart';
 import { checkout } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
 import { getProduct, saveProduct } from '@/domain/products';
+import { getSale } from '@/domain/sales';
+import { setPolicies } from '@/domain/policies';
+import * as device from '@/security/device';
+import { putCart } from '@/state/cart';
 import { clockGuard } from '@/staff/guards';
 import { OWNER, type Actor } from '@/staff/model';
 import { useStaffStore } from '@/staff/store';
@@ -119,6 +126,9 @@ const routes = {
   '[system]/(tabs)/more/expenses': ExpensesRoute,
   '[system]/(tabs)/more/staff': StaffRoute,
   '[system]/(tabs)/more/log': LogRoute,
+  '[system]/(tabs)/more/return-find': ReturnFindRoute,
+  '[system]/checkout': CheckoutRoute,
+  '[system]/return/[id]': ReturnRoute,
   '[system]/(tabs)/products/_layout': ProductsStack,
   '[system]/(tabs)/products/index': Products,
   '[system]/product/[id]': ProductRoute,
@@ -130,6 +140,7 @@ function sell(actor: Actor, productId: number, qty = 1) {
   return checkout(ctxAs(actor), { cart, paymentMethod: 'cash' }).saleId;
 }
 
+let ring = 0;
 let ownerSale = 0;
 let herSale = 0;
 beforeAll(() => {
@@ -139,7 +150,7 @@ beforeAll(() => {
       employees: [{ id: 's1', name: 'سارة', active: true, createdAt: '', mustChangePin: false }],
     },
   }));
-  const ring = saveProduct(ctxAs(OWNER), {
+  ring = saveProduct(ctxAs(OWNER), {
     name: 'Ring',
     sku: 'R-1',
     category: 'خواتم',
@@ -170,6 +181,7 @@ describe('as an employee', () => {
   it('lists in Management only what she may open', async () => {
     await renderRouter(routes, { initialUrl: '/jewelry/more' });
     expect(await screen.findByTestId('manage-sales')).toBeOnTheScreen();
+    expect(screen.getByTestId('manage-returnFind')).toBeOnTheScreen();
     for (const shown of ['customers', 'debts', 'settings'])
       expect(screen.getByTestId(`manage-${shown}`)).toBeOnTheScreen();
     for (const hidden of [
@@ -183,6 +195,7 @@ describe('as an employee', () => {
       'backup',
       'staff',
       'log',
+      'policies',
     ])
       expect(screen.queryByTestId(`manage-${hidden}`)).toBeNull();
   });
@@ -199,13 +212,14 @@ describe('as an employee', () => {
     expect(screen.getByText('للمالك فقط')).toBeOnTheScreen();
   });
 
-  it('shows her sale without cost, profit, delete or return, and not the owner’s sale', async () => {
+  it('shows her sale without cost, profit or delete, and not the owner’s sale', async () => {
     await renderRouter(routes, { initialUrl: `/jewelry/more/sale/${herSale}` });
     expect(await screen.findByText('Ring × 1')).toBeOnTheScreen();
     expect(screen.queryByText('التكلفة')).toBeNull();
     expect(screen.queryByText('الربح')).toBeNull();
     expect(screen.queryByTestId('sale-delete')).toBeNull();
-    expect(screen.queryByText('إرجاع')).toBeNull();
+    // She may take a return within the rules (phase S4).
+    expect(screen.getByText('إرجاع')).toBeOnTheScreen();
   });
 
   it('cannot open the owner’s sale', async () => {
@@ -220,6 +234,56 @@ describe('as an employee', () => {
     // No stock or edit swipe buttons.
     expect(screen.queryByText('مخزون')).toBeNull();
     expect(screen.queryByText('حذف')).toBeNull();
+  });
+});
+
+describe('as an employee, the S4 rules', () => {
+  beforeEach(() => setActor(SARA));
+
+  it('asks for a reason and the owner’s PIN for a discount over the limit, then sells', async () => {
+    const owner = ctxAs(OWNER);
+    setPolicies(owner, { discountPerPiece: 10_000, discountPerSale: 10_000 });
+    const p = getProduct(owner, ring)!;
+    const cart = (addToCart([], p, p.name, 1, 300_000) as { cart: CartLine[] }).cart;
+    putCart('jewelry', cart);
+    const sheet = jest
+      .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
+      .mockImplementation((o, pick) => pick(o.options.indexOf('زبون دائم')));
+    jest.spyOn(device, 'faceIdStatus').mockResolvedValue('none');
+    const verify = jest.spyOn(device.pinVault, 'verify').mockResolvedValue({ ok: true });
+    const prompt = jest.spyOn(Alert, 'prompt').mockImplementation((_t, _m, buttons) => {
+      if (Array.isArray(buttons)) buttons.find((b) => b.text === 'موافقة')?.onPress?.('19283746');
+    });
+    await renderRouter(routes, { initialUrl: '/jewelry/checkout' });
+    expect(await screen.findByTestId('checkout-discount')).toHaveTextContent(
+      '50 د.ل • يحتاج موافقة المالك',
+    );
+    await fireEvent.press(screen.getByTestId('checkout-confirm'));
+    await waitFor(() => expect(verify).toHaveBeenCalledWith('jewelry', '19283746'));
+    const sale = await waitFor(() => {
+      const s = ctxAs(OWNER).db.get<{
+        discount: number;
+        discount_reason: string;
+        approved_by: string;
+      }>('SELECT discount, discount_reason, approved_by FROM sales ORDER BY id DESC LIMIT 1');
+      expect(s?.discount).toBe(50_000);
+      return s;
+    });
+    expect(sale).toMatchObject({ discount_reason: 'زبون دائم', approved_by: 'owner' });
+    for (const m of [sheet, verify, prompt]) m.mockRestore();
+  });
+
+  it('finds the owner’s sale by its number for a return, with the refund fixed', async () => {
+    await renderRouter(routes, { initialUrl: '/jewelry/more/return-find' });
+    await fireEvent.changeText(await screen.findByTestId('return-find-text'), String(ownerSale));
+    await fireEvent.press(screen.getByTestId('return-find'));
+    const line = getSale(ctxAs(OWNER), ownerSale)!.lines[0];
+    await fireEvent.press(await screen.findByTestId(`return-line-${line.id}`));
+    expect(await screen.findByTestId('return-refund-fixed')).toHaveTextContent(
+      'يُعاد للزبون 350 د.ل: ما دفعه',
+    );
+    expect(screen.queryByTestId('return-refund')).toBeNull();
+    expect(screen.getByTestId('return-conditions')).toBeOnTheScreen();
   });
 });
 
@@ -251,7 +315,8 @@ describe('as the owner', () => {
       await screen.findByText(`بيعة رقم ${herSale}: 1 قطعة بـ 350 د.ل (كاش)`),
     ).toBeOnTheScreen();
     expect(screen.getByText(`بيعة رقم ${ownerSale}: 2 قطعة بـ 700 د.ل (كاش)`)).toBeOnTheScreen();
-    expect(screen.getAllByText(/^سارة • /)).toHaveLength(1);
+    // Her two sales (one with the owner's approval).
+    expect(screen.getAllByText(/^سارة • /)).toHaveLength(2);
   });
 
   it('is told when the device clock went back, and can accept the device time', async () => {

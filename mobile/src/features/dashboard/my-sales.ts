@@ -5,6 +5,8 @@
 import type { Ctx } from '@/domain/context';
 import { listSales, salesSummary, type Sale } from '@/domain/sales';
 import { getRate } from '@/domain/settings';
+import { employeeStatement } from '@/domain/staff-ledger';
+import { actorKey } from '@/staff/model';
 import { dayKey, monthKey } from '@/lib/dates';
 
 export type MySales = {
@@ -13,6 +15,8 @@ export type MySales = {
   today: { count: number; total: number };
   month: { count: number; total: number };
   latest: Sale[];
+  /** What they owe on their account (returns charged to them, less repayments). */
+  owed: number;
 };
 
 export function readMySales(ctx: Ctx): MySales {
@@ -23,5 +27,6 @@ export function readMySales(ctx: Ctx): MySales {
     today: salesSummary(ctx, { day: dayKey(now) }),
     month: salesSummary(ctx, { month: monthKey(now) }),
     latest: listSales(ctx, {}, { limit: 5 }),
+    owed: ctx.actor ? employeeStatement(ctx, actorKey(ctx.actor)).balance : 0,
   };
 }

@@ -26,6 +26,8 @@ import type { SystemId } from '@/theme';
 export const SECTION_NEEDS: Record<ManageTarget, Permission | null> = {
   sales: null,
   returns: 'sales.viewAll',
+  returnFind: 'returns.create',
+  policies: 'settings.edit',
   customers: null,
   debts: null,
   expenses: 'expenses.view',
@@ -51,6 +53,8 @@ export const hiddenSections = (actor: Actor | null): ManageTarget[] =>
 export const SECTION_ROUTE: Record<ManageTarget, string> = {
   sales: 'sales',
   returns: 'returns',
+  returnFind: 'return-find',
+  policies: 'policies',
   customers: 'customers',
   debts: 'debts',
   expenses: 'expenses',

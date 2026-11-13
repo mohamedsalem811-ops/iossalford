@@ -1,5 +1,7 @@
 import { ActionSheetIOS } from 'react-native';
 
+import { formatLyd } from '@/lib/money';
+
 import { Card, EmptyState, ListGroup, ListRow, Page, Text } from '@/components';
 import {
   LOCK_CHOICES,
@@ -19,6 +21,8 @@ export type StaffActions = {
   onEmergencyCode: () => void;
   onSendList: () => void;
   onReceiveList: () => void;
+  /** The employee's account: charges for returns and repayments (phase S4). */
+  onAccount?: (e: Employee) => void;
 };
 
 const minutes = (n: number) => (n === 1 ? 'دقيقة' : n === 2 ? 'دقيقتان' : `${n} دقائق`);
@@ -38,10 +42,13 @@ export function StaffScreen({
   staff,
   hasEmergencyCode,
   actions,
+  balances,
 }: {
   staff: Staff;
   hasEmergencyCode: boolean;
   actions: StaffActions;
+  /** What each employee owes ("emp-<id>" → dirhams). */
+  balances?: Map<string, number>;
 }) {
   const people = sortedStaff(staff);
   const lock = staff.lock;
@@ -49,6 +56,9 @@ export function StaffScreen({
     pick(
       e.name,
       [
+        ...(actions.onAccount
+          ? [{ label: 'حساب الموظف', value: () => actions.onAccount!(e) }]
+          : []),
         { label: 'رمز مؤقت جديد', value: () => actions.onResetPin(e) },
         { label: 'تغيير الاسم', value: () => actions.onRename(e) },
         {
@@ -79,6 +89,11 @@ export function StaffScreen({
               subtitle={[e.active ? 'نشط' : 'موقوف', e.mustChangePin ? 'لم يختر رمزه بعد' : null]
                 .filter(Boolean)
                 .join(' • ')}
+              value={
+                (balances?.get(`emp-${e.id}`) ?? 0) > 0
+                  ? `عليه ${formatLyd(balances!.get(`emp-${e.id}`)!)}`
+                  : undefined
+              }
               onPress={() => menu(e)}
               testID={`staff-${e.name}`}
             />

@@ -189,3 +189,41 @@ export function cartProblems(
   }
   return problems;
 }
+
+export type CartDiscount = {
+  /** Taken off the list prices in the whole cart (sets excluded: their price is the owner's). */
+  total: number;
+  /** The most taken off one piece. */
+  largestPerPiece: number;
+  /** Lines whose discount per piece is over the limit. */
+  overPiece: string[];
+  /** The whole discount is over the per-sale limit. */
+  overSale: boolean;
+};
+
+/**
+ * What was taken off the list prices, against the employee limits (phase S4). A set's own
+ * discount is never counted: the owner set its price. A price above the list price is not a
+ * discount and takes nothing back.
+ */
+export function cartDiscount(
+  cart: CartLine[],
+  listPrice: (productId: number) => number | undefined,
+  limits: { discountPerPiece: number; discountPerSale: number },
+): CartDiscount {
+  let total = 0;
+  let largestPerPiece = 0;
+  const overPiece: string[] = [];
+  for (const l of cart) {
+    if (l.bundleGroup) continue;
+    const list = listPrice(l.productId);
+    if (list === undefined) continue;
+    const off = Math.max(0, list - l.unitPrice);
+    total += off * l.quantity;
+    largestPerPiece = Math.max(largestPerPiece, off);
+    if (off > limits.discountPerPiece) overPiece.push(l.name);
+  }
+  return { total, largestPerPiece, overPiece, overSale: total > limits.discountPerSale };
+}
+
+export const needsApproval = (d: CartDiscount) => d.overPiece.length > 0 || d.overSale;

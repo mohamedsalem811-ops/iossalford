@@ -10,6 +10,7 @@ import { getActor } from '@/state/session';
 import type { Actor } from '@/staff/model';
 import { getStaff } from '@/staff/store';
 import { clockChanged, clockGuard, stampDevice } from '@/staff/guards';
+import { takeApproval } from '@/staff/approvals';
 import { recordClockBack } from '@/domain/activity';
 import { logError } from '@/lib/error-log';
 
@@ -75,6 +76,8 @@ export function CtxProvider({
       get actor() {
         return signedIn();
       },
+      // The owner's approval on the spot: one-time tokens from staff/approvals.ts.
+      approvals: { take: takeApproval },
       // Every action that changes data is refused while the device clock is behind.
       clock: {
         check: (now) => {

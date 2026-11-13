@@ -51,6 +51,7 @@ describe('migrations', () => {
       'set_items',
       'sets',
       'settings',
+      'staff_ledger',
       'stock_moves',
     ]);
   });

@@ -92,6 +92,11 @@ export function SaleDetail({
           {`${formatDate(when)} • ${formatTime(when)} • سعر الصرف ${formatRate(sale.rate)}`}
         </Text>
         {sale.note ? <Text variant="body">{`ملاحظة: ${sale.note}`}</Text> : null}
+        {sale.discount > 0 ? (
+          <Text variant="subhead" testID="sale-discount">
+            {`خصم ${formatLyd(sale.discount)}${sale.discountReason ? `: ${sale.discountReason}` : ''}${sale.approvedBy ? ' • بموافقة المالك' : ''}`}
+          </Text>
+        ) : null}
         {seesSellers && sale.seller !== 'owner' ? (
           <Text variant="subhead" testID="sale-seller">{`البائع: ${sale.sellerName}`}</Text>
         ) : null}

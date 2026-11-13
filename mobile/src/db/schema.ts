@@ -384,6 +384,43 @@ CREATE TRIGGER activity_new_uid AFTER INSERT ON activity WHEN NEW.uid IS NULL BE
 END;
 `,
   },
+  {
+    version: 4,
+    name: 'discounts, return rules, exchanges, employee accounts',
+    sql: `
+ALTER TABLE sales ADD COLUMN discount INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE sales ADD COLUMN discount_reason TEXT;
+ALTER TABLE sales ADD COLUMN approved_by TEXT;
+ALTER TABLE returns ADD COLUMN photo TEXT;
+ALTER TABLE returns ADD COLUMN conditions TEXT;
+ALTER TABLE returns ADD COLUMN override_reason TEXT;
+ALTER TABLE returns ADD COLUMN approved_by TEXT;
+ALTER TABLE returns ADD COLUMN exchange_sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL;
+CREATE TABLE staff_ledger (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  employee      TEXT NOT NULL,
+  employee_name TEXT NOT NULL,
+  kind          TEXT NOT NULL CHECK (kind IN ('charge', 'repay', 'waive')),
+  amount        INTEGER NOT NULL CHECK (amount > 0),
+  return_id     INTEGER REFERENCES returns(id) ON DELETE SET NULL,
+  note          TEXT,
+  created_at    TEXT NOT NULL,
+  month         TEXT NOT NULL,
+  by            TEXT,
+  by_name       TEXT,
+  uid           TEXT,
+  device        TEXT
+);
+CREATE INDEX staff_ledger_employee ON staff_ledger(employee, id);
+CREATE INDEX staff_ledger_return ON staff_ledger(return_id);
+CREATE UNIQUE INDEX staff_ledger_uid ON staff_ledger(uid);
+CREATE TRIGGER staff_ledger_new_uid AFTER INSERT ON staff_ledger WHEN NEW.uid IS NULL BEGIN
+  UPDATE staff_ledger SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

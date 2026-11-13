@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { Card, HeroCard, Screen, Stat, Text } from '@/components';
 import { LatestCard } from '@/features/dashboard/cards';
@@ -29,6 +29,7 @@ export function EmployeeHomeScreen({
     onOpenSale: (id: number) => void;
     onNewSale: () => void;
     onNewReceipt: () => void;
+    onOpenAccount: () => void;
   };
 }) {
   const { dashboardColumns } = useLayout();
@@ -68,6 +69,18 @@ export function EmployeeHomeScreen({
           <Stat value={String(data.month.count)} label="فواتير" />
         </Card>
       </Grid>
+      {data.owed > 0 ? (
+        <Pressable onPress={actions.onOpenAccount} accessibilityRole="button" testID="my-account">
+          <Card>
+            <Text variant="bodyStrong" tone="warning">
+              {`على حسابي ${formatLyd(data.owed)}`}
+            </Text>
+            <Text variant="caption" tone="accent">
+              عرض الحساب
+            </Text>
+          </Card>
+        </Pressable>
+      ) : null}
       <LatestCard data={data} onOpenSale={actions.onOpenSale} />
     </Screen>
   );

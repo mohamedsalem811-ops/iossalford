@@ -35,7 +35,7 @@ import {
   maxRefund,
 } from './sales';
 import { getSet, saveSet, setForCart } from './sets';
-import { makeCtx, type TestCtx } from './testing/ctx';
+import { makeCtx, passing, type TestCtx } from './testing/ctx';
 
 let ctx: TestCtx;
 beforeEach(() => {
@@ -64,25 +64,34 @@ describe('returns', () => {
     const ring = product('خاتم', 350_000, 3, 200_000);
     const { saleId } = sell(ring, 2, 'cash', undefined, 300_000);
     const line = getSale(ctx, saleId)!.lines[0];
-    const id = addReturn(ctx, { saleLineId: line.id, quantity: 1, reason: 'مقاس' });
+    const id = addReturn(ctx, {
+      ...passing(ctx),
+      saleLineId: line.id,
+      quantity: 1,
+      reason: 'مقاس',
+    });
     const [r] = listReturns(ctx);
     expect(r).toMatchObject({ id, refund: 300_000, cost: 200_000, quantity: 1, month: '2026-11' });
     expect(getProduct(ctx, ring.id)?.stock).toBe(2);
     expect(stockHistory(ctx, ring.id)[0]).toMatchObject({ kind: 'return', delta: 1 });
-    expect(() => addReturn(ctx, { saleLineId: line.id, quantity: 2 })).toThrow(
+    expect(() => addReturn(ctx, { ...passing(ctx), saleLineId: line.id, quantity: 2 })).toThrow(
       'يمكن إرجاع 1 قطعة فقط',
     );
-    addReturn(ctx, { saleLineId: line.id, quantity: 1 });
-    expect(() => addReturn(ctx, { saleLineId: line.id, quantity: 1 })).toThrow('مُرتجعة بالفعل');
+    addReturn(ctx, { ...passing(ctx), saleLineId: line.id, quantity: 1 });
+    expect(() => addReturn(ctx, { ...passing(ctx), saleLineId: line.id, quantity: 1 })).toThrow(
+      'مُرتجعة بالفعل',
+    );
   });
 
   it('refuses a refund above what the customer paid', () => {
     const ring = product('خاتم', 350_000, 1);
     const line = getSale(ctx, sell(ring, 1).saleId)!.lines[0];
-    expect(() => addReturn(ctx, { saleLineId: line.id, quantity: 1, refund: 350_001 })).toThrow(
-      'لا يمكن أن يتجاوز',
+    expect(() =>
+      addReturn(ctx, { ...passing(ctx), saleLineId: line.id, quantity: 1, refund: 350_001 }),
+    ).toThrow('لا يمكن أن يتجاوز');
+    expect(() => addReturn(ctx, { ...passing(ctx), saleLineId: line.id, quantity: 0 })).toThrow(
+      '1 على الأقل',
     );
-    expect(() => addReturn(ctx, { saleLineId: line.id, quantity: 0 })).toThrow('1 على الأقل');
   });
 
   it('caps refunds of a set piece at its share of the set price', () => {
@@ -107,7 +116,12 @@ describe('returns', () => {
 
   it('records a return without a sale and undoes returns only while the pieces are in stock', () => {
     const ring = product('خاتم', 350_000, 0);
-    const id = addReturnWithoutSale(ctx, { productId: ring.id, quantity: 1, refund: 300_000 });
+    const id = addReturnWithoutSale(ctx, {
+      ...passing(ctx),
+      productId: ring.id,
+      quantity: 1,
+      refund: 300_000,
+    });
     expect(listReturns(ctx)[0].reason).toBe('مرتجع بدون فاتورة');
     expect(getProduct(ctx, ring.id)?.stock).toBe(1);
     sell(getProduct(ctx, ring.id)!, 1); // the returned piece is sold again
@@ -118,7 +132,7 @@ describe('returns', () => {
   it('undoes a return, taking the pieces out of stock again', () => {
     const ring = product('خاتم', 350_000, 2);
     const line = getSale(ctx, sell(ring, 1).saleId)!.lines[0];
-    const id = addReturn(ctx, { saleLineId: line.id, quantity: 1 });
+    const id = addReturn(ctx, { ...passing(ctx), saleLineId: line.id, quantity: 1 });
     deleteReturn(ctx, id);
     expect(getProduct(ctx, ring.id)?.stock).toBe(1);
     expect(listReturns(ctx)).toHaveLength(0);
@@ -130,7 +144,7 @@ describe('deleting a sale', () => {
     const ring = product('خاتم', 350_000, 5);
     const { saleId } = sell(ring, 3);
     const line = getSale(ctx, saleId)!.lines[0];
-    addReturn(ctx, { saleLineId: line.id, quantity: 1 });
+    addReturn(ctx, { ...passing(ctx), saleLineId: line.id, quantity: 1 });
     expect(getProduct(ctx, ring.id)?.stock).toBe(3);
     const receiptId = receiptForSale(ctx, saleId)!.id;
     deleteSale(ctx, saleId);
@@ -164,7 +178,11 @@ describe('debts', () => {
     sell(ring, 1, 'cash', c); // cash sales are not debt
     const id = getSale(ctx, s1.saleId)!.customerId!;
     expect(balance(ctx, id)).toBe(700_000);
-    addReturn(ctx, { saleLineId: getSale(ctx, s1.saleId)!.lines[0].id, quantity: 1 });
+    addReturn(ctx, {
+      ...passing(ctx),
+      saleLineId: getSale(ctx, s1.saleId)!.lines[0].id,
+      quantity: 1,
+    });
     expect(balance(ctx, id)).toBe(350_000);
     recordPayment(ctx, { customerId: id, amount: 100_000, method: 'cash' });
     expect(balance(ctx, id)).toBe(250_000);
@@ -179,7 +197,11 @@ describe('debts', () => {
     const s1 = sell(ring, 2, 'credit', { name: 'رنا' });
     const id = getSale(ctx, s1.saleId)!.customerId!;
     ctx.setNow(new Date(2026, 10, 2, 10, 0));
-    addReturn(ctx, { saleLineId: getSale(ctx, s1.saleId)!.lines[0].id, quantity: 1 });
+    addReturn(ctx, {
+      ...passing(ctx),
+      saleLineId: getSale(ctx, s1.saleId)!.lines[0].id,
+      quantity: 1,
+    });
     ctx.setNow(new Date(2026, 10, 3, 10, 0));
     recordPayment(ctx, { customerId: id, amount: 100_000, method: 'cash', note: 'دفعة أولى' });
     ctx.setNow(new Date(2026, 10, 4, 10, 0));
@@ -212,7 +234,11 @@ describe('debts', () => {
     const s = sell(ring, 1, 'credit', { name: 'هدى' });
     const id = getSale(ctx, s.saleId)!.customerId!;
     recordPayment(ctx, { customerId: id, amount: 350_000, method: 'cash' });
-    addReturn(ctx, { saleLineId: getSale(ctx, s.saleId)!.lines[0].id, quantity: 1 });
+    addReturn(ctx, {
+      ...passing(ctx),
+      saleLineId: getSale(ctx, s.saleId)!.lines[0].id,
+      quantity: 1,
+    });
     expect(balance(ctx, id)).toBe(-350_000);
     expect(creditBalances(ctx).map((d) => d.customer.name)).toEqual(['هدى']);
   });

@@ -10,6 +10,13 @@ function ReturnRouteScreen() {
   const ctx = useCtx();
   const { id } = useLocalSearchParams<{ id: string }>();
   const lineId = id === 'new' ? undefined : Number(id);
+  // A return without a sale (sold before the app) is the owner's only.
+  if (id === 'new')
+    return (
+      <Allowed permission="returns.noSale">
+        <ReturnForm key={id} ctx={ctx} onDone={() => router.back()} />
+      </Allowed>
+    );
   return (
     <ReturnForm
       key={id}

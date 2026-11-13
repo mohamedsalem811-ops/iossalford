@@ -18,7 +18,7 @@ import {
   saleMonths,
   salesSummary,
 } from './sales';
-import { makeCtx, type TestCtx } from './testing/ctx';
+import { makeCtx, passing, type TestCtx } from './testing/ctx';
 
 let ctx: TestCtx;
 
@@ -129,7 +129,13 @@ describe('returns, a page at a time', () => {
     const sales = listSales(ctx);
     for (const s of sales.slice(0, 12)) {
       ctx.setNow(new Date(s.createdAt));
-      addReturn(ctx, { saleLineId: s.lines[0].id, quantity: 1, refund: 10_000 });
+      addReturn(ctx, {
+        ...passing(ctx),
+        saleLineId: s.lines[0].id,
+        quantity: 1,
+        refund: 10_000,
+        override: { reason: 'بيعة قديمة' },
+      });
     }
     expect(readAll((limit, offset) => listReturns(ctx, undefined, { limit, offset }), 5)).toEqual(
       listReturns(ctx),
@@ -142,7 +148,13 @@ describe('returns, a page at a time', () => {
 describe('balances for lists, in one query', () => {
   it('match the balance of each customer, payments and refunds included', () => {
     const credit = listSales(ctx, { paymentMethod: 'credit' });
-    addReturn(ctx, { saleLineId: credit[0].lines[0].id, quantity: 1, refund: 30_000 });
+    addReturn(ctx, {
+      ...passing(ctx),
+      saleLineId: credit[0].lines[0].id,
+      quantity: 1,
+      refund: 30_000,
+      override: { reason: 'بيعة قديمة' },
+    });
     const sara = credit[0].customerId!;
     recordPayment(ctx, { customerId: sara, amount: 50_000, method: 'cash' });
     const other = saveCustomer(ctx, { name: 'هدى', phone: '0911111111' });

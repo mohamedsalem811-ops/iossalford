@@ -20,12 +20,15 @@ import {
   saveProduct,
 } from '@/domain/products';
 import { deleteReceipt, issueReceipt, updateReceipt } from '@/domain/receipts';
+import { exchange } from '@/domain/exchange';
+import { setPolicies } from '@/domain/policies';
+import { chargeReturn, recordRepayment, waiveCharge } from '@/domain/staff-ledger';
 import { addReturn, addReturnWithoutSale, deleteReturn, deleteSale, getSale } from '@/domain/sales';
 import { deleteScarfDesign, saveScarfDesign } from '@/domain/scarves';
 import { deleteSet, saveSet } from '@/domain/sets';
 import { setRate } from '@/domain/settings';
 import { addToCart, type CartLine } from '@/domain/cart';
-import { EMPLOYEE, makeCtx, type TestCtx } from '@/domain/testing/ctx';
+import { EMPLOYEE, makeCtx, passing, type TestCtx } from '@/domain/testing/ctx';
 import { OWNER } from './model';
 import { ALL_PERMISSIONS, can, EMPLOYEE_MAY, PERMISSIONS, type Permission } from './permissions';
 import { scanActions } from './testing/scan-actions';
@@ -33,6 +36,7 @@ import { screenFilesCalling } from './testing/screen-calls';
 
 /** What the owner made before each action: one of everything an action can work on. */
 type Seed = {
+  charged: number;
   ring: number;
   chain: number;
   customer: number;
@@ -79,7 +83,15 @@ function seed(ctx: TestCtx): Seed {
   checkout(ctx, { cart: cartOf(ctx, archived), paymentMethod: 'cash' });
   deleteProduct(ctx, archived);
   const saleLine = getSale(ctx, sold.saleId)!.lines[0].id;
-  const ret = addReturn(ctx, { saleLineId: saleLine, quantity: 1 });
+  const ret = addReturn(ctx, { ...passing(ctx), saleLineId: saleLine, quantity: 1 });
+  // A second return, already on an employee's account (for waiving).
+  const other = checkout(ctx, { cart: cartOf(ctx, chain), paymentMethod: 'cash' });
+  const charged = addReturn(ctx, {
+    ...passing(ctx),
+    saleLineId: getSale(ctx, other.saleId)!.lines[0].id,
+    quantity: 1,
+  });
+  chargeReturn(ctx, charged, { key: 'emp-e1', name: 'سارة' });
   const payment = recordPayment(ctx, { customerId: customer, amount: 10_000, method: 'cash' });
   const expense = addExpense(ctx, { description: 'إيجار', amount: 5_000 });
   const closing = closeQuarter(ctx, { year: 2026, quarter: 3 }).id;
@@ -96,6 +108,7 @@ function seed(ctx: TestCtx): Seed {
   const herReceipt = issueReceipt(ctx, { items: [{ name: 'قطعة', quantity: 1, price: 5 }] }).id;
   ctx.setActor(OWNER);
   return {
+    charged,
     herReceipt,
     ring,
     chain,
@@ -123,11 +136,12 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     deleteSale: { permission: 'sales.delete', run: (ctx, s) => deleteSale(ctx, s.sale) },
     addReturn: {
       permission: 'returns.create',
-      run: (ctx, s) => addReturn(ctx, { saleLineId: s.saleLine, quantity: 1 }),
+      run: (ctx, s) => addReturn(ctx, { ...passing(ctx), saleLineId: s.saleLine, quantity: 1 }),
     },
     addReturnWithoutSale: {
-      permission: 'returns.create',
-      run: (ctx, s) => addReturnWithoutSale(ctx, { productId: s.chain, quantity: 1, refund: 0 }),
+      permission: 'returns.noSale',
+      run: (ctx, s) =>
+        addReturnWithoutSale(ctx, { ...passing(ctx), productId: s.chain, quantity: 1, refund: 0 }),
     },
     deleteReturn: { permission: 'returns.delete', run: (ctx, s) => deleteReturn(ctx, s.ret) },
     issueReceipt: {
@@ -221,6 +235,30 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     },
     deleteClosing: { permission: 'closing.edit', run: (ctx, s) => deleteClosing(ctx, s.closing) },
     setRate: { permission: 'settings.edit', run: (ctx) => setRate(ctx, 7_000) },
+    setPolicies: {
+      permission: 'settings.edit',
+      run: (ctx) => setPolicies(ctx, { returnHours: 48 }),
+    },
+    exchange: {
+      permission: 'sales.create',
+      run: (ctx, s) =>
+        exchange(ctx, {
+          ret: { ...passing(ctx), saleLineId: s.saleLine, quantity: 1 },
+          sale: { cart: cartOf(ctx, s.chain), paymentMethod: 'cash' },
+        }),
+    },
+    chargeReturn: {
+      permission: 'returns.charge',
+      run: (ctx, s) => chargeReturn(ctx, s.ret, { key: 'emp-e1', name: 'سارة' }),
+    },
+    waiveCharge: {
+      permission: 'returns.charge',
+      run: (ctx, s) => waiveCharge(ctx, s.charged),
+    },
+    recordRepayment: {
+      permission: 'staff.ledger',
+      run: (ctx) => recordRepayment(ctx, { key: 'emp-e1', name: 'سارة' }, 5_000),
+    },
     restoreBackup: {
       permission: 'backup.restore',
       run: (ctx) => {
