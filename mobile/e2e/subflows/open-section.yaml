@@ -1,15 +1,47 @@
 # Opens a Management section by its row (id ${ID}, like manage-expenses): the menu is first
 # scrolled back to its top, then down to the row, so it works wherever the menu was left.
+# iPad: the menu is the column on the right and the section fills the rest; scrollUntilVisible
+# swipes the middle of the screen, outside the menu, so the swipes are made at 85% across.
+# iPhone: the menu fills the screen; the row is brought to the middle, clear of the tab bar.
 appId: com.salford.pos
 ---
 - tapOn: 'الإدارة'
-- scrollUntilVisible:
-    element:
-      id: 'manage-sales'
-    direction: UP
-- scrollUntilVisible:
-    element:
-      id: ${ID}
-    direction: DOWN
+- runFlow:
+    when:
+      true: ${DEVICE == 'iPad'}
+    commands:
+      - repeat:
+          while:
+            notVisible:
+              id: 'manage-sales'
+          times: 6
+          commands:
+            - swipe:
+                start: 85%, 30%
+                end: 85%, 80%
+                duration: 400
+      - repeat:
+          while:
+            notVisible:
+              id: ${ID}
+          times: 10
+          commands:
+            - swipe:
+                start: 85%, 75%
+                end: 85%, 35%
+                duration: 400
+- runFlow:
+    when:
+      true: ${DEVICE != 'iPad'}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: 'manage-sales'
+          direction: UP
+      - scrollUntilVisible:
+          element:
+            id: ${ID}
+          direction: DOWN
+          centerElement: true
 - tapOn:
     id: ${ID}

@@ -1,0 +1,14 @@
+# Switches user to the owner (the jewelry PIN) and waits for the dashboard.
+appId: com.salford.pos
+---
+- runFlow:
+    file: open-section.yaml
+    env:
+      ID: 'manage-lock'
+- tapOn:
+    id: 'person-owner'
+- runFlow: pin-jewelry.yaml
+- runFlow: pin-retry.yaml
+- extendedWaitUntil:
+    visible: 'مبيعات اليوم'
+    timeout: 90000

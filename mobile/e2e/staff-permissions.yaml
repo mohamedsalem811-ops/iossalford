@@ -1,39 +1,17 @@
-# Phase S2: what an employee sees. Runs after staff.yaml (سارة exists, her PIN is 963258).
-# She sells; her home shows only her own sales; Management lists only what she may open;
-# products show no cost; her sale shows no cost, profit, delete or return; owner screens
-# refuse. iPhone and iPad, light and dark (screens: home, Management, products, sale).
+# Phase S2: what an employee sees. The owner adds Ring Zircon and سارة; she opens a shift and
+# sells; her home shows only her own sales; Management lists only what she may open; products
+# show no cost; her sale shows no cost, profit or delete. iPhone and iPad (screens: home,
+# Management, products, sale).
 appId: com.salford.pos
 ---
 - runFlow: subflows/open-jewelry.yaml
-- tapOn: 'الإدارة'
-- scrollUntilVisible:
-    element:
-      id: 'manage-lock'
-    direction: DOWN
-- tapOn:
-    id: 'manage-lock'
-- tapOn:
-    id: 'person-سارة'
-- tapOn:
-    id: 'pin-key-9'
-- tapOn:
-    id: 'pin-key-6'
-- tapOn:
-    id: 'pin-key-3'
-- tapOn:
-    id: 'pin-key-2'
-- tapOn:
-    id: 'pin-key-5'
-- tapOn:
-    id: 'pin-key-8'
-- extendedWaitUntil:
-    visible: 'أهلاً، سارة'
-    timeout: 30000
+- runFlow: subflows/add-ring.yaml
+- runFlow: subflows/add-employee.yaml
 - assertNotVisible: 'الربح'
 - assertNotVisible:
     id: 'quick-product'
 - takeScreenshot: ${DEVICE}-employee-home
-# Management: only selling, customers, debts and settings.
+# Management: no expenses, backups or returns list.
 - tapOn: 'الإدارة'
 - assertVisible:
     id: 'manage-sales'
@@ -44,27 +22,20 @@ appId: com.salford.pos
 - assertNotVisible:
     id: 'manage-returns'
 - takeScreenshot: ${DEVICE}-employee-management-s2
-# Selling needs an open shift (phase S5): 100 د.ل in the drawer.
-- tapOn:
-    id: 'manage-shift'
-- tapOn:
-    id: 'shift-opening'
-- inputText: '100'
-- tapOn:
-    id: 'shift-open'
-- assertVisible:
-    id: 'shift-open-card'
+# Selling needs an open shift (phase S5).
+- runFlow: subflows/open-shift.yaml
 # Products: price and stock, no cost.
 - tapOn: 'المنتجات'
 - assertNotVisible: 'تكلفة.*'
 - takeScreenshot: ${DEVICE}-employee-products
-# A sale (the Ring added by products.yaml), then its details: no cost, profit, delete or return.
+# A sale, then its details: no cost, profit or delete.
 - runFlow: subflows/sell-ring.yaml
 - tapOn:
     id: 'sold-new-sale'
-- tapOn: 'الإدارة'
-- tapOn:
-    id: 'manage-sales'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-sales'
 - tapOn:
     index: 0
     id: 'sale-[0-9]+'

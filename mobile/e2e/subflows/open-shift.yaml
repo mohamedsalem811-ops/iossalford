@@ -1,0 +1,14 @@
+# The signed-in person opens a shift with 100 د.ل in the drawer (an employee can't sell without).
+appId: com.salford.pos
+---
+- runFlow:
+    file: open-section.yaml
+    env:
+      ID: 'manage-shift'
+- tapOn:
+    id: 'shift-opening'
+- inputText: '100'
+- tapOn:
+    id: 'shift-open'
+- assertVisible:
+    id: 'shift-open-card'

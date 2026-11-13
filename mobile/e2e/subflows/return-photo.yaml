@@ -1,5 +1,7 @@
 # On the return form (jewelry): both conditions answered "yes" and a photo of the piece chosen
 # from the simulator's photo library (S4 rules: a return needs both).
+# Apple's photo picker runs outside the app, so Maestro can't see its photos on iPad: the first
+# one is tapped where it is (the library sidebar on the left, the photos to its right).
 appId: com.salford.pos
 ---
 - tapOn:
@@ -7,6 +9,24 @@ appId: com.salford.pos
 - tapOn:
     id: 'cond-yes-1'
 - tapOn: 'الألبوم'
-- tapOn:
-    index: 0
-    text: '.*Photo.*'
+- runFlow:
+    when:
+      true: ${DEVICE == 'iPad'}
+    commands:
+      - extendedWaitUntil:
+          notVisible:
+            id: 'return-save'
+          timeout: 15000
+      - tapOn:
+          point: 41%, 15%
+- runFlow:
+    when:
+      true: ${DEVICE != 'iPad'}
+    commands:
+      - tapOn:
+          index: 0
+          text: '.*Photo.*'
+- extendedWaitUntil:
+    visible:
+      id: 'return-save'
+    timeout: 30000

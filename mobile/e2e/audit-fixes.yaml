@@ -52,9 +52,14 @@ appId: com.salford.pos
 - tapOn:
     id: 'sold-new-sale'
 # Deleting it asks about its receipt.
-- tapOn: 'الإدارة'
-- tapOn: 'سجل المبيعات'
-- tapOn: '.*300.*'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-sales'
+- tapOn:
+    index: 0
+    id: 'sale-[0-9]+'
+- assertVisible: '.*300.*'
 - scrollUntilVisible:
     element:
       id: 'sale-delete'

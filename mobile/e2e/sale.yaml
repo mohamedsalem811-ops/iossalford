@@ -16,6 +16,13 @@ appId: com.salford.pos
     timeout: 30000
 - takeScreenshot: ${DEVICE}-receipt-studio
 - tapOn: 'إغلاق'
+- runFlow:
+    when:
+      visible:
+        id: 'sold-new-sale'
+    commands:
+      - tapOn:
+          id: 'sold-new-sale'
 # A credit sale needs the customer.
 - tapOn: 'بيع'
 - tapOn:

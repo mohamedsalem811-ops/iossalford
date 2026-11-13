@@ -201,7 +201,12 @@ export function ManagementScreen({
           </ListGroup>
         ))}
       <ListGroup header="النظام">
-        <ListRow icon="arrow.left.arrow.right" title="تبديل النظام" onPress={onSwitch} />
+        <ListRow
+          icon="arrow.left.arrow.right"
+          title="تبديل النظام"
+          onPress={onSwitch}
+          testID="manage-switch"
+        />
         <ListRow
           icon="lock"
           title={person ? 'تبديل المستخدم أو القفل' : 'قفل النظام'}

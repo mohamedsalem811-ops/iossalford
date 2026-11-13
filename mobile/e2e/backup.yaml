@@ -4,9 +4,10 @@ appId: com.salford.pos
 ---
 - runFlow: subflows/open-jewelry.yaml
 - runFlow: subflows/add-ring.yaml
-- tapOn: 'الإدارة'
-- tapOn:
-    id: 'manage-backup'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-backup'
 - tapOn:
     id: 'backup-now'
 - extendedWaitUntil:
@@ -17,9 +18,10 @@ appId: com.salford.pos
 - runFlow: subflows/sell-ring.yaml
 - tapOn:
     id: 'sold-new-sale'
-- tapOn: 'الإدارة'
-- tapOn:
-    id: 'manage-backup'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-backup'
 - tapOn: 'يدوية • اليوم'
 - tapOn: 'استعادة هذه النسخة'
 - extendedWaitUntil:

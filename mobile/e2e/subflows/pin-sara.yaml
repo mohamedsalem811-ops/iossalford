@@ -1,0 +1,15 @@
+# Types سارة's own PIN used by the tests (963258), chosen when she first signs in.
+appId: com.salford.pos
+---
+- tapOn:
+    id: 'pin-key-9'
+- tapOn:
+    id: 'pin-key-6'
+- tapOn:
+    id: 'pin-key-3'
+- tapOn:
+    id: 'pin-key-2'
+- tapOn:
+    id: 'pin-key-5'
+- tapOn:
+    id: 'pin-key-8'

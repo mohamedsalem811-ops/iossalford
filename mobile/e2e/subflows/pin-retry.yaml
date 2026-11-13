@@ -1,0 +1,16 @@
+# After the jewelry PIN: if a key press was lost (the dots show fewer than 8), clears what was
+# typed and types the PIN again. The CI simulator can be slow enough to drop a tap.
+appId: com.salford.pos
+---
+- runFlow:
+    when:
+      visible: 'تم إدخال [1-7] من 8'
+    commands:
+      - repeat:
+          while:
+            notVisible: 'تم إدخال 0 من 8'
+          times: 8
+          commands:
+            - tapOn:
+                id: 'pin-key-del'
+      - runFlow: pin-jewelry.yaml

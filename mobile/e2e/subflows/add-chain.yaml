@@ -1,8 +1,10 @@
-# Adds "Chain Gold" (Pandora, 500 د.ل, cost 300, 3 in stock) from the Products tab.
+# Adds "Chain Gold" (Pandora, 500 د.ل, cost 300, 3 in stock) from the dashboard's "قطعة جديدة"
+# (the Products tab's add button is in its toolbar's overflow menu on iPad once a piece exists).
 appId: com.salford.pos
 ---
-- tapOn: 'المنتجات'
-- tapOn: 'إضافة قطعة'
+- tapOn: 'الرئيسية'
+- tapOn:
+    id: 'quick-product'
 - extendedWaitUntil:
     visible:
       id: 'product-name'

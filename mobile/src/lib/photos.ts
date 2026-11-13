@@ -29,7 +29,6 @@ export function photoUri(system: SystemId, file: string): string {
 
 const DENIED = {
   camera: 'اسمح للتطبيق باستخدام الكاميرا من الإعدادات ← SALFORD POS ← الكاميرا.',
-  library: 'اسمح للتطبيق بالوصول إلى الصور من الإعدادات ← SALFORD POS ← الصور.',
 };
 
 /**
@@ -41,11 +40,12 @@ export async function pickPhoto(
   source: PhotoSource,
   name: string,
 ): Promise<PickResult> {
-  const permission =
-    source === 'camera'
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) return { status: 'denied', message: DENIED[source] };
+  // Only the camera asks. The library opens Apple's photo picker, which runs outside the app
+  // and needs no access to the library: only the chosen photo comes back.
+  if (source === 'camera') {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) return { status: 'denied', message: DENIED.camera };
+  }
 
   const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 1 };
   const result =
