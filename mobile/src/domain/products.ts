@@ -2,8 +2,9 @@ import { latinDigits } from '@/lib/digits';
 import { usdToLyd } from '@/lib/money';
 
 import { ensureBrand } from './brands';
-import { allow, clean, nowStamp, RuleError, type Ctx } from './context';
+import { allow, clean, nowStamp, RuleError, type Ctx, who } from './context';
 import { getRate } from './settings';
+import { logAction } from './activity';
 
 export type Product = {
   id: number;
@@ -178,10 +179,14 @@ function recordMove(
 ) {
   if (delta === 0) return;
   ctx.db.run(
-    'INSERT INTO stock_moves (product_id, delta, kind, reason, ref_id, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-    [productId, delta, kind, reason, refId, nowStamp(ctx)],
+    'INSERT INTO stock_moves (product_id, delta, kind, reason, ref_id, created_at, by, by_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [productId, delta, kind, reason, refId, nowStamp(ctx), ...who(ctx)],
   );
 }
+
+/** "Ring" or "Scarf (M)", for the log. */
+const label = (name: string, size: string | null | undefined) =>
+  size ? `${name.trim()} (${size})` : name.trim();
 
 /** Creates or updates a product. Returns its id. Refuses a code already used by another piece. */
 export function saveProduct(ctx: Ctx, input: ProductInput): number {
@@ -236,6 +241,11 @@ export function saveProduct(ctx: Ctx, input: ProductInput): number {
         ],
       );
       recordMove(ctx, input.id, input.stock - old.stock, 'adjust', 'تعديل من نموذج القطعة');
+      logAction(ctx, 'product.edit', `تعديل القطعة «${label(input.name, size)}»`, {
+        productId: input.id,
+        price: input.price,
+        stock: input.stock,
+      });
       return input.id;
     }
 
@@ -263,6 +273,11 @@ export function saveProduct(ctx: Ctx, input: ProductInput): number {
       ],
     ).lastInsertRowId;
     recordMove(ctx, id, input.stock, 'initial', null);
+    logAction(ctx, 'product.add', `قطعة جديدة «${label(input.name, size)}»`, {
+      productId: id,
+      price: input.price,
+      stock: input.stock,
+    });
     return id;
   });
 }
@@ -282,6 +297,12 @@ export function adjustStock(ctx: Ctx, productId: number, delta: number, reason: 
       productId,
     ]);
     recordMove(ctx, productId, delta, 'adjust', clean(reason));
+    logAction(
+      ctx,
+      'stock.adjust',
+      `مخزون «${label(p.name, p.size)}» ${delta > 0 ? '+' : '−'}${Math.abs(delta)}: ${clean(reason)}`,
+      { productId, delta, reason: clean(reason) },
+    );
   });
 }
 
@@ -349,23 +370,36 @@ export function productUsage(ctx: Ctx, id: number): { sales: number; sets: numbe
 export function deleteProduct(ctx: Ctx, id: number): 'deleted' | 'archived' {
   allow(ctx, 'products.edit');
   return ctx.db.transaction(() => {
-    requireProduct(ctx, id);
+    const p = requireProduct(ctx, id);
     if (hasHistory(ctx, id)) {
       ctx.db.run('UPDATE products SET archived = 1, updated_at = ? WHERE id = ?', [
         nowStamp(ctx),
         id,
       ]);
       ctx.db.run('DELETE FROM set_items WHERE product_id = ?', [id]);
+      logAction(ctx, 'product.archive', `أرشفة القطعة «${label(p.name, p.size)}»`, {
+        productId: id,
+      });
       return 'archived';
     }
     ctx.db.run('DELETE FROM products WHERE id = ?', [id]);
+    logAction(ctx, 'product.delete', `حذف القطعة «${label(p.name, p.size)}»`, { productId: id });
     return 'deleted';
   });
 }
 
 export function restoreProduct(ctx: Ctx, id: number) {
   allow(ctx, 'products.edit');
-  ctx.db.run('UPDATE products SET archived = 0, updated_at = ? WHERE id = ?', [nowStamp(ctx), id]);
+  ctx.db.transaction(() => {
+    const p = requireProduct(ctx, id);
+    ctx.db.run('UPDATE products SET archived = 0, updated_at = ? WHERE id = ?', [
+      nowStamp(ctx),
+      id,
+    ]);
+    logAction(ctx, 'product.restore', `استعادة القطعة «${label(p.name, p.size)}»`, {
+      productId: id,
+    });
+  });
 }
 
 export type ProductQuery = {

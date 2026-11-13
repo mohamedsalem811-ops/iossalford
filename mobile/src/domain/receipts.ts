@@ -13,6 +13,7 @@ import {
 } from './context';
 import { getSetting, setSetting } from './settings';
 import { actorKey, actorName } from '@/staff/model';
+import { logAction } from './activity';
 
 /**
  * The five receipt designs; each system offers its own. "swarovski" is SALFORD's own receipt for
@@ -157,7 +158,13 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
       ],
     ).lastInsertRowId;
     writeItems(ctx, id, items);
-    return getReceipt(ctx, id)!;
+    const r = getReceipt(ctx, id)!;
+    // A sale's receipt is part of the sale's own line.
+    if (!input.saleId)
+      logAction(ctx, 'receipt.create', `إيصال ${r.receiptNo} لـ «${r.customer}»`, {
+        receiptId: id,
+      });
+    return r;
   });
 }
 
@@ -182,6 +189,7 @@ export function updateReceipt(ctx: Ctx, id: number, input: Omit<IssueInput, 'sal
       ],
     );
     writeItems(ctx, id, items);
+    logAction(ctx, 'receipt.edit', `تعديل الإيصال ${old.receiptNo}`, { receiptId: id });
     return getReceipt(ctx, id)!;
   });
 }
@@ -331,5 +339,10 @@ export function receiptMonths(ctx: Ctx): string[] {
 /** Deletes a receipt. Its number is not given out again. */
 export function deleteReceipt(ctx: Ctx, id: number) {
   allow(ctx, 'receipts.delete');
-  ctx.db.run('DELETE FROM receipts WHERE id = ?', [id]);
+  ctx.db.transaction(() => {
+    const r = getReceipt(ctx, id);
+    if (!r) return;
+    ctx.db.run('DELETE FROM receipts WHERE id = ?', [id]);
+    logAction(ctx, 'receipt.delete', `حذف الإيصال ${r.receiptNo}`, { receiptId: id });
+  });
 }

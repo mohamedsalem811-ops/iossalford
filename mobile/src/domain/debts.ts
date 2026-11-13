@@ -1,7 +1,8 @@
-import { formatDinars } from '@/lib/money';
+import { formatDinars, formatLyd } from '@/lib/money';
 
-import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx } from './context';
+import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx, who } from './context';
 import { getCustomer, type Customer } from './customers';
+import { logAction } from './activity';
 
 /**
  * What a customer still owes: their credit (آجل) sales, minus refunds on returns of those sales,
@@ -87,15 +88,42 @@ export function recordPayment(
     throw new RuleError(
       `المبلغ أكبر من المستحق على الزبون (${formatDinars(Math.max(0, owed))} د.ل)`,
     );
-  return ctx.db.run(
-    'INSERT INTO payments (customer_id, amount, method, note, created_at, month) VALUES (?, ?, ?, ?, ?, ?)',
-    [input.customerId, input.amount, input.method, clean(input.note), nowStamp(ctx), nowMonth(ctx)],
-  ).lastInsertRowId;
+  return ctx.db.transaction(() => {
+    const id = ctx.db.run(
+      'INSERT INTO payments (customer_id, amount, method, note, created_at, month, by, by_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        input.customerId,
+        input.amount,
+        input.method,
+        clean(input.note),
+        nowStamp(ctx),
+        nowMonth(ctx),
+        ...who(ctx),
+      ],
+    ).lastInsertRowId;
+    logAction(
+      ctx,
+      'payment.add',
+      `دفعة ${formatLyd(input.amount)} من «${getCustomer(ctx, input.customerId)?.name}»`,
+      { paymentId: id, customerId: input.customerId, amount: input.amount },
+    );
+    return id;
+  });
 }
 
 export function deletePayment(ctx: Ctx, id: number) {
   allow(ctx, 'payments.delete');
-  ctx.db.run('DELETE FROM payments WHERE id = ?', [id]);
+  ctx.db.transaction(() => {
+    const p = ctx.db.get<{ amount: number; name: string | null }>(
+      'SELECT p.amount, c.name FROM payments p LEFT JOIN customers c ON c.id = p.customer_id WHERE p.id = ?',
+      [id],
+    );
+    if (!p) return;
+    ctx.db.run('DELETE FROM payments WHERE id = ?', [id]);
+    logAction(ctx, 'payment.delete', `حذف دفعة ${formatLyd(p.amount)} من «${p.name ?? '—'}»`, {
+      paymentId: id,
+    });
+  });
 }
 
 export function payments(ctx: Ctx, customerId: number): Payment[] {
@@ -139,6 +167,7 @@ export function deleteCustomer(ctx: Ctx, id: number) {
     );
     if (credit) throw new RuleError(`لا يمكن حذف «${c.name}»: له تعاملات آجلة مسجلة`);
     ctx.db.run('DELETE FROM customers WHERE id = ?', [id]);
+    logAction(ctx, 'customer.delete', `حذف الزبون «${c.name}»`, { customerId: id });
   });
 }
 

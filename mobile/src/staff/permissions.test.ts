@@ -309,6 +309,17 @@ describe.each(Object.entries(MATRIX))('%s', (name, { permission, run }) => {
   });
 });
 
+/** Log events that name their person, called from the sign-in and alert screens. */
+const EVENTS = [
+  'recordSignIn',
+  'recordWrongPin',
+  'recordEmergency',
+  'recordStaff',
+  'recordClockBack',
+  'recordClockAccepted',
+  'recordLogBroken',
+];
+
 describe('every action has a check', () => {
   const scanned = scanActions();
   /**
@@ -331,7 +342,19 @@ describe('every action has a check', () => {
     'restoreSnapshot',
     'saveBackup',
     'saveUpgradeCopy',
+    // The log itself: called inside every checked action (see below), or for events that name
+    // their person (a sign-in, a wrong PIN) from the sign-in screens.
+    'logAs',
+    'logAction',
+    ...EVENTS,
   ];
+
+  it('writes a log line in every checked action', () => {
+    const silent = scanned
+      .filter((f) => f.exported && f.allowed && !f.calls.has('logAction'))
+      .map((f) => `${f.file}: ${f.name}`);
+    expect(silent).toEqual([]);
+  });
 
   it('refuses an exported action that changes data without a permission check', () => {
     const missing = scanned
@@ -358,7 +381,7 @@ describe('every action has a check', () => {
 
   it('never calls an unchecked step from a screen', () => {
     const bad = screenFilesCalling(
-      INTERNAL_STEPS.filter((n) => !['saveBackup', 'saveUpgradeCopy'].includes(n)),
+      INTERNAL_STEPS.filter((n) => !['saveBackup', 'saveUpgradeCopy', ...EVENTS].includes(n)),
     );
     expect(bad).toEqual([]);
   });

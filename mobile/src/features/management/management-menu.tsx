@@ -1,10 +1,15 @@
 import { router, useFocusEffect, type Href } from 'expo-router';
 import { useUpdates } from 'expo-updates';
 import { useCallback, useState } from 'react';
+import { Alert } from 'react-native';
 
 import { copyReminder } from '@/backup/model';
 import { firstBackup, lastCopied, saveBackup } from '@/backup/store';
 import { logError } from '@/lib/error-log';
+import { haptic } from '@/lib/haptics';
+import { showError } from '@/features/products/actions';
+import { clockMessage } from '@/staff/clock';
+import { acceptDeviceTime, clockGuard, useClockChanges, useLogAlerts } from '@/staff/guards';
 import { ManagementScreen, type ManageTarget } from '@/screens/management';
 import { useLock } from '@/state/lock';
 import { actorName, type Actor } from '@/staff/model';
@@ -31,6 +36,7 @@ export const SECTION_NEEDS: Record<ManageTarget, Permission | null> = {
   archived: 'products.edit',
   backup: 'backup.manage',
   staff: 'staff.manage',
+  log: 'log.view',
   settings: null,
 };
 
@@ -55,6 +61,7 @@ export const SECTION_ROUTE: Record<ManageTarget, string> = {
   archived: 'archived',
   backup: 'backup',
   staff: 'staff',
+  log: 'log',
   settings: 'settings',
 };
 
@@ -95,7 +102,31 @@ export function ManagementMenu({
       logError('نسخة عند القفل أو التبديل', error);
     }
   };
+  useClockChanges();
+  const latest = clockGuard.latest();
+  const clock = latest && clockGuard.behind(ctx.now()) ? clockMessage(latest) : null;
   useFocusEffect(useCallback(() => setReminder(read()), [read]));
+  const logBroken = useLogAlerts((s) => (s.broken[system]?.length ?? 0) > 0);
+  const acceptClock = () =>
+    Alert.alert(
+      'قبول وقت الجهاز؟',
+      'تأكد أن التاريخ والوقت في الجهاز صحيحان. يُسجَّل القبول في سجل النشاط.',
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'الوقت صحيح',
+          onPress: () => {
+            try {
+              acceptDeviceTime(ctx);
+            } catch (error) {
+              showError(error);
+              return;
+            }
+            haptic.success();
+          },
+        },
+      ],
+    );
   const updateReady = useUpdates().isUpdatePending;
   return (
     <ManagementScreen
@@ -104,6 +135,9 @@ export function ManagementMenu({
       selected={selected}
       onOpen={onOpen}
       hidden={hiddenSections(actor)}
+      clockBehind={clock}
+      onAcceptClock={can(actor, 'settings.edit') ? acceptClock : undefined}
+      logBroken={logBroken && can(actor, 'log.view')}
       person={staff.employees.length && actor ? actorName(actor) : undefined}
       onSwitch={() => {
         backupNow();

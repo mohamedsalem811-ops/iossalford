@@ -1,5 +1,5 @@
 import { latinDigits } from '@/lib/digits';
-import { divRound, formatDinars } from '@/lib/money';
+import { divRound, formatDinars, formatLyd } from '@/lib/money';
 
 import type { PaymentMethod } from './checkout';
 import {
@@ -12,8 +12,10 @@ import {
   visibleTo,
   type Ctx,
   type Page,
+  who,
 } from './context';
 import { getProduct, moveStock } from './products';
+import { logAction } from './activity';
 
 export type SaleLine = {
   id: number;
@@ -257,6 +259,11 @@ export function deleteSale(ctx: Ctx, saleId: number) {
         moveStock(ctx, line.productId, back, 'sale_deleted', line.id);
     }
     ctx.db.run('DELETE FROM sales WHERE id = ?', [saleId]);
+    logAction(ctx, 'sale.delete', `حذف البيعة رقم ${saleId} (${formatLyd(sale.total)})`, {
+      saleId,
+      total: sale.total,
+      seller: sale.sellerName,
+    });
   });
 }
 
@@ -338,8 +345,8 @@ export function addReturn(
     if (refund > max)
       throw new RuleError(`لا يمكن أن يتجاوز الاسترداد ما دفعه الزبون (${formatDinars(max)} د.ل)`);
     const id = ctx.db.run(
-      `INSERT INTO returns (sale_line_id, product_id, name, quantity, refund, cost, reason, created_at, month)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO returns (sale_line_id, product_id, name, quantity, refund, cost, reason, created_at, month, by, by_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         line.id,
         line.productId,
@@ -350,10 +357,17 @@ export function addReturn(
         clean(input.reason),
         nowStamp(ctx),
         nowMonth(ctx),
+        ...who(ctx),
       ],
     ).lastInsertRowId;
     if (getProduct(ctx, line.productId))
       moveStock(ctx, line.productId, input.quantity, 'return', id);
+    logAction(
+      ctx,
+      'return.create',
+      `مرتجع ${input.quantity} × ${line.name} من البيعة رقم ${line.saleId}، استرداد ${formatLyd(refund)}`,
+      { returnId: id, saleId: line.saleId, quantity: input.quantity, refund },
+    );
     return id;
   });
 }
@@ -372,8 +386,8 @@ export function addReturnWithoutSale(
     const p = getProduct(ctx, input.productId);
     if (!p) throw new RuleError('القطعة غير موجودة في المخزون');
     const id = ctx.db.run(
-      `INSERT INTO returns (sale_line_id, product_id, name, quantity, refund, cost, reason, created_at, month)
-       VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO returns (sale_line_id, product_id, name, quantity, refund, cost, reason, created_at, month, by, by_name)
+       VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         p.id,
         p.name,
@@ -383,9 +397,16 @@ export function addReturnWithoutSale(
         clean(input.reason) ?? 'مرتجع بدون فاتورة',
         nowStamp(ctx),
         nowMonth(ctx),
+        ...who(ctx),
       ],
     ).lastInsertRowId;
     moveStock(ctx, p.id, input.quantity, 'return', id);
+    logAction(
+      ctx,
+      'return.create',
+      `مرتجع بدون فاتورة ${input.quantity} × ${p.name}، استرداد ${formatLyd(input.refund)}`,
+      { returnId: id, quantity: input.quantity, refund: input.refund },
+    );
     return id;
   });
 }
@@ -405,6 +426,7 @@ export function deleteReturn(ctx: Ctx, returnId: number) {
       );
     }
     ctx.db.run('DELETE FROM returns WHERE id = ?', [returnId]);
+    logAction(ctx, 'return.delete', `إلغاء مرتجع ${r.quantity} × ${r.name}`, { returnId });
   });
 }
 

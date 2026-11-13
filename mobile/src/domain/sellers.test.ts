@@ -6,17 +6,26 @@
  * still restore, their sales becoming the owner's.
  */
 import { migrate, schemaVersion } from '@/db/migrate';
-import { migrations } from '@/db/schema';
+import { LATEST_VERSION, migrations } from '@/db/schema';
 import { openFileDb, openMemoryDb } from '@/db/testing/node-db';
 import { tempDir, type TempDir } from '@/db/testing/temp-files';
 import type { Db } from '@/db/types';
 import { restoreSnapshot, writeSnapshot } from '@/backup/engine';
 import { OWNER, type Actor } from '@/staff/model';
 
-import { exportBackup, restoreBackup } from './backup';
+import {
+  BACKUP_FORMAT,
+  BACKUP_VERSION,
+  checksumOf,
+  restoreBackup,
+  TABLES,
+  type Backup,
+} from './backup';
 import { addToCart, type CartLine } from './cart';
 import { checkout } from './checkout';
-import type { Ctx } from './context';
+import { PermissionError, type Ctx } from './context';
+import { breakdown } from './reports';
+import { monthKey } from '@/lib/dates';
 import { displayName, getProduct, saveProduct } from './products';
 import {
   countReceipts,
@@ -54,6 +63,21 @@ describe('the seller of a sale', () => {
     ctx.setActor(OWNER);
     expect(getSale(ctx, mine)).toMatchObject({ seller: 'owner', sellerName: 'المالك' });
     expect(getSale(ctx, hers)).toMatchObject({ seller: 'emp-e1', sellerName: 'سارة' });
+  });
+
+  it('gives the month summary per seller, the owner included', () => {
+    sell(ctx, ring);
+    ctx.setActor(EMPLOYEE);
+    sell(ctx, ring);
+    sell(ctx, ring);
+    ctx.setActor(OWNER);
+    const rows = breakdown(ctx, [monthKey(ctx.now())], 'seller');
+    expect(rows.map((r) => [r.key, r.total, r.quantity])).toEqual([
+      ['سارة', 2_000, 2],
+      ['المالك', 1_000, 1],
+    ]);
+    ctx.setActor(EMPLOYEE);
+    expect(() => breakdown(ctx, [monthKey(ctx.now())], 'seller')).toThrow(PermissionError);
   });
 
   it('lets an employee see only their own sales, and the owner every sale', () => {
@@ -146,7 +170,7 @@ describe('data from before staff', () => {
     schemaOne(db);
     expect(schemaVersion(db)).toBe(1);
     migrate(db);
-    expect(schemaVersion(db)).toBe(2);
+    expect(schemaVersion(db)).toBe(LATEST_VERSION);
     expect(getSale(ctxOn(db), 1)).toMatchObject({ seller: 'owner', sellerName: 'المالك' });
     expect(listSales(ctxOn(db, EMPLOYEE))).toEqual([]);
     db.close();
@@ -171,8 +195,20 @@ describe('data from before staff', () => {
   it('restores a Phase 7 (.json) backup made at schema 1', () => {
     const old = openMemoryDb();
     schemaOne(old);
-    // Its rows have no seller columns, as a file saved by the older app.
-    const backup = exportBackup(ctxOn(old));
+    // Made as the older app made it: schema 1 tables only, rows without the newer columns.
+    const tables = Object.fromEntries(
+      TABLES.filter((t) => t !== 'activity').map((t) => [t, old.all(`SELECT * FROM ${t}`)]),
+    ) as Backup['tables'];
+    const body = { system: 'jewelry' as const, schema: 1, sequences: {}, tables };
+    const backup: Backup = {
+      format: BACKUP_FORMAT,
+      version: BACKUP_VERSION,
+      exportedAt: '2026-10-01T11:00:00',
+      ...body,
+      checksum: checksumOf(
+        JSON.stringify({ system: body.system, schema: 1, sequences: {}, tables }),
+      ),
+    };
     expect(Object.keys(backup.tables.sales[0])).not.toContain('seller');
     old.close();
 

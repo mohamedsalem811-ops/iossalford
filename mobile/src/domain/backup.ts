@@ -3,6 +3,7 @@ import type { Db, SqlValue } from '@/db/types';
 import type { SystemId } from '@/theme';
 
 import { allow, nowStamp, RuleError, type Ctx } from './context';
+import { logAction } from './activity';
 
 /**
  * A backup is one JSON file holding every table of one system. It carries a format name, its own
@@ -30,6 +31,7 @@ export const TABLES = [
   'receipts',
   'receipt_items',
   'closings',
+  'activity',
 ] as const;
 
 type Row = Record<string, SqlValue>;
@@ -206,6 +208,9 @@ export function restoreBackup(ctx: Ctx, data: unknown): { safetyCopy: Backup } {
         ctx.db.run('INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)', [name, seq]);
     }
     keepUsedNumbers(ctx.db, used);
+    logAction(ctx, 'backup.restore', `استرجاع نسخة احتياطية من ${b.exportedAt.replace('T', ' ')}`, {
+      madeAt: b.exportedAt,
+    });
   });
   return { safetyCopy };
 }

@@ -3,6 +3,7 @@ import { formatDinars } from '@/lib/money';
 import { inCart, type CartLine, type SetForCart } from './cart';
 import { allow, clean, nowStamp, RuleError, type Ctx } from './context';
 import { displayName, getProduct } from './products';
+import { logAction } from './activity';
 
 export type SetItem = { productId: number; quantity: number };
 export type ProductSet = {
@@ -119,11 +120,25 @@ export function saveSet(ctx: Ctx, input: SetInput): number {
         i.quantity,
       ]);
     }
+    logAction(
+      ctx,
+      input.id ? 'set.edit' : 'set.add',
+      `${input.id ? 'تعديل' : 'طقم جديد'} «${name}»`,
+      {
+        setId: id,
+        discount: input.discount,
+      },
+    );
     return id;
   });
 }
 
 export function deleteSet(ctx: Ctx, id: number) {
   allow(ctx, 'sets.edit');
-  ctx.db.run('DELETE FROM sets WHERE id = ?', [id]);
+  ctx.db.transaction(() => {
+    const set = getSet(ctx, id);
+    if (!set) return;
+    ctx.db.run('DELETE FROM sets WHERE id = ?', [id]);
+    logAction(ctx, 'set.delete', `حذف الطقم «${set.name}»`, { setId: id });
+  });
 }

@@ -2,7 +2,7 @@ import type { SymbolViewProps } from 'expo-symbols';
 
 import { Pressable } from 'react-native';
 
-import { Card, ListGroup, ListRow, Screen, Text } from '@/components';
+import { Button, Card, ListGroup, ListRow, Screen, Text } from '@/components';
 import { spacing } from '@/theme';
 
 /** The management screens, each opened by its route (see the More tab). */
@@ -19,6 +19,7 @@ export type ManageTarget =
   | 'archived'
   | 'backup'
   | 'staff'
+  | 'log'
   | 'settings';
 
 type Row = { target: ManageTarget; icon: SymbolViewProps['name']; title: string };
@@ -60,6 +61,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
     rows: [
       { target: 'backup', icon: 'externaldrive', title: 'النسخ الاحتياطي' },
       { target: 'staff', icon: 'person.2.badge.gearshape', title: 'الموظفون' },
+      { target: 'log', icon: 'list.bullet.clipboard', title: 'سجل النشاط' },
       { target: 'settings', icon: 'gearshape', title: 'الإعدادات' },
     ],
   },
@@ -76,6 +78,9 @@ export function ManagementScreen({
   selected,
   hidden = [],
   person,
+  clockBehind,
+  onAcceptClock,
+  logBroken = false,
 }: {
   onOpen: (target: ManageTarget) => void;
   onSwitch: () => void;
@@ -92,10 +97,49 @@ export function ManagementScreen({
   hidden?: ManageTarget[];
   /** Who is signed in, when the shop has employees ("المالك", a name). */
   person?: string;
+  /** The device clock went back (phase S3): why changes are refused. */
+  clockBehind?: string | null;
+  /** The owner accepts the device's time (absent: not the owner). */
+  onAcceptClock?: () => void;
+  /** The activity log was changed outside the app: a banner that opens it. */
+  logBroken?: boolean;
 }) {
   return (
     <Screen tabBar contentStyle={{ gap: spacing.lg }}>
       <Text variant="largeTitle">الإدارة</Text>
+      {clockBehind ? (
+        <Card testID="manage-clock-behind">
+          <Text variant="bodyStrong" tone="warning">
+            ساعة الجهاز رجعت للخلف
+          </Text>
+          <Text variant="caption" tone="secondary">
+            {clockBehind}
+          </Text>
+          {onAcceptClock ? (
+            <Button
+              title="قبول وقت الجهاز"
+              variant="secondary"
+              onPress={onAcceptClock}
+              testID="manage-accept-clock"
+            />
+          ) : null}
+        </Card>
+      ) : null}
+      {logBroken ? (
+        <Pressable
+          onPress={() => onOpen('log')}
+          accessibilityRole="button"
+          testID="manage-log-broken">
+          <Card>
+            <Text variant="bodyStrong" tone="warning">
+              تغيّر سجل النشاط خارج التطبيق
+            </Text>
+            <Text variant="caption" tone="accent">
+              فتح سجل النشاط
+            </Text>
+          </Card>
+        </Pressable>
+      ) : null}
       {reminder ? (
         <Pressable
           onPress={() => onOpen('backup')}

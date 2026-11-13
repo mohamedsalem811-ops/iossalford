@@ -94,6 +94,8 @@ export type DashboardData = {
   /** Scarves: sales and stock per size. */
   bySize: (RankedRow & { stock: number })[];
   top: RankedRow[];
+  /** Sales per person (the owner, each employee). */
+  bySeller: RankedRow[];
   latest: Sale[];
   stock: ReturnType<typeof stockSummary>;
 };
@@ -141,6 +143,7 @@ export function readDashboard(
           }))
         : [],
     top: ranked(topProducts(ctx, [month], 5), 5),
+    bySeller: ranked(breakdown(ctx, [month], 'seller')),
     latest: listSales(ctx, {}, { limit: 5 }),
     stock,
   };

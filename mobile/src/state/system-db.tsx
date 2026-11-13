@@ -9,6 +9,9 @@ import { scheduleDataChanged } from '@/state/data-events';
 import { getActor } from '@/state/session';
 import type { Actor } from '@/staff/model';
 import { getStaff } from '@/staff/store';
+import { clockChanged, clockGuard, stampDevice } from '@/staff/guards';
+import { recordClockBack } from '@/domain/activity';
+import { logError } from '@/lib/error-log';
 
 /** Each system's database is opened once per app run and kept open. Errors are not kept. */
 const opened = new Map<SystemId, OpenResult>();
@@ -19,7 +22,16 @@ function open(system: SystemId): OpenResult {
   // Before an app update upgrades the database, a copy of the data as it was is saved.
   const result = openSystemDb(system, undefined, (db) => saveUpgradeCopy(system, db));
   // Only an open database is kept; after an error the next visit (or Retry) tries again.
-  if (result.status === 'ok') opened.set(system, result);
+  if (result.status === 'ok') {
+    // New records carry this device's id (for syncing the two devices later).
+    // Never stops the system from opening (records then carry no device id).
+    try {
+      stampDevice(result.db);
+    } catch (error) {
+      logError('رقم الجهاز', error);
+    }
+    opened.set(system, result);
+  }
   return result;
 }
 
@@ -53,8 +65,8 @@ export function CtxProvider({
   children: ReactNode;
 }) {
   // Every change to the data refreshes the open screens (see data-events).
-  const value = useMemo<Ctx>(
-    () => ({
+  const value = useMemo<Ctx>(() => {
+    const ctx: Ctx = {
       db: withChangeSignal(db, scheduleDataChanged),
       system,
       now: () => new Date(),
@@ -63,9 +75,23 @@ export function CtxProvider({
       get actor() {
         return signedIn();
       },
-    }),
-    [db, system],
-  );
+      // Every action that changes data is refused while the device clock is behind.
+      clock: {
+        check: (now) => {
+          clockGuard.onBack = (latest, at) => {
+            clockChanged();
+            try {
+              recordClockBack(ctx, latest, at);
+            } catch (error) {
+              logError('سجل النشاط: الساعة', error);
+            }
+          };
+          return clockGuard.check(now);
+        },
+      },
+    };
+    return ctx;
+  }, [db, system]);
   return <CtxContext.Provider value={value}>{children}</CtxContext.Provider>;
 }
 

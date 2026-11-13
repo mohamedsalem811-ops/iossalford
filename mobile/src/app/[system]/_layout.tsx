@@ -5,7 +5,12 @@ import { AutoBackup } from '@/backup/auto-backup';
 import { KeyboardBar } from '@/components/keyboard-bar';
 import { DbErrorScreen } from '@/screens/db-error';
 import { SignInScreen, type SignInDeps } from '@/screens/sign-in';
-import { activeEmployees, setMustChangePin, type Actor } from '@/staff/model';
+import { activeEmployees, OWNER, setMustChangePin, type Actor } from '@/staff/model';
+import { whenOpen } from '@/staff/guards';
+import { LogGuard } from '@/staff/log-guard';
+import { recordEmergency, recordSignIn, recordWrongPin } from '@/domain/activity';
+import type { Ctx } from '@/domain/context';
+import type { PinAccount } from '@/security/pin';
 import { IdleLock } from '@/staff/idle-lock';
 import { getStaff, saveStaff, useStaff } from '@/staff/store';
 import { askFaceId, faceIdStatus, pinVault, rememberSystem } from '@/security/device';
@@ -14,8 +19,29 @@ import { CtxProvider, useCtx, useSystemDb } from '@/state/system-db';
 import { fonts, ThemeProvider, useTheme, type SystemId } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
 
-const signInDeps: SignInDeps = {
-  verify: (account, pin) => pinVault.verify(account, pin),
+/** Who a PIN account belongs to (for the log line of a wrong PIN). */
+function actorOf(account: PinAccount): Actor {
+  if (!account.startsWith('user.')) return OWNER;
+  const id = account.slice('user.'.length);
+  const e = getStaff().employees.find((x) => x.id === id);
+  return { kind: 'employee', id, name: e?.name ?? 'موظف' };
+}
+
+/**
+ * The PIN checks of one system. Wrong PINs and the emergency code happen before its database is
+ * open: their log lines wait and are written when it opens (phase S3).
+ */
+const depsOf = (system: SystemId): SignInDeps => ({
+  verify: async (account, pin) => {
+    const r = await pinVault.verify(account, pin);
+    // An attempt while locked is refused unchecked: not a wrong PIN.
+    if (!r.ok && !('locked' in r)) {
+      const who = actorOf(account);
+      const lockedFor = r.lockedUntil ? r.lockedUntil - Date.now() : undefined;
+      whenOpen<Ctx>(system, (ctx) => recordWrongPin(ctx, who, lockedFor));
+    }
+    return r;
+  },
   lockedUntil: (account) => pinVault.lockedUntil(account),
   clearFailures: (account) => pinVault.clearFailures(account),
   faceIdStatus,
@@ -23,9 +49,14 @@ const signInDeps: SignInDeps = {
   hasPin: (account) => pinVault.hasPin(account),
   setPin: (account, pin) => pinVault.setPin(account, pin),
   hasEmergencyCode: () => pinVault.hasEmergencyCode(),
-  checkEmergencyCode: (code) => pinVault.checkEmergencyCode(code),
+  checkEmergencyCode: async (code) => {
+    const r = await pinVault.checkEmergencyCode(code);
+    if (r.ok) whenOpen<Ctx>(system, (ctx) => recordEmergency(ctx));
+    return r;
+  },
   pinChanged: (id) => saveStaff(setMustChangePin(getStaff(), id, false)),
-};
+});
+const signInDeps = { jewelry: depsOf('jewelry'), scarves: depsOf('scarves') };
 
 const toChooser = () => router.replace('/');
 
@@ -52,6 +83,7 @@ function SystemGate({ system }: { system: SystemId }) {
   const onUnlock = useCallback(
     (who: Actor) => {
       rememberSystem(system);
+      whenOpen<Ctx>(system, (ctx) => recordSignIn(ctx, who));
       unlock(system, who);
     },
     [system, unlock],
@@ -62,7 +94,7 @@ function SystemGate({ system }: { system: SystemId }) {
       <SignInScreen
         system={system}
         employees={activeEmployees(staff)}
-        deps={signInDeps}
+        deps={signInDeps[system]}
         onUnlock={onUnlock}
         onBack={toChooser}
         active={active}
@@ -81,6 +113,7 @@ function SystemDb({ system }: { system: SystemId }) {
   return (
     <CtxProvider db={result.db} system={system}>
       <AutoBackupOfOpenSystem />
+      <LogGuardOfOpenSystem />
       <IdleLockOfSession>
         <SystemStack />
       </IdleLockOfSession>
@@ -98,6 +131,11 @@ function IdleLockOfSession({ children }: { children: ReactNode }) {
       {children}
     </IdleLock>
   );
+}
+
+/** The activity log's waiting lines and its check (phase S3). */
+function LogGuardOfOpenSystem() {
+  return <LogGuard ctx={useCtx()} />;
 }
 
 /** A backup of the open system each time the app goes to the background. */

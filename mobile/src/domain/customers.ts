@@ -1,6 +1,7 @@
 import { latinDigits, sanitize } from '@/lib/digits';
 
 import { allow, clean, nowStamp, RuleError, type Ctx } from './context';
+import { logAction } from './activity';
 
 export type Customer = {
   id: number;
@@ -109,17 +110,22 @@ export function saveCustomer(ctx: Ctx, input: CustomerInput): number {
     if (other && other.id !== input.id)
       throw new RuleError(`رقم الهاتف مسجل مسبقاً للزبون «${other.name}»`);
   }
-  if (input.id) {
-    ctx.db.run(
-      'UPDATE customers SET name = ?, phone = ?, phone_key = ?, area = ?, notes = ? WHERE id = ?',
-      [name, phone, key, clean(input.area), clean(input.notes), input.id],
-    );
-    return input.id;
-  }
-  return ctx.db.run(
-    'INSERT INTO customers (name, phone, phone_key, area, notes, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-    [name, phone, key, clean(input.area), clean(input.notes), nowStamp(ctx)],
-  ).lastInsertRowId;
+  return ctx.db.transaction(() => {
+    if (input.id) {
+      ctx.db.run(
+        'UPDATE customers SET name = ?, phone = ?, phone_key = ?, area = ?, notes = ? WHERE id = ?',
+        [name, phone, key, clean(input.area), clean(input.notes), input.id],
+      );
+      logAction(ctx, 'customer.edit', `تعديل بيانات الزبون «${name}»`, { customerId: input.id });
+      return input.id;
+    }
+    const id = ctx.db.run(
+      'INSERT INTO customers (name, phone, phone_key, area, notes, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, phone, key, clean(input.area), clean(input.notes), nowStamp(ctx)],
+    ).lastInsertRowId;
+    logAction(ctx, 'customer.add', `زبون جديد «${name}»`, { customerId: id });
+    return id;
+  });
 }
 
 /** Something to identify a customer by: a name or a usable phone number. */

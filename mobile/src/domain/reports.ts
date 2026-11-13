@@ -88,14 +88,25 @@ export function summary(ctx: Ctx, months: string[]): PeriodSummary {
 
 export type BreakdownRow = { key: string; total: number; quantity: number; profit: number };
 
-/** Sales grouped by brand, category (material for scarves), size or payment method. */
+/** Sales grouped by brand, category (material for scarves), size, payment method or seller. */
 export function breakdown(
   ctx: Ctx,
   months: string[],
-  by: 'brand' | 'category' | 'size' | 'payment',
+  by: 'brand' | 'category' | 'size' | 'payment' | 'seller',
 ): BreakdownRow[] {
   allowView(ctx, 'reports.view');
   const m = inList(months);
+  if (by === 'seller') {
+    // A sale with no seller is the owner's (before employees, or by the owner).
+    return ctx.db.all<BreakdownRow>(
+      `SELECT CASE WHEN s.seller IS NULL THEN 'المالك' ELSE max(s.seller_name) END AS key,
+              sum(s.total) AS total,
+              coalesce(sum((SELECT sum(l.quantity) FROM sale_lines l WHERE l.sale_id = s.id)), 0) AS quantity,
+              sum(s.total - s.total_cost) AS profit
+         FROM sales s WHERE s.month IN (${m.sql}) GROUP BY s.seller ORDER BY total DESC`,
+      m.params,
+    );
+  }
   if (by === 'payment') {
     return ctx.db.all<BreakdownRow>(
       `SELECT payment_method AS key, sum(total) AS total,

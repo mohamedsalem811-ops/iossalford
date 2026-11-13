@@ -6,6 +6,7 @@ import { latinDigits } from '@/lib/digits';
 import { allow, clean, RuleError, type Ctx } from './context';
 
 import { deleteProduct, saveProduct, type Product } from './products';
+import { logAction } from './activity';
 
 /** "90×90" before "120×120": by the first number; unknown sizes last. */
 export function sizeSortKey(size: string | null | undefined): number {
@@ -115,6 +116,12 @@ export function saveScarfDesign(ctx: Ctx, input: ScarfDesignInput): string {
         designId,
       });
     }
+    logAction(
+      ctx,
+      input.designId ? 'design.edit' : 'design.add',
+      `${input.designId ? 'تعديل' : 'تصميم جديد'} «${clean(input.name)}» (${rows.length} مقاس)`,
+      { designId },
+    );
     return designId;
   });
 }
@@ -128,6 +135,7 @@ export function deleteScarfDesign(ctx: Ctx, designId: string) {
       [designId],
     );
     for (const { id } of ids) deleteProduct(ctx, id);
+    if (ids.length) logAction(ctx, 'design.delete', `حذف تصميم (${ids.length} مقاس)`, { designId });
   });
 }
 

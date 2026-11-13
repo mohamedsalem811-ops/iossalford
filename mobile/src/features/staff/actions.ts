@@ -23,6 +23,7 @@ import {
   type Employee,
   type LockSettings,
 } from '@/staff/model';
+import { logStaffChange } from '@/staff/guards';
 import { getStaff, saveStaff } from '@/staff/store';
 
 const refuse = (message: string) => {
@@ -64,6 +65,7 @@ export function addEmployeeFlow() {
         askTemporaryPin(name!.trim(), async (pin) => {
           await pinVault.setPin(`user.${id}`, pin);
           saveStaff(addEmployee(getStaff(), name!, id, new Date()));
+          logStaffChange(`موظف جديد: ${name!.trim()}`, { id });
           haptic.success();
         });
       },
@@ -75,6 +77,7 @@ export function resetPinFlow(e: Employee) {
   askTemporaryPin(e.name, async (pin) => {
     await pinVault.setPin(`user.${e.id}`, pin);
     saveStaff(setMustChangePin(getStaff(), e.id, true));
+    logStaffChange(`رمز مؤقت جديد لـ ${e.name}`, { id: e.id });
     haptic.success();
   });
 }
@@ -90,6 +93,7 @@ export function renameFlow(e: Employee) {
         onPress: (name?: string) => {
           try {
             saveStaff(renameEmployee(getStaff(), e.id, name ?? ''));
+            logStaffChange(`تغيير اسم ${e.name} إلى ${(name ?? '').trim()}`, { id: e.id });
             haptic.success();
           } catch (error) {
             refuse(error instanceof Error ? error.message : 'تعذّر الحفظ');
@@ -105,6 +109,7 @@ export function renameFlow(e: Employee) {
 export function toggleActiveFlow(e: Employee) {
   if (!e.active) {
     saveStaff(setActive(getStaff(), e.id, true));
+    logStaffChange(`تفعيل ${e.name}`, { id: e.id });
     haptic.success();
     return;
   }
@@ -118,6 +123,7 @@ export function toggleActiveFlow(e: Employee) {
         style: 'destructive',
         onPress: () => {
           saveStaff(setActive(getStaff(), e.id, false));
+          logStaffChange(`إيقاف ${e.name}`, { id: e.id });
           haptic.success();
         },
       },
@@ -127,6 +133,7 @@ export function toggleActiveFlow(e: Employee) {
 
 export function saveLock(lock: LockSettings) {
   saveStaff({ ...getStaff(), lock });
+  logStaffChange('تغيير إعدادات القفل التلقائي', lock as unknown as Record<string, unknown>);
   haptic.tap();
 }
 
@@ -142,6 +149,7 @@ export function emergencyCodeFlow(hasOne: boolean, onMade: () => void) {
         onPress: async () => {
           try {
             const code = await pinVault.newEmergencyCode();
+            logStaffChange('رمز طوارئ جديد');
             onMade();
             Alert.alert('رمز الطوارئ', `${code}\n\nاكتبه الآن، لن يظهر مرة أخرى.`, [
               { text: 'كتبته' },
@@ -178,6 +186,7 @@ export async function receiveStaffList() {
     const text = await new File(r.assets[0].uri).text();
     const { staff, added } = mergeTransfer(getStaff(), text, new Date());
     saveStaff(staff);
+    if (added) logStaffChange(`استلام قائمة الموظفين: أُضيف ${added}`);
     haptic.success();
     Alert.alert(
       'تم استلام القائمة',

@@ -1,6 +1,6 @@
 # SALFORD POS: Expo rebuild execution plan (version 3)
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phase S1 (accounts, sign-in, auto-lock) is merged; S2 (permissions, what an employee sees) is built (PR open); then S3 to S6, then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 (accounts, sign-in, auto-lock) and S2 (permissions, what an employee sees) are merged; S3 (who did what, the activity log, the clock guard) is built (PR open); then S4 to S6, then Phase 10, switching over.
 
 Every feature of the current app is kept. Items marked **NEW** don't exist in the current app. Unmarked items are the same as the current app, rebuilt with a new design.
 
@@ -478,6 +478,17 @@ Then the dashboard:
 - **S3.5** A unique id and the device id on every new record, for syncing later.
 - **S3.6** Checks and tests (including restoring older backups), a new `.ipa`, owner test.
 
+**How S3 works:**
+
+- schema 3 adds who did it (`by`, `by_name`) to returns, payments, stock changes and expenses, the `activity` table, and a unique id (`uid`) and the device id (`device`) on every main table; database triggers fill both on every new record, and older records get a unique id in the upgrade;
+- every action calls `logAction` in its own transaction, after its changes (both are saved or neither); `src/staff/permissions.test.ts` fails when a checked action writes no line;
+- each line holds the SHA-256 of the line before it plus its own content; `verifyLog` walks the chain a page at a time;
+- the newest line is also kept in the Keychain, so lines removed from the end are found; when the system opens, the log is checked after the first screen, a break is written to the log once, and the owner sees a banner until they mark it seen;
+- sign-ins, wrong PINs and the emergency code happen before the database opens: their lines wait and are written as soon as it does; staff changes go to the open system's log;
+- the clock guard (`src/staff/clock.ts`) keeps the latest time seen in the Keychain; a clock more than 10 minutes behind refuses every change (reading still works), writes a log line and shows the owner a banner with "قبول وقت الجهاز";
+- restoring a backup stamps this device's id again and starts the log check from the restored log;
+- the owner screens: Management → سجل النشاط (by person and by day, a line's details on tap), and "البائع" in the month summary on the home screen (shown once an employee has sold).
+
 **You check:** sell as an employee, then see the sale under their name in the log and in sales per employee; set the device clock back and see it refused and reported.
 
 #### Phase S4: discounts, approvals, returns and the employee's account
@@ -628,4 +639,4 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
 
 - Phase 8 (built, owner to test): instant updates need one new `.ipa` (build 2) before they reach the devices; after installing it, it is recorded with `npm run update:record`. Backups are now copies of the database file (`.db`); `.json` backups from before still restore. A restore keeps sale and receipt numbers from ever repeating, also from an older backup (found while testing 8.0g). The speed test is `npm run speed`: with 2,000 products and 30,000 sales every screen reads in under 25 ms on a computer (Customers and Debts were changed to one query for all balances). The dashboard's daily chart has a temporary switch to Apple's charts so the owner can choose; the other one is removed afterwards. Errors are kept in a log on the device (Settings → سجل الأخطاء).
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phase S1 (accounts, sign-in, auto-lock) is merged; S2 (permissions, what an employee sees) is built (PR open); then S3 to S6, then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 (accounts, sign-in, auto-lock) and S2 (permissions, what an employee sees) are merged; S3 (who did what, the activity log, the clock guard) is built (PR open); then S4 to S6, then Phase 10, switching over.
