@@ -68,12 +68,10 @@ function seed(db: Db, products: number, sales: number) {
     }
     for (let i = 1; i <= 1_500; i++) {
       const phone = `09${String(10_000_000 + i)}`;
-      db.run('INSERT INTO customers (name, phone, phone_key, created_at) VALUES (?, ?, ?, ?)', [
-        `زبون ${i}`,
-        phone,
-        phone,
-        at,
-      ]);
+      db.run(
+        'INSERT INTO customers (name, name_key, phone, phone_key, created_at) VALUES (?, ?, ?, ?, ?)',
+        [`زبون ${i}`, `زبون ${i}`, phone, phone, at],
+      );
     }
     const methods = ['cash', 'cash', 'cash', 'card', 'transfer', 'credit'];
     let receipt = 0;

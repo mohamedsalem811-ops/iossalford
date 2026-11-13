@@ -57,6 +57,7 @@ export function migrate(db: Db, list: Migration[] = migrations): number {
       if (m.version <= current) continue;
       db.transaction(() => {
         db.exec(m.sql);
+        m.after?.(db);
         const broken = db.all('PRAGMA foreign_key_check');
         if (broken.length) throw new UpgradeBrokeLinksError(m.version, broken.length);
         db.exec(`PRAGMA user_version = ${m.version};`);
