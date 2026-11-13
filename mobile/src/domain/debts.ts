@@ -3,6 +3,7 @@ import { formatDinars, formatLyd } from '@/lib/money';
 import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx, who } from './context';
 import { getCustomer, type Customer } from './customers';
 import { logAction } from './activity';
+import { shiftFor } from './shifts';
 
 /**
  * What a customer still owes: their credit (آجل) sales, minus refunds on returns of those sales,
@@ -79,7 +80,7 @@ export function recordPayment(
   ctx: Ctx,
   input: { customerId: number; amount: number; method: string; note?: string },
 ): number {
-  allow(ctx, 'payments.create');
+  const actor = allow(ctx, 'payments.create');
   if (!getCustomer(ctx, input.customerId)) throw new RuleError('الزبون غير موجود');
   if (!Number.isInteger(input.amount) || input.amount <= 0)
     throw new RuleError('يرجى إدخال مبلغ الدفعة');
@@ -89,8 +90,9 @@ export function recordPayment(
       `المبلغ أكبر من المستحق على الزبون (${formatDinars(Math.max(0, owed))} د.ل)`,
     );
   return ctx.db.transaction(() => {
+    const shiftId = shiftFor(ctx, actor);
     const id = ctx.db.run(
-      'INSERT INTO payments (customer_id, amount, method, note, created_at, month, by, by_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO payments (customer_id, amount, method, note, created_at, month, by, by_name, shift_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         input.customerId,
         input.amount,
@@ -99,6 +101,7 @@ export function recordPayment(
         nowStamp(ctx),
         nowMonth(ctx),
         ...who(ctx),
+        shiftId,
       ],
     ).lastInsertRowId;
     logAction(

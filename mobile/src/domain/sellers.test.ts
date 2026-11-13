@@ -197,10 +197,9 @@ describe('data from before staff', () => {
     schemaOne(old);
     // Made as the older app made it: schema 1 tables only, rows without the newer columns.
     const tables = Object.fromEntries(
-      TABLES.filter((t) => t !== 'activity' && t !== 'staff_ledger').map((t) => [
-        t,
-        old.all(`SELECT * FROM ${t}`),
-      ]),
+      TABLES.filter((t) => !['activity', 'staff_ledger', 'shifts', 'cash_moves'].includes(t)).map(
+        (t) => [t, old.all(`SELECT * FROM ${t}`)],
+      ),
     ) as Backup['tables'];
     const body = { system: 'jewelry' as const, schema: 1, sequences: {}, tables };
     const backup: Backup = {

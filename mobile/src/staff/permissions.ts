@@ -30,6 +30,9 @@ export const PERMISSIONS = {
   'expenses.edit': 'المصروفات',
   'closing.edit': 'الإقفال الربعي',
   'settings.edit': 'الإعدادات وسعر الصرف',
+  'shifts.open': 'فتح الوردية',
+  'shifts.close': 'إغلاق الوردية',
+  'cash.move': 'إدخال وإخراج النقد',
   'backup.restore': 'استرجاع نسخة احتياطية',
   // Seeing (checked by the screens).
   'costs.view': 'التكلفة والربح',
@@ -39,6 +42,7 @@ export const PERMISSIONS = {
   'backup.manage': 'النسخ الاحتياطي',
   'staff.manage': 'الموظفون',
   'log.view': 'سجل النشاط',
+  'shifts.view': 'تقارير الورديات',
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -67,6 +71,10 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'expenses.edit': false,
   'closing.edit': false,
   'settings.edit': false,
+  // Each person opens and closes their own shift, with cash moves inside it (S5).
+  'shifts.open': true,
+  'shifts.close': true,
+  'cash.move': true,
   'backup.restore': false,
   'costs.view': false,
   'reports.view': false,
@@ -75,6 +83,7 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'backup.manage': false,
   'staff.manage': false,
   'log.view': false,
+  'shifts.view': false,
 };
 
 /** The permissions that change data: the clock guard applies to these, never to reading. */

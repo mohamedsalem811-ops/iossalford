@@ -9,6 +9,7 @@ import {
   type CartProblem,
 } from './cart';
 import { getPolicies, type Policies } from './policies';
+import { shiftFor } from './shifts';
 import { allow, clean, nowMonth, nowStamp, ownerSays, RuleError, type Ctx } from './context';
 import { ensureCustomer, hasIdentity } from './customers';
 import { displayName, getProduct, moveStock } from './products';
@@ -101,6 +102,7 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       approvedBy = 'owner';
     }
 
+    const shiftId = shiftFor(ctx, seller);
     const customerId = ensureCustomer(ctx, c.name, c.phone, c.area);
     const customerName = clean(c.name);
     const stamp = nowStamp(ctx);
@@ -113,8 +115,8 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
 
     const saleId = ctx.db.run(
       `INSERT INTO sales (created_at, month, payment_method, customer_id, customer_name, note, rate, total, total_cost, seller, seller_name,
-         discount, discount_reason, approved_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         discount, discount_reason, approved_by, shift_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         stamp,
         nowMonth(ctx),
@@ -130,6 +132,7 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
         discount.total,
         discount.total > 0 ? reason : null,
         approvedBy,
+        shiftId,
       ],
     ).lastInsertRowId;
 

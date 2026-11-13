@@ -21,6 +21,8 @@ export const TABLES = [
   'products',
   'stock_moves',
   'customers',
+  'shifts',
+  'cash_moves',
   'sales',
   'sale_lines',
   'returns',

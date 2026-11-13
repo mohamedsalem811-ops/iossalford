@@ -31,6 +31,7 @@ import type { Ctx } from '@/domain/context';
 import { getProduct, saveProduct } from '@/domain/products';
 import { getSale } from '@/domain/sales';
 import { setPolicies } from '@/domain/policies';
+import { openShift } from '@/domain/shifts';
 import * as device from '@/security/device';
 import { putCart } from '@/state/cart';
 import { clockGuard } from '@/staff/guards';
@@ -159,6 +160,7 @@ beforeAll(() => {
     stock: 9,
   });
   ownerSale = sell(OWNER, ring, 2);
+  openShift(ctxAs(SARA), 0);
   herSale = sell(SARA, ring);
 });
 
@@ -315,8 +317,8 @@ describe('as the owner', () => {
       await screen.findByText(`بيعة رقم ${herSale}: 1 قطعة بـ 350 د.ل (كاش)`),
     ).toBeOnTheScreen();
     expect(screen.getByText(`بيعة رقم ${ownerSale}: 2 قطعة بـ 700 د.ل (كاش)`)).toBeOnTheScreen();
-    // Her two sales (one with the owner's approval).
-    expect(screen.getAllByText(/^سارة • /)).toHaveLength(2);
+    // Her shift opening and her two sales (one with the owner's approval).
+    expect(screen.getAllByText(/^سارة • /)).toHaveLength(3);
   });
 
   it('is told when the device clock went back, and can accept the device time', async () => {

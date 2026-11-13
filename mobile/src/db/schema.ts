@@ -421,6 +421,61 @@ CREATE TRIGGER staff_ledger_new_uid AFTER INSERT ON staff_ledger WHEN NEW.uid IS
 END;
 `,
   },
+  {
+    version: 5,
+    name: 'shifts and cash moves',
+    sql: `
+CREATE TABLE shifts (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  person        TEXT NOT NULL,
+  person_name   TEXT NOT NULL,
+  opened_at     TEXT NOT NULL,
+  opening_cash  INTEGER NOT NULL CHECK (opening_cash >= 0),
+  closed_at     TEXT,
+  counted_cash  INTEGER,
+  expected_cash INTEGER,
+  note          TEXT,
+  closed_by     TEXT,
+  closed_by_name TEXT,
+  uid           TEXT,
+  device        TEXT
+);
+CREATE UNIQUE INDEX shifts_one_open ON shifts(person) WHERE closed_at IS NULL;
+CREATE INDEX shifts_opened ON shifts(opened_at);
+CREATE UNIQUE INDEX shifts_uid ON shifts(uid);
+CREATE TRIGGER shifts_new_uid AFTER INSERT ON shifts WHEN NEW.uid IS NULL BEGIN
+  UPDATE shifts SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+CREATE TABLE cash_moves (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  shift_id   INTEGER NOT NULL REFERENCES shifts(id) ON DELETE CASCADE,
+  kind       TEXT NOT NULL CHECK (kind IN ('in', 'out')),
+  amount     INTEGER NOT NULL CHECK (amount > 0),
+  reason     TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  by         TEXT,
+  by_name    TEXT,
+  uid        TEXT,
+  device     TEXT
+);
+CREATE INDEX cash_moves_shift ON cash_moves(shift_id);
+CREATE UNIQUE INDEX cash_moves_uid ON cash_moves(uid);
+CREATE TRIGGER cash_moves_new_uid AFTER INSERT ON cash_moves WHEN NEW.uid IS NULL BEGIN
+  UPDATE cash_moves SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+ALTER TABLE sales ADD COLUMN shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL;
+ALTER TABLE returns ADD COLUMN shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL;
+ALTER TABLE payments ADD COLUMN shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL;
+ALTER TABLE staff_ledger ADD COLUMN shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL;
+CREATE INDEX sales_shift ON sales(shift_id);
+CREATE INDEX returns_shift ON returns(shift_id);
+CREATE INDEX payments_shift ON payments(shift_id);
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

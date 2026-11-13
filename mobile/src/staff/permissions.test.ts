@@ -21,6 +21,7 @@ import {
 } from '@/domain/products';
 import { deleteReceipt, issueReceipt, updateReceipt } from '@/domain/receipts';
 import { exchange } from '@/domain/exchange';
+import { addCashMove, chargeShortage, closeShift, openShift } from '@/domain/shifts';
 import { setPolicies } from '@/domain/policies';
 import { chargeReturn, recordRepayment, waiveCharge } from '@/domain/staff-ledger';
 import { addReturn, addReturnWithoutSale, deleteReturn, deleteSale, getSale } from '@/domain/sales';
@@ -36,6 +37,7 @@ import { screenFilesCalling } from './testing/screen-calls';
 
 /** What the owner made before each action: one of everything an action can work on. */
 type Seed = {
+  shortShift: number;
   charged: number;
   ring: number;
   chain: number;
@@ -106,8 +108,13 @@ function seed(ctx: TestCtx): Seed {
   const brand = addBrand(ctx, 'تيفاني');
   ctx.setActor(EMPLOYEE);
   const herReceipt = issueReceipt(ctx, { items: [{ name: 'قطعة', quantity: 1, price: 5 }] }).id;
+  // Her shift, closed 5 د.ل short (for charging the shortage).
+  addCashMove(ctx, 'in', 5_000, 'فكة');
+  const shortShift = closeShift(ctx, 0).shiftId;
   ctx.setActor(OWNER);
+  openShift(ctx, 10_000);
   return {
+    shortShift,
     charged,
     herReceipt,
     ring,
@@ -254,6 +261,26 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     waiveCharge: {
       permission: 'returns.charge',
       run: (ctx, s) => waiveCharge(ctx, s.charged),
+    },
+    openShift: {
+      permission: 'shifts.open',
+      run: (ctx) => {
+        // A person has one open shift: the one opened for the test is closed first.
+        if (ctx.actor)
+          ctx.db.run("UPDATE shifts SET closed_at = 'x' WHERE person = ? AND closed_at IS NULL", [
+            ctx.actor.kind === 'owner' ? 'owner' : `emp-${ctx.actor.id}`,
+          ]);
+        return openShift(ctx, 20_000);
+      },
+    },
+    addCashMove: {
+      permission: 'cash.move',
+      run: (ctx) => addCashMove(ctx, 'out', 1_000, 'مورّد'),
+    },
+    closeShift: { permission: 'shifts.close', run: (ctx) => closeShift(ctx, 10_000) },
+    chargeShortage: {
+      permission: 'staff.ledger',
+      run: (ctx, s) => chargeShortage(ctx, s.shortShift),
     },
     recordRepayment: {
       permission: 'staff.ledger',
