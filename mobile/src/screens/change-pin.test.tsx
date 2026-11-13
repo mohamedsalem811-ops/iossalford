@@ -39,7 +39,7 @@ const message = () => screen.getByTestId('change-pin-message');
 describe('ChangePinScreen', () => {
   it('asks for the current PIN, then the new one twice, and saves it', async () => {
     const { deps, onDone } = setup();
-    await renderScreen(<ChangePinScreen system="jewelry" deps={deps} onDone={onDone} />);
+    await renderScreen(<ChangePinScreen account="jewelry" deps={deps} onDone={onDone} />);
     expect(message()).toHaveTextContent('أدخل الرمز الحالي');
     await enter(CURRENT);
     expect(message()).toHaveTextContent('أدخل الرمز الجديد (8 أرقام)');
@@ -52,7 +52,7 @@ describe('ChangePinScreen', () => {
 
   it('counts a wrong current PIN and says how many attempts are left', async () => {
     const { deps, onDone } = setup();
-    await renderScreen(<ChangePinScreen system="scarves" deps={deps} onDone={onDone} />);
+    await renderScreen(<ChangePinScreen account="scarves" deps={deps} onDone={onDone} />);
     await enter('11223344');
     expect(message()).toHaveTextContent('رمز خاطئ، بقيت 3 محاولات قبل القفل المؤقت');
     expect(deps.setPin).not.toHaveBeenCalled();
@@ -66,14 +66,14 @@ describe('ChangePinScreen', () => {
         lockedUntil: 1_090_000,
       })),
     });
-    await renderScreen(<ChangePinScreen system="scarves" deps={deps} onDone={onDone} />);
+    await renderScreen(<ChangePinScreen account="scarves" deps={deps} onDone={onDone} />);
     await enter(CURRENT);
     expect(message()).toHaveTextContent('محاولات خاطئة كثيرة — حاول بعد 1:30');
   });
 
   it('refuses an easy PIN, the same PIN, and two PINs that differ', async () => {
     const { deps, onDone } = setup();
-    await renderScreen(<ChangePinScreen system="jewelry" deps={deps} onDone={onDone} />);
+    await renderScreen(<ChangePinScreen account="jewelry" deps={deps} onDone={onDone} />);
     await enter(CURRENT);
     await enter('11111111');
     expect(message()).toHaveTextContent(/رمز سهل التخمين/);
