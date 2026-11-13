@@ -173,7 +173,7 @@ export function CustomerDetail({
               testID="customer-payout"
             />
             <Text variant="caption" tone="secondary">
-              أو يُستخدم الرصيد في بيعة جديدة: بيع آجل لهذا الزبون يُخصم من رصيده.
+              أو يُستخدم في بيعة جديدة: اكتب رقمه عند إتمام البيع واختر «استخدام رصيده لهذا البيع».
             </Text>
           </>
         ) : null}

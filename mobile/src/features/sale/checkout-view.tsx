@@ -32,13 +32,20 @@ import { askOwner, chooseReason } from '@/staff/approvals';
 import { useActor } from '@/staff/use-can';
 import { RuleError, type Ctx } from '@/domain/context';
 import { customerByPhone, customerSuggestions, type Customer } from '@/domain/customers';
+import { balance } from '@/domain/debts';
 import { getRate } from '@/domain/settings';
 import { formatLyd, formatRate, formatUsd } from '@/lib/money';
 import { putCart, useCart } from '@/state/cart';
 import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
-import { cartTotals, checkoutProblem, emptyCheckoutForm, type CheckoutForm } from './model';
+import {
+  cartTotals,
+  checkoutProblem,
+  creditUse,
+  emptyCheckoutForm,
+  type CheckoutForm,
+} from './model';
 import { useSaveOnce } from '@/hooks/use-save-once';
 import { haptic } from '@/lib/haptics';
 
@@ -69,10 +76,17 @@ export function CheckoutView({
   const set = <K extends keyof CheckoutForm>(k: K, v: CheckoutForm[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  const [picked, setPicked] = useState<Customer | null>(null);
   const known = form.phone ? customerByPhone(ctx, form.phone) : undefined;
   const suggestions = form.name && !known ? customerSuggestions(ctx, form.name) : [];
-  const pick = (c: Customer) =>
+  const pick = (c: Customer) => {
+    setPicked(c);
     setForm((f) => ({ ...f, name: c.name, phone: c.phone ?? f.phone, area: c.area ?? f.area }));
+  };
+  /** The registered customer this sale goes to: by phone, or the one picked by name. */
+  const customer = known ?? (picked && picked.name === form.name ? picked : undefined);
+  /** What the shop owes this customer (له رصيد), which a sale on credit uses up. */
+  const customerCredit = customer ? Math.max(0, -balance(ctx, customer.id)) : 0;
 
   if (cart.length === 0) {
     return (
@@ -94,7 +108,7 @@ export function CheckoutView({
         cart,
         paymentMethod: form.method,
         customer: {
-          name: form.name || known?.name,
+          name: form.name || customer?.name,
           phone: form.phone,
           area: form.area,
         },
@@ -173,6 +187,7 @@ export function CheckoutView({
   };
 
   const credit = form.method === 'credit';
+  const use = creditUse(customerCredit, totals.total);
   return (
     <>
       <FormHeader title="إتمام البيع" onCancel={onCancel} onSave={confirmOnce} cancelLabel="رجوع" />
@@ -192,7 +207,7 @@ export function CheckoutView({
             onChange={(m) => set('method', m)}
             testID="checkout-method"
           />
-          {credit ? (
+          {credit && !use ? (
             <Text variant="caption" tone="warning">
               البيع الآجل يُسجَّل ديناً على الزبون: اكتب اسمه أو رقم هاتفه.
             </Text>
@@ -215,6 +230,29 @@ export function CheckoutView({
             <Text variant="caption" tone="accent" testID="checkout-known">
               {`زبون مسجل: ${known.name}${known.area ? ` • ${known.area}` : ''}`}
             </Text>
+          ) : null}
+          {use ? (
+            <View style={{ gap: spacing.sm }} testID="checkout-credit">
+              <Text variant="bodyStrong" tone="accent">
+                {`له رصيد ${formatLyd(customerCredit)}`}
+              </Text>
+              {credit ? (
+                <Text variant="caption" tone="secondary" testID="checkout-credit-use">
+                  {use.owed > 0
+                    ? `يُخصم رصيده كله (${formatLyd(use.used)}) ويبقى عليه ${formatLyd(use.owed)} ديناً.`
+                    : `يُخصم ${formatLyd(use.used)} من رصيده، ويبقى له ${formatLyd(use.left)}.`}
+                </Text>
+              ) : (
+                <Button
+                  title="استخدام رصيده لهذا البيع"
+                  icon="arrow.uturn.backward.circle"
+                  variant="secondary"
+                  fullWidth
+                  onPress={() => set('method', 'credit')}
+                  testID="checkout-use-credit"
+                />
+              )}
+            </View>
           ) : null}
           <TextField
             label="الاسم"
