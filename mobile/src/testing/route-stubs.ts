@@ -21,6 +21,7 @@ const NAMES = [
   '(tabs)/more/closing',
   '(tabs)/more/comparison',
   '(tabs)/more/backup',
+  '(tabs)/more/staff',
   'return/[id]',
   'set/[id]',
   'sets',

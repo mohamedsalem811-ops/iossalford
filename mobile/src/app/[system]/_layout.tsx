@@ -1,11 +1,12 @@
 import { Redirect, router, Stack, useLocalSearchParams } from 'expo-router';
-import { useCallback } from 'react';
+import { useCallback, type ReactNode } from 'react';
 
 import { AutoBackup } from '@/backup/auto-backup';
 import { KeyboardBar } from '@/components/keyboard-bar';
 import { DbErrorScreen } from '@/screens/db-error';
 import { SignInScreen, type SignInDeps } from '@/screens/sign-in';
 import { activeEmployees, setMustChangePin, type Actor } from '@/staff/model';
+import { IdleLock } from '@/staff/idle-lock';
 import { getStaff, saveStaff, useStaff } from '@/staff/store';
 import { askFaceId, faceIdStatus, pinVault, rememberSystem } from '@/security/device';
 import { useLock } from '@/state/lock';
@@ -80,8 +81,22 @@ function SystemDb({ system }: { system: SystemId }) {
   return (
     <CtxProvider db={result.db} system={system}>
       <AutoBackupOfOpenSystem />
-      <SystemStack />
+      <IdleLockOfSession>
+        <SystemStack />
+      </IdleLockOfSession>
     </CtxProvider>
+  );
+}
+
+/** An employee (and the owner, if chosen) is locked after some minutes without a touch. */
+function IdleLockOfSession({ children }: { children: ReactNode }) {
+  const { actor, lock } = useLock();
+  const settings = useStaff().lock;
+  const enabled = actor?.kind === 'employee' || (actor?.kind === 'owner' && settings.ownerToo);
+  return (
+    <IdleLock enabled={enabled} lock={settings} onLock={lock}>
+      {children}
+    </IdleLock>
   );
 }
 

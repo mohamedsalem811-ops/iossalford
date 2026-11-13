@@ -7,8 +7,13 @@ import { firstBackup, lastCopied, saveBackup } from '@/backup/store';
 import { logError } from '@/lib/error-log';
 import { ManagementScreen, type ManageTarget } from '@/screens/management';
 import { useLock } from '@/state/lock';
+import { actorName, isOwner } from '@/staff/model';
+import { useStaff } from '@/staff/store';
 import { useCtx } from '@/state/system-db';
 import type { SystemId } from '@/theme';
+
+/** Sections only the owner opens (more follow with the permissions, phase S2). */
+export const OWNER_ONLY_SECTIONS: ManageTarget[] = ['staff'];
 
 /** The route of each section, inside the Management tab (its stack keeps the tab bar). */
 export const SECTION_ROUTE: Record<ManageTarget, string> = {
@@ -23,6 +28,7 @@ export const SECTION_ROUTE: Record<ManageTarget, string> = {
   sets: 'manage-sets',
   archived: 'archived',
   backup: 'backup',
+  staff: 'staff',
   settings: 'settings',
 };
 
@@ -44,7 +50,8 @@ export function ManagementMenu({
   onOpen: (target: ManageTarget) => void;
   selected?: ManageTarget;
 }) {
-  const { lock } = useLock();
+  const { lock, actor } = useLock();
+  const staff = useStaff();
   const ctx = useCtx();
   const system = ctx.system;
   const read = useCallback(
@@ -69,6 +76,8 @@ export function ManagementMenu({
       updateReady={updateReady}
       selected={selected}
       onOpen={onOpen}
+      hidden={OWNER_ONLY_SECTIONS.filter(() => !isOwner(actor))}
+      person={staff.employees.length && actor ? actorName(actor) : undefined}
       onSwitch={() => {
         backupNow();
         router.replace('/');

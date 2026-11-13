@@ -18,6 +18,7 @@ export type ManageTarget =
   | 'sets'
   | 'archived'
   | 'backup'
+  | 'staff'
   | 'settings';
 
 type Row = { target: ManageTarget; icon: SymbolViewProps['name']; title: string };
@@ -58,6 +59,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
     title: 'التطبيق',
     rows: [
       { target: 'backup', icon: 'externaldrive', title: 'النسخ الاحتياطي' },
+      { target: 'staff', icon: 'person.2.badge.gearshape', title: 'الموظفون' },
       { target: 'settings', icon: 'gearshape', title: 'الإعدادات' },
     ],
   },
@@ -72,6 +74,8 @@ export function ManagementScreen({
   reminder,
   updateReady = false,
   selected,
+  hidden = [],
+  person,
 }: {
   onOpen: (target: ManageTarget) => void;
   onSwitch: () => void;
@@ -84,6 +88,10 @@ export function ManagementScreen({
   updateReady?: boolean;
   /** iPad: the section open beside the menu. */
   selected?: ManageTarget;
+  /** Sections this person may not open (an employee: the owner's sections). */
+  hidden?: ManageTarget[];
+  /** Who is signed in, when the shop has employees ("المالك", a name). */
+  person?: string;
 }) {
   return (
     <Screen tabBar contentStyle={{ gap: spacing.lg }}>
@@ -118,22 +126,30 @@ export function ManagementScreen({
       ) : null}
       {GROUPS.map((g) => (
         <ListGroup key={g.title} header={g.title}>
-          {g.rows.map((r) => (
-            <ListRow
-              key={r.target}
-              icon={r.icon}
-              title={r.title}
-              value={badges[r.target]}
-              selected={selected === r.target}
-              onPress={() => onOpen(r.target)}
-              testID={`manage-${r.target}`}
-            />
-          ))}
+          {g.rows
+            .filter((r) => !hidden.includes(r.target))
+            .map((r) => (
+              <ListRow
+                key={r.target}
+                icon={r.icon}
+                title={r.title}
+                value={badges[r.target]}
+                selected={selected === r.target}
+                onPress={() => onOpen(r.target)}
+                testID={`manage-${r.target}`}
+              />
+            ))}
         </ListGroup>
       ))}
       <ListGroup header="النظام">
         <ListRow icon="arrow.left.arrow.right" title="تبديل النظام" onPress={onSwitch} />
-        <ListRow icon="lock" title="قفل النظام" onPress={onLock} />
+        <ListRow
+          icon="lock"
+          title={person ? 'تبديل المستخدم أو القفل' : 'قفل النظام'}
+          subtitle={person ? `مسجّل الدخول: ${person}` : undefined}
+          onPress={onLock}
+          testID="manage-lock"
+        />
       </ListGroup>
     </Screen>
   );

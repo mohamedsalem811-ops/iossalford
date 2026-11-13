@@ -1,0 +1,79 @@
+# Phase S1: the owner adds an employee; she signs in with the temporary PIN, chooses her own,
+# and is locked by the owner's "switch user". iPhone and iPad (screens: name cards, staff list).
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- tapOn: 'الإدارة'
+- scrollUntilVisible:
+    element:
+      id: 'manage-staff'
+    direction: DOWN
+- tapOn:
+    id: 'manage-staff'
+- assertVisible: 'لا يوجد موظفون بعد'
+- takeScreenshot: ${DEVICE}-staff-empty
+- tapOn: 'إضافة موظف'
+- inputText: 'سارة'
+- tapOn: 'التالي'
+- inputText: '147036'
+- tapOn: 'حفظ'
+- assertVisible:
+    id: 'staff-سارة'
+- takeScreenshot: ${DEVICE}-staff-list
+# Switch user: the name cards appear.
+- tapOn: 'الإدارة'
+- scrollUntilVisible:
+    element:
+      id: 'manage-lock'
+    direction: DOWN
+- tapOn:
+    id: 'manage-lock'
+- assertVisible: 'من يستخدم النظام؟'
+- takeScreenshot: ${DEVICE}-sign-in-people
+- tapOn:
+    id: 'person-سارة'
+- tapOn:
+    id: 'pin-key-1'
+- tapOn:
+    id: 'pin-key-4'
+- tapOn:
+    id: 'pin-key-7'
+- tapOn:
+    id: 'pin-key-0'
+- tapOn:
+    id: 'pin-key-3'
+- tapOn:
+    id: 'pin-key-6'
+- assertVisible: 'سارة: اختر رمزك'
+- tapOn:
+    id: 'pin-key-9'
+- tapOn:
+    id: 'pin-key-6'
+- tapOn:
+    id: 'pin-key-3'
+- tapOn:
+    id: 'pin-key-2'
+- tapOn:
+    id: 'pin-key-5'
+- tapOn:
+    id: 'pin-key-8'
+- tapOn:
+    id: 'pin-key-9'
+- tapOn:
+    id: 'pin-key-6'
+- tapOn:
+    id: 'pin-key-3'
+- tapOn:
+    id: 'pin-key-2'
+- tapOn:
+    id: 'pin-key-5'
+- tapOn:
+    id: 'pin-key-8'
+- extendedWaitUntil:
+    visible: 'مبيعات اليوم'
+    timeout: 30000
+# An employee does not see the staff screen.
+- tapOn: 'الإدارة'
+- assertNotVisible:
+    id: 'manage-staff'
+- takeScreenshot: ${DEVICE}-employee-management
