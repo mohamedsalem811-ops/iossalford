@@ -17,6 +17,7 @@ import { getCart } from '@/state/cart';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { errorBoundary } from '@/components/error-screen';
+import { useCan } from '@/staff/use-can';
 
 /** "1.0.0 (1)", or "… — Expo Go" while testing there. */
 function versionText() {
@@ -28,6 +29,7 @@ function versionText() {
 /** Management → Settings. */
 export default function SettingsRoute() {
   const ctx = useCtx();
+  const mayEditRate = useCan('settings.edit');
   const [rate, setRate] = useState(() => getRate(ctx));
   const [appearance, setLook] = useState(getAppearance);
   const refresh = useCallback(() => setRate(getRate(ctx)), [ctx]);
@@ -89,7 +91,7 @@ export default function SettingsRoute() {
           onRestart: restart,
         }}
         errors={{ count: errorCount, onOpen: openLog }}
-        onEditRate={() => promptRate(ctx, refresh)}
+        onEditRate={mayEditRate ? () => promptRate(ctx, refresh) : undefined}
         onChangePin={() =>
           router.push({ pathname: '/[system]/change-pin', params: { system: ctx.system } })
         }

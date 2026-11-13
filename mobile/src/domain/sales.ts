@@ -1,6 +1,4 @@
 import { latinDigits } from '@/lib/digits';
-import { actorKey } from '@/staff/model';
-import { can } from '@/staff/permissions';
 import { divRound, formatDinars } from '@/lib/money';
 
 import type { PaymentMethod } from './checkout';
@@ -11,6 +9,7 @@ import {
   nowStamp,
   pageSql,
   RuleError,
+  visibleTo,
   type Ctx,
   type Page,
 } from './context';
@@ -152,16 +151,7 @@ const withLines = (ctx: Ctx, rows: SaleRow[]): Sale[] => {
   return rows.map((r) => toSale(r, lines.get(r.id) ?? []));
 };
 
-/**
- * Which sales this person may see: every sale (the owner), or only their own (an employee).
- * Nobody signed in sees none. Applied inside every sales query, so no screen can show more.
- */
-function visible(ctx: Ctx): { sql: string; params: string[] } {
-  const actor = ctx.actor;
-  if (!actor) return { sql: '0', params: [] };
-  if (can(actor, 'sales.viewAll')) return { sql: '1', params: [] };
-  return { sql: 's.seller = ?', params: [actorKey(actor)] };
-}
+const visible = (ctx: Ctx) => visibleTo(ctx, 's.seller');
 
 export function getSale(ctx: Ctx, id: number): Sale | undefined {
   const v = visible(ctx);
@@ -179,6 +169,8 @@ export function getSaleLine(ctx: Ctx, lineId: number): SaleLine | undefined {
 
 export type SaleQuery = {
   month?: string;
+  /** One day, "2026-11-12". */
+  day?: string;
   paymentMethod?: PaymentMethod;
   customerId?: number;
   search?: string;
@@ -191,6 +183,10 @@ function saleFilter(ctx: Ctx, q: SaleQuery) {
   if (q.month) {
     where.push('s.month = ?');
     params.push(q.month);
+  }
+  if (q.day) {
+    where.push('substr(s.created_at, 1, 10) = ?');
+    params.push(q.day);
   }
   if (q.paymentMethod) {
     where.push('s.payment_method = ?');

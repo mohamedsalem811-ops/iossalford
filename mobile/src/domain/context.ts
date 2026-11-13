@@ -1,6 +1,6 @@
 import type { Db } from '@/db/types';
 import { monthKey } from '@/lib/dates';
-import type { Actor } from '@/staff/model';
+import { actorKey, type Actor } from '@/staff/model';
 import { can, refusal, type Permission } from '@/staff/permissions';
 import type { SystemId } from '@/theme';
 
@@ -43,6 +43,27 @@ export function allow(ctx: Ctx, permission: Permission): Actor {
   const actor = ctx.actor;
   if (!actor || !can(actor, permission)) throw new PermissionError(refusal(actor, permission));
   return actor;
+}
+
+/**
+ * The first line of a report that shows money only the owner sees (profit, cost, every sale):
+ * refuses like `allow`, for reading. A screen that should not show it never calls it; this is the
+ * layer behind that.
+ */
+export function allowView(ctx: Ctx, permission: Permission): void {
+  allow(ctx, permission);
+}
+
+/**
+ * Which records this person may see, as SQL on the column holding who made them ("owner" or
+ * "emp-<id>"): everything for the owner, only their own for an employee, nothing for nobody.
+ * Used inside every query of sales and receipts, so no screen can show more.
+ */
+export function visibleTo(ctx: Ctx, column: string): { sql: string; params: string[] } {
+  const actor = ctx.actor;
+  if (!actor) return { sql: '0', params: [] };
+  if (can(actor, 'sales.viewAll')) return { sql: '1', params: [] };
+  return { sql: `${column} = ?`, params: [actorKey(actor)] };
 }
 
 /** A refusal because of who is signed in. Nothing was changed. */

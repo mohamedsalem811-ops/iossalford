@@ -43,7 +43,13 @@ export function DashboardScreen({
   const empty = s.transactions === 0 && s.refunds === 0;
   return (
     <Screen tabBar maxWidth={1400} contentStyle={{ gap: spacing.lg }}>
-      <Header system={system} data={data} actions={actions} />
+      <DashboardHeader
+        system={system}
+        date={data.date}
+        rate={data.rate}
+        onSystemMenu={actions.onSystemMenu}
+        onEditRate={actions.onEditRate}
+      />
       <QuickActions
         system={system}
         onNewSale={actions.onNewSale}
@@ -71,20 +77,26 @@ export function DashboardScreen({
   );
 }
 
-function Header({
+/** The logo (switch system or lock), the date and the dollar rate (editable by the owner). */
+export function DashboardHeader({
   system,
-  data,
-  actions,
+  date,
+  rate,
+  onSystemMenu,
+  onEditRate,
 }: {
   system: SystemId;
-  data: DashboardData;
-  actions: DashboardActions;
+  date: Date;
+  rate: number;
+  onSystemMenu: () => void;
+  /** Absent: the rate is shown, not editable. */
+  onEditRate?: () => void;
 }) {
   const { colors } = useTheme();
   return (
     <View style={{ alignItems: 'center', gap: spacing.sm, paddingTop: spacing.sm }}>
       <Pressable
-        onPress={actions.onSystemMenu}
+        onPress={onSystemMenu}
         accessibilityRole="button"
         accessibilityLabel="النظام: تبديل أو قفل"
         testID="dashboard-system">
@@ -98,12 +110,13 @@ function Header({
           alignSelf: 'stretch',
         }}>
         <Text variant="subhead" tone="secondary">
-          {formatDay(data.date, true)}
+          {formatDay(date, true)}
         </Text>
         <Pressable
-          onPress={actions.onEditRate}
-          accessibilityRole="button"
-          accessibilityLabel={`سعر الصرف ${formatRate(data.rate)}، تعديل`}
+          onPress={onEditRate}
+          disabled={!onEditRate}
+          accessibilityRole={onEditRate ? 'button' : 'text'}
+          accessibilityLabel={`سعر الصرف ${formatRate(rate)}${onEditRate ? '، تعديل' : ''}`}
           testID="rate-row"
           style={{
             flexDirection: 'row',
@@ -116,7 +129,7 @@ function Header({
           }}>
           <Icon name="dollarsign.circle" size={16} color={colors.accent} />
           <Text variant="subhead" tone="accent">
-            {formatRate(data.rate)}
+            {formatRate(rate)}
           </Text>
         </Pressable>
       </View>

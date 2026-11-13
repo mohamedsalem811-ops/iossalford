@@ -15,6 +15,7 @@ import { spacing, useTheme } from '@/theme';
 import { showCartProblem } from './actions';
 import { belowCostNote, cartGroups, cartTotals, stockWarnings } from './model';
 import { haptic } from '@/lib/haptics';
+import { useCan } from '@/staff/use-can';
 
 /**
  * The open cart: lines with quantity, price and remove; each set as one group removed as a
@@ -31,6 +32,8 @@ export function CartView({
   embedded?: boolean;
 }) {
   const { colors } = useTheme();
+  // The below-cost note tells the cost: only for someone who may see it.
+  const seesCost = useCan('costs.view');
   const { cart, setCart } = useCart(ctx.system);
   // Stock or prices changed elsewhere (a delivery, an edit): check the lines again.
   const [, recheck] = useReducer((n: number) => n + 1, 0);
@@ -94,6 +97,7 @@ export function CartView({
 
   // Single pieces only: a set's discount lowering a piece's share is intended.
   const costNote = (line: CartLine) => {
+    if (!seesCost) return null;
     const note = belowCostNote(line.unitPrice, getProduct(ctx, line.productId)?.cost ?? 0);
     return note ? (
       <Text variant="caption" tone="warning" testID="cart-below-cost">

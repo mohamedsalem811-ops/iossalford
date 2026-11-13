@@ -2,7 +2,7 @@ import { dayKey, daysInMonth, monthRange } from '@/lib/dates';
 import { lydToUsd } from '@/lib/money';
 
 import type { PaymentMethod } from './checkout';
-import type { Ctx } from './context';
+import { allowView, type Ctx } from './context';
 import { getRate } from './settings';
 
 /** Financial totals for a set of months. Every report uses this so the numbers always agree. */
@@ -36,6 +36,7 @@ function inList(months: string[]) {
 }
 
 export function summary(ctx: Ctx, months: string[]): PeriodSummary {
+  allowView(ctx, 'reports.view');
   const m = inList(months);
   const s = ctx.db.get<{ sales: number; cost: number; n: number }>(
     `SELECT coalesce(sum(total), 0) sales, coalesce(sum(total_cost), 0) cost, count(*) n FROM sales WHERE month IN (${m.sql})`,
@@ -93,6 +94,7 @@ export function breakdown(
   months: string[],
   by: 'brand' | 'category' | 'size' | 'payment',
 ): BreakdownRow[] {
+  allowView(ctx, 'reports.view');
   const m = inList(months);
   if (by === 'payment') {
     return ctx.db.all<BreakdownRow>(
@@ -120,6 +122,7 @@ export function topProducts(
   months: string[],
   limit = 5,
 ): (BreakdownRow & { productId: number })[] {
+  allowView(ctx, 'reports.view');
   const m = inList(months);
   return ctx.db.all(
     `SELECT l.product_id AS productId, max(l.name) AS key, sum(l.line_total) AS total, sum(l.quantity) AS quantity,
@@ -132,6 +135,7 @@ export function topProducts(
 
 /** Sales per day of a month (every day present, 0 when nothing sold). */
 export function dailySales(ctx: Ctx, month: string): { day: number; total: number }[] {
+  allowView(ctx, 'reports.view');
   const rows = ctx.db.all<{ day: number; total: number }>(
     `SELECT cast(substr(created_at, 9, 2) AS INTEGER) AS day, sum(total) AS total FROM sales WHERE month = ? GROUP BY day`,
     [month],
@@ -152,6 +156,7 @@ export type Today = {
 
 /** Today's sales, profit, number of sales and pieces, and money by payment method. */
 export function today(ctx: Ctx): Today {
+  allowView(ctx, 'reports.view');
   const day = dayKey(ctx.now());
   const s = ctx.db.get<{ total: number; profit: number; n: number }>(
     `SELECT coalesce(sum(total), 0) total, coalesce(sum(total - total_cost), 0) profit, count(*) n FROM sales WHERE substr(created_at, 1, 10) = ?`,
@@ -173,6 +178,7 @@ export function today(ctx: Ctx): Today {
 
 /** Net sales and net profit for each month in a range, oldest first (the comparison chart). */
 export function monthlyComparison(ctx: Ctx, from: string, to: string) {
+  allowView(ctx, 'reports.view');
   return monthRange(from, to).map((month) => {
     const s = summary(ctx, [month]);
     return { month, netSales: s.netSales, netProfit: s.netProfit, transactions: s.transactions };

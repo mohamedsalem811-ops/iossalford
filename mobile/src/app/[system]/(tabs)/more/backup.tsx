@@ -5,9 +5,10 @@ import { firstBackup, lastCopied, listBackups } from '@/backup/store';
 import { BackupScreen } from '@/features/backup/backup-screen';
 import { useCtx } from '@/state/system-db';
 import { errorBoundary } from '@/components/error-screen';
+import { Allowed } from '@/staff/allowed';
 
 /** Management → Backup. */
-export default function BackupRoute() {
+function BackupRouteScreen() {
   const ctx = useCtx();
   const read = useCallback(
     () => ({
@@ -25,6 +26,15 @@ export default function BackupRoute() {
       <Stack.Title>النسخ الاحتياطي</Stack.Title>
       <BackupScreen ctx={ctx} {...data} onChanged={refresh} />
     </>
+  );
+}
+
+/** Guarded as a whole: only someone with `backup.manage` can open it (see staff/permissions.ts). */
+export default function BackupRoute() {
+  return (
+    <Allowed permission="backup.manage" title="النسخ الاحتياطي">
+      <BackupRouteScreen />
+    </Allowed>
   );
 }
 

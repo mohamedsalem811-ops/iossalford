@@ -18,6 +18,15 @@ import { addToCart, type CartLine } from './cart';
 import { checkout } from './checkout';
 import type { Ctx } from './context';
 import { displayName, getProduct, saveProduct } from './products';
+import {
+  countReceipts,
+  getReceipt,
+  issueReceipt,
+  listReceipts,
+  receiptForSale,
+  receiptMonths,
+  updateReceipt,
+} from './receipts';
 import { getSale, listSales, saleMonths, salesSummary } from './sales';
 import { EMPLOYEE, makeCtx, type TestCtx } from './testing/ctx';
 
@@ -73,6 +82,26 @@ describe('the seller of a sale', () => {
     expect(listSales(ctx)).toEqual([]);
     expect(salesSummary(ctx).count).toBe(0);
     expect(saleMonths(ctx)).toEqual([]);
+  });
+
+  it('lets an employee see and edit only the receipts they issued', () => {
+    const ownerSale = sell(ctx, ring);
+    const ownerReceipt = receiptForSale(ctx, ownerSale)!;
+    ctx.setActor(EMPLOYEE);
+    const herSale = sell(ctx, ring);
+    const hers = issueReceipt(ctx, { items: [{ name: 'قطعة', quantity: 1, price: 5 }] });
+    expect(getReceipt(ctx, hers.id)).toMatchObject({ id: hers.id });
+    expect(receiptForSale(ctx, herSale)).toBeDefined();
+    expect(listReceipts(ctx).map((r) => r.id)).toHaveLength(2);
+    expect(countReceipts(ctx)).toBe(2);
+    expect(getReceipt(ctx, ownerReceipt.id)).toBeUndefined();
+    expect(receiptForSale(ctx, ownerSale)).toBeUndefined();
+    expect(() =>
+      updateReceipt(ctx, ownerReceipt.id, { items: [{ name: 'x', quantity: 1, price: 1 }] }),
+    ).toThrow('الإيصال غير موجود');
+    ctx.setActor(OWNER);
+    expect(countReceipts(ctx)).toBe(3);
+    expect(receiptMonths(ctx)).toEqual(['2026-11']);
   });
 
   it('shows nothing to a new employee before their first sale', () => {

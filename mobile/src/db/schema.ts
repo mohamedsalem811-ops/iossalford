@@ -206,15 +206,18 @@ CREATE TABLE closings (
 `,
   },
   {
-    // Staff phase S2: who made each sale, so an employee sees only their own and the owner sees
-    // sales per person. "owner" or "emp-<id>"; older sales (NULL) were all the owner's. The
-    // name is a copy, kept even after the person is suspended or renamed.
+    // Staff phase S2: who made each sale and each receipt, so an employee sees only their own
+    // and the owner sees them per person. "owner" or "emp-<id>"; older rows (NULL) were all the
+    // owner's. The name is a copy, kept even after the person is suspended or renamed.
     version: 2,
-    name: 'seller of each sale',
+    name: 'seller of each sale and receipt',
     sql: `
 ALTER TABLE sales ADD COLUMN seller TEXT;
 ALTER TABLE sales ADD COLUMN seller_name TEXT;
 CREATE INDEX sales_seller ON sales(seller, month);
+ALTER TABLE receipts ADD COLUMN issued_by TEXT;
+ALTER TABLE receipts ADD COLUMN issued_by_name TEXT;
+CREATE INDEX receipts_issued_by ON receipts(issued_by);
 `,
   },
 ];

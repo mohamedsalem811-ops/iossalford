@@ -33,12 +33,13 @@ import { spacing, useTheme } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
 import { haptic } from '@/lib/haptics';
 import { useSaveOnce } from '@/hooks/use-save-once';
+import { Allowed } from '@/staff/allowed';
 
 /**
  * Management → Expenses: add an expense booked to a chosen month (a warning when that month's
  * quarter is already closed), and every expense grouped by month with its total.
  */
-export default function ExpensesRoute() {
+function ExpensesRouteScreen() {
   const ctx = useCtx();
   const readable = useReadable();
   const { colors } = useTheme();
@@ -171,6 +172,15 @@ export default function ExpensesRoute() {
         ) : null}
       </KeyboardAwareScrollView>
     </>
+  );
+}
+
+/** Guarded as a whole: only someone with `expenses.view` can open it (see staff/permissions.ts). */
+export default function ExpensesRoute() {
+  return (
+    <Allowed permission="expenses.view" title="المصروفات">
+      <ExpensesRouteScreen />
+    </Allowed>
   );
 }
 

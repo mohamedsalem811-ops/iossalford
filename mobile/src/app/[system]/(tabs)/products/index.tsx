@@ -17,6 +17,7 @@ import { useCtx } from '@/state/system-db';
 import type { SystemId } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
 import { useSearchShortcut, useShortcut } from '@/lib/key-commands';
+import { useCan } from '@/staff/use-can';
 
 /** Jewelry lists pieces; scarves list designs with all their sizes. */
 export default function ProductsRoute() {
@@ -44,7 +45,8 @@ function Header<Q extends Filters>({
   addLabel: string;
   query: Q;
   setQuery: Dispatch<SetStateAction<Q>>;
-  onAdd: () => void;
+  /** Absent for someone who may not add pieces (no + button). */
+  onAdd?: () => void;
   searchRef: ReturnType<typeof useSearchShortcut>;
 }) {
   return (
@@ -88,7 +90,9 @@ function Header<Q extends Filters>({
             ))}
           </Stack.Toolbar.Menu>
         </Stack.Toolbar.Menu>
-        <Stack.Toolbar.Button icon="plus" accessibilityLabel={addLabel} onPress={onAdd} />
+        {onAdd ? (
+          <Stack.Toolbar.Button icon="plus" accessibilityLabel={addLabel} onPress={onAdd} />
+        ) : null}
       </Stack.Toolbar>
     </>
   );
@@ -102,10 +106,12 @@ function JewelryProducts({ ctx }: { ctx: Ctx }) {
   const system = ctx.system;
   const editHref = (p: Product) =>
     ({ pathname: '/[system]/product/[id]', params: { system, id: String(p.id) } }) as const;
-  const add = () =>
-    router.push({ pathname: '/[system]/product/[id]', params: { system, id: 'new' } });
+  const mayAdd = useCan('products.edit');
+  const add = mayAdd
+    ? () => router.push({ pathname: '/[system]/product/[id]', params: { system, id: 'new' } })
+    : undefined;
   const searchRef = useSearchShortcut();
-  useShortcut('new', add);
+  useShortcut('new', () => add?.());
 
   return (
     <>
@@ -153,10 +159,12 @@ function ScarvesProducts({ ctx }: { ctx: Ctx }) {
   const system = ctx.system;
   const href = (d: ScarfDesign) =>
     ({ pathname: '/[system]/design/[id]', params: { system, id: d.id } }) as const;
-  const add = () =>
-    router.push({ pathname: '/[system]/design/[id]', params: { system, id: 'new' } });
+  const mayAdd = useCan('products.edit');
+  const add = mayAdd
+    ? () => router.push({ pathname: '/[system]/design/[id]', params: { system, id: 'new' } })
+    : undefined;
   const searchRef = useSearchShortcut();
-  useShortcut('new', add);
+  useShortcut('new', () => add?.());
 
   return (
     <>

@@ -13,7 +13,8 @@ export function QuickActions({
   system: SystemId;
   onNewSale: () => void;
   onNewReceipt: () => void;
-  onNewProduct: () => void;
+  /** Absent for someone who may not add pieces. */
+  onNewProduct?: () => void;
 }) {
   return (
     <View style={{ flexDirection: 'row', gap: spacing.sm }} testID="quick-actions">
@@ -30,12 +31,14 @@ export function QuickActions({
         onPress={onNewReceipt}
         testID="quick-receipt"
       />
-      <Shortcut
-        title={system === 'scarves' ? 'تصميم جديد' : 'قطعة جديدة'}
-        icon="plus.square.fill"
-        onPress={onNewProduct}
-        testID="quick-product"
-      />
+      {onNewProduct ? (
+        <Shortcut
+          title={system === 'scarves' ? 'تصميم جديد' : 'قطعة جديدة'}
+          icon="plus.square.fill"
+          onPress={onNewProduct}
+          testID="quick-product"
+        />
+      ) : null}
     </View>
   );
 }

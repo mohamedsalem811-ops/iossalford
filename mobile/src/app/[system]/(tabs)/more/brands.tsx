@@ -6,9 +6,10 @@ import { BrandsScreen } from '@/features/brands/brands-screen';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { errorBoundary } from '@/components/error-screen';
+import { Allowed } from '@/staff/allowed';
 
 /** Management → Brands. */
-export default function BrandsRoute() {
+function BrandsRouteScreen() {
   const ctx = useCtx();
   const read = useCallback(() => listBrands(ctx), [ctx]);
   const [brands, setBrands] = useState(read);
@@ -20,6 +21,15 @@ export default function BrandsRoute() {
       <Stack.Title>الماركات</Stack.Title>
       <BrandsScreen ctx={ctx} brands={brands} />
     </>
+  );
+}
+
+/** Guarded as a whole: only someone with `products.edit` can open it (see staff/permissions.ts). */
+export default function BrandsRoute() {
+  return (
+    <Allowed permission="products.edit" title="الماركات">
+      <BrandsRouteScreen />
+    </Allowed>
   );
 }
 

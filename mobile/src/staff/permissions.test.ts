@@ -39,6 +39,8 @@ type Seed = {
   sale: number;
   saleLine: number;
   receipt: number;
+  /** A receipt the employee issued (an employee edits only their own). */
+  herReceipt: number;
   payment: number;
   ret: number;
   expense: number;
@@ -90,7 +92,11 @@ function seed(ctx: TestCtx): Seed {
     ],
   });
   const brand = addBrand(ctx, 'تيفاني');
+  ctx.setActor(EMPLOYEE);
+  const herReceipt = issueReceipt(ctx, { items: [{ name: 'قطعة', quantity: 1, price: 5 }] }).id;
+  ctx.setActor(OWNER);
   return {
+    herReceipt,
     ring,
     chain,
     customer,
@@ -131,7 +137,7 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     updateReceipt: {
       permission: 'receipts.edit',
       run: (ctx, s) =>
-        updateReceipt(ctx, s.receipt, {
+        updateReceipt(ctx, s.herReceipt, {
           items: [{ name: 'قطعة', quantity: 1, price: 10 }],
           showPrices: false,
         }),

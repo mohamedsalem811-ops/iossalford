@@ -7,13 +7,39 @@ import { firstBackup, lastCopied, saveBackup } from '@/backup/store';
 import { logError } from '@/lib/error-log';
 import { ManagementScreen, type ManageTarget } from '@/screens/management';
 import { useLock } from '@/state/lock';
-import { actorName, isOwner } from '@/staff/model';
+import { actorName, type Actor } from '@/staff/model';
+import { can, type Permission } from '@/staff/permissions';
 import { useStaff } from '@/staff/store';
+import { useActor } from '@/staff/use-can';
 import { useCtx } from '@/state/system-db';
 import type { SystemId } from '@/theme';
 
-/** Sections only the owner opens (more follow with the permissions, phase S2). */
-export const OWNER_ONLY_SECTIONS: ManageTarget[] = ['staff'];
+/**
+ * What each section needs to open (null: anyone signed in). A section the person may not open is
+ * not listed, and its screen refuses on its own as well.
+ */
+export const SECTION_NEEDS: Record<ManageTarget, Permission | null> = {
+  sales: null,
+  returns: 'sales.viewAll',
+  customers: null,
+  debts: null,
+  expenses: 'expenses.view',
+  closing: 'reports.view',
+  comparison: 'reports.view',
+  brands: 'products.edit',
+  sets: 'sets.edit',
+  archived: 'products.edit',
+  backup: 'backup.manage',
+  staff: 'staff.manage',
+  settings: null,
+};
+
+/** The sections this person may not open. */
+export const hiddenSections = (actor: Actor | null): ManageTarget[] =>
+  (Object.keys(SECTION_NEEDS) as ManageTarget[]).filter((t) => {
+    const need = SECTION_NEEDS[t];
+    return need !== null && !can(actor, need);
+  });
 
 /** The route of each section, inside the Management tab (its stack keeps the tab bar). */
 export const SECTION_ROUTE: Record<ManageTarget, string> = {
@@ -50,7 +76,8 @@ export function ManagementMenu({
   onOpen: (target: ManageTarget) => void;
   selected?: ManageTarget;
 }) {
-  const { lock, actor } = useLock();
+  const { lock } = useLock();
+  const actor = useActor();
   const staff = useStaff();
   const ctx = useCtx();
   const system = ctx.system;
@@ -72,11 +99,11 @@ export function ManagementMenu({
   const updateReady = useUpdates().isUpdatePending;
   return (
     <ManagementScreen
-      reminder={reminder}
+      reminder={can(actor, 'backup.manage') ? reminder : null}
       updateReady={updateReady}
       selected={selected}
       onOpen={onOpen}
-      hidden={OWNER_ONLY_SECTIONS.filter(() => !isOwner(actor))}
+      hidden={hiddenSections(actor)}
       person={staff.employees.length && actor ? actorName(actor) : undefined}
       onSwitch={() => {
         backupNow();

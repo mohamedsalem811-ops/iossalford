@@ -199,7 +199,7 @@ export function LatestCard({
   data,
   onOpenSale,
 }: {
-  data: DashboardData;
+  data: Pick<DashboardData, 'latest'>;
   onOpenSale: (id: number) => void;
 }) {
   return (

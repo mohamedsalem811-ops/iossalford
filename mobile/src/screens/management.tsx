@@ -124,11 +124,12 @@ export function ManagementScreen({
           </Card>
         </Pressable>
       ) : null}
-      {GROUPS.map((g) => (
-        <ListGroup key={g.title} header={g.title}>
-          {g.rows
-            .filter((r) => !hidden.includes(r.target))
-            .map((r) => (
+      {GROUPS.map((g) => ({ ...g, rows: g.rows.filter((r) => !hidden.includes(r.target)) }))
+        // A group whose sections are all hidden (an employee) is left out, header and all.
+        .filter((g) => g.rows.length > 0)
+        .map((g) => (
+          <ListGroup key={g.title} header={g.title}>
+            {g.rows.map((r) => (
               <ListRow
                 key={r.target}
                 icon={r.icon}
@@ -139,8 +140,8 @@ export function ManagementScreen({
                 testID={`manage-${r.target}`}
               />
             ))}
-        </ListGroup>
-      ))}
+          </ListGroup>
+        ))}
       <ListGroup header="النظام">
         <ListRow icon="arrow.left.arrow.right" title="تبديل النظام" onPress={onSwitch} />
         <ListRow

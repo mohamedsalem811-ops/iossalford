@@ -13,6 +13,7 @@ import { spacing, useTheme } from '@/theme';
 
 import { returnable, saleReturned } from './model';
 import { haptic } from '@/lib/haptics';
+import { useCan } from '@/staff/use-can';
 
 /**
  * One sale: when, how it was paid, who bought, every line (its set, price, and how many came back),
@@ -36,6 +37,10 @@ export function SaleDetail({
   onDeleted: () => void;
 }) {
   const { colors } = useTheme();
+  const seesCost = useCan('costs.view');
+  const mayReturn = useCan('returns.create');
+  const mayDelete = useCan('sales.delete');
+  const seesSellers = useCan('sales.viewAll');
   if (!sale) return <EmptyState icon="cart" title="البيعة غير موجودة" />;
   const when = new Date(sale.createdAt);
   const profit = sale.total - sale.totalCost;
@@ -87,6 +92,9 @@ export function SaleDetail({
           {`${formatDate(when)} • ${formatTime(when)} • سعر الصرف ${formatRate(sale.rate)}`}
         </Text>
         {sale.note ? <Text variant="body">{`ملاحظة: ${sale.note}`}</Text> : null}
+        {seesSellers && sale.seller !== 'owner' ? (
+          <Text variant="subhead" testID="sale-seller">{`البائع: ${sale.sellerName}`}</Text>
+        ) : null}
       </Card>
 
       <ListGroup header="الزبون">
@@ -135,7 +143,7 @@ export function SaleDetail({
                   variant="caption"
                   tone="warning">{`أُرجع ${l.returned} من ${l.quantity}`}</Text>
               ) : null}
-              {left > 0 ? (
+              {left > 0 && mayReturn ? (
                 <Button
                   title="إرجاع"
                   icon="arrow.uturn.backward"
@@ -151,11 +159,13 @@ export function SaleDetail({
         })}
       </Card>
 
-      <Card>
-        <Row label="المجموع" value={formatLyd(sale.total)} />
-        <Row label="التكلفة" value={formatLyd(sale.totalCost)} />
-        <Row label="الربح" value={formatLyd(profit)} strong />
-      </Card>
+      {seesCost ? (
+        <Card>
+          <Row label="المجموع" value={formatLyd(sale.total)} />
+          <Row label="التكلفة" value={formatLyd(sale.totalCost)} />
+          <Row label="الربح" value={formatLyd(profit)} strong />
+        </Card>
+      ) : null}
 
       {receipt ? (
         <Button
@@ -167,14 +177,16 @@ export function SaleDetail({
           testID="sale-receipt"
         />
       ) : null}
-      <Button
-        title="حذف البيعة"
-        icon="trash"
-        variant="destructive"
-        fullWidth
-        onPress={remove}
-        testID="sale-delete"
-      />
+      {mayDelete ? (
+        <Button
+          title="حذف البيعة"
+          icon="trash"
+          variant="destructive"
+          fullWidth
+          onPress={remove}
+          testID="sale-delete"
+        />
+      ) : null}
     </Page>
   );
 }
