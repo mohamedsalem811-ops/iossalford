@@ -16,6 +16,9 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+/** The EAS command-line version updates are published with; raise it on purpose, after a test. */
+const EAS_CLI = '27.2.0';
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const installedFile = join(root, 'updates', 'installed-build.json');
 
@@ -39,7 +42,8 @@ function eas(branch, message, env) {
     'npx',
     [
       '--yes',
-      'eas-cli@latest',
+      // A fixed, tested version (audit F-12): a new release can't change publishing unseen.
+      `eas-cli@${EAS_CLI}`,
       'update',
       '--branch',
       branch,

@@ -20,7 +20,9 @@ import { addToCart, type CartLine } from '@/domain/cart';
 import { checkout } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
 import { listCustomers } from '@/domain/customers';
-import { balance, payments } from '@/domain/debts';
+import { balance, payments, recordPayment } from '@/domain/debts';
+import { getPolicies } from '@/domain/policies';
+import { addReturn, getSale } from '@/domain/sales';
 import { getProduct, saveProduct } from '@/domain/products';
 import { routeStubs } from '@/testing/route-stubs';
 
@@ -191,4 +193,37 @@ it('finds customers by name or phone, with what they owe', async () => {
   await renderRouter(routes, { initialUrl: '/jewelry/more/customers' });
   expect(await screen.findByText('2 زبون')).toBeOnTheScreen();
   expect(screen.getByText('عليه 350 د.ل')).toBeOnTheScreen();
+});
+
+it('pays back a customer the shop owes, in cash, from the customer’s page', async () => {
+  // Huda paid a credit sale in full and returned the piece: the shop owes her 350 (audit F-4).
+  const ring = saveProduct(ctx(), { name: 'Ring 2', category: 'خواتم', price: 350_000, stock: 2 });
+  const r = addToCart([], getProduct(ctx(), ring)!, 'Ring 2', 1);
+  const sale = checkout(ctx(), {
+    cart: (r as { cart: CartLine[] }).cart,
+    paymentMethod: 'credit',
+    customer: { name: 'هدى', phone: '0927777777' },
+  });
+  const huda = listCustomers(ctx()).find((c) => c.name === 'هدى')!.id;
+  recordPayment(ctx(), { customerId: huda, amount: 350_000, method: 'cash' });
+  addReturn(ctx(), {
+    photo: 'p.jpg',
+    answers: Object.fromEntries(getPolicies(ctx()).returnConditions.map((c) => [c, true])),
+    saleLineId: getSale(ctx(), sale.saleId)!.lines[0].id,
+    quantity: 1,
+  });
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  await renderRouter(routes, { initialUrl: `/jewelry/more/customer/${huda}` });
+  expect(await screen.findByTestId('customer-balance')).toHaveTextContent('له رصيد 350 د.ل');
+  expect(screen.queryByTestId('customer-pay')).not.toBeOnTheScreen();
+  await fireEvent.press(screen.getByTestId('customer-payout'));
+  expect(await screen.findByDisplayValue('350')).toBeOnTheScreen();
+  await fireEvent.changeText(screen.getByTestId('payment-amount'), '400');
+  await fireEvent.press(screen.getByTestId('payment-save'));
+  expect(alert).toHaveBeenLastCalledWith('لم يتم الحفظ', 'المبلغ أكبر من رصيد الزبون (350 د.ل)');
+  await fireEvent.changeText(screen.getByTestId('payment-amount'), '350');
+  await fireEvent.press(screen.getByTestId('payment-save'));
+  expect(balance(ctx(), huda)).toBe(0);
+  expect(await screen.findByTestId('customer-balance')).toHaveTextContent('لا ديون');
+  expect(screen.getByText('رد من رصيده')).toBeOnTheScreen();
 });

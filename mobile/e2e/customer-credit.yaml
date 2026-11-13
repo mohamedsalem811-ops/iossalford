@@ -1,0 +1,60 @@
+# Audit batch 3 (database 7): the shop pays back a customer's credit ("له رصيد").
+# Sara buys the ring on credit, pays it in full, then returns it: the shop owes her 350. The owner
+# pays it back in cash and her balance ends at zero.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- tapOn: 'بيع'
+- tapOn:
+    id: 'sale-tile-Ring Zircon'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
+- tapOn:
+    id: 'cart-checkout'
+- tapOn: 'آجل'
+- tapOn:
+    id: 'checkout-name'
+- inputText: 'Sara'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'checkout-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'sold-title'
+    timeout: 30000
+- tapOn:
+    id: 'sold-new-sale'
+# She pays it all.
+- tapOn: 'الإدارة'
+- tapOn: 'الزبائن'
+- tapOn:
+    id: 'customer-Sara'
+- tapOn:
+    id: 'customer-pay'
+- tapOn:
+    id: 'payment-save'
+# She returns it: the refund becomes her credit.
+- tapOn: '.*بيعة رقم.*'
+- tapOn: 'إرجاع'
+- tapOn: 'الكاميرا'
+- tapOn:
+    id: 'return-save'
+- tapOn: 'الإدارة'
+- tapOn: 'الزبائن'
+- tapOn:
+    id: 'customer-Sara'
+- assertVisible: '.*له رصيد.*'
+- takeScreenshot: ${DEVICE}-customer-credit
+- tapOn:
+    id: 'customer-payout'
+- takeScreenshot: ${DEVICE}-payout-form
+- tapOn:
+    id: 'payment-save'
+- assertVisible: 'لا ديون'

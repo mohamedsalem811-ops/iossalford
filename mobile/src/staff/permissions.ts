@@ -24,6 +24,7 @@ export const PERMISSIONS = {
   'customers.delete': 'حذف زبون',
   'payments.create': 'تسجيل دفعة دين',
   'payments.delete': 'حذف دفعة',
+  'payouts.create': 'رد رصيد الزبون',
   'products.edit': 'إضافة وتعديل المنتجات',
   'stock.adjust': 'تعديل المخزون',
   'sets.edit': 'إدارة الأطقم',
@@ -68,6 +69,8 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'customers.delete': false,
   'payments.create': true,
   'payments.delete': false,
+  // Money out of the drawer to a customer the shop owes: the owner.
+  'payouts.create': false,
   'products.edit': false,
   'stock.adjust': false,
   'sets.edit': false,

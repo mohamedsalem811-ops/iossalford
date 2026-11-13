@@ -529,6 +529,40 @@ CREATE TRIGGER stock_count_lines_new_uid AFTER INSERT ON stock_count_lines WHEN 
 END;
 `,
   },
+  {
+    version: 7,
+    name: 'customer credit paid back, alert indexes',
+    sql: `
+-- Money the shop pays back to a customer it owes ("له رصيد"), from the full audit after S6
+-- (F-4). It adds to what the customer owes, like a payment the other way.
+CREATE TABLE payouts (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
+  amount      INTEGER NOT NULL CHECK (amount > 0),
+  method      TEXT NOT NULL,
+  note        TEXT,
+  created_at  TEXT NOT NULL,
+  month       TEXT NOT NULL,
+  by          TEXT,
+  by_name     TEXT,
+  shift_id    INTEGER REFERENCES shifts(id) ON DELETE SET NULL,
+  uid         TEXT,
+  device      TEXT
+);
+CREATE INDEX payouts_customer ON payouts(customer_id);
+CREATE INDEX payouts_shift ON payouts(shift_id);
+CREATE UNIQUE INDEX payouts_uid ON payouts(uid);
+CREATE TRIGGER payouts_new_uid AFTER INSERT ON payouts WHEN NEW.uid IS NULL BEGIN
+  UPDATE payouts SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+-- The owner's alerts look at the last days by time (F-5): without these, every sale ever made.
+CREATE INDEX sales_created ON sales(created_at);
+CREATE INDEX returns_created ON returns(created_at);
+CREATE INDEX shifts_closed ON shifts(closed_at);
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

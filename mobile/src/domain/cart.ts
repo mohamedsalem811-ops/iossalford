@@ -2,7 +2,7 @@
  * The cart is plain data held on screen (not in the database) until checkout. Every function
  * returns a new cart or a problem; a problem means nothing changed.
  */
-import { divRound, split } from '@/lib/money';
+import { divRound, formatLyd, split } from '@/lib/money';
 
 import type { Product } from './products';
 
@@ -14,6 +14,11 @@ export type CartLine = {
   quantity: number;
   /** Price per piece the customer pays, in dirhams. */
   unitPrice: number;
+  /**
+   * The piece's list price when it went into the cart (lines outside a set). Checkout compares it
+   * with the price now: a kept cart may be hours old and the owner may have changed the price.
+   */
+  listPrice?: number;
   /** Bundle lines carry the exact line total from the discount split, so totals add up to the dirham. */
   lineTotal?: number;
   setId?: number;
@@ -26,6 +31,7 @@ export type CartProblem =
   | { kind: 'missing'; name: string }
   | { kind: 'stock'; name: string; requested: number; available: number }
   | { kind: 'quantity'; name: string }
+  | { kind: 'price'; name: string; was: number; now: number | null }
   | { kind: 'credit-needs-customer' };
 
 export function problemMessage(p: CartProblem): string {
@@ -38,6 +44,10 @@ export function problemMessage(p: CartProblem): string {
       return `«${p.name}»: المطلوب ${p.requested} والمتوفر ${p.available} فقط`;
     case 'quantity':
       return `«${p.name}»: الكمية يجب أن تكون 1 على الأقل`;
+    case 'price':
+      return p.now === null
+        ? `الطقم «${p.name}» لم يعد موجوداً. حدّث السلة قبل البيع.`
+        : `سعر «${p.name}» تغيّر من ${formatLyd(p.was)} إلى ${formatLyd(p.now)}. حدّث السلة قبل البيع.`;
     case 'credit-needs-customer':
       return 'البيع الآجل يحتاج اسم الزبون أو رقم هاتفه لتسجيل الدين عليه';
   }
@@ -73,11 +83,20 @@ export function addToCart(
   if (requested > product.stock)
     return { problem: { kind: 'stock', name, requested, available: product.stock } };
   const same = cart.find(
-    (l) => l.productId === product.id && l.unitPrice === unitPrice && !l.bundleGroup,
+    (l) =>
+      l.productId === product.id &&
+      l.unitPrice === unitPrice &&
+      !l.bundleGroup &&
+      (l.listPrice ?? l.unitPrice) === product.price,
   );
   if (same)
     return { cart: cart.map((l) => (l === same ? { ...l, quantity: l.quantity + quantity } : l)) };
-  return { cart: [...cart, { key: newKey(), productId: product.id, name, quantity, unitPrice }] };
+  return {
+    cart: [
+      ...cart,
+      { key: newKey(), productId: product.id, name, quantity, unitPrice, listPrice: product.price },
+    ],
+  };
 }
 
 /** Changes a line's quantity, checking stock across the whole cart. Bundle lines can't change. */
@@ -160,6 +179,129 @@ export function addSet(cart: CartLine[], set: SetForCart): Result {
       })),
     ],
   };
+}
+
+/** The list price a line was added at (carts kept before this was saved: the price paid). */
+const addedAt = (l: CartLine) => l.listPrice ?? l.unitPrice;
+
+type Bundle = { group: string; setId: number; setName: string; lines: CartLine[] };
+
+function bundles(cart: CartLine[]): Bundle[] {
+  const out = new Map<string, Bundle>();
+  for (const l of cart) {
+    if (!l.bundleGroup || l.setId === undefined) continue;
+    const b = out.get(l.bundleGroup);
+    if (b) b.lines.push(l);
+    else
+      out.set(l.bundleGroup, {
+        group: l.bundleGroup,
+        setId: l.setId,
+        setName: l.setName ?? '',
+        lines: [l],
+      });
+  }
+  return [...out.values()];
+}
+
+/** The set as it would go into the cart now; null when the set is gone or can't be made. */
+function bundleNow(bundle: Bundle, set: SetForCart | undefined): CartLine[] | null {
+  if (!set) return null;
+  // Stock is not the question here (cartProblems reports it): only what the set costs now.
+  const items = set.items.map((i) =>
+    i.product ? { ...i, product: { ...i.product, stock: Number.MAX_SAFE_INTEGER } } : i,
+  );
+  const r = addSet([], { ...set, items });
+  return 'cart' in r ? r.cart : null;
+}
+
+const sameBundle = (was: CartLine[], now: CartLine[]) =>
+  was.length === now.length &&
+  was.every(
+    (l, n) =>
+      l.productId === now[n].productId &&
+      l.quantity === now[n].quantity &&
+      lineTotal(l) === lineTotal(now[n]),
+  );
+
+/**
+ * The prices that changed since the pieces went into the cart: a piece's list price, or a set's
+ * price or pieces (phase-end audit F-1). Checkout refuses while there is one, so a kept cart can
+ * never sell at an old price.
+ */
+export function priceChanges(
+  cart: CartLine[],
+  current: (productId: number) => Product | undefined,
+  currentSet: (setId: number) => SetForCart | undefined,
+): CartProblem[] {
+  const out: CartProblem[] = [];
+  for (const l of cart) {
+    if (l.bundleGroup) continue;
+    const p = current(l.productId);
+    if (p && !p.archived && p.price !== addedAt(l))
+      out.push({ kind: 'price', name: l.name, was: addedAt(l), now: p.price });
+  }
+  for (const b of bundles(cart)) {
+    const now = bundleNow(b, currentSet(b.setId));
+    const was = b.lines.reduce((t, l) => t + lineTotal(l), 0);
+    if (!now) out.push({ kind: 'price', name: b.setName, was, now: null });
+    else if (!sameBundle(b.lines, now))
+      out.push({
+        kind: 'price',
+        name: b.setName,
+        was,
+        now: now.reduce((t, l) => t + lineTotal(l), 0),
+      });
+  }
+  return out;
+}
+
+/**
+ * The cart at today's prices: a piece sold at its list price takes the new one (a price agreed
+ * with the customer stays), a set is put in again as it is now, and a set that no longer exists
+ * becomes its pieces at their own prices.
+ */
+export function updatePrices(
+  cart: CartLine[],
+  current: (productId: number) => Product | undefined,
+  currentSet: (setId: number) => SetForCart | undefined,
+): CartLine[] {
+  const rebuilt = new Map<string, CartLine[]>();
+  for (const b of bundles(cart)) {
+    const now = bundleNow(b, currentSet(b.setId));
+    rebuilt.set(
+      b.group,
+      now
+        ? now.map((l) => ({ ...l, bundleGroup: b.group }))
+        : b.lines.map((l) => {
+            const price = current(l.productId)?.price ?? l.unitPrice;
+            return {
+              key: l.key,
+              productId: l.productId,
+              name: l.name,
+              quantity: l.quantity,
+              unitPrice: price,
+              listPrice: price,
+            };
+          }),
+    );
+  }
+  const out: CartLine[] = [];
+  for (const l of cart) {
+    if (l.bundleGroup) {
+      const lines = rebuilt.get(l.bundleGroup);
+      if (lines) out.push(...lines);
+      rebuilt.delete(l.bundleGroup);
+      continue;
+    }
+    const p = current(l.productId);
+    if (!p || p.price === addedAt(l)) {
+      out.push(l);
+      continue;
+    }
+    const agreed = l.listPrice !== undefined && l.unitPrice !== l.listPrice;
+    out.push({ ...l, unitPrice: agreed ? l.unitPrice : p.price, listPrice: p.price });
+  }
+  return out;
 }
 
 /**

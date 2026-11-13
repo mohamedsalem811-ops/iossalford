@@ -37,6 +37,7 @@ export const TABLES = [
   'staff_ledger',
   'stock_counts',
   'stock_count_lines',
+  'payouts',
 ] as const;
 
 type Row = Record<string, SqlValue>;

@@ -16,7 +16,7 @@ import {
 } from '@/components';
 import type { Ctx } from '@/domain/context';
 import { getCustomer } from '@/domain/customers';
-import { balance, recordPayment } from '@/domain/debts';
+import { balance, recordPayment, recordPayout } from '@/domain/debts';
 import { showError } from '@/features/products/actions';
 import { editableDinars, formatLyd } from '@/lib/money';
 import { notifyDataChanged } from '@/state/data-events';
@@ -26,7 +26,10 @@ import { checkPayment, PAYMENT_WAYS, type PaymentWay } from './model';
 import { haptic } from '@/lib/haptics';
 import { useSaveOnce } from '@/hooks/use-save-once';
 
-/** Money received from a customer towards what they owe; it starts at the whole balance. */
+/**
+ * Money received from a customer towards what they owe; it starts at the whole balance. For a
+ * customer the shop owes ("له رصيد"), money paid back to them instead (audit F-4).
+ */
 export function PaymentForm({
   ctx,
   customerId,
@@ -42,22 +45,26 @@ export function PaymentForm({
   const bottomSpace = useSheetBottomSpace();
   const [customer] = useState(() => getCustomer(ctx, customerId));
   const [owed] = useState(() => balance(ctx, customerId));
-  const [amount, setAmount] = useState(() => (owed > 0 ? editableDinars(owed) : ''));
+  // Paying back a customer the shop owes, rather than receiving.
+  const back = owed < 0;
+  const [amount, setAmount] = useState(() => (owed !== 0 ? editableDinars(Math.abs(owed)) : ''));
   const [way, setWay] = useState<PaymentWay>('cash');
   const [note, setNote] = useState('');
 
   if (!customer) return <EmptyState icon="person" title="الزبون غير موجود" />;
-  if (owed <= 0) return <EmptyState icon="checkmark.seal" title="لا يوجد مبلغ مستحق" />;
+  if (owed === 0) return <EmptyState icon="checkmark.seal" title="لا يوجد مبلغ مستحق" />;
 
   const save = () => {
-    const check = checkPayment(amount, owed);
+    const check = checkPayment(amount, Math.abs(owed), back);
     if (!check.ok) {
       haptic.error();
       Alert.alert('لم يتم الحفظ', check.message);
       return;
     }
     try {
-      recordPayment(ctx, { customerId, amount: check.amount, method: way, note });
+      const input = { customerId, amount: check.amount, method: way, note };
+      if (back) recordPayout(ctx, input);
+      else recordPayment(ctx, input);
     } catch (error) {
       showError(error);
       return;
@@ -70,7 +77,11 @@ export function PaymentForm({
 
   return (
     <>
-      <FormHeader title="تسجيل دفعة" onCancel={onDone} onSave={saveOnce} />
+      <FormHeader
+        title={back ? 'رد الرصيد للزبون' : 'تسجيل دفعة'}
+        onCancel={onDone}
+        onSave={saveOnce}
+      />
       <KeyboardAwareScrollView
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
@@ -79,9 +90,11 @@ export function PaymentForm({
         keyboardShouldPersistTaps="handled">
         <Card>
           <Text variant="headline">{customer.name}</Text>
-          <Text variant="subhead" tone="warning">{`عليه ${formatLyd(owed)}`}</Text>
+          <Text variant="subhead" tone={back ? 'accent' : 'warning'}>
+            {back ? `له رصيد ${formatLyd(-owed)}` : `عليه ${formatLyd(owed)}`}
+          </Text>
           <NumberField
-            label="المبلغ المستلم"
+            label={back ? 'المبلغ المردود للزبون' : 'المبلغ المستلم'}
             value={amount}
             onChangeText={setAmount}
             suffix="د.ل"
@@ -95,7 +108,7 @@ export function PaymentForm({
           />
           <TextField label="ملاحظة" value={note} onChangeText={setNote} placeholder="اختياري" />
           <Button
-            title="حفظ الدفعة"
+            title={back ? 'حفظ الرد' : 'حفظ الدفعة'}
             icon="checkmark.circle.fill"
             fullWidth
             onPress={saveOnce}

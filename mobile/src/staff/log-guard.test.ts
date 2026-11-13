@@ -4,7 +4,7 @@
  * The app side of the activity log (phase S3): lines that wait for the database, the check of
  * the chain against the line remembered outside it, and the owner's alert.
  */
-import { countActivity, listActivity, recordSignIn } from '@/domain/activity';
+import { countActivity, listActivity, recordSignIn, walkLog } from '@/domain/activity';
 import { saveProduct } from '@/domain/products';
 import { makeCtx, type TestCtx } from '@/domain/testing/ctx';
 import { OWNER } from '@/staff/model';
@@ -13,13 +13,14 @@ import {
   acknowledgeBreaks,
   forgetLog,
   readAnchor,
+  readVerified,
   saveAnchor,
   stampDevice,
   takeWaiting,
   useLogAlerts,
   whenOpen,
 } from './guards';
-import { checkLog } from './log-guard';
+import { checkLog, FULL_CHECK_MS } from './log-guard';
 
 const mockKeychain = new Map<string, string>();
 jest.mock('expo-secure-store', () => ({
@@ -58,17 +59,44 @@ it('finds nothing in an untouched log and remembers its last line', () => {
 it('reports a changed line once, shows it to the owner until acknowledged', () => {
   checkLog(ctx);
   ctx.db.run("UPDATE activity SET summary = 'شيء آخر' WHERE id = 1");
+  // An old line (before the last one checked) is found by the weekly walk of the whole chain.
   checkLog(ctx);
+  expect(alerts()).toEqual([]);
+  const week = Date.now() + FULL_CHECK_MS;
+  checkLog(ctx, week);
   expect(alerts()).toEqual([1]);
   const lines = countActivity(ctx);
   expect(listActivity(ctx)[0]).toMatchObject({ action: 'log.broken', actor: 'system' });
-  // Checked again: no second line, the alert stays until the owner has seen it.
+  // Checked again (the whole chain, while a break is there): no second line, the alert stays
+  // until the owner has seen it.
   checkLog(ctx);
   expect(countActivity(ctx)).toBe(lines);
   expect(alerts()).toEqual([1]);
   acknowledgeBreaks(ctx.system);
   checkLog(ctx);
   expect(alerts()).toEqual([]);
+});
+
+it('checks only the lines added since the last check, and finds a change among them', () => {
+  checkLog(ctx);
+  expect(readVerified(ctx.system)).toMatchObject({ id: 2 });
+  saveProduct(ctx, { name: 'عقد', category: 'عقود', price: 100_000, stock: 1 });
+  saveProduct(ctx, { name: 'حلق', category: 'أقراط', price: 90_000, stock: 1 });
+  ctx.db.run("UPDATE activity SET summary = 'شيء آخر' WHERE id = 4");
+  checkLog(ctx);
+  expect(alerts()).toEqual([4]);
+});
+
+it('walks the whole chain when the last line checked was changed', () => {
+  checkLog(ctx);
+  const from = readVerified(ctx.system)!;
+  ctx.db.run("UPDATE activity SET summary = 'شيء آخر' WHERE id = 2");
+  const walk = walkLog(ctx, null, 500, from);
+  let step = walk.next();
+  while (!step.done) step = walk.next();
+  expect(step.value).toMatchObject({ full: true, broken: [2], lines: 2 });
+  checkLog(ctx);
+  expect(alerts()).toEqual([2]);
 });
 
 it('finds lines removed from the end, using the line remembered outside the database', () => {

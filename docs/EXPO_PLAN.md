@@ -1,6 +1,6 @@
 # SALFORD POS: Expo rebuild execution plan (version 3)
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S5 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns, the employee's account, shifts and the cash count) are merged; S6 (alerts, the stock count, device protection) is built (PR open); then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S6 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns, the employee's account, shifts and the cash count, alerts, the stock count, device protection) are merged. The fixes from the full audit after S6 are being made in three batches (see "Audit fixes"); then Phase 10, switching over.
 
 Every feature of the current app is kept. Items marked **NEW** don't exist in the current app. Unmarked items are the same as the current app, rebuilt with a new design.
 
@@ -577,6 +577,22 @@ Then the dashboard:
 
 **S6.4, the six phases against the decisions:** owner and employee roles only; a 6-digit employee PIN; employees see only their own sales; discount limits in dinars per piece and per sale with the owner's approval on the spot; returns within 24 hours with the conditions and a photo; "على حساب الموظف"; auto-lock after 7 minutes; shifts and the cash count; the alerts, the stock count and the guide. All are in place and tested; the Maestro flows (`e2e/staff*.yaml`) cover each staff feature and wait for 10.0.
 
+### Audit fixes (after S6)
+
+The full audit after S6 (a read-only check of the code, flows, tests and speed on a five-year shop) found 4 medium and 9 low issues. The owner approved fixing them in three batches:
+
+- **Batch 1, money and speed:**
+  - F-1: a kept cart can't sell at a changed price. Checkout compares each piece with its price now, and each set with the set now, and offers "تحديث الأسعار". A price agreed with the customer stays.
+  - F-2: a sale with returns can't be deleted until its returns are undone, so no refund paid out disappears from the reports. A sale or a return in a closed quarter or a closed shift can't be deleted. Deleting a sale asks whether to delete its receipt too.
+  - F-3: one save refreshes each open screen once, and a screen out of view reads again only when it comes back.
+  - F-6: each open checks only the log lines added since the last check, and the whole chain once a week. A break keeps the next checks walking the whole chain.
+  - F-7: the open shift is checked before the owner's approval is used up.
+  - F-8: sales from before S3 count as the owner's in sales by seller.
+- **Batch 2, safety and tools:** F-9 the staff list survives a crash while saving (the complete temporary file is used); F-10 a failed undo never hides the real error; F-12 the update tool pinned to a tested version (`EAS_CLI` in `scripts/publish-update.mjs`, raised on purpose) and time limits on the CI jobs (20 and 60 minutes); F-13 tests for the staff actions (add, PIN, rename, suspend, lock settings, emergency code, sending and receiving the list). F-11 (wrong PINs at the approval prompt count toward the owner's lockout) stays as it is, so guessing there is no easier than at sign-in.
+- **Batch 3, database 7 (a new `.ipa`):**
+  - F-5: indexes on the times of sales, returns and shifts (`sales_created`, `returns_created`, `shifts_closed`), for the alerts.
+  - F-4: the shop's credit to a customer ("له رصيد") is paid back from the customer's page ("رد الرصيد للزبون", the owner only, `payouts.create`), in cash (it comes out of the shift's expected cash) or by card or transfer. The new `payouts` table is in backups; a payout is in the customer's statement and can be removed there if recorded by mistake. To use the credit on a new piece instead, sell it on credit (آجل) to that customer: it comes off what the shop owes.
+
 ### Phase 10: switching over
 
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):
@@ -667,4 +683,4 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
 
 - Phase 8 (built, owner to test): instant updates need one new `.ipa` (build 2) before they reach the devices; after installing it, it is recorded with `npm run update:record`. Backups are now copies of the database file (`.db`); `.json` backups from before still restore. A restore keeps sale and receipt numbers from ever repeating, also from an older backup (found while testing 8.0g). The speed test is `npm run speed`: with 2,000 products and 30,000 sales every screen reads in under 25 ms on a computer (Customers and Debts were changed to one query for all balances). The dashboard's daily chart has a temporary switch to Apple's charts so the owner can choose; the other one is removed afterwards. Errors are kept in a log on the device (Settings → سجل الأخطاء).
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S5 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns, the employee's account, shifts and the cash count) are merged; S6 (alerts, the stock count, device protection) is built (PR open); then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S6 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns, the employee's account, shifts and the cash count, alerts, the stock count, device protection) are merged. The fixes from the full audit after S6 are being made in three batches (see "Audit fixes"); then Phase 10, switching over.

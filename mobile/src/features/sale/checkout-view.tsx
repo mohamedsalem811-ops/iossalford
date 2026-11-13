@@ -18,12 +18,14 @@ import {
 import {
   ApprovalNeeded,
   checkout,
+  CheckoutError,
   discountMessage,
   PAYMENT_LABELS,
   PAYMENT_METHODS,
   type PaymentMethod,
 } from '@/domain/checkout';
-import { cartDiscount, needsApproval } from '@/domain/cart';
+import { cartDiscount, needsApproval, updatePrices } from '@/domain/cart';
+import { getSet, setForCart } from '@/domain/sets';
 import { getPolicies } from '@/domain/policies';
 import { getProduct } from '@/domain/products';
 import { askOwner, chooseReason } from '@/staff/approvals';
@@ -115,6 +117,27 @@ export function CheckoutView({
       }
       // Nothing was sold: stock is checked again here (it may have changed since it was added).
       haptic.error();
+      if (error instanceof CheckoutError && error.problems.some((p) => p.kind === 'price')) {
+        Alert.alert('تغيّرت الأسعار', error.message, [
+          { text: 'رجوع', style: 'cancel' },
+          {
+            text: 'تحديث الأسعار',
+            onPress: () =>
+              putCart(
+                ctx.system,
+                updatePrices(
+                  cart,
+                  (id) => getProduct(ctx, id),
+                  (id) => {
+                    const s = getSet(ctx, id);
+                    return s ? setForCart(ctx, s) : undefined;
+                  },
+                ),
+              ),
+          },
+        ]);
+        return;
+      }
       Alert.alert(
         'لم يتم البيع',
         error instanceof RuleError ? error.message : 'حدث خطأ غير متوقع، لم يُبَع أي شيء.',

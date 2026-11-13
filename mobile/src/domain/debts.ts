@@ -7,19 +7,21 @@ import { shiftFor } from './shifts';
 
 /**
  * What a customer still owes: their credit (آجل) sales, minus refunds on returns of those sales,
- * minus payments received. Negative means the shop owes the customer ("له رصيد").
+ * minus payments received, plus what the shop paid back to them. Negative means the shop owes
+ * the customer ("له رصيد").
  */
 export function balance(ctx: Ctx, customerId: number): number {
-  const r = ctx.db.get<{ owed: number; refunded: number; paid: number }>(
+  const r = ctx.db.get<{ owed: number; refunded: number; paid: number; paid_back: number }>(
     `SELECT
        coalesce((SELECT sum(total) FROM sales WHERE customer_id = ?1 AND payment_method = 'credit'), 0) AS owed,
        coalesce((SELECT sum(r.refund) FROM returns r JOIN sale_lines l ON l.id = r.sale_line_id
                   JOIN sales s ON s.id = l.sale_id
                  WHERE s.customer_id = ?1 AND s.payment_method = 'credit'), 0) AS refunded,
-       coalesce((SELECT sum(amount) FROM payments WHERE customer_id = ?1), 0) AS paid`,
+       coalesce((SELECT sum(amount) FROM payments WHERE customer_id = ?1), 0) AS paid,
+       coalesce((SELECT sum(amount) FROM payouts WHERE customer_id = ?1), 0) AS paid_back`,
     [customerId],
   )!;
-  return r.owed - r.refunded - r.paid;
+  return r.owed - r.refunded - r.paid + r.paid_back;
 }
 
 export type Debtor = { customer: Customer; balance: number };
@@ -31,7 +33,9 @@ export type Debtor = { customer: Customer; balance: number };
  */
 export function allBalances(ctx: Ctx): Map<number, number> {
   const rows = ctx.db.all<{ id: number; balance: number }>(
-    `SELECT c.id, coalesce(o.owed, 0) - coalesce(r.refunded, 0) - coalesce(p.paid, 0) AS balance
+    `SELECT c.id,
+            coalesce(o.owed, 0) - coalesce(r.refunded, 0) - coalesce(p.paid, 0) + coalesce(b.back, 0)
+              AS balance
        FROM customers c
        LEFT JOIN (SELECT customer_id, sum(total) AS owed FROM sales
                    WHERE payment_method = 'credit' AND customer_id IS NOT NULL
@@ -42,7 +46,9 @@ export function allBalances(ctx: Ctx): Map<number, number> {
                    GROUP BY s.customer_id) r ON r.customer_id = c.id
        LEFT JOIN (SELECT customer_id, sum(amount) AS paid FROM payments GROUP BY customer_id) p
               ON p.customer_id = c.id
-      WHERE o.owed IS NOT NULL OR p.paid IS NOT NULL`,
+       LEFT JOIN (SELECT customer_id, sum(amount) AS back FROM payouts GROUP BY customer_id) b
+              ON b.customer_id = c.id
+      WHERE o.owed IS NOT NULL OR p.paid IS NOT NULL OR b.back IS NOT NULL`,
   );
   return new Map(rows.filter((r) => r.balance !== 0).map((r) => [r.id, r.balance]));
 }
@@ -129,6 +135,66 @@ export function deletePayment(ctx: Ctx, id: number) {
   });
 }
 
+/**
+ * Pays back to a customer money the shop owes them ("له رصيد", audit F-4): out of the drawer in
+ * cash (counted in the shift), or by card or transfer. It can't be more than the shop owes. The
+ * owner only (money out); using the credit on a new sale is a credit (آجل) sale, which takes it
+ * off what the shop owes.
+ */
+export function recordPayout(
+  ctx: Ctx,
+  input: { customerId: number; amount: number; method: string; note?: string },
+): number {
+  const actor = allow(ctx, 'payouts.create');
+  if (!getCustomer(ctx, input.customerId)) throw new RuleError('الزبون غير موجود');
+  if (!Number.isInteger(input.amount) || input.amount <= 0)
+    throw new RuleError('يرجى إدخال المبلغ المردود');
+  const owedToThem = -balance(ctx, input.customerId);
+  if (input.amount > owedToThem)
+    throw new RuleError(
+      `المبلغ أكبر من رصيد الزبون (${formatDinars(Math.max(0, owedToThem))} د.ل)`,
+    );
+  return ctx.db.transaction(() => {
+    const shiftId = shiftFor(ctx, actor);
+    const id = ctx.db.run(
+      'INSERT INTO payouts (customer_id, amount, method, note, created_at, month, by, by_name, shift_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        input.customerId,
+        input.amount,
+        input.method,
+        clean(input.note),
+        nowStamp(ctx),
+        nowMonth(ctx),
+        ...who(ctx),
+        shiftId,
+      ],
+    ).lastInsertRowId;
+    logAction(
+      ctx,
+      'payout.add',
+      `رد ${formatLyd(input.amount)} من رصيد «${getCustomer(ctx, input.customerId)?.name}»`,
+      { payoutId: id, customerId: input.customerId, amount: input.amount },
+    );
+    return id;
+  });
+}
+
+/** Undoes a payout recorded by mistake (the shop owes the customer that money again). */
+export function deletePayout(ctx: Ctx, id: number) {
+  allow(ctx, 'payments.delete');
+  ctx.db.transaction(() => {
+    const p = ctx.db.get<{ amount: number; name: string | null }>(
+      'SELECT p.amount, c.name FROM payouts p LEFT JOIN customers c ON c.id = p.customer_id WHERE p.id = ?',
+      [id],
+    );
+    if (!p) return;
+    ctx.db.run('DELETE FROM payouts WHERE id = ?', [id]);
+    logAction(ctx, 'payout.delete', `حذف رد ${formatLyd(p.amount)} لـ «${p.name ?? '—'}»`, {
+      payoutId: id,
+    });
+  });
+}
+
 export function payments(ctx: Ctx, customerId: number): Payment[] {
   return ctx.db
     .all<{
@@ -165,7 +231,7 @@ export function deleteCustomer(ctx: Ctx, id: number) {
     if (b > 0) throw new RuleError(`لا يمكن حذف «${c.name}»: عليه ${formatDinars(b)} د.ل`);
     if (b < 0) throw new RuleError(`لا يمكن حذف «${c.name}»: له رصيد ${formatDinars(-b)} د.ل`);
     const credit = ctx.db.get(
-      `SELECT 1 FROM sales WHERE customer_id = ?1 AND payment_method = 'credit' UNION ALL SELECT 1 FROM payments WHERE customer_id = ?1 LIMIT 1`,
+      `SELECT 1 FROM sales WHERE customer_id = ?1 AND payment_method = 'credit' UNION ALL SELECT 1 FROM payments WHERE customer_id = ?1 UNION ALL SELECT 1 FROM payouts WHERE customer_id = ?1 LIMIT 1`,
       [id],
     );
     if (credit) throw new RuleError(`لا يمكن حذف «${c.name}»: له تعاملات آجلة مسجلة`);
@@ -175,8 +241,8 @@ export function deleteCustomer(ctx: Ctx, id: number) {
 }
 
 export type StatementLine = {
-  kind: 'sale' | 'refund' | 'payment';
-  /** The sale, return or payment id. */
+  kind: 'sale' | 'refund' | 'payment' | 'payout';
+  /** The sale, return, payment or payout id. */
   id: number;
   saleId: number | null;
   createdAt: string;
@@ -188,8 +254,8 @@ export type StatementLine = {
 };
 
 /**
- * The customer's statement: credit sales, refunds on returns of those sales, and payments, oldest
- * first, with what they owe after each. Ends at balance().
+ * The customer's statement: credit sales, refunds on returns of those sales, payments, and money
+ * paid back to them, oldest first, with what they owe after each. Ends at balance().
  */
 export function statement(ctx: Ctx, customerId: number): StatementLine[] {
   const rows = ctx.db.all<{
@@ -209,6 +275,9 @@ export function statement(ctx: Ctx, customerId: number): StatementLine[] {
      UNION ALL
      SELECT 'payment', id, NULL, created_at, -amount, coalesce(note, method)
        FROM payments WHERE customer_id = ?1
+     UNION ALL
+     SELECT 'payout', id, NULL, created_at, amount, coalesce(note, method)
+       FROM payouts WHERE customer_id = ?1
      ORDER BY created_at, kind DESC, id`,
     [customerId],
   );

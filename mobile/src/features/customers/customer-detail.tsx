@@ -4,7 +4,13 @@ import { Button, Card, EmptyState, ListGroup, ListRow, Page, Text } from '@/comp
 import { PAYMENT_LABELS } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
 import type { Customer } from '@/domain/customers';
-import { deleteCustomer, deletePayment, type Payment, type StatementLine } from '@/domain/debts';
+import {
+  deleteCustomer,
+  deletePayment,
+  deletePayout,
+  type Payment,
+  type StatementLine,
+} from '@/domain/debts';
 import type { Sale } from '@/domain/sales';
 import { showError } from '@/features/products/actions';
 import { saleSummary } from '@/features/sales/model';
@@ -21,6 +27,7 @@ const LINE_LABEL: Record<StatementLine['kind'], string> = {
   sale: 'بيع آجل',
   refund: 'مرتجع',
   payment: 'دفعة',
+  payout: 'رد من رصيده',
 };
 
 /**
@@ -55,6 +62,7 @@ export function CustomerDetail({
   const { colors } = useTheme();
   const mayDeletePayment = useCan('payments.delete');
   const mayDelete = useCan('customers.delete');
+  const mayPayBack = useCan('payouts.create');
   if (!c) return <EmptyState icon="person" title="الزبون غير موجود" />;
   const owed = balanceText(balance);
 
@@ -69,6 +77,23 @@ export function CustomerDetail({
           style: 'destructive',
           onPress: () => {
             deletePayment(ctx, p.id);
+            notifyDataChanged();
+          },
+        },
+      ],
+    );
+
+  const removePayout = (l: StatementLine) =>
+    Alert.alert(
+      'حذف الرد؟',
+      `${formatLyd(l.amount)} بتاريخ ${formatDate(new Date(l.createdAt))}. يعود المبلغ رصيداً للزبون.`,
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'حذف',
+          style: 'destructive',
+          onPress: () => {
+            deletePayout(ctx, l.id);
             notifyDataChanged();
           },
         },
@@ -137,6 +162,21 @@ export function CustomerDetail({
             testID="customer-pay"
           />
         ) : null}
+        {balance < 0 && mayPayBack ? (
+          <>
+            <Button
+              title="رد الرصيد للزبون"
+              icon="banknote"
+              variant="secondary"
+              fullWidth
+              onPress={onPay}
+              testID="customer-payout"
+            />
+            <Text variant="caption" tone="secondary">
+              أو يُستخدم الرصيد في بيعة جديدة: بيع آجل لهذا الزبون يُخصم من رصيده.
+            </Text>
+          </>
+        ) : null}
       </Card>
 
       {lines.length ? (
@@ -146,8 +186,14 @@ export function CustomerDetail({
           </Text>
           <Card padded={false} style={{ gap: 0 }}>
             {lines.map((l, i) => (
-              <View
+              <Pressable
                 key={`${l.kind}-${l.id}`}
+                disabled={!(l.kind === 'payout' && mayDeletePayment)}
+                onPress={() => removePayout(l)}
+                accessibilityHint={
+                  l.kind === 'payout' && mayDeletePayment ? 'اضغط للحذف إن سُجّل بالخطأ' : undefined
+                }
+                testID={`statement-${l.kind}-${l.id}`}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -163,7 +209,9 @@ export function CustomerDetail({
                   <Text variant="caption" tone="secondary">
                     {[
                       formatDate(new Date(l.createdAt)),
-                      l.kind === 'payment' ? paymentWayLabel(l.note ?? '') : l.note,
+                      l.kind === 'payment' || l.kind === 'payout'
+                        ? paymentWayLabel(l.note ?? '')
+                        : l.note,
                     ]
                       .filter(Boolean)
                       .join(' • ')}
@@ -177,7 +225,7 @@ export function CustomerDetail({
                     {`الرصيد ${formatLyd(l.balance)}`}
                   </Text>
                 </View>
-              </View>
+              </Pressable>
             ))}
           </Card>
         </>

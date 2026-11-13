@@ -50,7 +50,13 @@ export function makeTransaction(exec: (sql: string) => void) {
       exec('COMMIT');
       return result;
     } catch (error) {
-      exec('ROLLBACK');
+      // The first error is the one to report (audit F-10): an undo that fails too (a full disk)
+      // must not replace it. SQLite has already undone the transaction in that case.
+      try {
+        exec('ROLLBACK');
+      } catch {
+        // Nothing more to undo.
+      }
       throw error;
     } finally {
       depth = 0;

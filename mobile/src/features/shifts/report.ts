@@ -30,6 +30,9 @@ export function reportRows(r: ShiftReport): { label: string; value: string }[] {
     { label: 'المرتجعات', value: `${totals.returns} • ${formatLyd(totals.refunded)}` },
     { label: 'منها نقداً', value: formatLyd(totals.cashRefunds) },
     { label: 'دفعات ديون نقداً', value: formatLyd(totals.cashPayments) },
+    ...(totals.cashPayouts
+      ? [{ label: 'رد أرصدة زبائن نقداً', value: `−${formatLyd(totals.cashPayouts)}` }]
+      : []),
     { label: 'الخصومات', value: formatLyd(totals.discounts) },
     { label: 'موافقات المالك', value: String(totals.approvals) },
     { label: 'نقد البداية', value: formatLyd(shift.openingCash) },

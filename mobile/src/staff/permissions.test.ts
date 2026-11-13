@@ -8,7 +8,13 @@ import { checkout } from '@/domain/checkout';
 import { closeQuarter, deleteClosing } from '@/domain/closing';
 import { PermissionError, type Ctx } from '@/domain/context';
 import { saveCustomer } from '@/domain/customers';
-import { deleteCustomer, deletePayment, recordPayment } from '@/domain/debts';
+import {
+  deleteCustomer,
+  deletePayment,
+  deletePayout,
+  recordPayment,
+  recordPayout,
+} from '@/domain/debts';
 import { addExpense, deleteExpense } from '@/domain/expenses';
 import { addBrand, deleteBrand, renameBrand, setBrandImage } from '@/domain/brands';
 import { exportBackup, restoreBackup } from '@/domain/backup';
@@ -49,6 +55,9 @@ type Seed = {
   chain: number;
   customer: number;
   sale: number;
+  plainSale: number;
+  owedTo: number;
+  payout: number;
   saleLine: number;
   receipt: number;
   /** A receipt the employee issued (an employee edits only their own). */
@@ -87,8 +96,9 @@ function seed(ctx: TestCtx): Seed {
     paymentMethod: 'credit',
     customer: { name: 'منى', phone: '0912345678' },
   });
-  // A second sale, so one archived piece has a sale and is kept when deleted.
-  checkout(ctx, { cart: cartOf(ctx, archived), paymentMethod: 'cash' });
+  // A second sale, so one archived piece has a sale and is kept when deleted. It has no
+  // returns, so it can be deleted.
+  const plainSale = checkout(ctx, { cart: cartOf(ctx, archived), paymentMethod: 'cash' }).saleId;
   deleteProduct(ctx, archived);
   const saleLine = getSale(ctx, sold.saleId)!.lines[0].id;
   const ret = addReturn(ctx, { ...passing(ctx), saleLineId: saleLine, quantity: 1 });
@@ -101,6 +111,20 @@ function seed(ctx: TestCtx): Seed {
   });
   chargeReturn(ctx, charged, { key: 'emp-e1', name: 'سارة' });
   const payment = recordPayment(ctx, { customerId: customer, amount: 10_000, method: 'cash' });
+  // A customer the shop owes (paid a credit sale in full, then returned it), with one payout.
+  const owedTo = saveCustomer(ctx, { name: 'نور', phone: '0923333333' });
+  const paidSale = checkout(ctx, {
+    cart: cartOf(ctx, chain),
+    paymentMethod: 'credit',
+    customer: { name: 'نور', phone: '0923333333' },
+  });
+  recordPayment(ctx, { customerId: owedTo, amount: 50_000, method: 'cash' });
+  addReturn(ctx, {
+    ...passing(ctx),
+    saleLineId: getSale(ctx, paidSale.saleId)!.lines[0].id,
+    quantity: 1,
+  });
+  const payout = recordPayout(ctx, { customerId: owedTo, amount: 10_000, method: 'cash' });
   const expense = addExpense(ctx, { description: 'إيجار', amount: 5_000 });
   const closing = closeQuarter(ctx, { year: 2026, quarter: 3 }).id;
   const set = saveSet(ctx, {
@@ -134,6 +158,9 @@ function seed(ctx: TestCtx): Seed {
     chain,
     customer,
     sale: sold.saleId,
+    plainSale,
+    owedTo,
+    payout,
     saleLine,
     receipt: sold.receipt.id,
     payment,
@@ -153,7 +180,7 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
       permission: 'sales.create',
       run: (ctx, s) => checkout(ctx, { cart: cartOf(ctx, s.chain), paymentMethod: 'cash' }),
     },
-    deleteSale: { permission: 'sales.delete', run: (ctx, s) => deleteSale(ctx, s.sale) },
+    deleteSale: { permission: 'sales.delete', run: (ctx, s) => deleteSale(ctx, s.plainSale) },
     addReturn: {
       permission: 'returns.create',
       run: (ctx, s) => addReturn(ctx, { ...passing(ctx), saleLineId: s.saleLine, quantity: 1 }),
@@ -198,6 +225,11 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
       run: (ctx, s) =>
         recordPayment(ctx, { customerId: s.customer, amount: 1_000, method: 'cash' }),
     },
+    recordPayout: {
+      permission: 'payouts.create',
+      run: (ctx, s) => recordPayout(ctx, { customerId: s.owedTo, amount: 1_000, method: 'cash' }),
+    },
+    deletePayout: { permission: 'payments.delete', run: (ctx, s) => deletePayout(ctx, s.payout) },
     deletePayment: {
       permission: 'payments.delete',
       run: (ctx, s) => deletePayment(ctx, s.payment),

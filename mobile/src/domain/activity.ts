@@ -142,24 +142,40 @@ export type LogCheck = {
    * even after the owner has seen an earlier one.
    */
   broken: number[];
+  /** The whole chain was walked (not only the lines after the last one checked). */
+  full: boolean;
 };
 
 /**
- * Walks the whole chain a page at a time (memory stays small), pausing after each page so the
- * app can run the walk in pieces (`yield`) without holding the screen. `anchor` is the last line
+ * Walks the chain a page at a time (memory stays small), pausing after each page so the app can
+ * run the walk in pieces (`yield`) without holding the screen. `anchor` is the last line
  * remembered outside the database: it must still be there with the same fingerprint, so removing
  * lines from the end is found too.
+ *
+ * `from` is the last line already checked (audit F-6): when it is still there unchanged, only
+ * the lines after it are walked, so opening the app stays light however long the log gets. When
+ * it was changed or removed, it counts as a break and the whole chain is walked.
  */
 export function* walkLog(
   ctx: Ctx,
   anchor?: { id: number; hash: string } | null,
   pageSize = 500,
+  from?: { id: number; hash: string } | null,
 ): Generator<void, LogCheck, void> {
   let prev = GENESIS;
   let lines = 0;
   let last = { id: 0, hash: GENESIS };
   let after = 0;
   const broken: number[] = [];
+  if (from && from.id > 0) {
+    const kept = ctx.db.get<Row>('SELECT * FROM activity WHERE id = ?', [from.id]);
+    if (kept && kept.hash === from.hash && lineHash(kept.prev_hash, kept) === kept.hash) {
+      prev = from.hash;
+      last = { id: from.id, hash: from.hash };
+      after = from.id;
+    } else broken.push(from.id);
+  }
+  const full = after === 0;
   for (;;) {
     const rows = ctx.db.all<Row>('SELECT * FROM activity WHERE id > ? ORDER BY id LIMIT ?', [
       after,
@@ -167,7 +183,9 @@ export function* walkLog(
     ]);
     if (rows.length === 0) break;
     for (const r of rows) {
-      if (r.prev_hash !== prev || lineHash(r.prev_hash, r) !== r.hash) broken.push(r.id);
+      if (r.prev_hash !== prev || lineHash(r.prev_hash, r) !== r.hash) {
+        if (!broken.includes(r.id)) broken.push(r.id);
+      }
       prev = r.hash;
       last = { id: r.id, hash: r.hash };
       lines++;
@@ -181,7 +199,7 @@ export function* walkLog(
     ]);
     if ((!kept || kept.hash !== anchor.hash) && !broken.includes(anchor.id)) broken.push(anchor.id);
   }
-  return { ok: broken.length === 0, lines, last, broken };
+  return { ok: broken.length === 0, lines, last, broken, full };
 }
 
 /** The whole walk at once (tests, small logs). */

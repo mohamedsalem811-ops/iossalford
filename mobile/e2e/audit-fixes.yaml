@@ -1,0 +1,65 @@
+# Audit fixes, batch 1: a kept cart at a changed price (F-1) and deleting a sale (F-2).
+# A fresh install: Ring Zircon goes into the cart at 350, its price becomes 300, and checkout
+# refuses the old price until "تحديث الأسعار"; the sale is then deleted, keeping its receipt.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- tapOn: 'بيع'
+- tapOn:
+    id: 'sale-tile-Ring Zircon'
+# The price changes while the piece is in the cart.
+- tapOn: 'المنتجات'
+- tapOn: '.*Ring Zircon.*'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'product-price'
+- tapOn:
+    id: 'product-price'
+- eraseText
+- inputText: '300'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'product-save'
+- tapOn:
+    id: 'product-save'
+- tapOn: 'بيع'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
+- tapOn:
+    id: 'cart-checkout'
+- tapOn:
+    id: 'checkout-confirm'
+- assertVisible: 'تغيّرت الأسعار'
+- takeScreenshot: ${DEVICE}-price-changed
+- tapOn: 'تحديث الأسعار'
+- tapOn:
+    id: 'checkout-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'sold-title'
+    timeout: 30000
+- assertVisible: '.*300.*'
+- tapOn:
+    id: 'sold-new-sale'
+# Deleting it asks about its receipt.
+- tapOn: 'الإدارة'
+- tapOn: 'سجل المبيعات'
+- tapOn: '.*300.*'
+- scrollUntilVisible:
+    element:
+      id: 'sale-delete'
+    direction: DOWN
+- tapOn:
+    id: 'sale-delete'
+- takeScreenshot: ${DEVICE}-delete-sale
+- tapOn: 'حذف البيعة وإبقاء الإيصال'
