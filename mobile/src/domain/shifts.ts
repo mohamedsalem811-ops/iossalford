@@ -326,6 +326,18 @@ export function listShifts(ctx: Ctx, page?: Page): Shift[] {
   return ctx.db.all<Row>(`SELECT * FROM shifts ORDER BY id DESC${pageSql(page)}`).map(toShift);
 }
 
+/** The shifts open at any time between `from` and `to` (times "2026-11-13"), oldest first. */
+export function listShiftsOn(ctx: Ctx, from: string, to: string): Shift[] {
+  allowView(ctx, 'shifts.view');
+  return ctx.db
+    .all<Row>(
+      `SELECT * FROM shifts WHERE opened_at < ? AND (closed_at IS NULL OR closed_at >= ?)
+        ORDER BY opened_at, id`,
+      [to, from],
+    )
+    .map(toShift);
+}
+
 /** A shift for its report: the owner reads any, a person their own. */
 export function shiftForReport(ctx: Ctx, id: number): Shift | undefined {
   const shift = getShift(ctx, id);

@@ -44,9 +44,10 @@ it('gives nothing for a wrong PIN or a cancel', async () => {
 it('expires after two minutes', async () => {
   jest.spyOn(device.pinVault, 'verify').mockResolvedValue({ ok: true });
   typePin('19283746');
-  const now = Date.now();
+  // The clock is fixed while the approval is given: a slow run must not make it look newer.
+  const clock = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
   const token = (await askOwner('jewelry', 'return', 'مرتجع'))!;
-  jest.spyOn(Date, 'now').mockReturnValue(now + 2 * 60_000 + 1);
+  clock.mockReturnValue(1_000_000 + 2 * 60_000 + 1);
   expect(takeApproval(token, 'return')).toBe(false);
 });
 

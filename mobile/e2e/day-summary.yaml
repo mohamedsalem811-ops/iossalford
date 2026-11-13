@@ -1,0 +1,31 @@
+# The end-of-day summary (after the review): a fresh install sells Ring Zircon in cash, then the
+# home screen's "ملخص اليوم والورديات" opens the day's page with the sale in its figures, the
+# day before is empty, and it is listed in Management.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- runFlow: subflows/sell-ring.yaml
+- tapOn:
+    id: 'sold-new-sale'
+- tapOn: 'الرئيسية'
+- tapOn:
+    id: 'today-summary'
+- assertVisible: 'ملخص اليوم'
+- assertVisible: 'اليوم'
+- assertVisible:
+    id: 'day-row-0-0'
+- assertVisible: '.*350.*'
+- takeScreenshot: ${DEVICE}-day-summary
+- tapOn:
+    id: 'day-previous'
+- assertVisible:
+    id: 'day-no-shifts'
+- takeScreenshot: ${DEVICE}-day-before
+- tapOn:
+    id: 'day-next'
+- assertVisible: 'اليوم'
+# Also listed in Management, under المال.
+- tapOn: 'الإدارة'
+- assertVisible:
+    id: 'manage-daySummary'

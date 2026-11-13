@@ -24,6 +24,8 @@ export type DashboardActions = {
   onOpenDebts: () => void;
   onOpenBackup: () => void;
   onOpenProducts: () => void;
+  /** Today's card: the end-of-day summary. */
+  onOpenDay?: () => void;
   /** An alert (phase S6): what happened, open it, or mark it seen. */
   onOpenAlert: (alert: OwnerAlert) => void;
   /** The shortcuts at the top. */
@@ -33,7 +35,16 @@ export type DashboardActions = {
 };
 
 /** The cards of the home screen. */
-export function TodayCard({ data, piece }: { data: DashboardData; piece: string }) {
+export function TodayCard({
+  data,
+  piece,
+  onOpenDay,
+}: {
+  data: DashboardData;
+  piece: string;
+  onOpenDay?: () => void;
+}) {
+  const { colors } = useTheme();
   const money = cashVsCredit(data.today.byMethod);
   return (
     <HeroCard style={{ flex: 1 }}>
@@ -51,6 +62,27 @@ export function TodayCard({ data, piece }: { data: DashboardData; piece: string 
       <Text variant="caption" tone="onAccent" testID="today-cash-credit">
         {`مدفوع ${formatLyd(money.paid)} • ${PAYMENT_LABELS.credit} ${formatLyd(money.credit)}`}
       </Text>
+      {onOpenDay ? (
+        <Pressable
+          onPress={onOpenDay}
+          accessibilityRole="button"
+          accessibilityLabel="ملخص اليوم"
+          accessibilityHint="النقد والمرتجعات والورديات، للطباعة أو المشاركة"
+          testID="today-summary"
+          style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            alignSelf: 'flex-start',
+            gap: spacing.xs,
+            paddingVertical: spacing.xs,
+            opacity: pressed ? 0.6 : 1,
+          })}>
+          <Text variant="subhead" tone="onAccent">
+            ملخص اليوم والورديات
+          </Text>
+          <Icon name="chevron.forward" size={12} color={colors.onAccent} weight="semibold" />
+        </Pressable>
+      ) : null}
     </HeroCard>
   );
 }

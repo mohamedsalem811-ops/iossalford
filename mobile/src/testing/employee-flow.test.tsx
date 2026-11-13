@@ -214,6 +214,7 @@ describe('as an employee', () => {
       'log',
       'policies',
       'shifts',
+      'daySummary',
       'deviceGuide',
     ])
       expect(screen.queryByTestId(`manage-${hidden}`)).toBeNull();
