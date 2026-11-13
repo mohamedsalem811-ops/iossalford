@@ -43,6 +43,10 @@ appId: com.salford.pos
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
 - tapOn:
     id: 'checkout-confirm'
 - extendedWaitUntil:
@@ -63,9 +67,11 @@ appId: com.salford.pos
     element:
       id: 'daily-chart'
     direction: DOWN
+    centerElement: true
 - takeScreenshot: ${DEVICE}-dashboard-chart
 - scrollUntilVisible:
     element:
       id: 'stock-summary'
     direction: DOWN
+    centerElement: true
 - takeScreenshot: ${DEVICE}-dashboard-bottom

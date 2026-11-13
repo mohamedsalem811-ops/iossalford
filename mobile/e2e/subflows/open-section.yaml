@@ -1,8 +1,11 @@
 # Opens a Management section by its row (id ${ID}, like manage-expenses), from wherever the app is.
-# iPad: the menu is the column on the right and the section fills the rest; scrollUntilVisible
-# swipes the middle of the screen, outside the menu, so the swipes are made at 85% across.
-# iPhone: the row is brought to the middle of the screen: a row left at the bottom is under the
-# floating tab bar, and a tap there lands on a tab.
+# iPad: the menu is the column on the right (from 60% across) and the section fills the rest;
+# scrollUntilVisible swipes the middle of the screen, outside the menu, so the menu is swiped at
+# 85% across. The menu is taller than the screen: a row cut by the bottom edge counts as visible
+# but its middle is off the screen, so the menu is scrolled until the row has another menu row
+# below it (Maestro leaves out rows wholly off the screen), or to its end for the last row.
+# iPhone: the row is brought above 70% of the screen height: a row left at the bottom is under
+# the floating tab bar, and a tap there lands on a tab.
 appId: com.salford.pos
 ---
 - runFlow: management-menu.yaml
@@ -13,18 +16,10 @@ appId: com.salford.pos
       - repeat:
           while:
             notVisible:
-              id: 'manage-sales'
-          times: 6
-          commands:
-            - swipe:
-                start: 85%, 30%
-                end: 85%, 80%
-                duration: 400
-      - repeat:
-          while:
-            notVisible:
               id: ${ID}
-          times: 10
+              above:
+                id: 'manage-(?!sidebar).+'
+          times: 4
           commands:
             - swipe:
                 start: 85%, 75%
@@ -34,10 +29,6 @@ appId: com.salford.pos
     when:
       true: ${DEVICE != 'iPad'}
     commands:
-      - scrollUntilVisible:
-          element:
-            id: 'manage-sales'
-          direction: UP
       - scrollUntilVisible:
           element:
             id: ${ID}

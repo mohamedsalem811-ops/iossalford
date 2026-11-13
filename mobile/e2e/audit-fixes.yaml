@@ -37,11 +37,19 @@ appId: com.salford.pos
           id: 'cart-bar'
 - tapOn:
     id: 'cart-checkout'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
 - tapOn:
     id: 'checkout-confirm'
 - assertVisible: 'تغيّرت الأسعار'
 - takeScreenshot: ${DEVICE}-price-changed
 - tapOn: 'تحديث الأسعار'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
 - tapOn:
     id: 'checkout-confirm'
 - extendedWaitUntil:
@@ -64,6 +72,7 @@ appId: com.salford.pos
     element:
       id: 'sale-delete'
     direction: DOWN
+    centerElement: true
 - tapOn:
     id: 'sale-delete'
 - takeScreenshot: ${DEVICE}-delete-sale

@@ -22,6 +22,10 @@ appId: com.salford.pos
 - inputText: 'Sara'
 - tapOn:
     id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
 - tapOn:
     id: 'checkout-confirm'
 - extendedWaitUntil:
@@ -58,6 +62,10 @@ appId: com.salford.pos
 - inputText: '50'
 - tapOn:
     id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'expense-add'
 - tapOn:
     id: 'expense-add'
 - extendedWaitUntil:
@@ -74,6 +82,10 @@ appId: com.salford.pos
       id: 'closing-net'
     timeout: 30000
 - assertVisible: '100 د.ل'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'closing-issue'
 - tapOn:
     id: 'closing-issue'
 - tapOn: 'إقفال'

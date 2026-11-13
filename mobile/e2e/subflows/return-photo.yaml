@@ -1,8 +1,12 @@
 # On the return form (jewelry): both conditions answered "yes" and a photo of the piece chosen
 # from the simulator's photo library (S4 rules: a return needs both). Ends with the photo shown.
-# Apple's photo picker runs outside the app and Maestro can't see its photos, so the first row
-# of photos is tapped where it shows: on iPad right of the library's sidebar, on iPhone under the
-# picker's title. If the picker is still open, a second spot in that row is tried.
+# Apple's photo picker runs outside the app: Maestro sees none of it (not even its photos), and
+# none of the app's screen while it is open. So the photos are tapped where they show, and the
+# app's photo button coming back means the picker closed with a photo chosen.
+# iPad (seen in run 55): photos in a grid right of the picker's sidebar, 6 in the first row from
+# 20% across; rows at 15% and 24% down. iPhone: the grid under the picker's title, 3 to 5 photos
+# a row; 45% across is inside a photo in each case (50% can be the gap between two), and the
+# three heights cover the first rows wherever the title ends.
 appId: com.salford.pos
 ---
 - tapOn:
@@ -15,9 +19,10 @@ appId: com.salford.pos
       ID: 'photo-library'
 - tapOn:
     id: 'photo-library'
-# The picker slides up; the app under it may or may not stay visible to Maestro.
+# The picker slides up; its picture shows where the photos are on this device.
 - waitForAnimationToEnd:
     timeout: 10000
+- takeScreenshot: ${DEVICE}-photo-picker
 - runFlow:
     when:
       true: ${DEVICE == 'iPad'}
@@ -32,13 +37,22 @@ appId: com.salford.pos
               id: 'photo-library'
           commands:
             - tapOn:
-                point: 60%, 15%
+                point: 54%, 15%
+            - waitForAnimationToEnd:
+                timeout: 5000
+      - runFlow:
+          when:
+            notVisible:
+              id: 'photo-library'
+          commands:
+            - tapOn:
+                point: 41%, 24%
 - runFlow:
     when:
       true: ${DEVICE != 'iPad'}
     commands:
       - tapOn:
-          point: 50%, 24%
+          point: 45%, 24%
       - waitForAnimationToEnd:
           timeout: 5000
       - runFlow:
@@ -47,7 +61,17 @@ appId: com.salford.pos
               id: 'photo-library'
           commands:
             - tapOn:
-                point: 50%, 33%
+                point: 45%, 33%
+            - waitForAnimationToEnd:
+                timeout: 5000
+      - runFlow:
+          when:
+            notVisible:
+              id: 'photo-library'
+          commands:
+            - tapOn:
+                point: 45%, 42%
 - extendedWaitUntil:
     visible: 'حذف الصورة'
     timeout: 30000
+- takeScreenshot: ${DEVICE}-return-photo-chosen

@@ -34,11 +34,13 @@ appId: com.salford.pos
 - scrollUntilVisible:
     element: 'الأزرار'
     direction: DOWN
+    centerElement: true
 - takeScreenshot: ${DEVICE}-gallery-scarves-light-components
 - scrollUntilVisible:
     element:
       id: 'gallery-open-sheet'
     direction: DOWN
+    centerElement: true
 - tapOn:
     id: 'gallery-open-sheet'
 - assertVisible: 'نافذة منبثقة'

@@ -8,6 +8,9 @@ appId: com.salford.pos
 - tapOn:
     id: 'shift-opening'
 - inputText: '100'
+# The number pad has no return key: the app's "تم" bar closes it, so the button isn't under it.
+- tapOn:
+    id: 'keyboard.toolbar.done'
 - tapOn:
     id: 'shift-open'
 - assertVisible:

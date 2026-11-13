@@ -48,6 +48,13 @@ appId: com.salford.pos
     timeout: 30000
 # Sold from the Sale tab: 350 + 500 − 50 = 800.
 - tapOn: 'بيع'
+# On iPad the header's buttons can fold into a "More" menu when they don't fit beside the tabs.
+- runFlow:
+    when:
+      notVisible: 'إضافة طقم'
+    commands:
+      - tapOn:
+          id: 'OverflowBarButtonItem'
 - tapOn: 'إضافة طقم'
 - tapOn:
     id: 'set-Gift Set'
@@ -62,6 +69,10 @@ appId: com.salford.pos
 - takeScreenshot: ${DEVICE}-set-in-cart
 - tapOn:
     id: 'cart-checkout'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
 - tapOn:
     id: 'checkout-confirm'
 - extendedWaitUntil:
@@ -91,6 +102,7 @@ appId: com.salford.pos
     element:
       id: 'return-swap'
     direction: DOWN
+    centerElement: true
 - tapOn:
     id: 'return-swap'
 - assertVisible:

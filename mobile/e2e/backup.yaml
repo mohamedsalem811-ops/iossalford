@@ -8,6 +8,10 @@ appId: com.salford.pos
     file: subflows/open-section.yaml
     env:
       ID: 'manage-backup'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'backup-now'
 - tapOn:
     id: 'backup-now'
 # A backup row reads as its date and time (its kind and age are not part of what Maestro sees);
@@ -25,6 +29,10 @@ appId: com.salford.pos
     file: subflows/open-section.yaml
     env:
       ID: 'manage-backup'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'backup-.*_manual\.db'
 - tapOn:
     id: 'backup-.*_manual\.db'
 - tapOn: 'استعادة هذه النسخة'

@@ -6,9 +6,10 @@ appId: com.salford.pos
 - runFlow: subflows/sell-ring.yaml
 - tapOn:
     id: 'sold-new-sale'
-- tapOn: 'الإدارة'
-- tapOn:
-    id: 'manage-sales'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-sales'
 - extendedWaitUntil:
     visible:
       id: 'sales-summary'

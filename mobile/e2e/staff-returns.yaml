@@ -10,12 +10,20 @@ appId: com.salford.pos
     file: subflows/open-section.yaml
     env:
       ID: 'manage-policies'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'policy-piece'
 - tapOn:
     id: 'policy-piece'
 - eraseText
 - inputText: '10'
 - tapOn:
     id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'policy-sale'
 - tapOn:
     id: 'policy-sale'
 - eraseText
@@ -51,6 +59,11 @@ appId: com.salford.pos
 - tapOn: 'حفظ'
 - tapOn:
     id: 'cart-checkout'
+# The discount line is in the totals, just above the confirm button at the end of the form.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
 - assertVisible: '.*يحتاج موافقة المالك'
 - takeScreenshot: ${DEVICE}-discount-needs-owner
 - tapOn:

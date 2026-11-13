@@ -262,6 +262,7 @@ export function CustomerDetail({
               title={`بيعة رقم ${s.id} • ${formatLyd(s.total)}`}
               subtitle={`${formatDate(new Date(s.createdAt))} • ${PAYMENT_LABELS[s.paymentMethod]} • ${saleSummary(s)}`}
               onPress={() => onSale(s.id)}
+              testID={`customer-sale-${s.id}`}
             />
           ))
         )}

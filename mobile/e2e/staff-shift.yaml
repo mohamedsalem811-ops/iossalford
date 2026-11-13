@@ -20,10 +20,16 @@ appId: com.salford.pos
     id: 'shift-move-amount'
 - inputText: '20'
 - tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
     id: 'shift-move-reason'
 - inputText: 'فكة'
 - tapOn:
     id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'shift-cash-out'
 - tapOn:
     id: 'shift-cash-out'
 - assertVisible: 'فكة'
@@ -72,6 +78,7 @@ appId: com.salford.pos
     element:
       id: 'report-charge'
     direction: DOWN
+    centerElement: true
 - tapOn:
     id: 'report-charge'
 - tapOn: 'تحميل'

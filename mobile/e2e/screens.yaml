@@ -38,6 +38,7 @@ appId: com.salford.pos
           element:
             id: 'settings-errors'
           direction: DOWN
+          centerElement: true
 - takeScreenshot: ${DEVICE}-p8-settings
 # Receipts: on iPad the receipt beside the list.
 - tapOn: 'الإيصالات'

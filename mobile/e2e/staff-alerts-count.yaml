@@ -51,8 +51,11 @@ appId: com.salford.pos
     id: 'count-start'
 # The owner: the shortage alert on the home screen, marked seen.
 - runFlow: subflows/sign-in-owner.yaml
-- assertVisible:
-    id: 'alert-shortage'
+- scrollUntilVisible:
+    element:
+      id: 'alert-shortage'
+    direction: DOWN
+    centerElement: true
 - takeScreenshot: ${DEVICE}-alerts
 - tapOn:
     id: 'alert-shortage'
@@ -64,16 +67,31 @@ appId: com.salford.pos
     file: subflows/open-section.yaml
     env:
       ID: 'manage-stockCount'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'count-[0-9]+'
 - tapOn:
     id: 'count-[0-9]+'
     index: 0
 - assertVisible:
     id: 'count-summary'
 - takeScreenshot: ${DEVICE}-count-result
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'count-apply'
 - tapOn:
     id: 'count-apply'
 - tapOn: 'تطبيق'
-- assertVisible: 'طُبّق'
+# The status is at the top of the page.
+- scrollUntilVisible:
+    element:
+      id: 'count-status'
+    direction: UP
+- assertVisible:
+    id: 'count-status'
+    text: 'طُبّق'
 # The device guide.
 - runFlow:
     file: subflows/open-section.yaml

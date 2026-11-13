@@ -1,6 +1,7 @@
-# Shows the Management menu, back at its first screen. iPhone: the tab keeps the section that was
-# last open there, so a second tap on the tab goes back to the menu (and to its top). iPad: the
-# menu is always beside the section.
+# Shows the Management menu from its top, from wherever the app is.
+# iPhone: the tab keeps the section last opened in it; a second tap on the tab goes back to the
+# menu. iPad: the menu is always the column on the right (from 60% across).
+# The menu keeps where it was scrolled to, so it is swiped to its top on both.
 appId: com.salford.pos
 ---
 - tapOn: 'الإدارة'
@@ -9,3 +10,21 @@ appId: com.salford.pos
       true: ${DEVICE != 'iPad'}
     commands:
       - tapOn: 'الإدارة'
+      - repeat:
+          times: 3
+          commands:
+            - swipe:
+                start: 50%, 25%
+                end: 50%, 85%
+                duration: 400
+- runFlow:
+    when:
+      true: ${DEVICE == 'iPad'}
+    commands:
+      - repeat:
+          times: 3
+          commands:
+            - swipe:
+                start: 85%, 25%
+                end: 85%, 85%
+                duration: 400
