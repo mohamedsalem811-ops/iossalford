@@ -44,6 +44,16 @@ appId: com.salford.pos
 - assertNotVisible:
     id: 'manage-returns'
 - takeScreenshot: ${DEVICE}-employee-management-s2
+# Selling needs an open shift (phase S5): 100 د.ل in the drawer.
+- tapOn:
+    id: 'manage-shift'
+- tapOn:
+    id: 'shift-opening'
+- inputText: '100'
+- tapOn:
+    id: 'shift-open'
+- assertVisible:
+    id: 'shift-open-card'
 # Products: price and stock, no cost.
 - tapOn: 'المنتجات'
 - assertNotVisible: 'تكلفة.*'

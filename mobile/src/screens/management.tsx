@@ -7,6 +7,8 @@ import { spacing } from '@/theme';
 
 /** The management screens, each opened by its route (see the More tab). */
 export type ManageTarget =
+  | 'shift'
+  | 'shifts'
   | 'sales'
   | 'returns'
   | 'returnFind'
@@ -31,6 +33,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
   {
     title: 'المبيعات',
     rows: [
+      { target: 'shift', icon: 'clock.badge.checkmark', title: 'الوردية' },
       { target: 'sales', icon: 'list.bullet.rectangle', title: 'سجل المبيعات' },
       { target: 'returnFind', icon: 'arrow.left.arrow.right.circle', title: 'مرتجع أو استبدال' },
       { target: 'returns', icon: 'arrow.uturn.backward', title: 'المرتجعات' },
@@ -46,6 +49,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
   {
     title: 'المال',
     rows: [
+      { target: 'shifts', icon: 'tray.full', title: 'الورديات وعدّ النقد' },
       { target: 'expenses', icon: 'banknote', title: 'المصروفات' },
       { target: 'closing', icon: 'checkmark.seal', title: 'الإقفال الربع سنوي' },
       { target: 'comparison', icon: 'chart.bar', title: 'مقارنة الأشهر' },

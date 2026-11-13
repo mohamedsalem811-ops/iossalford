@@ -5,6 +5,7 @@
 import type { Ctx } from '@/domain/context';
 import { listSales, salesSummary, type Sale } from '@/domain/sales';
 import { getRate } from '@/domain/settings';
+import { openShiftOf } from '@/domain/shifts';
 import { employeeStatement } from '@/domain/staff-ledger';
 import { actorKey } from '@/staff/model';
 import { dayKey, monthKey } from '@/lib/dates';
@@ -17,6 +18,8 @@ export type MySales = {
   latest: Sale[];
   /** What they owe on their account (returns charged to them, less repayments). */
   owed: number;
+  /** Selling needs an open shift (phase S5). */
+  shiftOpen: boolean;
 };
 
 export function readMySales(ctx: Ctx): MySales {
@@ -28,5 +31,6 @@ export function readMySales(ctx: Ctx): MySales {
     month: salesSummary(ctx, { month: monthKey(now) }),
     latest: listSales(ctx, {}, { limit: 5 }),
     owed: ctx.actor ? employeeStatement(ctx, actorKey(ctx.actor)).balance : 0,
+    shiftOpen: ctx.actor ? !!openShiftOf(ctx, actorKey(ctx.actor)) : false,
   };
 }

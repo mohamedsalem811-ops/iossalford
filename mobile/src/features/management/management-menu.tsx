@@ -24,6 +24,8 @@ import type { SystemId } from '@/theme';
  * not listed, and its screen refuses on its own as well.
  */
 export const SECTION_NEEDS: Record<ManageTarget, Permission | null> = {
+  shift: 'shifts.open',
+  shifts: 'shifts.view',
   sales: null,
   returns: 'sales.viewAll',
   returnFind: 'returns.create',
@@ -51,6 +53,8 @@ export const hiddenSections = (actor: Actor | null): ManageTarget[] =>
 
 /** The route of each section, inside the Management tab (its stack keeps the tab bar). */
 export const SECTION_ROUTE: Record<ManageTarget, string> = {
+  shift: 'shift',
+  shifts: 'shifts',
   sales: 'sales',
   returns: 'returns',
   returnFind: 'return-find',

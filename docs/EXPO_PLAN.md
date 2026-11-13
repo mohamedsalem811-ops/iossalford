@@ -1,6 +1,6 @@
 # SALFORD POS: Expo rebuild execution plan (version 3)
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S3 (accounts, permissions, the activity log and the clock guard) are merged; S4 (discounts, approvals, returns, the employee's account) is built (PR open); then S5 and S6, then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S4 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns and the employee's account) are merged; S5 (shifts and the cash count) is built (PR open); then S6, then Phase 10, switching over.
 
 Every feature of the current app is kept. Items marked **NEW** don't exist in the current app. Unmarked items are the same as the current app, rebuilt with a new design.
 
@@ -538,6 +538,15 @@ Then the dashboard:
 
 **You check:** a full shift as an employee with a cash sale, a card sale and a return; a count with a shortage of 5 د.ل; the report and the shortage on the employee's account.
 
+**How S5 works:**
+
+- schema 5: `shifts` (who, opened, the opening cash, closed, counted, expected, who closed it) and `cash_moves` (in or out, the amount, the reason); sales, returns, debt payments and the employees' accounts keep the shift they were made in (`shift_id`); one open shift per person;
+- an employee sells, takes a return or a debt payment only in an open shift (`shiftFor` in `src/domain/shifts.ts`, refused with "افتح الوردية أولاً"); the owner may work without one, and then those sales are in no shift;
+- Management → الوردية: open with the cash in the drawer, cash in or out with a reason, close with a blind count: the expected cash and the shortage or extra show only after closing; the home screen says "افتح الوردية للبيع" when no shift is open;
+- expected = opening + cash sales + cash debt payments + cash in − cash out − refunds (a refund is paid from the drawer, except the return of a sale on credit, which lowers the debt);
+- Management → الورديات وعدّ النقد (the owner): every shift with its difference, and its report: sales by payment method, returns, discounts, approvals, cash moves and the count; print or share as a PDF; a shortage goes on the employee's account in one tap; a shift an employee left open can be closed by the owner with the count;
+- a person can read the report of their own shift.
+
 #### Phase S6: alerts, stock count and device protection
 
 - **S6.1** Automatic alerts for the owner in "يحتاج انتباهك":
@@ -648,4 +657,4 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
 
 - Phase 8 (built, owner to test): instant updates need one new `.ipa` (build 2) before they reach the devices; after installing it, it is recorded with `npm run update:record`. Backups are now copies of the database file (`.db`); `.json` backups from before still restore. A restore keeps sale and receipt numbers from ever repeating, also from an older backup (found while testing 8.0g). The speed test is `npm run speed`: with 2,000 products and 30,000 sales every screen reads in under 25 ms on a computer (Customers and Debts were changed to one query for all balances). The dashboard's daily chart has a temporary switch to Apple's charts so the owner can choose; the other one is removed afterwards. Errors are kept in a log on the device (Settings → سجل الأخطاء).
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S3 (accounts, permissions, the activity log and the clock guard) are merged; S4 (discounts, approvals, returns, the employee's account) is built (PR open); then S5 and S6, then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S4 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns and the employee's account) are merged; S5 (shifts and the cash count) is built (PR open); then S6, then Phase 10, switching over.

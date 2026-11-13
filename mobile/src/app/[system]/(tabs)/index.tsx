@@ -90,6 +90,7 @@ function EmployeeHome() {
             pathname: '/[system]/more/account/[id]',
             params: { system, id: actor.id },
           }),
+        onOpenShift: () => router.push(sectionHref('shift', system)),
       }}
     />
   );
