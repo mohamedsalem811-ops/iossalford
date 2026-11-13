@@ -1,6 +1,6 @@
 import { formatDinars } from '@/lib/money';
 
-import { clean, nowMonth, nowStamp, RuleError, type Ctx } from './context';
+import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx } from './context';
 import { getCustomer, type Customer } from './customers';
 
 /**
@@ -78,6 +78,7 @@ export function recordPayment(
   ctx: Ctx,
   input: { customerId: number; amount: number; method: string; note?: string },
 ): number {
+  allow(ctx, 'payments.create');
   if (!getCustomer(ctx, input.customerId)) throw new RuleError('الزبون غير موجود');
   if (!Number.isInteger(input.amount) || input.amount <= 0)
     throw new RuleError('يرجى إدخال مبلغ الدفعة');
@@ -93,6 +94,7 @@ export function recordPayment(
 }
 
 export function deletePayment(ctx: Ctx, id: number) {
+  allow(ctx, 'payments.delete');
   ctx.db.run('DELETE FROM payments WHERE id = ?', [id]);
 }
 
@@ -124,6 +126,7 @@ export function payments(ctx: Ctx, customerId: number): Payment[] {
  * the customer's name.
  */
 export function deleteCustomer(ctx: Ctx, id: number) {
+  allow(ctx, 'customers.delete');
   ctx.db.transaction(() => {
     const c = getCustomer(ctx, id);
     if (!c) return;

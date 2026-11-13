@@ -2,6 +2,7 @@
  * iPad: the Management menu stays on the leading side and the chosen section opens beside it,
  * with its row marked; a deeper screen opens in the same pane; another section replaces it.
  */
+import { OWNER } from '@/staff/model';
 import { renderRouter, fireEvent, screen } from 'expo-router/testing-library';
 
 import RootLayout from '@/app/_layout';
@@ -119,7 +120,12 @@ it('keeps the menu beside the open section, as in the iPad Settings app', async 
 
 it('shows the chosen receipt beside the list, with its actions', async () => {
   const { openSystemDb } = jest.requireMock('@/db/manager');
-  const ctx = { db: openSystemDb('jewelry').db, system: 'jewelry' as const, now: () => new Date() };
+  const ctx = {
+    db: openSystemDb('jewelry').db,
+    system: 'jewelry' as const,
+    now: () => new Date(),
+    actor: OWNER,
+  };
   const r = issueReceipt(ctx, {
     customer: 'سارة',
     items: [

@@ -1,6 +1,6 @@
 import { parseMonthKey, quarterKey, quarterOf } from '@/lib/dates';
 
-import { clean, nowMonth, nowStamp, RuleError, type Ctx } from './context';
+import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx } from './context';
 
 export type Expense = {
   id: number;
@@ -24,6 +24,7 @@ export function addExpense(
   ctx: Ctx,
   input: { description: string; amount: number; month?: string },
 ): number {
+  allow(ctx, 'expenses.edit');
   const description = clean(input.description);
   if (!description) throw new RuleError('اكتب وصف المصروف');
   if (!Number.isInteger(input.amount) || input.amount <= 0)
@@ -37,6 +38,7 @@ export function addExpense(
 }
 
 export function deleteExpense(ctx: Ctx, id: number) {
+  allow(ctx, 'expenses.edit');
   ctx.db.run('DELETE FROM expenses WHERE id = ?', [id]);
 }
 

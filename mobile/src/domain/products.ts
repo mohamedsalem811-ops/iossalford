@@ -2,7 +2,7 @@ import { latinDigits } from '@/lib/digits';
 import { usdToLyd } from '@/lib/money';
 
 import { ensureBrand } from './brands';
-import { clean, nowStamp, RuleError, type Ctx } from './context';
+import { allow, clean, nowStamp, RuleError, type Ctx } from './context';
 import { getRate } from './settings';
 
 export type Product = {
@@ -185,6 +185,7 @@ function recordMove(
 
 /** Creates or updates a product. Returns its id. Refuses a code already used by another piece. */
 export function saveProduct(ctx: Ctx, input: ProductInput): number {
+  allow(ctx, 'products.edit');
   validate(input);
   return ctx.db.transaction(() => {
     const typed = (input.sku ?? '').trim().toUpperCase();
@@ -268,6 +269,7 @@ export function saveProduct(ctx: Ctx, input: ProductInput): number {
 
 /** Changes stock by `delta` (a delivery +3, breakage −1) with a reason. Stock never goes below 0. */
 export function adjustStock(ctx: Ctx, productId: number, delta: number, reason: string) {
+  allow(ctx, 'stock.adjust');
   if (!Number.isInteger(delta) || delta === 0)
     throw new RuleError('أدخل الكمية المضافة أو المنقوصة');
   if (!clean(reason)) throw new RuleError('اكتب سبب تعديل المخزون');
@@ -345,6 +347,7 @@ export function productUsage(ctx: Ctx, id: number): { sales: number; sets: numbe
  * lists and sets, while sales, receipts and reports keep showing it correctly.
  */
 export function deleteProduct(ctx: Ctx, id: number): 'deleted' | 'archived' {
+  allow(ctx, 'products.edit');
   return ctx.db.transaction(() => {
     requireProduct(ctx, id);
     if (hasHistory(ctx, id)) {
@@ -361,6 +364,7 @@ export function deleteProduct(ctx: Ctx, id: number): 'deleted' | 'archived' {
 }
 
 export function restoreProduct(ctx: Ctx, id: number) {
+  allow(ctx, 'products.edit');
   ctx.db.run('UPDATE products SET archived = 0, updated_at = ? WHERE id = ?', [nowStamp(ctx), id]);
 }
 

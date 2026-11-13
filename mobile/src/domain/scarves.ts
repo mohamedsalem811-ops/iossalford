@@ -3,7 +3,7 @@
  * photo shared; each size with its own price, cost and stock).
  */
 import { latinDigits } from '@/lib/digits';
-import { clean, RuleError, type Ctx } from './context';
+import { allow, clean, RuleError, type Ctx } from './context';
 
 import { deleteProduct, saveProduct, type Product } from './products';
 
@@ -77,6 +77,7 @@ function newDesignId(ctx: Ctx): string {
  * Sizes removed from the form are deleted (or archived if they were sold). Returns the design id.
  */
 export function saveScarfDesign(ctx: Ctx, input: ScarfDesignInput): string {
+  allow(ctx, 'products.edit');
   if (!clean(input.name)) throw new RuleError('يرجى إدخال اسم التصميم');
   const rows = input.sizes.filter((s) => clean(s.size));
   if (rows.length === 0) throw new RuleError('أضف مقاساً واحداً على الأقل');
@@ -120,6 +121,7 @@ export function saveScarfDesign(ctx: Ctx, input: ScarfDesignInput): string {
 
 /** Deletes every size of a design (sizes that were sold are archived). */
 export function deleteScarfDesign(ctx: Ctx, designId: string) {
+  allow(ctx, 'products.edit');
   ctx.db.transaction(() => {
     const ids = ctx.db.all<{ id: number }>(
       'SELECT id FROM products WHERE design_id = ? AND archived = 0',

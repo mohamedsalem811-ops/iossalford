@@ -205,6 +205,18 @@ CREATE TABLE closings (
 );
 `,
   },
+  {
+    // Staff phase S2: who made each sale, so an employee sees only their own and the owner sees
+    // sales per person. "owner" or "emp-<id>"; older sales (NULL) were all the owner's. The
+    // name is a copy, kept even after the person is suspended or renamed.
+    version: 2,
+    name: 'seller of each sale',
+    sql: `
+ALTER TABLE sales ADD COLUMN seller TEXT;
+ALTER TABLE sales ADD COLUMN seller_name TEXT;
+CREATE INDEX sales_seller ON sales(seller, month);
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

@@ -1,11 +1,19 @@
 /** Tests only: a fresh in-memory database for one system, with a clock the test can move. */
 import { migrate } from '@/db/migrate';
 import { openMemoryDb } from '@/db/testing/node-db';
+import { OWNER, type Actor } from '@/staff/model';
 import type { SystemId } from '@/theme';
 
 import type { Ctx } from '../context';
 
-export type TestCtx = Ctx & { setNow: (d: Date) => void; close: () => void };
+export type TestCtx = Ctx & {
+  setNow: (d: Date) => void;
+  /** Who does the next actions (the owner unless changed). */
+  setActor: (a: Actor | null) => void;
+  close: () => void;
+};
+
+export const EMPLOYEE: Actor = { kind: 'employee', id: 'e1', name: 'سارة' };
 
 export function makeCtx(
   system: SystemId = 'jewelry',
@@ -14,12 +22,19 @@ export function makeCtx(
   const db = openMemoryDb();
   migrate(db);
   let current = start;
+  let actor: Actor | null = OWNER;
   return {
     db,
     system,
     now: () => current,
+    get actor() {
+      return actor;
+    },
     setNow: (d) => {
       current = d;
+    },
+    setActor: (a) => {
+      actor = a;
     },
     close: () => db.close(),
   };

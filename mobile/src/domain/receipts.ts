@@ -1,7 +1,7 @@
 import { latinDigits } from '@/lib/digits';
 import type { SystemId } from '@/theme';
 
-import { clean, nowStamp, pageSql, RuleError, type Ctx, type Page } from './context';
+import { allow, clean, nowStamp, pageSql, RuleError, type Ctx, type Page } from './context';
 import { getSetting, setSetting } from './settings';
 
 /**
@@ -123,6 +123,7 @@ export type IssueInput = {
 
 /** Saves a new receipt with the next number. Used by checkout and for receipts made by hand. */
 export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
+  allow(ctx, 'receipts.create');
   const items = cleanItems(input.items);
   const template = input.template ?? DEFAULT_TEMPLATE[ctx.system];
   if (TEMPLATES[template]?.system !== ctx.system)
@@ -150,6 +151,7 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
 
 /** Edits a saved receipt (customer, items, design, prices shown or not). Its number never changes. */
 export function updateReceipt(ctx: Ctx, id: number, input: Omit<IssueInput, 'saleId'>): Receipt {
+  allow(ctx, 'receipts.edit');
   const items = cleanItems(input.items);
   return ctx.db.transaction(() => {
     const old = getReceipt(ctx, id);
@@ -302,5 +304,6 @@ export function receiptMonths(ctx: Ctx): string[] {
 
 /** Deletes a receipt. Its number is not given out again. */
 export function deleteReceipt(ctx: Ctx, id: number) {
+  allow(ctx, 'receipts.delete');
   ctx.db.run('DELETE FROM receipts WHERE id = ?', [id]);
 }

@@ -1,4 +1,4 @@
-import { clean, nowStamp, RuleError, type Ctx } from './context';
+import { allow, clean, nowStamp, RuleError, type Ctx } from './context';
 
 export type Brand = { id: number; name: string; imageFile: string | null; productCount: number };
 
@@ -25,6 +25,7 @@ export function ensureBrand(ctx: Ctx, name: string | null | undefined): number |
 }
 
 export function addBrand(ctx: Ctx, name: string): number {
+  allow(ctx, 'products.edit');
   const id = ensureBrand(ctx, name);
   if (id === null) throw new RuleError('اكتب اسم الماركة');
   return id;
@@ -48,6 +49,7 @@ export function listBrands(ctx: Ctx): Brand[] {
 
 /** Renames a brand; every product with it shows the new name. Past sales keep the old name. */
 export function renameBrand(ctx: Ctx, id: number, newName: string) {
+  allow(ctx, 'products.edit');
   const t = clean(newName);
   if (!t) throw new RuleError('اكتب اسم الماركة');
   const other = findBrand(ctx, t);
@@ -57,9 +59,11 @@ export function renameBrand(ctx: Ctx, id: number, newName: string) {
 
 /** Deletes a brand; its products become "no brand". Past sales keep the name they were sold with. */
 export function deleteBrand(ctx: Ctx, id: number) {
+  allow(ctx, 'products.edit');
   ctx.db.run('DELETE FROM brands WHERE id = ?', [id]);
 }
 
 export function setBrandImage(ctx: Ctx, id: number, imageFile: string | null) {
+  allow(ctx, 'products.edit');
   ctx.db.run('UPDATE brands SET image_file = ? WHERE id = ?', [imageFile, id]);
 }
