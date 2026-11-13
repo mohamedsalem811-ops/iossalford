@@ -40,10 +40,18 @@ export const paymentWayLabel = (m: string) => PAYMENT_WAYS.find((w) => w.value =
 export function checkPayment(
   amountText: string,
   owed: number,
+  /** Paying back what the shop owes the customer (`owed` is then that amount). */
+  back = false,
 ): { ok: true; amount: number } | { ok: false; message: string } {
   const amount = parseThousandths(amountText);
-  if (amount === null || amount <= 0) return { ok: false, message: 'يرجى إدخال مبلغ الدفعة' };
+  if (amount === null || amount <= 0)
+    return { ok: false, message: back ? 'يرجى إدخال المبلغ المردود' : 'يرجى إدخال مبلغ الدفعة' };
   if (amount > owed)
-    return { ok: false, message: `المبلغ أكبر من المستحق على الزبون (${formatLyd(owed)})` };
+    return {
+      ok: false,
+      message: back
+        ? `المبلغ أكبر من رصيد الزبون (${formatLyd(owed)})`
+        : `المبلغ أكبر من المستحق على الزبون (${formatLyd(owed)})`,
+    };
   return { ok: true, amount };
 }

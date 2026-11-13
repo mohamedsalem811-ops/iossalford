@@ -172,6 +172,8 @@ export type ShiftTotals = {
   cashRefunds: number;
   /** Debt payments received in cash. */
   cashPayments: number;
+  /** Customer credit paid back in cash (audit F-4). */
+  cashPayouts: number;
   cashIn: number;
   cashOut: number;
   /** Taken off list prices, and the owner's approvals (discounts and returns past the rules). */
@@ -207,6 +209,11 @@ export function shiftTotals(ctx: Ctx, shift: Pick<Shift, 'id' | 'openingCash'>):
       "SELECT coalesce(sum(amount), 0) t FROM payments WHERE shift_id = ? AND method = 'cash'",
       [id],
     )?.t ?? 0;
+  const cashPayouts =
+    ctx.db.get<{ t: number }>(
+      "SELECT coalesce(sum(amount), 0) t FROM payouts WHERE shift_id = ? AND method = 'cash'",
+      [id],
+    )?.t ?? 0;
   const moves = ctx.db.get<{ i: number; o: number }>(
     `SELECT coalesce(sum(CASE kind WHEN 'in' THEN amount END), 0) i,
               coalesce(sum(CASE kind WHEN 'out' THEN amount END), 0) o
@@ -220,11 +227,13 @@ export function shiftTotals(ctx: Ctx, shift: Pick<Shift, 'id' | 'openingCash'>):
     refunded: ret.t,
     cashRefunds: ret.cash,
     cashPayments,
+    cashPayouts,
     cashIn: moves.i,
     cashOut: moves.o,
     discounts: sales.d,
     approvals: sales.a + ret.a,
-    expected: shift.openingCash + byMethod.cash + cashPayments + moves.i - moves.o - ret.cash,
+    expected:
+      shift.openingCash + byMethod.cash + cashPayments + moves.i - moves.o - ret.cash - cashPayouts,
   };
 }
 

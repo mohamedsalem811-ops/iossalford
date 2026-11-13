@@ -589,7 +589,9 @@ The full audit after S6 (a read-only check of the code, flows, tests and speed o
   - F-7: the open shift is checked before the owner's approval is used up.
   - F-8: sales from before S3 count as the owner's in sales by seller.
 - **Batch 2, safety and tools:** F-9 the staff list survives a crash while saving (the complete temporary file is used); F-10 a failed undo never hides the real error; F-12 the update tool pinned to a tested version (`EAS_CLI` in `scripts/publish-update.mjs`, raised on purpose) and time limits on the CI jobs (20 and 60 minutes); F-13 tests for the staff actions (add, PIN, rename, suspend, lock settings, emergency code, sending and receiving the list). F-11 (wrong PINs at the approval prompt count toward the owner's lockout) stays as it is, so guessing there is no easier than at sign-in.
-- **Batch 3, database 7 (a new `.ipa`):** F-5 indexes on the times of sales, returns and shifts, for the alerts; F-4 the shop's credit to a customer ("له رصيد") paid back in cash, or used on a sale.
+- **Batch 3, database 7 (a new `.ipa`):**
+  - F-5: indexes on the times of sales, returns and shifts (`sales_created`, `returns_created`, `shifts_closed`), for the alerts.
+  - F-4: the shop's credit to a customer ("له رصيد") is paid back from the customer's page ("رد الرصيد للزبون", the owner only, `payouts.create`), in cash (it comes out of the shift's expected cash) or by card or transfer. The new `payouts` table is in backups; a payout is in the customer's statement and can be removed there if recorded by mistake. To use the credit on a new piece instead, sell it on credit (آجل) to that customer: it comes off what the shop owes.
 
 ### Phase 10: switching over
 

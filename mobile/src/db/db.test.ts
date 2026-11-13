@@ -43,6 +43,7 @@ describe('migrations', () => {
       'customers',
       'expenses',
       'payments',
+      'payouts',
       'products',
       'receipt_items',
       'receipts',
