@@ -4,7 +4,8 @@
  * even when opened by link, a sale's details without cost, profit, delete or return, and
  * products with their price and stock only. The owner, the same screens: everything as before.
  */
-import { renderRouter, screen } from 'expo-router/testing-library';
+import { act, fireEvent, renderRouter, screen, waitFor } from 'expo-router/testing-library';
+import { Alert } from 'react-native';
 
 import RootLayout from '@/app/_layout';
 import SystemLayout from '@/app/[system]/_layout';
@@ -13,16 +14,19 @@ import Home from '@/app/[system]/(tabs)/index';
 import ManagementLayout from '@/app/[system]/(tabs)/more/_layout';
 import More from '@/app/[system]/(tabs)/more/index';
 import ExpensesRoute from '@/app/[system]/(tabs)/more/expenses';
+import LogRoute from '@/app/[system]/(tabs)/more/log';
 import ReturnsRoute from '@/app/[system]/(tabs)/more/returns';
 import SaleRoute from '@/app/[system]/(tabs)/more/sale/[id]';
 import StaffRoute from '@/app/[system]/(tabs)/more/staff';
 import ProductsStack from '@/app/[system]/(tabs)/products/_layout';
 import Products from '@/app/[system]/(tabs)/products/index';
 import ProductRoute from '@/app/[system]/product/[id]';
+import { listActivity } from '@/domain/activity';
 import { addToCart, type CartLine } from '@/domain/cart';
 import { checkout } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
 import { getProduct, saveProduct } from '@/domain/products';
+import { clockGuard } from '@/staff/guards';
 import { OWNER, type Actor } from '@/staff/model';
 import { useStaffStore } from '@/staff/store';
 import { setActor } from '@/state/session';
@@ -114,6 +118,7 @@ const routes = {
   '[system]/(tabs)/more/returns': ReturnsRoute,
   '[system]/(tabs)/more/expenses': ExpensesRoute,
   '[system]/(tabs)/more/staff': StaffRoute,
+  '[system]/(tabs)/more/log': LogRoute,
   '[system]/(tabs)/products/_layout': ProductsStack,
   '[system]/(tabs)/products/index': Products,
   '[system]/product/[id]': ProductRoute,
@@ -177,6 +182,7 @@ describe('as an employee', () => {
       'archived',
       'backup',
       'staff',
+      'log',
     ])
       expect(screen.queryByTestId(`manage-${hidden}`)).toBeNull();
   });
@@ -185,6 +191,7 @@ describe('as an employee', () => {
     ['/jewelry/more/expenses'],
     ['/jewelry/more/returns'],
     ['/jewelry/more/staff'],
+    ['/jewelry/more/log'],
     ['/jewelry/product/new'],
   ])('refuses %s even when opened by link', async (url) => {
     await renderRouter(routes, { initialUrl: url });
@@ -236,5 +243,31 @@ describe('as the owner', () => {
   it('shows the product cost', async () => {
     await renderRouter(routes, { initialUrl: '/jewelry/products' });
     expect(await screen.findAllByText(/تكلفة/)).not.toHaveLength(0);
+  });
+
+  it('reads the activity log: who did what, by person', async () => {
+    await renderRouter(routes, { initialUrl: '/jewelry/more/log' });
+    expect(
+      await screen.findByText(`بيعة رقم ${herSale}: 1 قطعة بـ 350 د.ل (كاش)`),
+    ).toBeOnTheScreen();
+    expect(screen.getByText(`بيعة رقم ${ownerSale}: 2 قطعة بـ 700 د.ل (كاش)`)).toBeOnTheScreen();
+    expect(screen.getAllByText(/^سارة • /)).toHaveLength(1);
+  });
+
+  it('is told when the device clock went back, and can accept the device time', async () => {
+    // The app once saw a time a day ahead of the device clock.
+    clockGuard.accept(new Date(Date.now() + 24 * 3600_000));
+    const alert = jest.spyOn(Alert, 'alert');
+    await renderRouter(routes, { initialUrl: '/jewelry/more' });
+    expect(await screen.findByTestId('manage-clock-behind')).toBeOnTheScreen();
+    fireEvent.press(screen.getByTestId('manage-accept-clock'));
+    const buttons = alert.mock.calls.at(-1)?.[2] as { text: string; onPress?: () => void }[];
+    act(() => buttons.find((b) => b.text === 'الوقت صحيح')?.onPress?.());
+    await waitFor(() => expect(screen.queryByTestId('manage-clock-behind')).toBeNull());
+    alert.mockRestore();
+    expect(listActivity(ctxAs(OWNER), {}, { limit: 1 })[0]).toMatchObject({
+      action: 'clock.accept',
+      actorName: 'المالك',
+    });
   });
 });

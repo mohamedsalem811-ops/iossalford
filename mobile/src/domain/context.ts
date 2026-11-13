@@ -61,7 +61,9 @@ export function allow(ctx: Ctx, permission: Permission): Actor {
  * layer behind that.
  */
 export function allowView(ctx: Ctx, permission: Permission): void {
-  allow(ctx, permission);
+  const actor = ctx.actor;
+  // Never the clock: reading (and the owner accepting the device time) works while it is behind.
+  if (!actor || !can(actor, permission)) throw new PermissionError(refusal(actor, permission));
 }
 
 /**

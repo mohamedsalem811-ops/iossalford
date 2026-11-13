@@ -8,6 +8,8 @@ import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
 
 import type { Db } from '@/db/types';
+import { recordClockAccepted } from '@/domain/activity';
+import type { Ctx } from '@/domain/context';
 import type { SystemId } from '@/theme';
 
 import { ClockGuard } from './clock';
@@ -58,6 +60,21 @@ export const clockGuard = new ClockGuard({
   get: () => read('clock.latest'),
   set: (v) => write('clock.latest', v),
 });
+
+/** Re-draws a screen when the clock is found behind or accepted (the Management banner). */
+const clockChanges = create<{ n: number }>()(() => ({ n: 0 }));
+export const useClockChanges = () => clockChanges((s) => s.n);
+export const clockChanged = () => clockChanges.setState((s) => ({ n: s.n + 1 }));
+
+/**
+ * The owner says the device's time is right (after it went back): changes are allowed again,
+ * and the log says who accepted it.
+ */
+export function acceptDeviceTime(ctx: Ctx) {
+  ctx.db.transaction(() => recordClockAccepted(ctx));
+  clockGuard.accept(ctx.now());
+  clockChanged();
+}
 
 // ---------- The activity log ----------
 

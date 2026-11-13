@@ -151,7 +151,7 @@ export function ChartCard({ data }: { data: DashboardData }) {
   );
 }
 
-export type BreakdownKind = 'category' | 'brand' | 'size' | 'payment' | 'top';
+export type BreakdownKind = 'category' | 'brand' | 'size' | 'payment' | 'seller' | 'top';
 
 /** The month by category, brand, size (scarves), payment or best sellers: one card, one switch. */
 export function BreakdownCard({
@@ -169,6 +169,10 @@ export function BreakdownCard({
     { value: 'brand', label: 'الماركة' },
     ...(system === 'scarves' ? [{ value: 'size' as const, label: 'المقاس' }] : []),
     { value: 'payment', label: 'الدفع' },
+    // Sales per person, once employees have sold something (phase S3).
+    ...(data.bySeller.some((r) => r.key !== 'المالك')
+      ? [{ value: 'seller' as const, label: 'البائع' }]
+      : []),
     { value: 'top', label: 'الأكثر' },
   ];
   return (
@@ -188,6 +192,8 @@ export function BreakdownCard({
         />
       ) : kind === 'payment' ? (
         <RankedList rows={data.byPayment} unit={piece} testID="by-payment" />
+      ) : kind === 'seller' ? (
+        <RankedList rows={data.bySeller} unit={piece} testID="by-seller" />
       ) : (
         <RankedList rows={data.top} unit={piece} testID="top-products" />
       )}

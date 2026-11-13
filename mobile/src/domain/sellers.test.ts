@@ -23,7 +23,9 @@ import {
 } from './backup';
 import { addToCart, type CartLine } from './cart';
 import { checkout } from './checkout';
-import type { Ctx } from './context';
+import { PermissionError, type Ctx } from './context';
+import { breakdown } from './reports';
+import { monthKey } from '@/lib/dates';
 import { displayName, getProduct, saveProduct } from './products';
 import {
   countReceipts,
@@ -61,6 +63,21 @@ describe('the seller of a sale', () => {
     ctx.setActor(OWNER);
     expect(getSale(ctx, mine)).toMatchObject({ seller: 'owner', sellerName: 'المالك' });
     expect(getSale(ctx, hers)).toMatchObject({ seller: 'emp-e1', sellerName: 'سارة' });
+  });
+
+  it('gives the month summary per seller, the owner included', () => {
+    sell(ctx, ring);
+    ctx.setActor(EMPLOYEE);
+    sell(ctx, ring);
+    sell(ctx, ring);
+    ctx.setActor(OWNER);
+    const rows = breakdown(ctx, [monthKey(ctx.now())], 'seller');
+    expect(rows.map((r) => [r.key, r.total, r.quantity])).toEqual([
+      ['سارة', 2_000, 2],
+      ['المالك', 1_000, 1],
+    ]);
+    ctx.setActor(EMPLOYEE);
+    expect(() => breakdown(ctx, [monthKey(ctx.now())], 'seller')).toThrow(PermissionError);
   });
 
   it('lets an employee see only their own sales, and the owner every sale', () => {

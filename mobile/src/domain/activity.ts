@@ -278,8 +278,11 @@ export const recordClockBack = (ctx: Ctx, latest: Date, now: Date) =>
   );
 
 /** The owner accepted the device's time as correct after it went back. */
-export const recordClockAccepted = (ctx: Ctx) =>
+export function recordClockAccepted(ctx: Ctx) {
+  // Not `allow`: that refuses every change while the clock is behind, this one included.
+  allowView(ctx, 'settings.edit');
   logAction(ctx, 'clock.accept', 'قبول وقت الجهاز الحالي');
+}
 
 /** The log's chain was found broken (a line changed or removed outside the app). */
 export const recordLogBroken = (ctx: Ctx, brokenAt: number) =>

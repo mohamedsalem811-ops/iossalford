@@ -1,9 +1,8 @@
-import { formatDinars } from '@/lib/money';
+import { formatDinars, formatLyd } from '@/lib/money';
 
 import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx, who } from './context';
 import { getCustomer, type Customer } from './customers';
 import { logAction } from './activity';
-import { formatLyd } from '@/lib/money';
 
 /**
  * What a customer still owes: their credit (آجل) sales, minus refunds on returns of those sales,

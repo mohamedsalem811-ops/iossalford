@@ -9,7 +9,7 @@ import { scheduleDataChanged } from '@/state/data-events';
 import { getActor } from '@/state/session';
 import type { Actor } from '@/staff/model';
 import { getStaff } from '@/staff/store';
-import { clockGuard, stampDevice } from '@/staff/guards';
+import { clockChanged, clockGuard, stampDevice } from '@/staff/guards';
 import { recordClockBack } from '@/domain/activity';
 import { logError } from '@/lib/error-log';
 
@@ -79,6 +79,7 @@ export function CtxProvider({
       clock: {
         check: (now) => {
           clockGuard.onBack = (latest, at) => {
+            clockChanged();
             try {
               recordClockBack(ctx, latest, at);
             } catch (error) {
