@@ -1,0 +1,15 @@
+# Opens a Management section by its row (id ${ID}, like manage-expenses): the menu is first
+# scrolled back to its top, then down to the row, so it works wherever the menu was left.
+appId: com.salford.pos
+---
+- tapOn: 'الإدارة'
+- scrollUntilVisible:
+    element:
+      id: 'manage-sales'
+    direction: UP
+- scrollUntilVisible:
+    element:
+      id: ${ID}
+    direction: DOWN
+- tapOn:
+    id: ${ID}

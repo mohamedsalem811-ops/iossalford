@@ -43,7 +43,7 @@ appId: com.salford.pos
 # She returns it: the refund becomes her credit.
 - tapOn: '.*بيعة رقم.*'
 - tapOn: 'إرجاع'
-- tapOn: 'الكاميرا'
+- runFlow: subflows/return-photo.yaml
 - tapOn:
     id: 'return-save'
 - tapOn: 'الإدارة'

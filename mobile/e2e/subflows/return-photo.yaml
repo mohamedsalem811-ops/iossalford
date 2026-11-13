@@ -1,0 +1,12 @@
+# On the return form (jewelry): both conditions answered "yes" and a photo of the piece chosen
+# from the simulator's photo library (S4 rules: a return needs both).
+appId: com.salford.pos
+---
+- tapOn:
+    id: 'cond-yes-0'
+- tapOn:
+    id: 'cond-yes-1'
+- tapOn: 'الألبوم'
+- tapOn:
+    index: 0
+    text: '.*Photo.*'

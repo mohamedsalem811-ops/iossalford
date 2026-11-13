@@ -1,0 +1,104 @@
+# Sets and an exchange: a "Gift Set" of Ring Zircon and Chain Gold, 50 off, made in Management
+# and sold from the Sale tab's sets button. Then one piece of that sale is exchanged for another
+# Ring Zircon put in the cart first.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- runFlow: subflows/add-chain.yaml
+# The set.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-sets'
+- tapOn:
+    text: 'طقم جديد'
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: 'set-name'
+    timeout: 30000
+- tapOn:
+    id: 'set-name'
+- inputText: 'Gift Set'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'set-discount'
+- inputText: '50'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'set-pick-Ring Zircon'
+- tapOn:
+    id: 'set-pick-Ring Zircon'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'set-pick-Chain Gold'
+- tapOn:
+    id: 'set-pick-Chain Gold'
+- takeScreenshot: ${DEVICE}-set-form
+- tapOn: 'حفظ'
+- extendedWaitUntil:
+    visible:
+      id: 'set-Gift Set'
+    timeout: 30000
+# Sold from the Sale tab: 350 + 500 − 50 = 800.
+- tapOn: 'بيع'
+- tapOn: 'إضافة طقم'
+- tapOn:
+    id: 'set-Gift Set'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
+- assertVisible: '.*800.*'
+- takeScreenshot: ${DEVICE}-set-in-cart
+- tapOn:
+    id: 'cart-checkout'
+- tapOn:
+    id: 'checkout-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'sold-title'
+    timeout: 30000
+- tapOn:
+    id: 'sold-new-sale'
+# The exchange: another Ring Zircon in the cart, then one piece of sale 1 brought back for it.
+- tapOn: 'بيع'
+- tapOn:
+    id: 'sale-tile-Ring Zircon'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-returnFind'
+- tapOn:
+    id: 'return-find-text'
+- inputText: '1'
+- tapOn:
+    id: 'return-find'
+- tapOn:
+    id: 'return-line-.*'
+    index: 0
+- runFlow: subflows/return-photo.yaml
+- scrollUntilVisible:
+    element:
+      id: 'return-swap'
+    direction: DOWN
+- tapOn:
+    id: 'return-swap'
+- assertVisible:
+    id: 'return-difference'
+- takeScreenshot: ${DEVICE}-exchange
+- tapOn:
+    id: 'return-save'
+- extendedWaitUntil:
+    visible: 'تم الاستبدال'
+    timeout: 15000
+- tapOn: 'OK'

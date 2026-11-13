@@ -1,0 +1,61 @@
+# Adds "Chain Gold" (Pandora, 500 د.ل, cost 300, 3 in stock) from the Products tab.
+appId: com.salford.pos
+---
+- tapOn: 'المنتجات'
+- tapOn: 'إضافة قطعة'
+- extendedWaitUntil:
+    visible:
+      id: 'product-name'
+    timeout: 30000
+- tapOn:
+    id: 'product-name'
+- inputText: 'Chain Gold'
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'product-brand'
+- inputText: 'Pandora'
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: scroll-form.yaml
+    env:
+      ID: 'product-price'
+- tapOn:
+    id: 'product-price'
+- inputText: '500'
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: scroll-form.yaml
+    env:
+      ID: 'product-cost'
+- tapOn:
+    id: 'product-cost'
+- inputText: '300'
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: scroll-form.yaml
+    env:
+      ID: 'product-stock'
+- tapOn:
+    id: 'product-stock'
+- eraseText
+- inputText: '3'
+# Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: scroll-form.yaml
+    env:
+      ID: 'product-save'
+- tapOn:
+    id: 'product-save'
+- extendedWaitUntil:
+    visible: '.*Chain Gold.*'
+    timeout: 30000
