@@ -108,7 +108,8 @@ export function SetPicker({
   ctx: Ctx;
   sets: ProductSet[];
   onDone: () => void;
-  onNew: () => void;
+  /** Absent for someone who may not make sets. */
+  onNew?: () => void;
 }) {
   const { colors } = useTheme();
   return (
@@ -117,9 +118,11 @@ export function SetPicker({
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button onPress={onDone}>إغلاق</Stack.Toolbar.Button>
       </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button icon="plus" accessibilityLabel="طقم جديد" onPress={onNew} />
-      </Stack.Toolbar>
+      {onNew ? (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Button icon="plus" accessibilityLabel="طقم جديد" onPress={onNew} />
+        </Stack.Toolbar>
+      ) : null}
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.background }}
         contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}
@@ -130,7 +133,7 @@ export function SetPicker({
           onPress={(set) => {
             if (addWholeSet(ctx, set.id)) onDone();
           }}
-          emptyAction="طقم جديد"
+          emptyAction={onNew ? 'طقم جديد' : undefined}
           onEmptyAction={onNew}
         />
         {sets.length > 0 ? (

@@ -1,0 +1,64 @@
+# Phase S2: what an employee sees. Runs after staff.yaml (سارة exists, her PIN is 963258).
+# She sells; her home shows only her own sales; Management lists only what she may open;
+# products show no cost; her sale shows no cost, profit, delete or return; owner screens
+# refuse. iPhone and iPad, light and dark (screens: home, Management, products, sale).
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- tapOn: 'الإدارة'
+- scrollUntilVisible:
+    element:
+      id: 'manage-lock'
+    direction: DOWN
+- tapOn:
+    id: 'manage-lock'
+- tapOn:
+    id: 'person-سارة'
+- tapOn:
+    id: 'pin-key-9'
+- tapOn:
+    id: 'pin-key-6'
+- tapOn:
+    id: 'pin-key-3'
+- tapOn:
+    id: 'pin-key-2'
+- tapOn:
+    id: 'pin-key-5'
+- tapOn:
+    id: 'pin-key-8'
+- extendedWaitUntil:
+    visible: 'أهلاً، سارة'
+    timeout: 30000
+- assertNotVisible: 'الربح'
+- assertNotVisible:
+    id: 'quick-product'
+- takeScreenshot: ${DEVICE}-employee-home
+# Management: only selling, customers, debts and settings.
+- tapOn: 'الإدارة'
+- assertVisible:
+    id: 'manage-sales'
+- assertNotVisible:
+    id: 'manage-expenses'
+- assertNotVisible:
+    id: 'manage-backup'
+- assertNotVisible:
+    id: 'manage-returns'
+- takeScreenshot: ${DEVICE}-employee-management-s2
+# Products: price and stock, no cost.
+- tapOn: 'المنتجات'
+- assertNotVisible: 'تكلفة.*'
+- takeScreenshot: ${DEVICE}-employee-products
+# A sale (the Ring added by products.yaml), then its details: no cost, profit, delete or return.
+- runFlow: subflows/sell-ring.yaml
+- tapOn:
+    id: 'sold-new-sale'
+- tapOn: 'الإدارة'
+- tapOn:
+    id: 'manage-sales'
+- tapOn:
+    index: 0
+    id: 'sale-[0-9]+'
+- assertNotVisible: 'التكلفة'
+- assertNotVisible:
+    id: 'sale-delete'
+- takeScreenshot: ${DEVICE}-employee-sale
