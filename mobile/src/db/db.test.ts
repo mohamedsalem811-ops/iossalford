@@ -229,3 +229,17 @@ describe('integrity rules', () => {
     ).toThrow();
   });
 });
+
+describe('a failed save whose undo fails too (audit F-10)', () => {
+  it('reports the save’s own error', () => {
+    const { makeTransaction } = jest.requireActual('./types') as typeof import('./types');
+    const run = makeTransaction((sql) => {
+      if (sql === 'ROLLBACK') throw new Error('disk full');
+    });
+    expect(() =>
+      run(() => {
+        throw new Error('الكمية غير صحيحة');
+      }),
+    ).toThrow('الكمية غير صحيحة');
+  });
+});

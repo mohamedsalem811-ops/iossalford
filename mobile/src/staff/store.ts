@@ -13,10 +13,24 @@ import { EMPTY_STAFF, parseStaff, type Staff } from './model';
 const NAME = 'staff.json';
 const PART = 'staff.json.part';
 
-function read(): Staff {
+/**
+ * The list as last saved. If the app stopped between removing the old file and renaming the new
+ * one (audit F-9), the new one is still there under its temporary name: it is complete (it is
+ * only renamed after being written), so it is used and put back under its own name.
+ */
+export function read(): Staff {
   try {
     const f = new File(privateRoot(), NAME);
-    return f.exists ? parseStaff(f.textSync()) : EMPTY_STAFF;
+    if (f.exists) return parseStaff(f.textSync());
+    const part = new File(privateRoot(), PART);
+    if (!part.exists) return EMPTY_STAFF;
+    const staff = parseStaff(part.textSync());
+    try {
+      part.rename(NAME);
+    } catch {
+      // Read again from the temporary name next time.
+    }
+    return staff;
   } catch {
     return EMPTY_STAFF;
   }

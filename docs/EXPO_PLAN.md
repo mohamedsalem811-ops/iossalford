@@ -588,7 +588,7 @@ The full audit after S6 (a read-only check of the code, flows, tests and speed o
   - F-6: each open checks only the log lines added since the last check, and the whole chain once a week. A break keeps the next checks walking the whole chain.
   - F-7: the open shift is checked before the owner's approval is used up.
   - F-8: sales from before S3 count as the owner's in sales by seller.
-- **Batch 2, safety and tools:** F-9 the staff list survives a crash while saving; F-10 a failed undo never hides the real error; F-12 the update tool pinned and time limits on CI jobs; F-13 tests for the staff actions. F-11 (wrong PINs at the approval prompt count toward the owner's lockout) stays as it is, so guessing there is no easier than at sign-in.
+- **Batch 2, safety and tools:** F-9 the staff list survives a crash while saving (the complete temporary file is used); F-10 a failed undo never hides the real error; F-12 the update tool pinned to a tested version (`EAS_CLI` in `scripts/publish-update.mjs`, raised on purpose) and time limits on the CI jobs (20 and 60 minutes); F-13 tests for the staff actions (add, PIN, rename, suspend, lock settings, emergency code, sending and receiving the list). F-11 (wrong PINs at the approval prompt count toward the owner's lockout) stays as it is, so guessing there is no easier than at sign-in.
 - **Batch 3, database 7 (a new `.ipa`):** F-5 indexes on the times of sales, returns and shifts, for the alerts; F-4 the shop's credit to a customer ("له رصيد") paid back in cash, or used on a sale.
 
 ### Phase 10: switching over

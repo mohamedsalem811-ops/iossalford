@@ -25,6 +25,8 @@ jobs:
     name: Build unsigned .ipa
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: macos-26
+    # A stuck job stops here instead of after GitHub's 6 hours (audit F-12).
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: mobile

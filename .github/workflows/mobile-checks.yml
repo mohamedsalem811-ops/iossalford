@@ -19,6 +19,8 @@ jobs:
   checks:
     name: Types, lint, format, tests, iOS bundle
     runs-on: ubuntu-latest
+    # A stuck job stops here instead of after GitHub's 6 hours (audit F-12).
+    timeout-minutes: 20
     defaults:
       run:
         working-directory: mobile
