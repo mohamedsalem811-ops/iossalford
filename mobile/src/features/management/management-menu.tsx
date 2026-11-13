@@ -41,6 +41,8 @@ export const SECTION_NEEDS: Record<ManageTarget, Permission | null> = {
   backup: 'backup.manage',
   staff: 'staff.manage',
   log: 'log.view',
+  stockCount: 'stock.count',
+  deviceGuide: 'settings.edit',
   settings: null,
 };
 
@@ -70,6 +72,8 @@ export const SECTION_ROUTE: Record<ManageTarget, string> = {
   backup: 'backup',
   staff: 'staff',
   log: 'log',
+  stockCount: 'stock-count',
+  deviceGuide: 'device-guide',
   settings: 'settings',
 };
 

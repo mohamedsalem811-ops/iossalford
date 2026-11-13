@@ -1,6 +1,8 @@
+import type { SymbolViewProps } from 'expo-symbols';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Card, HeroCard, Icon, ListGroup, ListRow, Segmented, Stat, Text } from '@/components';
+import type { AlertKind, OwnerAlert } from '@/domain/alerts';
 import { PAYMENT_LABELS } from '@/domain/checkout';
 import { DailyChart } from '@/features/dashboard/daily-chart';
 import { cashVsCredit, type DashboardData } from '@/features/dashboard/model';
@@ -21,6 +23,8 @@ export type DashboardActions = {
   onOpenDebts: () => void;
   onOpenBackup: () => void;
   onOpenProducts: () => void;
+  /** An alert (phase S6): what happened, open it, or mark it seen. */
+  onOpenAlert: (alert: OwnerAlert) => void;
   /** The shortcuts at the top. */
   onNewSale: () => void;
   onNewReceipt: () => void;
@@ -50,6 +54,19 @@ export function TodayCard({ data, piece }: { data: DashboardData; piece: string 
   );
 }
 
+/** The most alerts listed at once; the rest show as they are seen. */
+const MAX_ALERTS = 5;
+
+const ALERT_ICONS: Record<AlertKind, SymbolViewProps['name']> = {
+  discounts: 'tag',
+  approvals: 'checkmark.shield',
+  quickReturn: 'arrow.uturn.backward.circle',
+  wrongPins: 'lock.trianglebadge.exclamationmark',
+  shortage: 'banknote',
+  clock: 'clock.badge.exclamationmark',
+  log: 'list.bullet.clipboard',
+};
+
 export function AttentionCard({
   data,
   actions,
@@ -58,7 +75,14 @@ export function AttentionCard({
   actions: DashboardActions;
 }) {
   const a = data.attention;
-  const nothing = !a.lowCount && !a.outCount && !a.owed && !a.backupReminder && !a.dataProblem;
+  const alerts = a.alerts ?? [];
+  const nothing =
+    !a.lowCount &&
+    !a.outCount &&
+    !a.owed &&
+    !a.backupReminder &&
+    !a.dataProblem &&
+    alerts.length === 0;
   return (
     <Card style={{ flex: 1 }} testID="attention">
       <Title>يحتاج انتباهك</Title>
@@ -68,6 +92,25 @@ export function AttentionCard({
         </Text>
       ) : (
         <ListGroup>
+          {alerts.slice(0, MAX_ALERTS).map((alert) => (
+            <ListRow
+              key={alert.key}
+              icon={ALERT_ICONS[alert.kind]}
+              tone="warning"
+              title={alert.title}
+              subtitle={alert.detail}
+              onPress={() => actions.onOpenAlert(alert)}
+              testID={`alert-${alert.kind}`}
+            />
+          ))}
+          {alerts.length > MAX_ALERTS ? (
+            <ListRow
+              icon="bell.badge"
+              title={`${alerts.length - MAX_ALERTS} تنبيهات أخرى`}
+              subtitle="اطلع على المعروض أولاً ليظهر الباقي"
+              testID="alert-more"
+            />
+          ) : null}
           {a.dataProblem ? (
             <ListRow
               icon="exclamationmark.octagon"

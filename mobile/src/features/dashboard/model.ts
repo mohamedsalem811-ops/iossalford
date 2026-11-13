@@ -4,6 +4,7 @@
  */
 import { copyReminder } from '@/backup/model';
 import { PAYMENT_LABELS, type PaymentMethod } from '@/domain/checkout';
+import { ownerAlerts, type OwnerAlert } from '@/domain/alerts';
 import type { Ctx } from '@/domain/context';
 import { allBalances } from '@/domain/debts';
 import {
@@ -87,6 +88,8 @@ export type DashboardData = {
     backupReminder: string | null;
     /** The weekly check found a problem in the database file. */
     dataProblem: boolean;
+    /** The owner's alerts not seen yet (phase S6). */
+    alerts: OwnerAlert[];
   };
   byCategory: RankedRow[];
   byBrand: RankedRow[];
@@ -126,6 +129,7 @@ export function readDashboard(
       debtors: balances.length,
       backupReminder: copyReminder(backup.lastCopied, now, backup.firstBackup),
       dataProblem: healthProblem(ctx.db) !== null,
+      alerts: ownerAlerts(ctx),
     },
     byCategory: ranked(breakdown(ctx, [month], 'category')),
     byBrand: ranked(breakdown(ctx, [month], 'brand')),
