@@ -19,6 +19,8 @@ export const EMPLOYEE: Actor = { kind: 'employee', id: 'e1', name: 'سارة' };
 export function makeCtx(
   system: SystemId = 'jewelry',
   start = new Date(2026, 10, 9, 10, 0, 0),
+  /** An employee signed in gets an open shift (S5), unless a test checks working without one. */
+  { autoShift = true }: { autoShift?: boolean } = {},
 ): TestCtx {
   const db = openMemoryDb();
   migrate(db);
@@ -36,6 +38,14 @@ export function makeCtx(
     },
     setActor: (a) => {
       actor = a;
+      if (a?.kind === 'employee' && autoShift) {
+        const key = `emp-${a.id}`;
+        if (!db.get('SELECT 1 FROM shifts WHERE person = ? AND closed_at IS NULL', [key]))
+          db.run(
+            "INSERT INTO shifts (person, person_name, opened_at, opening_cash) VALUES (?, ?, '2026-01-01T00:00:00', 0)",
+            [key, a.name],
+          );
+      }
     },
     close: () => db.close(),
   };

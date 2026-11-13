@@ -16,6 +16,9 @@ import More from '@/app/[system]/(tabs)/more/index';
 import ExpensesRoute from '@/app/[system]/(tabs)/more/expenses';
 import LogRoute from '@/app/[system]/(tabs)/more/log';
 import ReturnFindRoute from '@/app/[system]/(tabs)/more/return-find';
+import ShiftRoute from '@/app/[system]/(tabs)/more/shift';
+import ShiftReportRoute from '@/app/[system]/(tabs)/more/shift-report/[id]';
+import ShiftsRoute from '@/app/[system]/(tabs)/more/shifts';
 import CheckoutRoute from '@/app/[system]/checkout';
 import ReturnRoute from '@/app/[system]/return/[id]';
 import ReturnsRoute from '@/app/[system]/(tabs)/more/returns';
@@ -31,6 +34,8 @@ import type { Ctx } from '@/domain/context';
 import { getProduct, saveProduct } from '@/domain/products';
 import { getSale } from '@/domain/sales';
 import { setPolicies } from '@/domain/policies';
+import { openShift, openShiftOf, shiftTotals } from '@/domain/shifts';
+import { employeeStatement } from '@/domain/staff-ledger';
 import * as device from '@/security/device';
 import { putCart } from '@/state/cart';
 import { clockGuard } from '@/staff/guards';
@@ -127,6 +132,9 @@ const routes = {
   '[system]/(tabs)/more/staff': StaffRoute,
   '[system]/(tabs)/more/log': LogRoute,
   '[system]/(tabs)/more/return-find': ReturnFindRoute,
+  '[system]/(tabs)/more/shift': ShiftRoute,
+  '[system]/(tabs)/more/shifts': ShiftsRoute,
+  '[system]/(tabs)/more/shift-report/[id]': ShiftReportRoute,
   '[system]/checkout': CheckoutRoute,
   '[system]/return/[id]': ReturnRoute,
   '[system]/(tabs)/products/_layout': ProductsStack,
@@ -159,6 +167,7 @@ beforeAll(() => {
     stock: 9,
   });
   ownerSale = sell(OWNER, ring, 2);
+  openShift(ctxAs(SARA), 0);
   herSale = sell(SARA, ring);
 });
 
@@ -182,7 +191,7 @@ describe('as an employee', () => {
     await renderRouter(routes, { initialUrl: '/jewelry/more' });
     expect(await screen.findByTestId('manage-sales')).toBeOnTheScreen();
     expect(screen.getByTestId('manage-returnFind')).toBeOnTheScreen();
-    for (const shown of ['customers', 'debts', 'settings'])
+    for (const shown of ['shift', 'customers', 'debts', 'settings'])
       expect(screen.getByTestId(`manage-${shown}`)).toBeOnTheScreen();
     for (const hidden of [
       'returns',
@@ -196,6 +205,7 @@ describe('as an employee', () => {
       'staff',
       'log',
       'policies',
+      'shifts',
     ])
       expect(screen.queryByTestId(`manage-${hidden}`)).toBeNull();
   });
@@ -205,6 +215,7 @@ describe('as an employee', () => {
     ['/jewelry/more/returns'],
     ['/jewelry/more/staff'],
     ['/jewelry/more/log'],
+    ['/jewelry/more/shifts'],
     ['/jewelry/product/new'],
   ])('refuses %s even when opened by link', async (url) => {
     await renderRouter(routes, { initialUrl: url });
@@ -315,8 +326,8 @@ describe('as the owner', () => {
       await screen.findByText(`بيعة رقم ${herSale}: 1 قطعة بـ 350 د.ل (كاش)`),
     ).toBeOnTheScreen();
     expect(screen.getByText(`بيعة رقم ${ownerSale}: 2 قطعة بـ 700 د.ل (كاش)`)).toBeOnTheScreen();
-    // Her two sales (one with the owner's approval).
-    expect(screen.getAllByText(/^سارة • /)).toHaveLength(2);
+    // Her shift opening and her two sales (one with the owner's approval).
+    expect(screen.getAllByText(/^سارة • /)).toHaveLength(3);
   });
 
   it('is told when the device clock went back, and can accept the device time', async () => {
@@ -325,14 +336,82 @@ describe('as the owner', () => {
     const alert = jest.spyOn(Alert, 'alert');
     await renderRouter(routes, { initialUrl: '/jewelry/more' });
     expect(await screen.findByTestId('manage-clock-behind')).toBeOnTheScreen();
-    fireEvent.press(screen.getByTestId('manage-accept-clock'));
+    await fireEvent.press(screen.getByTestId('manage-accept-clock'));
     const buttons = alert.mock.calls.at(-1)?.[2] as { text: string; onPress?: () => void }[];
-    act(() => buttons.find((b) => b.text === 'الوقت صحيح')?.onPress?.());
+    await act(async () => buttons.find((b) => b.text === 'الوقت صحيح')?.onPress?.());
     await waitFor(() => expect(screen.queryByTestId('manage-clock-behind')).toBeNull());
     alert.mockRestore();
     expect(listActivity(ctxAs(OWNER), {}, { limit: 1 })[0]).toMatchObject({
       action: 'clock.accept',
       actorName: 'المالك',
     });
+  });
+});
+
+/**
+ * Presses a button of the last Alert.alert by its text. An async act: a sync one here leaves the
+ * next test's render empty.
+ */
+async function pressAlert(alert: jest.SpyInstance, text: string) {
+  const buttons = alert.mock.calls.at(-1)?.[2] as { text: string; onPress?: () => void }[];
+  await act(async () => buttons.find((b) => b.text === text)?.onPress?.());
+}
+
+describe('the S5 shift', () => {
+  it('lets her move cash and close with a blind count: 5 د.ل short', async () => {
+    setActor(SARA);
+    const before = openShiftOf(ctxAs(OWNER), 'emp-s1')!;
+    await renderRouter(routes, { initialUrl: '/jewelry/more/shift' });
+    expect(await screen.findByTestId('shift-open-card')).toBeOnTheScreen();
+    await fireEvent.changeText(screen.getByTestId('shift-move-amount'), '20');
+    await fireEvent.changeText(screen.getByTestId('shift-move-reason'), 'فكة');
+    await fireEvent.press(screen.getByTestId('shift-cash-out'));
+    expect(await screen.findByText('فكة')).toBeOnTheScreen();
+    const { expected } = shiftTotals(ctxAs(OWNER), before);
+    // Blind: the expected cash is not on the screen before the count.
+    expect(screen.queryByTestId('shift-expected')).toBeNull();
+    await fireEvent.changeText(
+      screen.getByTestId('shift-counted'),
+      String((expected - 5_000) / 1000),
+    );
+    const alert = jest.spyOn(Alert, 'alert');
+    await fireEvent.press(screen.getByTestId('shift-close'));
+    await pressAlert(alert, 'إغلاق');
+    alert.mockRestore();
+    expect(await screen.findByTestId('shift-difference')).toHaveTextContent(/عجز 5/);
+    expect(screen.getByTestId('shift-open')).toBeOnTheScreen();
+  });
+
+  it('shows her the open-shift banner on the home screen', async () => {
+    setActor(SARA);
+    await renderRouter(routes, { initialUrl: '/jewelry' });
+    expect(await screen.findByTestId('open-shift')).toBeOnTheScreen();
+  });
+
+  it('lets the owner read the report and put the shortage on her account', async () => {
+    setActor(OWNER);
+    const shift = ctxAs(OWNER).db.get<{ id: number }>(
+      "SELECT id FROM shifts WHERE person = 'emp-s1' ORDER BY id DESC LIMIT 1",
+    )!;
+    await renderRouter(routes, { initialUrl: '/jewelry/more/shifts' });
+    expect(await screen.findByTestId(`shift-${shift.id}-status`)).toHaveTextContent(/عجز 5/);
+    await renderRouter(routes, { initialUrl: `/jewelry/more/shift-report/${shift.id}` });
+    expect(await screen.findByTestId('report-person')).toHaveTextContent('سارة');
+    const owed = employeeStatement(ctxAs(OWNER), 'emp-s1').balance;
+    const alert = jest.spyOn(Alert, 'alert');
+    await fireEvent.press(screen.getByTestId('report-charge'));
+    await pressAlert(alert, 'تحميل');
+    alert.mockRestore();
+    expect(await screen.findByTestId('report-charged')).toBeOnTheScreen();
+    expect(employeeStatement(ctxAs(OWNER), 'emp-s1').balance).toBe(owed + 5_000);
+  });
+
+  it('lets her open a new shift with the cash in the drawer', async () => {
+    setActor(SARA);
+    await renderRouter(routes, { initialUrl: '/jewelry/more/shift' });
+    await fireEvent.changeText(await screen.findByTestId('shift-opening'), '100');
+    await fireEvent.press(screen.getByTestId('shift-open'));
+    expect(await screen.findByTestId('shift-open-card')).toBeOnTheScreen();
+    expect(openShiftOf(ctxAs(OWNER), 'emp-s1')?.openingCash).toBe(100_000);
   });
 });

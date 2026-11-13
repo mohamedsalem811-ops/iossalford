@@ -38,6 +38,7 @@ describe('migrations', () => {
     expect(tables).toEqual([
       'activity',
       'brands',
+      'cash_moves',
       'closings',
       'customers',
       'expenses',
@@ -51,6 +52,7 @@ describe('migrations', () => {
       'set_items',
       'sets',
       'settings',
+      'shifts',
       'staff_ledger',
       'stock_moves',
     ]);

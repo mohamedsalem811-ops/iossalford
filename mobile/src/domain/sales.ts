@@ -19,6 +19,7 @@ import {
 import { getProduct, moveStock } from './products';
 import { logAction } from './activity';
 import { getPolicies, type Policies } from './policies';
+import { shiftFor } from './shifts';
 
 export type SaleLine = {
   id: number;
@@ -458,6 +459,7 @@ export function addReturn(ctx: Ctx, input: ReturnInput): number {
     const photo = clean(input.photo);
     if (!photo) throw new RuleError('صوّر القطعة المرتجعة قبل الحفظ.');
 
+    const shiftId = shiftFor(ctx, actor);
     const policies = getPolicies(ctx);
     const problems = returnProblems(policies, sale.created_at, ctx.now(), input.answers);
     let overrideReason: string | null = null;
@@ -475,8 +477,8 @@ export function addReturn(ctx: Ctx, input: ReturnInput): number {
     );
     const id = ctx.db.run(
       `INSERT INTO returns (sale_line_id, product_id, name, quantity, refund, cost, reason, created_at, month, by, by_name,
-         photo, conditions, override_reason, approved_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         photo, conditions, override_reason, approved_by, shift_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         line.id,
         line.productId,
@@ -492,6 +494,7 @@ export function addReturn(ctx: Ctx, input: ReturnInput): number {
         JSON.stringify(answers),
         overrideReason,
         approvedBy,
+        shiftId,
       ],
     ).lastInsertRowId;
     if (getProduct(ctx, line.productId))
@@ -522,7 +525,7 @@ export function addReturnWithoutSale(
   ctx: Ctx,
   input: { productId: number; quantity: number; refund: number; reason?: string; photo?: string },
 ): number {
-  allow(ctx, 'returns.noSale');
+  const actor = allow(ctx, 'returns.noSale');
   if (!Number.isInteger(input.quantity) || input.quantity < 1)
     throw new RuleError('الكمية يجب أن تكون 1 على الأقل');
   if (!Number.isInteger(input.refund) || input.refund < 0)
@@ -533,8 +536,8 @@ export function addReturnWithoutSale(
     const p = getProduct(ctx, input.productId);
     if (!p) throw new RuleError('القطعة غير موجودة في المخزون');
     const id = ctx.db.run(
-      `INSERT INTO returns (sale_line_id, product_id, name, quantity, refund, cost, reason, created_at, month, by, by_name, photo)
-       VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO returns (sale_line_id, product_id, name, quantity, refund, cost, reason, created_at, month, by, by_name, photo, shift_id)
+       VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         p.id,
         p.name,
@@ -546,6 +549,7 @@ export function addReturnWithoutSale(
         nowMonth(ctx),
         ...who(ctx),
         photo,
+        shiftFor(ctx, actor),
       ],
     ).lastInsertRowId;
     moveStock(ctx, p.id, input.quantity, 'return', id);

@@ -30,6 +30,7 @@ export function EmployeeHomeScreen({
     onNewSale: () => void;
     onNewReceipt: () => void;
     onOpenAccount: () => void;
+    onOpenShift: () => void;
   };
 }) {
   const { dashboardColumns } = useLayout();
@@ -42,6 +43,18 @@ export function EmployeeHomeScreen({
         onSystemMenu={actions.onSystemMenu}
       />
       <Text variant="title" testID="employee-hello">{`أهلاً، ${name}`}</Text>
+      {data.shiftOpen ? null : (
+        <Pressable onPress={actions.onOpenShift} accessibilityRole="button" testID="open-shift">
+          <Card>
+            <Text variant="bodyStrong" tone="warning">
+              افتح الوردية للبيع
+            </Text>
+            <Text variant="caption" tone="accent">
+              عدّ النقد في الدرج وافتح الوردية
+            </Text>
+          </Card>
+        </Pressable>
+      )}
       <QuickActions
         system={system}
         onNewSale={actions.onNewSale}
