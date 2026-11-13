@@ -17,6 +17,7 @@ appId: com.salford.pos
       text: 'البائع'
     direction: DOWN
     centerElement: true
+    timeout: 60000
 - tapOn: 'البائع'
 - assertVisible:
     id: 'by-seller'

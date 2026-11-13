@@ -73,6 +73,7 @@ appId: com.salford.pos
       id: 'sale-delete'
     direction: DOWN
     centerElement: true
+    timeout: 60000
 - tapOn:
     id: 'sale-delete'
 - takeScreenshot: ${DEVICE}-delete-sale

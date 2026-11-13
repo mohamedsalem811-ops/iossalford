@@ -5,7 +5,9 @@
 # but its middle is off the screen, so the menu is scrolled until the row has another menu row
 # below it (Maestro leaves out rows wholly off the screen), or to its end for the last row.
 # iPhone: the row is brought above 70% of the screen height: a row left at the bottom is under
-# the floating tab bar, and a tap there lands on a tab.
+# the floating tab bar, and a tap there lands on a tab. The last rows (lock, switch system) can't
+# go that high: Maestro tries 5 times (about 4 seconds each), then takes them where they are, so
+# the scroll has 60 seconds (its 20-second default ran out first in run 57).
 appId: com.salford.pos
 ---
 - runFlow: management-menu.yaml
@@ -34,5 +36,6 @@ appId: com.salford.pos
             id: ${ID}
           direction: DOWN
           centerElement: true
+          timeout: 60000
 - tapOn:
     id: ${ID}

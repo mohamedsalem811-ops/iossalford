@@ -30,6 +30,7 @@ appId: com.salford.pos
       id: 'size-price-0'
     direction: DOWN
     centerElement: true
+    timeout: 60000
 - tapOn:
     id: 'size-price-0'
 - inputText: '90'
@@ -41,6 +42,7 @@ appId: com.salford.pos
       id: 'size-cost-0'
     direction: DOWN
     centerElement: true
+    timeout: 60000
 - tapOn:
     id: 'size-cost-0'
 - inputText: '30'
@@ -52,6 +54,7 @@ appId: com.salford.pos
       id: 'add-size-120×120'
     direction: DOWN
     centerElement: true
+    timeout: 60000
 - tapOn:
     id: 'add-size-120×120'
 - scrollUntilVisible:
@@ -59,6 +62,7 @@ appId: com.salford.pos
       id: 'size-price-1'
     direction: DOWN
     centerElement: true
+    timeout: 60000
 - tapOn:
     id: 'size-price-1'
 - inputText: '120'
@@ -70,6 +74,7 @@ appId: com.salford.pos
       id: 'size-cost-1'
     direction: DOWN
     centerElement: true
+    timeout: 60000
 - tapOn:
     id: 'size-cost-1'
 - inputText: '40'
@@ -82,6 +87,7 @@ appId: com.salford.pos
       id: 'design-save'
     direction: DOWN
     centerElement: true
+    timeout: 60000
 - tapOn:
     id: 'design-save'
 - extendedWaitUntil:

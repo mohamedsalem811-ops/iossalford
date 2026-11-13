@@ -68,10 +68,25 @@ appId: com.salford.pos
       id: 'daily-chart'
     direction: DOWN
     centerElement: true
+    timeout: 60000
 - takeScreenshot: ${DEVICE}-dashboard-chart
-- scrollUntilVisible:
-    element:
-      id: 'stock-summary'
-    direction: DOWN
-    centerElement: true
+# Swiped at the page's edge: Maestro's scroll starts at the middle of the screen, which here is
+# the native segmented control (الصنف / الماركة / الدفع), and a drag starting on it doesn't
+# scroll the page (run 57). The last swipe brings the whole card up (the page stops at its end).
+- repeat:
+    while:
+      notVisible:
+        id: 'stock-summary'
+    times: 4
+    commands:
+      - swipe:
+          start: 3%, 80%
+          end: 3%, 30%
+          duration: 400
+- swipe:
+    start: 3%, 80%
+    end: 3%, 30%
+    duration: 400
+- assertVisible:
+    id: 'stock-summary'
 - takeScreenshot: ${DEVICE}-dashboard-bottom

@@ -1,12 +1,13 @@
 # On the return form (jewelry): both conditions answered "yes" and a photo of the piece chosen
 # from the simulator's photo library (S4 rules: a return needs both). Ends with the photo shown.
 # Apple's photo picker runs outside the app: Maestro sees none of it (not even its photos), and
-# none of the app's screen while it is open. So the photos are tapped where they show, and the
-# app's photo button coming back means the picker closed with a photo chosen.
-# iPad (seen in run 55): photos in a grid right of the picker's sidebar, 6 in the first row from
-# 20% across; rows at 15% and 24% down. iPhone: the grid under the picker's title, 3 to 5 photos
-# a row; 45% across is inside a photo in each case (50% can be the gap between two), and the
-# three heights cover the first rows wherever the title ends.
+# none of the app's screen while it is open. So a photo is tapped where it shows: iPad (run 55)
+# 6 in a row right of the picker's sidebar, the first at 41%, 15%; iPhone (run 57) 3 in a row
+# under its title, the second at 45%, 24%.
+# Run 57: twice in three picks on iPhone, the picker closed without handing the photo to the app
+# (the simulator's log shows no export of the photo), so the photo never came. The app keeps its
+# buttons usable while a pick waits, and a new pick replaces it: here the photo is picked again,
+# up to twice, if it hasn't come within 30 seconds.
 appId: com.salford.pos
 ---
 - tapOn:
@@ -17,61 +18,22 @@ appId: com.salford.pos
     file: scroll-form.yaml
     env:
       ID: 'photo-library'
-- tapOn:
-    id: 'photo-library'
-# The picker slides up; its picture shows where the photos are on this device.
-- waitForAnimationToEnd:
-    timeout: 10000
-- takeScreenshot: ${DEVICE}-photo-picker
 - runFlow:
-    when:
-      true: ${DEVICE == 'iPad'}
-    commands:
-      - tapOn:
-          point: 41%, 15%
-      - waitForAnimationToEnd:
-          timeout: 5000
-      - runFlow:
-          when:
-            notVisible:
-              id: 'photo-library'
-          commands:
-            - tapOn:
-                point: 54%, 15%
-            - waitForAnimationToEnd:
-                timeout: 5000
-      - runFlow:
-          when:
-            notVisible:
-              id: 'photo-library'
-          commands:
-            - tapOn:
-                point: 41%, 24%
-- runFlow:
-    when:
-      true: ${DEVICE != 'iPad'}
-    commands:
-      - tapOn:
-          point: 45%, 24%
-      - waitForAnimationToEnd:
-          timeout: 5000
-      - runFlow:
-          when:
-            notVisible:
-              id: 'photo-library'
-          commands:
-            - tapOn:
-                point: 45%, 33%
-            - waitForAnimationToEnd:
-                timeout: 5000
-      - runFlow:
-          when:
-            notVisible:
-              id: 'photo-library'
-          commands:
-            - tapOn:
-                point: 45%, 42%
+    file: pick-photo.yaml
 - extendedWaitUntil:
     visible: 'حذف الصورة'
     timeout: 30000
+    optional: true
+- repeat:
+    while:
+      notVisible: 'حذف الصورة'
+    times: 2
+    commands:
+      - runFlow:
+          file: pick-photo.yaml
+      - extendedWaitUntil:
+          visible: 'حذف الصورة'
+          timeout: 30000
+          optional: true
+- assertVisible: 'حذف الصورة'
 - takeScreenshot: ${DEVICE}-return-photo-chosen

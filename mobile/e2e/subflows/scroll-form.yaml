@@ -5,6 +5,8 @@
 # centerElement keeps scrolling until the element's middle is above 70% of the screen height, so
 # it never stops under iPhone's floating tab bar (the bottom 9%), where a tap lands on a tab; at
 # the end of a short form it stops after a few tries where the form ends, above the tab bar.
+# Each of those tries takes about 4 seconds, and Maestro's 20-second default ran out before it
+# accepted an element left at the end (run 57): hence 60 seconds.
 appId: com.salford.pos
 ---
 - scrollUntilVisible:
@@ -12,4 +14,4 @@ appId: com.salford.pos
       id: ${ID}
     direction: DOWN
     centerElement: true
-    timeout: 30000
+    timeout: 60000

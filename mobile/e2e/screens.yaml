@@ -39,6 +39,7 @@ appId: com.salford.pos
             id: 'settings-errors'
           direction: DOWN
           centerElement: true
+          timeout: 60000
 - takeScreenshot: ${DEVICE}-p8-settings
 # Receipts: on iPad the receipt beside the list.
 - tapOn: 'الإيصالات'

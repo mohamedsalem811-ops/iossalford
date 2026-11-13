@@ -58,6 +58,13 @@ appId: com.salford.pos
       ID: 'product-save'
 - tapOn:
     id: 'product-save'
+# Saved, the form closes back to the dashboard, which doesn't list pieces by name (run 57): the
+# new piece is checked in the Products tab.
+- extendedWaitUntil:
+    notVisible:
+      id: 'product-name'
+    timeout: 30000
+- tapOn: 'المنتجات'
 - extendedWaitUntil:
     visible: '.*Chain Gold.*'
     timeout: 30000

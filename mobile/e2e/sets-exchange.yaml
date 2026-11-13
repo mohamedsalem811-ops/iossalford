@@ -103,6 +103,7 @@ appId: com.salford.pos
       id: 'return-swap'
     direction: DOWN
     centerElement: true
+    timeout: 60000
 - tapOn:
     id: 'return-swap'
 - assertVisible:

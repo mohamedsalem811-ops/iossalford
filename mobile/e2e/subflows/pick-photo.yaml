@@ -1,0 +1,22 @@
+# Opens Apple's photo picker from the form's "الألبوم" button and taps a photo where it shows
+# (see return-photo.yaml): iPad 41%, 15%; iPhone 45%, 24%.
+appId: com.salford.pos
+---
+- tapOn:
+    id: 'photo-library'
+# The picker slides up; its picture shows where the photos are on this device.
+- waitForAnimationToEnd:
+    timeout: 10000
+- takeScreenshot: ${DEVICE}-photo-picker
+- runFlow:
+    when:
+      true: ${DEVICE == 'iPad'}
+    commands:
+      - tapOn:
+          point: 41%, 15%
+- runFlow:
+    when:
+      true: ${DEVICE != 'iPad'}
+    commands:
+      - tapOn:
+          point: 45%, 24%

@@ -79,6 +79,7 @@ appId: com.salford.pos
       id: 'report-charge'
     direction: DOWN
     centerElement: true
+    timeout: 60000
 - tapOn:
     id: 'report-charge'
 - tapOn: 'تحميل'
