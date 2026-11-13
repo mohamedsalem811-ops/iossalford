@@ -23,6 +23,8 @@ import { deleteReceipt, issueReceipt, updateReceipt } from '@/domain/receipts';
 import { exchange } from '@/domain/exchange';
 import { addCashMove, chargeShortage, closeShift, openShift } from '@/domain/shifts';
 import { setPolicies } from '@/domain/policies';
+import { acknowledgeAlert } from '@/domain/alerts';
+import { applyCount, cancelCount, countPiece, startCount, submitCount } from '@/domain/stock-count';
 import { chargeReturn, recordRepayment, waiveCharge } from '@/domain/staff-ledger';
 import { addReturn, addReturnWithoutSale, deleteReturn, deleteSale, getSale } from '@/domain/sales';
 import { deleteScarfDesign, saveScarfDesign } from '@/domain/scarves';
@@ -37,6 +39,10 @@ import { screenFilesCalling } from './testing/screen-calls';
 
 /** What the owner made before each action: one of everything an action can work on. */
 type Seed = {
+  /** A count in progress, with one piece counted. */
+  openCount: number;
+  /** A count sent to the owner. */
+  sentCount: number;
   shortShift: number;
   charged: number;
   ring: number;
@@ -113,7 +119,14 @@ function seed(ctx: TestCtx): Seed {
   const shortShift = closeShift(ctx, 0).shiftId;
   ctx.setActor(OWNER);
   openShift(ctx, 10_000);
+  const sentCount = startCount(ctx);
+  countPiece(ctx, sentCount, ring, 9);
+  submitCount(ctx, sentCount);
+  const openCount = startCount(ctx);
+  countPiece(ctx, openCount, ring, 10);
   return {
+    openCount,
+    sentCount,
     shortShift,
     charged,
     herReceipt,
@@ -281,6 +294,26 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     chargeShortage: {
       permission: 'staff.ledger',
       run: (ctx, s) => chargeShortage(ctx, s.shortShift),
+    },
+    startCount: {
+      permission: 'stock.count',
+      run: (ctx) => {
+        // One count is open at a time: the one opened for the test is cancelled first.
+        if (ctx.actor)
+          ctx.db.run("UPDATE stock_counts SET status = 'cancelled' WHERE status = 'open'");
+        return startCount(ctx);
+      },
+    },
+    countPiece: {
+      permission: 'stock.count',
+      run: (ctx, s) => countPiece(ctx, s.openCount, s.chain, 3),
+    },
+    submitCount: { permission: 'stock.count', run: (ctx, s) => submitCount(ctx, s.openCount) },
+    applyCount: { permission: 'stock.adjust', run: (ctx, s) => applyCount(ctx, s.sentCount) },
+    cancelCount: { permission: 'stock.adjust', run: (ctx, s) => cancelCount(ctx, s.openCount) },
+    acknowledgeAlert: {
+      permission: 'alerts.manage',
+      run: (ctx) => acknowledgeAlert(ctx, { key: 'wrongPins:emp-e1:2026-11-09', title: 'رمز خطأ' }),
     },
     recordRepayment: {
       permission: 'staff.ledger',

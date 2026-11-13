@@ -54,6 +54,8 @@ describe('migrations', () => {
       'settings',
       'shifts',
       'staff_ledger',
+      'stock_count_lines',
+      'stock_counts',
       'stock_moves',
     ]);
   });
