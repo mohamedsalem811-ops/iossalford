@@ -12,3 +12,13 @@ jest.mock('@/components/appear', () => ({
 jest.mock('react-native-keyboard-controller', () =>
   require('react-native-keyboard-controller/jest'),
 );
+// Random ids: Node's crypto stands in for the native one.
+jest.mock('expo-crypto', () => {
+  let actual = {};
+  try {
+    actual = jest.requireActual('expo-crypto');
+  } catch {
+    // A test that mocks expo itself: the random id is enough.
+  }
+  return { ...actual, randomUUID: () => require('node:crypto').randomUUID() };
+});

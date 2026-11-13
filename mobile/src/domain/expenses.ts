@@ -1,6 +1,8 @@
 import { parseMonthKey, quarterKey, quarterOf } from '@/lib/dates';
 
-import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx } from './context';
+import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx, who } from './context';
+import { logAction } from './activity';
+import { formatLyd } from '@/lib/money';
 
 export type Expense = {
   id: number;
@@ -31,15 +33,33 @@ export function addExpense(
     throw new RuleError('أدخل مبلغ المصروف');
   const month = input.month ?? nowMonth(ctx);
   if (!parseMonthKey(month)) throw new RuleError('الشهر غير صحيح');
-  return ctx.db.run(
-    'INSERT INTO expenses (description, amount, month, created_at) VALUES (?, ?, ?, ?)',
-    [description, input.amount, month, nowStamp(ctx)],
-  ).lastInsertRowId;
+  return ctx.db.transaction(() => {
+    const id = ctx.db.run(
+      'INSERT INTO expenses (description, amount, month, created_at, by, by_name) VALUES (?, ?, ?, ?, ?, ?)',
+      [description, input.amount, month, nowStamp(ctx), ...who(ctx)],
+    ).lastInsertRowId;
+    logAction(ctx, 'expense.add', `مصروف «${description}» ${formatLyd(input.amount)}`, {
+      expenseId: id,
+      amount: input.amount,
+      month,
+    });
+    return id;
+  });
 }
 
 export function deleteExpense(ctx: Ctx, id: number) {
   allow(ctx, 'expenses.edit');
-  ctx.db.run('DELETE FROM expenses WHERE id = ?', [id]);
+  ctx.db.transaction(() => {
+    const e = ctx.db.get<{ description: string; amount: number }>(
+      'SELECT description, amount FROM expenses WHERE id = ?',
+      [id],
+    );
+    if (!e) return;
+    ctx.db.run('DELETE FROM expenses WHERE id = ?', [id]);
+    logAction(ctx, 'expense.delete', `حذف مصروف «${e.description}» ${formatLyd(e.amount)}`, {
+      expenseId: id,
+    });
+  });
 }
 
 export function listExpenses(ctx: Ctx, month?: string): Expense[] {

@@ -2,6 +2,7 @@ import { quarterKey, quarterMonths, quarterTitle, type Quarter } from '@/lib/dat
 
 import { allow, clean, nowStamp, type Ctx } from './context';
 import { summary } from './reports';
+import { logAction } from './activity';
 
 export type Closing = {
   id: number;
@@ -59,29 +60,32 @@ export function existingClosing(ctx: Ctx, q: Quarter): Closing | undefined {
 /** Closes a calendar quarter. Closing it again replaces the earlier closing (re-issue). */
 export function closeQuarter(ctx: Ctx, q: Quarter, notes?: string): Closing {
   allow(ctx, 'closing.edit');
-  const s = previewQuarter(ctx, q);
-  ctx.db.run(
-    `INSERT INTO closings (period_key, title, total_sales, total_cost, total_expenses, total_refunds, net_profit, transactions, items_sold, notes, closed_at)
+  return ctx.db.transaction(() => {
+    const s = previewQuarter(ctx, q);
+    ctx.db.run(
+      `INSERT INTO closings (period_key, title, total_sales, total_cost, total_expenses, total_refunds, net_profit, transactions, items_sold, notes, closed_at)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(period_key) DO UPDATE SET title = excluded.title, total_sales = excluded.total_sales,
        total_cost = excluded.total_cost, total_expenses = excluded.total_expenses, total_refunds = excluded.total_refunds,
        net_profit = excluded.net_profit, transactions = excluded.transactions, items_sold = excluded.items_sold,
        notes = excluded.notes, closed_at = excluded.closed_at`,
-    [
-      quarterKey(q),
-      quarterTitle(q),
-      s.grossSales,
-      s.costOfSales,
-      s.expenses,
-      s.refunds,
-      s.netProfit,
-      s.transactions,
-      s.itemsSold,
-      clean(notes),
-      nowStamp(ctx),
-    ],
-  );
-  return existingClosing(ctx, q)!;
+      [
+        quarterKey(q),
+        quarterTitle(q),
+        s.grossSales,
+        s.costOfSales,
+        s.expenses,
+        s.refunds,
+        s.netProfit,
+        s.transactions,
+        s.itemsSold,
+        clean(notes),
+        nowStamp(ctx),
+      ],
+    );
+    logAction(ctx, 'closing.close', `إقفال ${quarterTitle(q)}`, { period: quarterKey(q) });
+    return existingClosing(ctx, q)!;
+  });
 }
 
 /** Closings, newest quarter first. */
@@ -91,5 +95,10 @@ export function listClosings(ctx: Ctx): Closing[] {
 
 export function deleteClosing(ctx: Ctx, id: number) {
   allow(ctx, 'closing.edit');
-  ctx.db.run('DELETE FROM closings WHERE id = ?', [id]);
+  ctx.db.transaction(() => {
+    const c = ctx.db.get<{ title: string }>('SELECT title FROM closings WHERE id = ?', [id]);
+    if (!c) return;
+    ctx.db.run('DELETE FROM closings WHERE id = ?', [id]);
+    logAction(ctx, 'closing.delete', `حذف إقفال ${c.title}`, { closingId: id });
+  });
 }

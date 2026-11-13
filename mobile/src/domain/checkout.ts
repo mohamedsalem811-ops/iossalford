@@ -5,6 +5,8 @@ import { displayName, getProduct, moveStock } from './products';
 import { issueReceipt, type Receipt, type TemplateId } from './receipts';
 import { getRate } from './settings';
 import { actorKey, actorName } from '@/staff/model';
+import { logAction } from './activity';
+import { formatLyd } from '@/lib/money';
 
 export const PAYMENT_METHODS = ['cash', 'card', 'transfer', 'credit'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
@@ -125,6 +127,13 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
         price: l.unitPrice,
       })),
     });
+    const pieces = input.cart.reduce((n, l) => n + l.quantity, 0);
+    logAction(
+      ctx,
+      'sale.create',
+      `بيعة رقم ${saleId}: ${pieces} قطعة بـ ${formatLyd(total)} (${PAYMENT_LABELS[input.paymentMethod]})`,
+      { saleId, total, pieces, payment: input.paymentMethod, receipt: receipt.receiptNo },
+    );
     return { saleId, receipt, total };
   });
 }

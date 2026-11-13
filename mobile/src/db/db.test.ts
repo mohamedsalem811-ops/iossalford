@@ -36,6 +36,7 @@ describe('migrations', () => {
       )
       .map((t) => t.name);
     expect(tables).toEqual([
+      'activity',
       'brands',
       'closings',
       'customers',

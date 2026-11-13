@@ -1,7 +1,7 @@
 import type { Db } from '@/db/types';
 import { monthKey } from '@/lib/dates';
-import { actorKey, type Actor } from '@/staff/model';
-import { can, refusal, type Permission } from '@/staff/permissions';
+import { actorKey, actorName, type Actor } from '@/staff/model';
+import { can, refusal, WRITES, type Permission } from '@/staff/permissions';
 import type { SystemId } from '@/theme';
 
 /**
@@ -16,6 +16,11 @@ export type Ctx = {
   now: () => Date;
   /** Who is signed in now (read when the action runs, not when the screen opened). */
   readonly actor: Actor | null;
+  /**
+   * The clock guard (staff/clock.ts): refuses every action while the device clock is behind the
+   * latest time seen. Absent in tests that don't test it.
+   */
+  clock?: { check(now: Date): string | null };
 };
 
 /** Local ISO timestamp without a time-zone suffix: "2026-11-09T14:05:00". */
@@ -42,6 +47,11 @@ export class RuleError extends Error {
 export function allow(ctx: Ctx, permission: Permission): Actor {
   const actor = ctx.actor;
   if (!actor || !can(actor, permission)) throw new PermissionError(refusal(actor, permission));
+  // Only for changes: reading is never blocked by the clock.
+  if (permission in WRITES) {
+    const problem = ctx.clock?.check(ctx.now());
+    if (problem) throw new ClockError(problem);
+  }
   return actor;
 }
 
@@ -64,6 +74,24 @@ export function visibleTo(ctx: Ctx, column: string): { sql: string; params: stri
   if (!actor) return { sql: '0', params: [] };
   if (can(actor, 'sales.viewAll')) return { sql: '1', params: [] };
   return { sql: `${column} = ?`, params: [actorKey(actor)] };
+}
+
+/**
+ * Who is doing this action, for the record: ("owner" or "emp-<id>", their name). Called inside
+ * actions that already passed `allow`, so someone is signed in; refuses otherwise.
+ */
+export function who(ctx: Ctx): [key: string, name: string] {
+  const actor = ctx.actor;
+  if (!actor) throw new PermissionError('سجّل الدخول أولاً.');
+  return [actorKey(actor), actorName(actor)];
+}
+
+/** A refusal because the device clock went back. Nothing was changed. */
+export class ClockError extends RuleError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ClockError';
+  }
 }
 
 /** A refusal because of who is signed in. Nothing was changed. */

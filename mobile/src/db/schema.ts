@@ -220,6 +220,170 @@ ALTER TABLE receipts ADD COLUMN issued_by_name TEXT;
 CREATE INDEX receipts_issued_by ON receipts(issued_by);
 `,
   },
+  {
+    // Staff phase S3:
+    // - who did each return, payment, stock change and expense ("owner" or "emp-<id>", with a
+    //   copy of the name; older rows, NULL, were the owner's);
+    // - the activity log: every action, sign-in and wrong PIN, one line each, never changed.
+    //   Each line carries the fingerprint (SHA-256) of the line before, so a line changed or
+    //   removed outside the app breaks the chain;
+    // - a unique id and the device's id on every record, for syncing the iPhone and the iPad
+    //   later. Filled by the database itself on every new row; older rows get an id now and no
+    //   device.
+    version: 3,
+    name: 'who did what, activity log, unique ids',
+    sql: `
+ALTER TABLE returns ADD COLUMN by TEXT;
+ALTER TABLE returns ADD COLUMN by_name TEXT;
+ALTER TABLE payments ADD COLUMN by TEXT;
+ALTER TABLE payments ADD COLUMN by_name TEXT;
+ALTER TABLE stock_moves ADD COLUMN by TEXT;
+ALTER TABLE stock_moves ADD COLUMN by_name TEXT;
+ALTER TABLE expenses ADD COLUMN by TEXT;
+ALTER TABLE expenses ADD COLUMN by_name TEXT;
+
+CREATE TABLE activity (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  at         TEXT NOT NULL,
+  day        TEXT NOT NULL,
+  actor      TEXT NOT NULL,
+  actor_name TEXT NOT NULL,
+  action     TEXT NOT NULL,
+  summary    TEXT NOT NULL,
+  details    TEXT,
+  prev_hash  TEXT NOT NULL,
+  hash       TEXT NOT NULL,
+  uid        TEXT,
+  device     TEXT
+);
+CREATE INDEX activity_day ON activity(day, id);
+CREATE INDEX activity_actor ON activity(actor, id);
+
+ALTER TABLE brands ADD COLUMN uid TEXT;
+ALTER TABLE brands ADD COLUMN device TEXT;
+UPDATE brands SET uid = lower(hex(randomblob(16)));
+CREATE UNIQUE INDEX brands_uid ON brands(uid);
+CREATE TRIGGER brands_new_uid AFTER INSERT ON brands WHEN NEW.uid IS NULL BEGIN
+  UPDATE brands SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+ALTER TABLE products ADD COLUMN uid TEXT;
+ALTER TABLE products ADD COLUMN device TEXT;
+UPDATE products SET uid = lower(hex(randomblob(16)));
+CREATE UNIQUE INDEX products_uid ON products(uid);
+CREATE TRIGGER products_new_uid AFTER INSERT ON products WHEN NEW.uid IS NULL BEGIN
+  UPDATE products SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+ALTER TABLE stock_moves ADD COLUMN uid TEXT;
+ALTER TABLE stock_moves ADD COLUMN device TEXT;
+UPDATE stock_moves SET uid = lower(hex(randomblob(16)));
+CREATE UNIQUE INDEX stock_moves_uid ON stock_moves(uid);
+CREATE TRIGGER stock_moves_new_uid AFTER INSERT ON stock_moves WHEN NEW.uid IS NULL BEGIN
+  UPDATE stock_moves SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+ALTER TABLE customers ADD COLUMN uid TEXT;
+ALTER TABLE customers ADD COLUMN device TEXT;
+UPDATE customers SET uid = lower(hex(randomblob(16)));
+CREATE UNIQUE INDEX customers_uid ON customers(uid);
+CREATE TRIGGER customers_new_uid AFTER INSERT ON customers WHEN NEW.uid IS NULL BEGIN
+  UPDATE customers SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+ALTER TABLE sales ADD COLUMN uid TEXT;
+ALTER TABLE sales ADD COLUMN device TEXT;
+UPDATE sales SET uid = lower(hex(randomblob(16)));
+CREATE UNIQUE INDEX sales_uid ON sales(uid);
+CREATE TRIGGER sales_new_uid AFTER INSERT ON sales WHEN NEW.uid IS NULL BEGIN
+  UPDATE sales SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+ALTER TABLE sale_lines ADD COLUMN uid TEXT;
+ALTER TABLE sale_lines ADD COLUMN device TEXT;
+UPDATE sale_lines SET uid = lower(hex(randomblob(16)));
+CREATE UNIQUE INDEX sale_lines_uid ON sale_lines(uid);
+CREATE TRIGGER sale_lines_new_uid AFTER INSERT ON sale_lines WHEN NEW.uid IS NULL BEGIN
+  UPDATE sale_lines SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+ALTER TABLE returns ADD COLUMN uid TEXT;
+ALTER TABLE returns ADD COLUMN device TEXT;
+UPDATE returns SET uid = lower(hex(randomblob(16)));
+CREATE UNIQUE INDEX returns_uid ON returns(uid);
+CREATE TRIGGER returns_new_uid AFTER INSERT ON returns WHEN NEW.uid IS NULL BEGIN
+  UPDATE returns SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+ALTER TABLE payments ADD COLUMN uid TEXT;
+ALTER TABLE payments ADD COLUMN device TEXT;
+UPDATE payments SET uid = lower(hex(randomblob(16)));
+CREATE UNIQUE INDEX payments_uid ON payments(uid);
+CREATE TRIGGER payments_new_uid AFTER INSERT ON payments WHEN NEW.uid IS NULL BEGIN
+  UPDATE payments SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+ALTER TABLE expenses ADD COLUMN uid TEXT;
+ALTER TABLE expenses ADD COLUMN device TEXT;
+UPDATE expenses SET uid = lower(hex(randomblob(16)));
+CREATE UNIQUE INDEX expenses_uid ON expenses(uid);
+CREATE TRIGGER expenses_new_uid AFTER INSERT ON expenses WHEN NEW.uid IS NULL BEGIN
+  UPDATE expenses SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+ALTER TABLE sets ADD COLUMN uid TEXT;
+ALTER TABLE sets ADD COLUMN device TEXT;
+UPDATE sets SET uid = lower(hex(randomblob(16)));
+CREATE UNIQUE INDEX sets_uid ON sets(uid);
+CREATE TRIGGER sets_new_uid AFTER INSERT ON sets WHEN NEW.uid IS NULL BEGIN
+  UPDATE sets SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+ALTER TABLE receipts ADD COLUMN uid TEXT;
+ALTER TABLE receipts ADD COLUMN device TEXT;
+UPDATE receipts SET uid = lower(hex(randomblob(16)));
+CREATE UNIQUE INDEX receipts_uid ON receipts(uid);
+CREATE TRIGGER receipts_new_uid AFTER INSERT ON receipts WHEN NEW.uid IS NULL BEGIN
+  UPDATE receipts SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+ALTER TABLE receipt_items ADD COLUMN uid TEXT;
+ALTER TABLE receipt_items ADD COLUMN device TEXT;
+UPDATE receipt_items SET uid = lower(hex(randomblob(16)));
+CREATE UNIQUE INDEX receipt_items_uid ON receipt_items(uid);
+CREATE TRIGGER receipt_items_new_uid AFTER INSERT ON receipt_items WHEN NEW.uid IS NULL BEGIN
+  UPDATE receipt_items SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+ALTER TABLE closings ADD COLUMN uid TEXT;
+ALTER TABLE closings ADD COLUMN device TEXT;
+UPDATE closings SET uid = lower(hex(randomblob(16)));
+CREATE UNIQUE INDEX closings_uid ON closings(uid);
+CREATE TRIGGER closings_new_uid AFTER INSERT ON closings WHEN NEW.uid IS NULL BEGIN
+  UPDATE closings SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+CREATE UNIQUE INDEX activity_uid ON activity(uid);
+CREATE TRIGGER activity_new_uid AFTER INSERT ON activity WHEN NEW.uid IS NULL BEGIN
+  UPDATE activity SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

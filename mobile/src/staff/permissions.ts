@@ -35,6 +35,7 @@ export const PERMISSIONS = {
   'expenses.view': 'عرض المصروفات',
   'backup.manage': 'النسخ الاحتياطي',
   'staff.manage': 'الموظفون',
+  'log.view': 'سجل النشاط',
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -67,7 +68,15 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'expenses.view': false,
   'backup.manage': false,
   'staff.manage': false,
+  'log.view': false,
 };
+
+/** The permissions that change data: the clock guard applies to these, never to reading. */
+export const WRITES: Partial<Record<Permission, true>> = Object.fromEntries(
+  (Object.keys(PERMISSIONS) as Permission[])
+    .slice(0, Object.keys(PERMISSIONS).indexOf('costs.view'))
+    .map((p) => [p, true]),
+);
 
 export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[];
 

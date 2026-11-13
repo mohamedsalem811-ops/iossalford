@@ -15,7 +15,10 @@ import * as Sharing from 'expo-sharing';
 
 import { openExpoDbAt } from '@/db/expo-db';
 import type { Db } from '@/db/types';
+import { forgetLog, saveAnchor, stampDevice } from '@/staff/guards';
+import { lastLine } from '@/domain/activity';
 import { backupContents, restoreBackup, validateBackup, type Backup } from '@/domain/backup';
+import { logAction } from '@/domain/activity';
 import { allow, nowStamp, RuleError, timestamp, type Ctx } from '@/domain/context';
 import { photoFile, photoFolder } from '@/lib/storage';
 import { putCart } from '@/state/cart';
@@ -179,6 +182,7 @@ export function saveUpgradeCopy(system: SystemId, db: Db, at: Date = new Date())
 export function deleteBackup(ctx: Ctx, name: string) {
   allow(ctx, 'backup.manage');
   removeQuietly(new File(folder(ctx.system), name));
+  logAction(ctx, 'backup.delete', `حذف النسخة الاحتياطية ${name}`, { name });
 }
 
 const readDate = (k: string) => {
@@ -210,6 +214,7 @@ function photoNames(ctx: Ctx): string[] {
  */
 export async function shareCopy(ctx: Ctx): Promise<void> {
   allow(ctx, 'backup.manage');
+  logAction(ctx, 'backup.share', 'نسخ نسخة احتياطية إلى خارج الجهاز');
   saveBackup(ctx, 'manual');
   const name = copyFileName(ctx.system, ctx.now());
   const cache = new Directory(Paths.cache);
@@ -331,6 +336,8 @@ export async function restore(ctx: Ctx, picked: PickedBackup): Promise<void> {
   if (picked.format === 'db') {
     try {
       restoreSnapshot(ctx.db, open, picked.work);
+      // The restored data brings its own log; this line is added after it.
+      logAction(ctx, 'backup.restore', 'استرجاع نسخة احتياطية');
       eachPhoto(open, picked.work, (name, bytes) => putPhoto(ctx.system, name, bytes));
     } finally {
       removeQuietly(new File(picked.work));
@@ -340,6 +347,11 @@ export async function restore(ctx: Ctx, picked: PickedBackup): Promise<void> {
     restoreBackup(ctx, backup);
     for (const [name, base64] of Object.entries(photos ?? {})) putPhoto(ctx.system, name, base64);
   }
+  // The backup may come from the other device: new records here carry this device's id. Its log
+  // is the backup's own, so what was remembered of the old log starts again from it.
+  stampDevice(ctx.db);
+  forgetLog(ctx.system);
+  saveAnchor(ctx.system, lastLine(ctx));
   // The restored data is new to the backups: the next automatic backup saves it.
   lastBackedUp.delete(ctx.system);
   write(key('checksum', ctx.system), '');
