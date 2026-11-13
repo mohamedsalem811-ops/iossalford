@@ -1,6 +1,6 @@
 # SALFORD POS: Expo rebuild execution plan (version 3)
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S6 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns, the employee's account, shifts and the cash count, alerts, the stock count, device protection) are merged. The fixes from the full audit after S6 are being made in three batches (see "Audit fixes"); then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S6 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns, the employee's account, shifts and the cash count, alerts, the stock count, device protection) are merged. The fixes from the full audit after S6 are merged (database 7). The review fixes and the end-of-day summary (R4, database 8) are in review; then Phase 10, switching over.
 
 Every feature of the current app is kept. Items marked **NEW** don't exist in the current app. Unmarked items are the same as the current app, rebuilt with a new design.
 
@@ -593,6 +593,20 @@ The full audit after S6 (a read-only check of the code, flows, tests and speed o
   - F-5: indexes on the times of sales, returns and shifts (`sales_created`, `returns_created`, `shifts_closed`), for the alerts.
   - F-4: the shop's credit to a customer ("له رصيد") is paid back from the customer's page ("رد الرصيد للزبون", the owner only, `payouts.create`), in cash (it comes out of the shift's expected cash) or by card or transfer. The new `payouts` table is in backups; a payout is in the customer's statement and can be removed there if recorded by mistake. To use the credit on a new piece instead, sell it on credit (آجل) to that customer: it comes off what the shop owes.
 
+### Review fixes and the end-of-day summary (R4, after the audit fixes)
+
+The owner asked for an overall review after the audit fixes and approved six more fixes plus the end-of-day summary:
+
+1. **Backup reminder with proof.** iOS reports the share sheet closing the same way whether the copy was sent or cancelled. The owner is now asked after sharing whether the copy reached the other device, Files on iCloud or a computer; only "نعم" resets the reminder (logged as `backup.copied`). The home screen shows it first and in red after 7 days, with the days counted.
+2. **Use a customer's credit at checkout.** When the customer at checkout has "له رصيد", checkout shows it with "استخدام رصيده لهذا البيع", which switches the sale to credit and says what credit or debt is left.
+3. **Database 8, returns keep their sale.** The `returns` table is rebuilt with its sale link `ON DELETE RESTRICT`, so the database refuses deleting a sale that has returns (the app already did). The id counter keeps the highest id ever given.
+4. **Database 8, customers found by name with an index.** `customers.name_key` (the name as compared: digits 0-9, lower case, single spaces) with an index; filled on upgrade and after restoring an older backup. A migration can now run a step in code after its SQL (`after`).
+5. **A kept cart from before the update** can't tell an agreed price from an old one: checkout asks, with "إبقاء السعر المتفق عليه" next to "تحديث الأسعار". Kept, it is a discount from today's price, checked like any other.
+6. **The simulator flows run now** instead of waiting for 10.0 (owner's decision, 2026-11-13).
+7. **End-of-day summary** (Management → المال → ملخص اليوم, and today's card on the home screen; owner only): any day's sales by payment method and by person, discounts and approvals, the cash (sales, debt payments, refunds, credit paid back, in and out, the day's net, shortages and extras), returns, expenses, and each shift with its count. Printed on A4 or shared as a PDF.
+
+Fixes 3 and 4 change the database, so they need a new `.ipa` (database 8, which includes database 7).
+
 ### Phase 10: switching over
 
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):
@@ -683,4 +697,4 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
 
 - Phase 8 (built, owner to test): instant updates need one new `.ipa` (build 2) before they reach the devices; after installing it, it is recorded with `npm run update:record`. Backups are now copies of the database file (`.db`); `.json` backups from before still restore. A restore keeps sale and receipt numbers from ever repeating, also from an older backup (found while testing 8.0g). The speed test is `npm run speed`: with 2,000 products and 30,000 sales every screen reads in under 25 ms on a computer (Customers and Debts were changed to one query for all balances). The dashboard's daily chart has a temporary switch to Apple's charts so the owner can choose; the other one is removed afterwards. Errors are kept in a log on the device (Settings → سجل الأخطاء).
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S6 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns, the employee's account, shifts and the cash count, alerts, the stock count, device protection) are merged. The fixes from the full audit after S6 are being made in three batches (see "Audit fixes"); then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S6 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns, the employee's account, shifts and the cash count, alerts, the stock count, device protection) are merged. The fixes from the full audit after S6 are merged (database 7). The review fixes and the end-of-day summary (R4, database 8) are in review; then Phase 10, switching over.
