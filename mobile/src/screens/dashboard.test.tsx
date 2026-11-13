@@ -53,6 +53,7 @@ const actions = (): DashboardActions => ({
   onEditRate: jest.fn(),
   onMonth: jest.fn(),
   onOpenSale: jest.fn(),
+  onOpenAlert: jest.fn(),
   onOpenDebts: jest.fn(),
   onOpenBackup: jest.fn(),
   onOpenProducts: jest.fn(),

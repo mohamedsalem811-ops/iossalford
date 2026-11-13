@@ -33,6 +33,8 @@ export const PERMISSIONS = {
   'shifts.open': 'فتح الوردية',
   'shifts.close': 'إغلاق الوردية',
   'cash.move': 'إدخال وإخراج النقد',
+  'stock.count': 'جرد المخزون',
+  'alerts.manage': 'تنبيهات المالك',
   'backup.restore': 'استرجاع نسخة احتياطية',
   // Seeing (checked by the screens).
   'costs.view': 'التكلفة والربح',
@@ -43,6 +45,7 @@ export const PERMISSIONS = {
   'staff.manage': 'الموظفون',
   'log.view': 'سجل النشاط',
   'shifts.view': 'تقارير الورديات',
+  'counts.view': 'نتائج الجرد',
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -75,6 +78,9 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'shifts.open': true,
   'shifts.close': true,
   'cash.move': true,
+  // Anyone counts the pieces (blind); only the owner sees the differences and applies them (S6).
+  'stock.count': true,
+  'alerts.manage': false,
   'backup.restore': false,
   'costs.view': false,
   'reports.view': false,
@@ -84,6 +90,7 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'staff.manage': false,
   'log.view': false,
   'shifts.view': false,
+  'counts.view': false,
 };
 
 /** The permissions that change data: the clock guard applies to these, never to reading. */

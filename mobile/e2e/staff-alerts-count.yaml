@@ -1,0 +1,108 @@
+# Phase S6: the owner's alerts, the blind stock count and the device guide. Runs after
+# staff-shift.yaml (the owner is signed in; سارة's shift closed short, so a shortage alert is
+# waiting). سارة counts the Ring one short without seeing its stock; the owner sees the
+# difference and applies it, reads the shortage alert and marks it seen, then opens the guide.
+# iPhone and iPad, light and dark (screens: alerts, count sheet, count result, guide).
+appId: com.salford.pos
+---
+# The alert on the home screen: the shortage from her shift.
+- tapOn: 'الرئيسية'
+- assertVisible:
+    id: 'alert-shortage'
+- takeScreenshot: ${DEVICE}-alerts
+- tapOn:
+    id: 'alert-shortage'
+- tapOn: 'اطلعت'
+- assertNotVisible:
+    id: 'alert-shortage'
+# سارة counts.
+- tapOn: 'الإدارة'
+- scrollUntilVisible:
+    element:
+      id: 'manage-lock'
+    direction: DOWN
+- tapOn:
+    id: 'manage-lock'
+- tapOn:
+    id: 'person-سارة'
+- tapOn:
+    id: 'pin-key-9'
+- tapOn:
+    id: 'pin-key-6'
+- tapOn:
+    id: 'pin-key-3'
+- tapOn:
+    id: 'pin-key-2'
+- tapOn:
+    id: 'pin-key-5'
+- tapOn:
+    id: 'pin-key-8'
+- extendedWaitUntil:
+    visible: 'أهلاً، سارة'
+    timeout: 30000
+- tapOn: 'الإدارة'
+- scrollUntilVisible:
+    element:
+      id: 'manage-stockCount'
+    direction: DOWN
+- tapOn:
+    id: 'manage-stockCount'
+- tapOn:
+    id: 'count-start'
+- assertVisible:
+    id: 'count-open'
+# The Ring: she types 0 (one short or more: the owner sees the real difference).
+- tapOn:
+    id: 'count-row-[0-9]+'
+    index: 0
+- inputText: '0'
+- tapOn: 'حفظ'
+- assertVisible:
+    id: 'count-progress'
+- takeScreenshot: ${DEVICE}-count-sheet
+- tapOn:
+    id: 'count-submit'
+- tapOn: 'إنهاء وإرسال'
+- assertVisible:
+    id: 'count-start'
+# The owner: the result, applied.
+- tapOn: 'الإدارة'
+- scrollUntilVisible:
+    element:
+      id: 'manage-lock'
+    direction: DOWN
+- tapOn:
+    id: 'manage-lock'
+- tapOn:
+    id: 'person-owner'
+- runFlow: subflows/pin-jewelry.yaml
+- extendedWaitUntil:
+    visible: 'مبيعات اليوم'
+    timeout: 30000
+- tapOn: 'الإدارة'
+- scrollUntilVisible:
+    element:
+      id: 'manage-stockCount'
+    direction: DOWN
+- tapOn:
+    id: 'manage-stockCount'
+- tapOn:
+    id: 'count-[0-9]+'
+    index: 0
+- assertVisible:
+    id: 'count-summary'
+- takeScreenshot: ${DEVICE}-count-result
+- tapOn:
+    id: 'count-apply'
+- tapOn: 'تطبيق'
+- assertVisible: 'طُبّق'
+# The device guide.
+- tapOn: 'الإدارة'
+- scrollUntilVisible:
+    element:
+      id: 'manage-deviceGuide'
+    direction: DOWN
+- tapOn:
+    id: 'manage-deviceGuide'
+- assertVisible: 'الوصول الموجّه: يبقى الموظف داخل التطبيق'
+- takeScreenshot: ${DEVICE}-device-guide

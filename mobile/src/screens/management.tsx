@@ -24,6 +24,8 @@ export type ManageTarget =
   | 'backup'
   | 'staff'
   | 'log'
+  | 'stockCount'
+  | 'deviceGuide'
   | 'settings';
 
 type Row = { target: ManageTarget; icon: SymbolViewProps['name']; title: string };
@@ -61,6 +63,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
       { target: 'brands', icon: 'seal', title: 'الماركات' },
       { target: 'sets', icon: 'square.stack.3d.up', title: 'الأطقم' },
       { target: 'archived', icon: 'archivebox', title: 'القطع المؤرشفة' },
+      { target: 'stockCount', icon: 'list.number', title: 'جرد المخزون' },
     ],
   },
   {
@@ -70,6 +73,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
       { target: 'staff', icon: 'person.2.badge.gearshape', title: 'الموظفون' },
       { target: 'policies', icon: 'checklist', title: 'قواعد البيع والمرتجعات' },
       { target: 'log', icon: 'list.bullet.clipboard', title: 'سجل النشاط' },
+      { target: 'deviceGuide', icon: 'lock.shield', title: 'حماية الأجهزة' },
       { target: 'settings', icon: 'gearshape', title: 'الإعدادات' },
     ],
   },

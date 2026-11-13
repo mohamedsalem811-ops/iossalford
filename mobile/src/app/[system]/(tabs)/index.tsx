@@ -1,16 +1,20 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActionSheetIOS } from 'react-native';
+import { ActionSheetIOS, Alert } from 'react-native';
 
 import { firstBackup, lastCopied, saveBackup } from '@/backup/store';
 import { errorBoundary } from '@/components/error-screen';
+import { acknowledgeAlert, type OwnerAlert } from '@/domain/alerts';
+import type { Ctx } from '@/domain/context';
 import { readDashboard } from '@/features/dashboard/model';
+import { showError } from '@/features/products/actions';
+import { haptic } from '@/lib/haptics';
 import { sectionHref } from '@/features/management/management-menu';
 import { promptRate } from '@/features/settings/rate';
 import { monthKey, type MonthKey } from '@/lib/dates';
 import { logError } from '@/lib/error-log';
 import { DashboardScreen } from '@/screens/dashboard';
-import { useOnDataChanged } from '@/state/data-events';
+import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
 import { useLock } from '@/state/lock';
 import { useCtx } from '@/state/system-db';
 import { readMySales } from '@/features/dashboard/my-sales';
@@ -62,6 +66,41 @@ const openSale = (system: string, id: number) =>
 const newSale = (system: string) => router.push({ pathname: '/[system]/sale', params: { system } });
 const newReceipt = (system: string) =>
   router.push({ pathname: '/[system]/receipt/[id]', params: { system, id: 'new' } });
+
+/** Where an alert leads (phase S6): the shift's report, the return, or the activity log. */
+function openAlertTarget(system: string, alert: OwnerAlert) {
+  const t = alert.target;
+  if (t.screen === 'shift')
+    router.push({
+      pathname: '/[system]/more/shift-report/[id]',
+      params: { system, id: String(t.id) },
+    });
+  else if (t.screen === 'return')
+    router.push({ pathname: '/[system]/return-detail/[id]', params: { system, id: String(t.id) } });
+  else router.push(sectionHref('log', system as 'jewelry'));
+}
+
+/** An alert's details, with "open" and "seen" (the seen one is hidden and logged). */
+function showAlert(ctx: Ctx, alert: OwnerAlert, refresh: () => void) {
+  Alert.alert(alert.title, alert.detail, [
+    { text: 'إغلاق', style: 'cancel' },
+    { text: 'فتح', onPress: () => openAlertTarget(ctx.system, alert) },
+    {
+      text: 'اطلعت',
+      onPress: () => {
+        try {
+          acknowledgeAlert(ctx, alert);
+        } catch (error) {
+          showError(error);
+          return;
+        }
+        haptic.success();
+        notifyDataChanged();
+        refresh();
+      },
+    },
+  ]);
+}
 
 /** An employee's home: shortcuts and their own sales only. */
 function EmployeeHome() {
@@ -129,6 +168,7 @@ function Dashboard() {
         onOpenDebts: () => router.push(sectionHref('debts', system)),
         onOpenBackup: () => router.push(sectionHref('backup', system)),
         onOpenProducts: () => router.push({ pathname: '/[system]/products', params: { system } }),
+        onOpenAlert: (alert) => showAlert(ctx, alert, refresh),
         onNewSale: () => newSale(system),
         onNewReceipt: () => newReceipt(system),
         onNewProduct: () =>

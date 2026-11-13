@@ -5,7 +5,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { Button, Card, FilterChip, KEYBOARD_GAP, NumberField, Text, TextField } from '@/components';
 import { errorBoundary } from '@/components/error-screen';
-import { getPolicies, setPolicies, type Policies } from '@/domain/policies';
+import { ALERT_LIMITS, getPolicies, setPolicies, type Policies } from '@/domain/policies';
 import { showError } from '@/features/products/actions';
 import { useReadable } from '@/hooks/use-readable';
 import { useSaveOnce } from '@/hooks/use-save-once';
@@ -77,6 +77,13 @@ function PoliciesScreen() {
   const [hours, setHours] = useState(String(saved.returnHours));
   const [conditions, setConditions] = useState(saved.returnConditions);
   const [reasons, setReasons] = useState(saved.discountReasons);
+  type AlertLimit = (typeof ALERT_LIMITS)[number];
+  const alertDraft = (p: Policies) =>
+    Object.fromEntries(
+      ALERT_LIMITS.map((k) => [k, k === 'alertShortage' ? editableDinars(p[k]) : String(p[k])]),
+    ) as Record<AlertLimit, string>;
+  const [alerts, setAlerts] = useState(() => alertDraft(saved));
+  const setAlert = (k: AlertLimit) => (v: string) => setAlerts((a) => ({ ...a, [k]: v }));
 
   const save = () => {
     const perPiece = piece.trim() ? parseThousandths(piece) : 0;
@@ -87,6 +94,17 @@ function PoliciesScreen() {
       Alert.alert('لم يتم الحفظ', 'اكتب حد الخصم بالدينار.');
       return;
     }
+    const limits: Partial<Record<AlertLimit, number>> = {};
+    for (const k of ALERT_LIMITS) {
+      const text = latinDigits(alerts[k]).trim() || '0';
+      const v = k === 'alertShortage' ? parseThousandths(text) : Number(text);
+      if (v === null || !Number.isInteger(v)) {
+        haptic.error();
+        Alert.alert('لم يتم الحفظ', 'اكتب حدود التنبيهات أرقاماً صحيحة.');
+        return;
+      }
+      limits[k] = v;
+    }
     try {
       const next = setPolicies(ctx, {
         discountPerPiece: perPiece,
@@ -94,8 +112,10 @@ function PoliciesScreen() {
         returnHours: h,
         returnConditions: conditions,
         discountReasons: reasons,
+        ...limits,
       });
       setSaved(next);
+      setAlerts(alertDraft(next));
       setConditions(next.returnConditions);
       setReasons(next.discountReasons);
     } catch (error) {
@@ -167,6 +187,57 @@ function PoliciesScreen() {
             onChange={setConditions}
             placeholder="شرط جديد"
             testID="policy-condition"
+          />
+        </Card>
+        <Card>
+          <Text variant="headline">التنبيهات</Text>
+          <Text variant="caption" tone="secondary">
+            تظهر لك في «يحتاج انتباهك» على الشاشة الرئيسية. صفر يوقف التنبيه.
+          </Text>
+          <NumberField
+            label="مبيعات بخصم لموظف في يوم"
+            value={alerts.alertDiscounts}
+            onChangeText={setAlert('alertDiscounts')}
+            kind="integer"
+            testID="policy-alert-discounts"
+          />
+          <NumberField
+            label="موافقات منك لموظف في يوم"
+            value={alerts.alertApprovals}
+            onChangeText={setAlert('alertApprovals')}
+            kind="integer"
+            testID="policy-alert-approvals"
+          />
+          <NumberField
+            label="مرتجع بعد البيع بأقل من"
+            value={alerts.alertReturnMinutes}
+            onChangeText={setAlert('alertReturnMinutes')}
+            suffix="دقيقة"
+            kind="integer"
+            testID="policy-alert-return"
+          />
+          <NumberField
+            label="محاولات رمز خطأ في يوم"
+            value={alerts.alertWrongPins}
+            onChangeText={setAlert('alertWrongPins')}
+            kind="integer"
+            testID="policy-alert-pins"
+          />
+          <NumberField
+            label="عجز الوردية من"
+            value={alerts.alertShortage}
+            onChangeText={setAlert('alertShortage')}
+            suffix="د.ل"
+            hint="صفر: أي عجز"
+            testID="policy-alert-shortage"
+          />
+          <NumberField
+            label="التنبيهات عن آخر"
+            value={alerts.alertDays}
+            onChangeText={setAlert('alertDays')}
+            suffix="يوم"
+            kind="integer"
+            testID="policy-alert-days"
           />
         </Card>
         <Button

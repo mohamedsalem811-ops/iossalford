@@ -19,6 +19,9 @@ import ReturnFindRoute from '@/app/[system]/(tabs)/more/return-find';
 import ShiftRoute from '@/app/[system]/(tabs)/more/shift';
 import ShiftReportRoute from '@/app/[system]/(tabs)/more/shift-report/[id]';
 import ShiftsRoute from '@/app/[system]/(tabs)/more/shifts';
+import StockCountRoute from '@/app/[system]/(tabs)/more/stock-count';
+import CountRoute from '@/app/[system]/(tabs)/more/count/[id]';
+import DeviceGuideRoute from '@/app/[system]/(tabs)/more/device-guide';
 import CheckoutRoute from '@/app/[system]/checkout';
 import ReturnRoute from '@/app/[system]/return/[id]';
 import ReturnsRoute from '@/app/[system]/(tabs)/more/returns';
@@ -27,7 +30,8 @@ import StaffRoute from '@/app/[system]/(tabs)/more/staff';
 import ProductsStack from '@/app/[system]/(tabs)/products/_layout';
 import Products from '@/app/[system]/(tabs)/products/index';
 import ProductRoute from '@/app/[system]/product/[id]';
-import { listActivity } from '@/domain/activity';
+import { listActivity, recordWrongPin } from '@/domain/activity';
+import { ownerAlerts } from '@/domain/alerts';
 import { addToCart, type CartLine } from '@/domain/cart';
 import { checkout } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
@@ -36,6 +40,7 @@ import { getSale } from '@/domain/sales';
 import { setPolicies } from '@/domain/policies';
 import { openShift, openShiftOf, shiftTotals } from '@/domain/shifts';
 import { employeeStatement } from '@/domain/staff-ledger';
+import { openCount, startCount } from '@/domain/stock-count';
 import * as device from '@/security/device';
 import { putCart } from '@/state/cart';
 import { clockGuard } from '@/staff/guards';
@@ -135,6 +140,9 @@ const routes = {
   '[system]/(tabs)/more/shift': ShiftRoute,
   '[system]/(tabs)/more/shifts': ShiftsRoute,
   '[system]/(tabs)/more/shift-report/[id]': ShiftReportRoute,
+  '[system]/(tabs)/more/stock-count': StockCountRoute,
+  '[system]/(tabs)/more/count/[id]': CountRoute,
+  '[system]/(tabs)/more/device-guide': DeviceGuideRoute,
   '[system]/checkout': CheckoutRoute,
   '[system]/return/[id]': ReturnRoute,
   '[system]/(tabs)/products/_layout': ProductsStack,
@@ -191,7 +199,7 @@ describe('as an employee', () => {
     await renderRouter(routes, { initialUrl: '/jewelry/more' });
     expect(await screen.findByTestId('manage-sales')).toBeOnTheScreen();
     expect(screen.getByTestId('manage-returnFind')).toBeOnTheScreen();
-    for (const shown of ['shift', 'customers', 'debts', 'settings'])
+    for (const shown of ['shift', 'stockCount', 'customers', 'debts', 'settings'])
       expect(screen.getByTestId(`manage-${shown}`)).toBeOnTheScreen();
     for (const hidden of [
       'returns',
@@ -206,6 +214,7 @@ describe('as an employee', () => {
       'log',
       'policies',
       'shifts',
+      'deviceGuide',
     ])
       expect(screen.queryByTestId(`manage-${hidden}`)).toBeNull();
   });
@@ -216,6 +225,8 @@ describe('as an employee', () => {
     ['/jewelry/more/staff'],
     ['/jewelry/more/log'],
     ['/jewelry/more/shifts'],
+    ['/jewelry/more/device-guide'],
+    ['/jewelry/more/count/1'],
     ['/jewelry/product/new'],
   ])('refuses %s even when opened by link', async (url) => {
     await renderRouter(routes, { initialUrl: url });
@@ -413,5 +424,82 @@ describe('the S5 shift', () => {
     await fireEvent.press(screen.getByTestId('shift-open'));
     expect(await screen.findByTestId('shift-open-card')).toBeOnTheScreen();
     expect(openShiftOf(ctxAs(OWNER), 'emp-s1')?.openingCash).toBe(100_000);
+  });
+});
+
+describe('the S6 stock count and alerts', () => {
+  it('lets her count blind and send the count to the owner', async () => {
+    setActor(SARA);
+    await renderRouter(routes, { initialUrl: '/jewelry/more/stock-count' });
+    await fireEvent.press(await screen.findByTestId('count-start'));
+    expect(await screen.findByTestId('count-open')).toBeOnTheScreen();
+    // Blind: the piece shows its name and code, never its stock.
+    const stock = getProduct(ctxAs(OWNER), ring)!.stock;
+    expect(screen.getByTestId(`count-row-${ring}`)).toHaveTextContent('RingR-1—');
+    const prompt = jest.spyOn(Alert, 'prompt').mockImplementation((_t, _m, buttons) => {
+      if (Array.isArray(buttons))
+        buttons.find((b) => b.text === 'حفظ')?.onPress?.(String(stock - 1));
+    });
+    await fireEvent.press(screen.getByTestId(`count-row-${ring}`));
+    prompt.mockRestore();
+    expect(await screen.findByTestId(`count-value-${ring}`)).toHaveTextContent(String(stock - 1));
+    expect(screen.getByTestId('count-progress')).toHaveTextContent(/عُدّ 1 من/);
+    // Only the owner cancels.
+    expect(screen.queryByTestId('count-cancel')).toBeNull();
+    const alert = jest.spyOn(Alert, 'alert');
+    await fireEvent.press(screen.getByTestId('count-submit'));
+    await pressAlert(alert, 'إنهاء وإرسال');
+    alert.mockRestore();
+    expect(await screen.findByTestId('count-start')).toBeOnTheScreen();
+    expect(openCount(ctxAs(OWNER))).toBeUndefined();
+  });
+
+  it('shows the owner the difference and applies it as a stock change', async () => {
+    setActor(OWNER);
+    const before = getProduct(ctxAs(OWNER), ring)!.stock;
+    const id = ctxAs(OWNER).db.get<{ id: number }>('SELECT max(id) id FROM stock_counts')!.id;
+    await renderRouter(routes, { initialUrl: '/jewelry/more/stock-count' });
+    await fireEvent.press(await screen.findByTestId(`count-${id}`));
+    expect(await screen.findByTestId(`count-line-${ring}`)).toHaveTextContent(/−1/);
+    expect(screen.getByTestId('count-summary')).toHaveTextContent('ناقص 1 • زائد 0 • مطابق 0');
+    const alert = jest.spyOn(Alert, 'alert');
+    await fireEvent.press(screen.getByTestId('count-apply'));
+    await pressAlert(alert, 'تطبيق');
+    alert.mockRestore();
+    expect(await screen.findByTestId('count-status')).toHaveTextContent('طُبّق');
+    expect(getProduct(ctxAs(OWNER), ring)!.stock).toBe(before - 1);
+  });
+
+  it('lets the owner cancel a count in progress', async () => {
+    setActor(OWNER);
+    startCount(ctxAs(OWNER));
+    await renderRouter(routes, { initialUrl: '/jewelry/more/stock-count' });
+    const alert = jest.spyOn(Alert, 'alert');
+    await fireEvent.press(await screen.findByTestId('count-cancel'));
+    await pressAlert(alert, 'إلغاء الجرد');
+    alert.mockRestore();
+    expect(await screen.findByTestId('count-start')).toBeOnTheScreen();
+  });
+
+  it('alerts the owner on the home screen, and hides an alert once seen', async () => {
+    setActor(OWNER);
+    for (let i = 0; i < 3; i++) recordWrongPin(ctxAs(OWNER), SARA);
+    await renderRouter(routes, { initialUrl: '/jewelry' });
+    expect(await screen.findByTestId('alert-wrongPins')).toHaveTextContent(/محاولات رمز خطأ: سارة/);
+    // Sara's 5 د.ل shortage (S5) is an alert too.
+    expect(screen.getByTestId('alert-shortage')).toHaveTextContent(/عجز 5/);
+    const alert = jest.spyOn(Alert, 'alert');
+    await fireEvent.press(screen.getByTestId('alert-wrongPins'));
+    await pressAlert(alert, 'اطلعت');
+    alert.mockRestore();
+    await waitFor(() => expect(screen.queryByTestId('alert-wrongPins')).toBeNull());
+    expect(ownerAlerts(ctxAs(OWNER)).map((a) => a.kind)).not.toContain('wrongPins');
+  });
+
+  it('shows the owner the device protection guide', async () => {
+    setActor(OWNER);
+    await renderRouter(routes, { initialUrl: '/jewelry/more/device-guide' });
+    expect(await screen.findByText('الوصول الموجّه: يبقى الموظف داخل التطبيق')).toBeOnTheScreen();
+    expect(screen.getByText('مدة استخدام الجهاز: لا يُحذف التطبيق')).toBeOnTheScreen();
   });
 });

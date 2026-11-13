@@ -476,6 +476,59 @@ CREATE INDEX returns_shift ON returns(shift_id);
 CREATE INDEX payments_shift ON payments(shift_id);
 `,
   },
+  {
+    version: 6,
+    name: 'stock counts',
+    sql: `
+-- A stock count (phase S6): pieces counted without seeing the stock (blind), then the owner
+-- applies the differences as stock changes with the reason "جرد".
+CREATE TABLE stock_counts (
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  status            TEXT NOT NULL CHECK (status IN ('open', 'submitted', 'applied', 'cancelled')),
+  started_at        TEXT NOT NULL,
+  by                TEXT NOT NULL,
+  by_name           TEXT NOT NULL,
+  submitted_at      TEXT,
+  submitted_by      TEXT,
+  submitted_by_name TEXT,
+  done_at           TEXT,
+  done_by           TEXT,
+  done_by_name      TEXT,
+  note              TEXT,
+  uid               TEXT,
+  device            TEXT
+);
+CREATE UNIQUE INDEX stock_counts_one_open ON stock_counts(status) WHERE status = 'open';
+CREATE UNIQUE INDEX stock_counts_uid ON stock_counts(uid);
+CREATE TRIGGER stock_counts_new_uid AFTER INSERT ON stock_counts WHEN NEW.uid IS NULL BEGIN
+  UPDATE stock_counts SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+-- One line per piece counted. "expected" is the stock when the count was sent to the owner;
+-- "applied" the change made to the stock when the owner applied it.
+CREATE TABLE stock_count_lines (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  count_id   INTEGER NOT NULL REFERENCES stock_counts(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  counted    INTEGER NOT NULL CHECK (counted >= 0),
+  expected   INTEGER,
+  applied    INTEGER,
+  counted_at TEXT NOT NULL,
+  by         TEXT,
+  by_name    TEXT,
+  uid        TEXT,
+  device     TEXT,
+  UNIQUE (count_id, product_id)
+);
+CREATE UNIQUE INDEX stock_count_lines_uid ON stock_count_lines(uid);
+CREATE TRIGGER stock_count_lines_new_uid AFTER INSERT ON stock_count_lines WHEN NEW.uid IS NULL BEGIN
+  UPDATE stock_count_lines SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

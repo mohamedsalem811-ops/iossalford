@@ -21,6 +21,18 @@ export type Policies = {
   returnConditions: string[];
   /** Ready-made reasons for a discount the owner approves. */
   discountReasons: string[];
+  /** Alerts (phase S6). An alert when one person gives this many discounted sales in a day (0: off). */
+  alertDiscounts: number;
+  /** …asks for this many owner approvals in a day (0: off). */
+  alertApprovals: number;
+  /** A return taken within this many minutes of its sale (0: off). */
+  alertReturnMinutes: number;
+  /** This many wrong PINs by one person in a day (0: off). */
+  alertWrongPins: number;
+  /** A shift short by at least this much, in dirhams (0: any shortage). */
+  alertShortage: number;
+  /** How many days back the alerts look. */
+  alertDays: number;
 };
 
 export const DEFAULT_CONDITIONS: Record<SystemId, string[]> = {
@@ -38,8 +50,24 @@ export function defaultPolicies(system: SystemId): Policies {
     returnHours: 24,
     returnConditions: DEFAULT_CONDITIONS[system],
     discountReasons: DEFAULT_REASONS,
+    alertDiscounts: 3,
+    alertApprovals: 3,
+    alertReturnMinutes: 30,
+    alertWrongPins: 3,
+    alertShortage: 0,
+    alertDays: 7,
   };
 }
+
+/** The alert limits, for the rules screen. */
+export const ALERT_LIMITS = [
+  'alertDiscounts',
+  'alertApprovals',
+  'alertReturnMinutes',
+  'alertWrongPins',
+  'alertShortage',
+  'alertDays',
+] as const;
 
 const KEY = 'policies';
 
@@ -68,6 +96,12 @@ export function setPolicies(ctx: Ctx, changes: Partial<Policies>): Policies {
   }
   if (!Number.isInteger(next.returnHours) || next.returnHours < 1 || next.returnHours > 24 * 30)
     throw new RuleError('مدة الإرجاع بين ساعة و30 يوماً');
+  for (const k of ALERT_LIMITS) {
+    if (!Number.isInteger(next[k]) || next[k] < 0)
+      throw new RuleError('حدود التنبيهات أرقام صحيحة، صفر أو أكثر');
+  }
+  if (next.alertDays < 1 || next.alertDays > 60)
+    throw new RuleError('مدة التنبيهات بين يوم و60 يوماً');
   next.returnConditions = cleanList(next.returnConditions);
   next.discountReasons = cleanList(next.discountReasons);
   if (next.returnConditions.length === 0)
@@ -82,6 +116,15 @@ export function setPolicies(ctx: Ctx, changes: Partial<Policies>): Policies {
     said.push(`شروط الإرجاع: ${next.returnConditions.join('، ')}`);
   if (next.discountReasons.join('|') !== old.discountReasons.join('|'))
     said.push(`أسباب الخصم: ${next.discountReasons.join('، ')}`);
+  const alertText: Record<(typeof ALERT_LIMITS)[number], (v: number) => string> = {
+    alertDiscounts: (v) => `تنبيه الخصومات ${v || 'متوقف'}`,
+    alertApprovals: (v) => `تنبيه الموافقات ${v || 'متوقف'}`,
+    alertReturnMinutes: (v) => `تنبيه المرتجع السريع ${v ? `${v} دقيقة` : 'متوقف'}`,
+    alertWrongPins: (v) => `تنبيه الرمز الخطأ ${v || 'متوقف'}`,
+    alertShortage: (v) => `تنبيه العجز من ${formatLyd(v)}`,
+    alertDays: (v) => `مدة التنبيهات ${v} يوم`,
+  };
+  for (const k of ALERT_LIMITS) if (next[k] !== old[k]) said.push(alertText[k](next[k]));
   if (said.length === 0) return old;
   ctx.db.transaction(() => {
     setSetting(ctx, KEY, JSON.stringify(next));

@@ -1,6 +1,6 @@
 # SALFORD POS: Expo rebuild execution plan (version 3)
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S4 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns and the employee's account) are merged; S5 (shifts and the cash count) is built (PR open); then S6, then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S5 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns, the employee's account, shifts and the cash count) are merged; S6 (alerts, the stock count, device protection) is built (PR open); then Phase 10, switching over.
 
 Every feature of the current app is kept. Items marked **NEW** don't exist in the current app. Unmarked items are the same as the current app, rebuilt with a new design.
 
@@ -567,6 +567,16 @@ Then the dashboard:
 
 **You check:** each alert by causing it; a stock count with one piece missing; the devices set up with the guide.
 
+**How S6 works:**
+
+- the owner's alerts (`src/domain/alerts.ts`) are read from what the app already records, over the last days set in the rules: one employee's discounted sales or approvals in a day, a return taken minutes after its sale, wrong PINs in a day, a shift closed short, the clock going back, a changed log; the owner's own discounts and returns raise none; each shows in "يحتاج انتباهك" with "فتح" (the shift report, the return or the log) and "اطلعت", which hides it and is logged;
+- the limits are in Management → قواعد البيع والمرتجعات → التنبيهات (0 turns an alert off): 3 discounts, 3 approvals, 30 minutes, 3 wrong PINs, any shortage, over 7 days;
+- schema 6: `stock_counts` and `stock_count_lines`; Management → جرد المخزون: anyone who sells starts a count, taps each piece and types how many are there; the stock is never shown; the stock at the moment a piece is counted is kept with it, hidden, so a sale later in the count is not a difference; "إنهاء الجرد" sends it to the owner;
+- the owner opens the count (the same screen lists past counts): expected, counted and the difference per piece, missing and extra, at cost, and the pieces nobody counted (left as they are); "تطبيق" changes the stock with the reason "جرد رقم N" (never below 0); or cancel;
+- Management → حماية الأجهزة (the owner): Guided Access, Screen Time against deleting the app, the date and time set automatically, Face ID with the owner's face only (it approves discounts and returns), and the employees' PINs.
+
+**S6.4, the six phases against the decisions:** owner and employee roles only; a 6-digit employee PIN; employees see only their own sales; discount limits in dinars per piece and per sale with the owner's approval on the spot; returns within 24 hours with the conditions and a photo; "على حساب الموظف"; auto-lock after 7 minutes; shifts and the cash count; the alerts, the stock count and the guide. All are in place and tested; the Maestro flows (`e2e/staff*.yaml`) cover each staff feature and wait for 10.0.
+
 ### Phase 10: switching over
 
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):
@@ -657,4 +667,4 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
 
 - Phase 8 (built, owner to test): instant updates need one new `.ipa` (build 2) before they reach the devices; after installing it, it is recorded with `npm run update:record`. Backups are now copies of the database file (`.db`); `.json` backups from before still restore. A restore keeps sale and receipt numbers from ever repeating, also from an older backup (found while testing 8.0g). The speed test is `npm run speed`: with 2,000 products and 30,000 sales every screen reads in under 25 ms on a computer (Customers and Debts were changed to one query for all balances). The dashboard's daily chart has a temporary switch to Apple's charts so the owner can choose; the other one is removed afterwards. Errors are kept in a log on the device (Settings → سجل الأخطاء).
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S4 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns and the employee's account) are merged; S5 (shifts and the cash count) is built (PR open); then S6, then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S5 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns, the employee's account, shifts and the cash count) are merged; S6 (alerts, the stock count, device protection) is built (PR open); then Phase 10, switching over.
