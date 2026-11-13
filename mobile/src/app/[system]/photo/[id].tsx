@@ -10,6 +10,7 @@ import { formatLyd } from '@/lib/money';
 import { photoUri } from '@/lib/photos';
 import { radius, spacing, useTheme } from '@/theme';
 import { useCtx } from '@/state/system-db';
+import { useCan } from '@/staff/use-can';
 import { errorBoundary } from '@/components/error-screen';
 
 /** A product's photo, large, pinch to zoom; with its name, price and a way to edit it. */
@@ -19,6 +20,7 @@ export default function PhotoRoute() {
   const { width } = useWindowDimensions();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [product] = useState(() => getProduct(ctx, Number(id)));
+  const mayEdit = useCan('products.edit');
   const side = Math.min(width - spacing.md * 2, 700);
 
   return (
@@ -63,18 +65,20 @@ export default function PhotoRoute() {
                 {formatLyd(product.price)} • {product.stock} قطعة في المخزن
               </Text>
             </View>
-            <Button
-              title="تغيير الصورة أو تعديل بيانات القطعة"
-              icon="camera.rotate.fill"
-              variant="secondary"
-              fullWidth
-              onPress={() =>
-                router.replace({
-                  pathname: '/[system]/product/[id]',
-                  params: { system: ctx.system, id: String(product.id) },
-                })
-              }
-            />
+            {mayEdit ? (
+              <Button
+                title="تغيير الصورة أو تعديل بيانات القطعة"
+                icon="camera.rotate.fill"
+                variant="secondary"
+                fullWidth
+                onPress={() =>
+                  router.replace({
+                    pathname: '/[system]/product/[id]',
+                    params: { system: ctx.system, id: String(product.id) },
+                  })
+                }
+              />
+            ) : null}
           </>
         ) : (
           <EmptyState icon="photo" title="لا توجد صورة لهذه القطعة" />

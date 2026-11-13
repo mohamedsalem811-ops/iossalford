@@ -10,9 +10,10 @@ import { useCtx } from '@/state/system-db';
 import { useReadable } from '@/hooks/use-readable';
 import { spacing, useTheme } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
+import { Allowed } from '@/staff/allowed';
 
 /** Management → Sets: create, edit and delete the sets the shop sells. */
-export default function ManageSetsRoute() {
+function ManageSetsRouteScreen() {
   const ctx = useCtx();
   const readable = useReadable();
   const { colors } = useTheme();
@@ -56,6 +57,15 @@ export default function ManageSetsRoute() {
         ) : null}
       </ScrollView>
     </>
+  );
+}
+
+/** Guarded as a whole: only someone with `sets.edit` can open it (see staff/permissions.ts). */
+export default function ManageSetsRoute() {
+  return (
+    <Allowed permission="sets.edit" title="الأطقم">
+      <ManageSetsRouteScreen />
+    </Allowed>
   );
 }
 

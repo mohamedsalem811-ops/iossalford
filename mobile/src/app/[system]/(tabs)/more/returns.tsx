@@ -22,9 +22,10 @@ import { useReadable } from '@/hooks/use-readable';
 import { radius, spacing, useTheme } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
 import { haptic } from '@/lib/haptics';
+import { Allowed } from '@/staff/allowed';
 
 /** Management → Returns: every return by month; a return without a sale; delete one by mistake. */
-export default function ReturnsRoute() {
+function ReturnsRouteScreen() {
   const ctx = useCtx();
   const readable = useReadable();
   const { colors } = useTheme();
@@ -168,6 +169,15 @@ export default function ReturnsRoute() {
         )}
       />
     </>
+  );
+}
+
+/** Guarded as a whole: only someone with `sales.viewAll` can open it (see staff/permissions.ts). */
+export default function ReturnsRoute() {
+  return (
+    <Allowed permission="sales.viewAll" title="المرتجعات">
+      <ReturnsRouteScreen />
+    </Allowed>
   );
 }
 

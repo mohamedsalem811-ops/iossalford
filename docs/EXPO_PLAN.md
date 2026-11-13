@@ -1,6 +1,6 @@
 # SALFORD POS: Expo rebuild execution plan (version 3)
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phase S1 (accounts, sign-in, auto-lock) is built (PR open); then S2 to S6, then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phase S1 (accounts, sign-in, auto-lock) is merged; S2 (permissions, what an employee sees) is built (PR open); then S3 to S6, then Phase 10, switching over.
 
 Every feature of the current app is kept. Items marked **NEW** don't exist in the current app. Unmarked items are the same as the current app, rebuilt with a new design.
 
@@ -449,7 +449,18 @@ Then the dashboard:
   - Management shows only what they may open.
 - **S2.3** An employee's home screen: the shortcuts, and their own sales today and this month only.
 - **S2.4** The full test matrix (every action × both roles) and the test that catches an action without a check.
-- **S2.5** Checks; an instant update if no table changes, otherwise with S3's `.ipa`; owner test.
+- **S2.5** Checks; an instant update if no table changes, otherwise a new `.ipa`; owner test.
+
+**Built in S2 (brought forward from S3.1):** schema 2 records who made each sale and each receipt (with a copy of the name), because S2.3 needs "own sales only". Older records belong to the owner. Backups from schema 1, of both kinds, still restore. This is a table change, so S2 ships in a new `.ipa`. S3.1 adds the same to returns, payments, stock changes and expenses.
+
+**How S2 works:**
+
+- the permissions are in `mobile/src/staff/permissions.ts`;
+- every action that changes data starts with `allow(ctx, '…')`;
+- sales and receipts queries show an employee only their own (`visibleTo`);
+- reports refuse to be read without `reports.view`;
+- owner screens are wrapped in `<Allowed>`;
+- `src/staff/permissions.test.ts` runs every action × owner, employee and nobody, and fails when an action has no check.
 
 **You check:** as an employee, nothing about cost or profit appears anywhere, on both devices, and owner screens can't be opened; as the owner, everything is as before.
 
@@ -617,4 +628,4 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
 
 - Phase 8 (built, owner to test): instant updates need one new `.ipa` (build 2) before they reach the devices; after installing it, it is recorded with `npm run update:record`. Backups are now copies of the database file (`.db`); `.json` backups from before still restore. A restore keeps sale and receipt numbers from ever repeating, also from an older backup (found while testing 8.0g). The speed test is `npm run speed`: with 2,000 products and 30,000 sales every screen reads in under 25 ms on a computer (Customers and Debts were changed to one query for all balances). The dashboard's daily chart has a temporary switch to Apple's charts so the owner can choose; the other one is removed afterwards. Errors are kept in a log on the device (Settings → سجل الأخطاء).
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phase S1 (accounts, sign-in, auto-lock) is built (PR open); then S2 to S6, then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phase S1 (accounts, sign-in, auto-lock) is merged; S2 (permissions, what an employee sees) is built (PR open); then S3 to S6, then Phase 10, switching over.

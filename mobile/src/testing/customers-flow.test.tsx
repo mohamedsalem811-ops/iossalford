@@ -3,6 +3,7 @@
  * customer's statement, a payment (and deleting it), the delete rules, adding a customer and a
  * phone number that belongs to someone else.
  */
+import { OWNER } from '@/staff/model';
 import { fireEvent, renderRouter, screen, act } from 'expo-router/testing-library';
 import { Alert } from 'react-native';
 
@@ -98,6 +99,7 @@ const ctx = (): Ctx => ({
   db: jest.requireMock('@/db/manager').openSystemDb('jewelry').db,
   system: 'jewelry',
   now: () => new Date(),
+  actor: OWNER,
 });
 
 const routes = {

@@ -16,7 +16,7 @@ import * as Sharing from 'expo-sharing';
 import { openExpoDbAt } from '@/db/expo-db';
 import type { Db } from '@/db/types';
 import { backupContents, restoreBackup, validateBackup, type Backup } from '@/domain/backup';
-import { nowStamp, RuleError, timestamp, type Ctx } from '@/domain/context';
+import { allow, nowStamp, RuleError, timestamp, type Ctx } from '@/domain/context';
 import { photoFile, photoFolder } from '@/lib/storage';
 import { putCart } from '@/state/cart';
 import type { SystemId } from '@/theme';
@@ -176,8 +176,9 @@ export function saveUpgradeCopy(system: SystemId, db: Db, at: Date = new Date())
   prune(system);
 }
 
-export function deleteBackup(system: SystemId, name: string) {
-  removeQuietly(new File(folder(system), name));
+export function deleteBackup(ctx: Ctx, name: string) {
+  allow(ctx, 'backup.manage');
+  removeQuietly(new File(folder(ctx.system), name));
 }
 
 const readDate = (k: string) => {
@@ -208,6 +209,7 @@ function photoNames(ctx: Ctx): string[] {
  * memory stays small however many there are. Also saved as a backup on this device.
  */
 export async function shareCopy(ctx: Ctx): Promise<void> {
+  allow(ctx, 'backup.manage');
   saveBackup(ctx, 'manual');
   const name = copyFileName(ctx.system, ctx.now());
   const cache = new Directory(Paths.cache);
@@ -324,6 +326,7 @@ function putPhoto(system: SystemId, name: string, content: Uint8Array | string) 
  * exist).
  */
 export async function restore(ctx: Ctx, picked: PickedBackup): Promise<void> {
+  allow(ctx, 'backup.restore');
   saveBackup(ctx, 'safety');
   if (picked.format === 'db') {
     try {

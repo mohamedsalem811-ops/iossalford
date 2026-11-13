@@ -9,11 +9,12 @@
 import { openFileDb } from '@/db/testing/node-db';
 import { exportBackup } from '@/domain/backup';
 import { getProduct, listProducts, saveProduct } from '@/domain/products';
-import { makeCtx, type TestCtx } from '@/domain/testing/ctx';
+import { EMPLOYEE, makeCtx, type TestCtx } from '@/domain/testing/ctx';
 import { getCart, putCart } from '@/state/cart';
 
 import * as engine from './engine';
 import {
+  deleteBackup,
   firstBackup,
   lastCopied,
   listBackups,
@@ -275,5 +276,21 @@ describe('restoring', () => {
     expect(listProducts(ctx).map((p) => p.name)).toEqual(['Old']);
     expect([...new File(photosDir(), 'j.jpg').bytesSync()]).toEqual([1, 2]);
     expect(listBackups('jewelry').some((b) => b.kind === 'safety')).toBe(true);
+  });
+});
+
+describe('who may', () => {
+  it('refuses an employee restoring, copying off or deleting a backup, before touching anything', async () => {
+    ring();
+    const saved = saveBackup(ctx, 'manual')!;
+    const picked = await readBackupFile(ctx, savedBackupUri('jewelry', saved.name));
+    const before = listBackups('jewelry').map((b) => b.name);
+    ctx.setActor(EMPLOYEE);
+    await expect(restore(ctx, picked)).rejects.toThrow('استرجاع نسخة احتياطية: للمالك فقط.');
+    await expect(shareCopy(ctx)).rejects.toThrow('النسخ الاحتياطي: للمالك فقط.');
+    expect(() => deleteBackup(ctx, saved.name)).toThrow('للمالك فقط');
+    // No safety copy, no shared copy, nothing deleted.
+    expect(listBackups('jewelry').map((b) => b.name)).toEqual(before);
+    expect(listProducts(ctx)).toHaveLength(1);
   });
 });

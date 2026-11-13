@@ -1,7 +1,7 @@
 import { formatDinars } from '@/lib/money';
 
 import { inCart, type CartLine, type SetForCart } from './cart';
-import { clean, nowStamp, RuleError, type Ctx } from './context';
+import { allow, clean, nowStamp, RuleError, type Ctx } from './context';
 import { displayName, getProduct } from './products';
 
 export type SetItem = { productId: number; quantity: number };
@@ -85,6 +85,7 @@ export type SetInput = {
 
 /** Creates or updates a set. The discount must be below the sum of its pieces' prices. */
 export function saveSet(ctx: Ctx, input: SetInput): number {
+  allow(ctx, 'sets.edit');
   const name = clean(input.name);
   if (!name) throw new RuleError('يرجى إدخال اسم الطقم');
   const items = input.items.filter((i) => i.quantity > 0);
@@ -123,5 +124,6 @@ export function saveSet(ctx: Ctx, input: SetInput): number {
 }
 
 export function deleteSet(ctx: Ctx, id: number) {
+  allow(ctx, 'sets.edit');
   ctx.db.run('DELETE FROM sets WHERE id = ?', [id]);
 }

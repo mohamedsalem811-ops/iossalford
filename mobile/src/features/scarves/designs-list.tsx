@@ -38,7 +38,8 @@ export function DesignsList({
   href: (d: ScarfDesign) => Href;
   onDelete: (d: ScarfDesign) => void;
   onAdjust: (productId: number) => void;
-  onAdd: () => void;
+  /** Absent for someone who may not add pieces. */
+  onAdd?: () => void;
   /** iPad: photo cards filling the width instead of rows (tapping opens the form as a window). */
   grid?: boolean;
 }) {

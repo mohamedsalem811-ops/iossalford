@@ -11,6 +11,7 @@ import type { ScarfDesign } from '@/domain/scarves';
 import { BrandBadge } from '@/features/products/brand-badge';
 import { ProductPhoto } from '@/features/products/product-photo';
 import { stockState } from '@/features/products/model';
+import { useCan } from '@/staff/use-can';
 import { radius, spacing, useTheme, type SystemId } from '@/theme';
 
 import { designDetails, priceRange } from './model';
@@ -36,27 +37,33 @@ export function DesignRow({
   card?: number;
 }) {
   const { colors } = useTheme();
+  // An employee sees each design's prices and stock only.
+  const mayEdit = useCan('products.edit');
+  const mayStock = useCan('stock.adjust');
   const swipe = useRef<SwipeableMethods>(null);
   const first = d.sizes[0];
   const photo = d.sizes.find((s) => s.imageFile)?.imageFile ?? null;
   const details = designDetails(d);
   // Tap edits (on iPad it opens beside the list); a long press shows every action as a menu.
-  const open = () => router.push(href);
+  const open = mayEdit ? () => router.push(href) : undefined;
   const menu = () => {
     const items = [
-      { title: 'تعديل التصميم والمقاسات', run: open },
-      ...d.sizes.map((s) => ({
-        title: `تعديل مخزون ${s.size ?? '—'} (${s.stock})`,
-        run: () => onAdjust(s.id),
-      })),
-      { title: 'حذف التصميم', run: () => onDelete(d) },
+      ...(mayEdit ? [{ title: 'تعديل التصميم والمقاسات', run: () => router.push(href) }] : []),
+      ...(mayStock
+        ? d.sizes.map((s) => ({
+            title: `تعديل مخزون ${s.size ?? '—'} (${s.stock})`,
+            run: () => onAdjust(s.id),
+          }))
+        : []),
+      ...(mayEdit ? [{ title: 'حذف التصميم', run: () => onDelete(d) }] : []),
     ];
+    if (items.length === 0) return;
     ActionSheetIOS.showActionSheetWithOptions(
       {
         title: d.name,
         options: [...items.map((i) => i.title), 'إلغاء'],
         cancelButtonIndex: items.length,
-        destructiveButtonIndex: items.length - 1,
+        destructiveButtonIndex: mayEdit ? items.length - 1 : undefined,
       },
       (index) => items[index]?.run(),
     );
@@ -91,7 +98,7 @@ export function DesignRow({
       <Pressable
         testID={`design-${first.name}`}
         accessibilityRole="button"
-        accessibilityHint="اضغط لتعديل التصميم ومقاساته"
+        accessibilityHint={mayEdit ? 'اضغط لتعديل التصميم ومقاساته' : undefined}
         onPress={open}
         onLongPress={menu}
         style={({ pressed }) => ({
@@ -131,7 +138,7 @@ export function DesignRow({
     <Pressable
       testID={`design-${first.name}`}
       accessibilityRole="button"
-      accessibilityHint="اضغط لتعديل التصميم ومقاساته"
+      accessibilityHint={mayEdit ? 'اضغط لتعديل التصميم ومقاساته' : undefined}
       onPress={open}
       onLongPress={menu}
       style={({ pressed }) => ({
@@ -175,6 +182,8 @@ export function DesignRow({
       </View>
     </Pressable>
   );
+
+  if (!mayEdit) return body;
 
   return (
     <ReanimatedSwipeable

@@ -3,6 +3,7 @@
  * month, closing the quarter (and the warning for an expense added after), and the monthly
  * comparison.
  */
+import { OWNER } from '@/staff/model';
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library';
 import { Alert } from 'react-native';
 
@@ -96,6 +97,7 @@ const ctx = (): Ctx => ({
   db: jest.requireMock('@/db/manager').openSystemDb('jewelry').db,
   system: 'jewelry',
   now: () => new Date(),
+  actor: OWNER,
 });
 
 const routes = {

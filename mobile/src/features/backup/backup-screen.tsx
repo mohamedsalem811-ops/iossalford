@@ -140,7 +140,7 @@ export function BackupScreen({
               text: 'حذف',
               style: 'destructive',
               onPress: () => {
-                deleteBackup(ctx.system, b.name);
+                deleteBackup(ctx, b.name);
                 onChanged();
               },
             },

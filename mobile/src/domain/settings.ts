@@ -1,4 +1,4 @@
-import { RuleError, type Ctx } from './context';
+import { allow, RuleError, type Ctx } from './context';
 
 /** 7.000 LYD per USD until the owner sets the real rate (same default as the current app). */
 export const DEFAULT_RATE = 7_000;
@@ -21,6 +21,7 @@ export function getRate(ctx: Ctx): number {
 }
 
 export function setRate(ctx: Ctx, rate: number) {
+  allow(ctx, 'settings.edit');
   if (!Number.isInteger(rate) || rate <= 0)
     throw new RuleError('سعر الصرف يجب أن يكون أكبر من صفر');
   setSetting(ctx, 'exchange_rate', rate);

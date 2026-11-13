@@ -1,6 +1,6 @@
 import { quarterKey, quarterMonths, quarterTitle, type Quarter } from '@/lib/dates';
 
-import { clean, nowStamp, type Ctx } from './context';
+import { allow, clean, nowStamp, type Ctx } from './context';
 import { summary } from './reports';
 
 export type Closing = {
@@ -58,6 +58,7 @@ export function existingClosing(ctx: Ctx, q: Quarter): Closing | undefined {
 
 /** Closes a calendar quarter. Closing it again replaces the earlier closing (re-issue). */
 export function closeQuarter(ctx: Ctx, q: Quarter, notes?: string): Closing {
+  allow(ctx, 'closing.edit');
   const s = previewQuarter(ctx, q);
   ctx.db.run(
     `INSERT INTO closings (period_key, title, total_sales, total_cost, total_expenses, total_refunds, net_profit, transactions, items_sold, notes, closed_at)
@@ -89,5 +90,6 @@ export function listClosings(ctx: Ctx): Closing[] {
 }
 
 export function deleteClosing(ctx: Ctx, id: number) {
+  allow(ctx, 'closing.edit');
   ctx.db.run('DELETE FROM closings WHERE id = ?', [id]);
 }

@@ -1,8 +1,18 @@
 import { latinDigits } from '@/lib/digits';
 import type { SystemId } from '@/theme';
 
-import { clean, nowStamp, pageSql, RuleError, type Ctx, type Page } from './context';
+import {
+  allow,
+  clean,
+  nowStamp,
+  pageSql,
+  RuleError,
+  type Ctx,
+  type Page,
+  visibleTo,
+} from './context';
 import { getSetting, setSetting } from './settings';
+import { actorKey, actorName } from '@/staff/model';
 
 /**
  * The five receipt designs; each system offers its own. "swarovski" is SALFORD's own receipt for
@@ -123,6 +133,7 @@ export type IssueInput = {
 
 /** Saves a new receipt with the next number. Used by checkout and for receipts made by hand. */
 export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
+  const by = allow(ctx, 'receipts.create');
   const items = cleanItems(input.items);
   const template = input.template ?? DEFAULT_TEMPLATE[ctx.system];
   if (TEMPLATES[template]?.system !== ctx.system)
@@ -130,8 +141,8 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
   return ctx.db.transaction(() => {
     const { date, time } = receiptDateTime(ctx.now());
     const id = ctx.db.run(
-      `INSERT INTO receipts (receipt_no, date, time, customer, template, show_prices, sale_id, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO receipts (receipt_no, date, time, customer, template, show_prices, sale_id, created_at, issued_by, issued_by_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         takeReceiptNo(ctx),
         date,
@@ -141,6 +152,8 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
         input.showPrices ?? true,
         input.saleId ?? null,
         nowStamp(ctx),
+        actorKey(by),
+        actorName(by),
       ],
     ).lastInsertRowId;
     writeItems(ctx, id, items);
@@ -150,6 +163,7 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
 
 /** Edits a saved receipt (customer, items, design, prices shown or not). Its number never changes. */
 export function updateReceipt(ctx: Ctx, id: number, input: Omit<IssueInput, 'saleId'>): Receipt {
+  allow(ctx, 'receipts.edit');
   const items = cleanItems(input.items);
   return ctx.db.transaction(() => {
     const old = getReceipt(ctx, id);
@@ -235,23 +249,33 @@ const withItems = (ctx: Ctx, rows: ReceiptRow[]): Receipt[] => {
   return rows.map((r) => toReceipt(r, items.get(r.id) ?? []));
 };
 
+/** Which receipts this person may see: all (the owner), or the ones they issued. */
+const visible = (ctx: Ctx) => visibleTo(ctx, 'r.issued_by');
+
 export function getReceipt(ctx: Ctx, id: number): Receipt | undefined {
-  const r = ctx.db.get<ReceiptRow>('SELECT * FROM receipts WHERE id = ?', [id]);
+  const v = visible(ctx);
+  const r = ctx.db.get<ReceiptRow>(`SELECT r.* FROM receipts r WHERE r.id = ? AND ${v.sql}`, [
+    id,
+    ...v.params,
+  ]);
   return r ? withItems(ctx, [r])[0] : undefined;
 }
 
 export function receiptForSale(ctx: Ctx, saleId: number): Receipt | undefined {
-  const r = ctx.db.get<ReceiptRow>('SELECT * FROM receipts WHERE sale_id = ? ORDER BY id LIMIT 1', [
-    saleId,
-  ]);
+  const v = visible(ctx);
+  const r = ctx.db.get<ReceiptRow>(
+    `SELECT r.* FROM receipts r WHERE r.sale_id = ? AND ${v.sql} ORDER BY r.id LIMIT 1`,
+    [saleId, ...v.params],
+  );
   return r ? withItems(ctx, [r])[0] : undefined;
 }
 
 export type ReceiptQuery = { search?: string; month?: string; template?: TemplateId };
 
-function receiptFilter(q: ReceiptQuery) {
-  const where: string[] = [];
-  const params: string[] = [];
+function receiptFilter(ctx: Ctx, q: ReceiptQuery) {
+  const v = visible(ctx);
+  const where: string[] = [v.sql];
+  const params: string[] = [...v.params];
   const s = clean(latinDigits(q.search ?? ''));
   if (s) {
     where.push(
@@ -275,7 +299,7 @@ function receiptFilter(q: ReceiptQuery) {
  * design. Long lists ask for one page at a time; each page reads its items in one query.
  */
 export function listReceipts(ctx: Ctx, q: ReceiptQuery = {}, page?: Page): Receipt[] {
-  const f = receiptFilter(q);
+  const f = receiptFilter(ctx, q);
   return withItems(
     ctx,
     ctx.db.all<ReceiptRow>(
@@ -287,7 +311,7 @@ export function listReceipts(ctx: Ctx, q: ReceiptQuery = {}, page?: Page): Recei
 
 /** How many receipts match, without reading them. */
 export function countReceipts(ctx: Ctx, q: ReceiptQuery = {}): number {
-  const f = receiptFilter(q);
+  const f = receiptFilter(ctx, q);
   return (
     ctx.db.get<{ n: number }>(`SELECT count(*) n FROM receipts r ${f.where}`, f.params)?.n ?? 0
   );
@@ -295,12 +319,17 @@ export function countReceipts(ctx: Ctx, q: ReceiptQuery = {}): number {
 
 /** Months that have receipts, newest first ("2026-11"). */
 export function receiptMonths(ctx: Ctx): string[] {
+  const v = visible(ctx);
   return ctx.db
-    .all<{ m: string }>('SELECT DISTINCT substr(created_at, 1, 7) m FROM receipts ORDER BY m DESC')
+    .all<{ m: string }>(
+      `SELECT DISTINCT substr(r.created_at, 1, 7) m FROM receipts r WHERE ${v.sql} ORDER BY m DESC`,
+      v.params,
+    )
     .map((r) => r.m);
 }
 
 /** Deletes a receipt. Its number is not given out again. */
 export function deleteReceipt(ctx: Ctx, id: number) {
+  allow(ctx, 'receipts.delete');
   ctx.db.run('DELETE FROM receipts WHERE id = ?', [id]);
 }

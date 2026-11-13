@@ -3,9 +3,10 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { ProductFormView } from '@/features/products/product-form';
 import { useCtx } from '@/state/system-db';
 import { errorBoundary } from '@/components/error-screen';
+import { Allowed } from '@/staff/allowed';
 
 /** /jewelry/product/new adds a piece; /jewelry/product/12 edits piece 12. */
-export default function ProductRoute() {
+function ProductRouteScreen() {
   const ctx = useCtx();
   const { id } = useLocalSearchParams<{ id: string }>();
   const productId = id === 'new' ? undefined : Number(id);
@@ -16,6 +17,15 @@ export default function ProductRoute() {
       productId={Number.isInteger(productId) ? productId : undefined}
       onDone={() => router.back()}
     />
+  );
+}
+
+/** Guarded as a whole: only someone with `products.edit` can open it (see staff/permissions.ts). */
+export default function ProductRoute() {
+  return (
+    <Allowed permission="products.edit">
+      <ProductRouteScreen />
+    </Allowed>
   );
 }
 

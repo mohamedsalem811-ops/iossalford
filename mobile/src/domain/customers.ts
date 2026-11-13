@@ -1,6 +1,6 @@
 import { latinDigits, sanitize } from '@/lib/digits';
 
-import { clean, nowStamp, RuleError, type Ctx } from './context';
+import { allow, clean, nowStamp, RuleError, type Ctx } from './context';
 
 export type Customer = {
   id: number;
@@ -96,6 +96,7 @@ export type CustomerInput = {
 
 /** Adds or edits a customer. Refuses a phone number that belongs to another customer. */
 export function saveCustomer(ctx: Ctx, input: CustomerInput): number {
+  allow(ctx, 'customers.edit');
   const name = clean(input.name);
   if (!name) throw new RuleError('يرجى إدخال اسم الزبون');
   const phone = clean(input.phone);

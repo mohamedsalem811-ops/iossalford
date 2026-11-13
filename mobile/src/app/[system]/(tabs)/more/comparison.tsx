@@ -11,6 +11,7 @@ import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { radius, spacing, useTheme } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
+import { Allowed } from '@/staff/allowed';
 
 const RANGES = [
   { value: '3', label: '3 أشهر' },
@@ -20,7 +21,7 @@ const RANGES = [
 type Range = (typeof RANGES)[number]['value'];
 
 /** Management → Monthly comparison: net sales and net profit month by month, for a chosen range. */
-export default function ComparisonRoute() {
+function ComparisonRouteScreen() {
   const ctx = useCtx();
   const { colors } = useTheme();
   const [range, setRange] = useState<Range>('6');
@@ -132,6 +133,15 @@ function Legend({ color, label }: { color: string; label: string }) {
         {label}
       </Text>
     </View>
+  );
+}
+
+/** Guarded as a whole: only someone with `reports.view` can open it (see staff/permissions.ts). */
+export default function ComparisonRoute() {
+  return (
+    <Allowed permission="reports.view" title="مقارنة الأشهر">
+      <ComparisonRouteScreen />
+    </Allowed>
   );
 }
 

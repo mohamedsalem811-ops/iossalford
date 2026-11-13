@@ -38,7 +38,8 @@ export function ProductsList({
   onQuery: (q: ListQuery) => void;
   editHref: (p: Product) => Href;
   actions: ProductActions;
-  onAdd: () => void;
+  /** Absent for someone who may not add pieces. */
+  onAdd?: () => void;
   /** iPad: photo cards filling the width instead of rows (tapping opens the form as a window). */
   grid?: boolean;
 }) {

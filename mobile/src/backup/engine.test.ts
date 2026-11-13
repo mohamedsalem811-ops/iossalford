@@ -5,6 +5,7 @@
  * wrong file, photos go in and come out one at a time, and restoring replaces the data exactly,
  * also from a backup made by an older version of the app.
  */
+import { OWNER } from '@/staff/model';
 import { migrate } from '@/db/migrate';
 import { migrations } from '@/db/schema';
 import { openFileDb } from '@/db/testing/node-db';
@@ -36,7 +37,7 @@ beforeEach(() => {
   live = openFileDb(at('jewelry.db'));
   migrate(live);
   live.exec('PRAGMA journal_mode = WAL;');
-  ctx = { db: live, system: 'jewelry', now: () => new Date(2026, 10, 12, 10) };
+  ctx = { db: live, system: 'jewelry', now: () => new Date(2026, 10, 12, 10), actor: OWNER };
   const ring = saveProduct(ctx, {
     name: 'خاتم',
     brand: 'Pandora',

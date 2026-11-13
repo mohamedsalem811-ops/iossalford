@@ -2,7 +2,7 @@ import { LATEST_VERSION } from '@/db/schema';
 import type { Db, SqlValue } from '@/db/types';
 import type { SystemId } from '@/theme';
 
-import { nowStamp, RuleError, type Ctx } from './context';
+import { allow, nowStamp, RuleError, type Ctx } from './context';
 
 /**
  * A backup is one JSON file holding every table of one system. It carries a format name, its own
@@ -181,6 +181,7 @@ export function keepUsedNumbers(db: Db, used: UsedNumbers) {
  * saves it), so a restore can always be undone.
  */
 export function restoreBackup(ctx: Ctx, data: unknown): { safetyCopy: Backup } {
+  allow(ctx, 'backup.restore');
   const b = validateBackup(ctx, data);
   const safetyCopy = exportBackup(ctx);
   ctx.db.transaction(() => {

@@ -15,6 +15,7 @@ import { spacing, useTheme } from '@/theme';
 
 import { balanceText, paymentWayLabel } from './model';
 import { haptic } from '@/lib/haptics';
+import { useCan } from '@/staff/use-can';
 
 const LINE_LABEL: Record<StatementLine['kind'], string> = {
   sale: 'بيع آجل',
@@ -52,6 +53,8 @@ export function CustomerDetail({
   onDeleted: () => void;
 }) {
   const { colors } = useTheme();
+  const mayDeletePayment = useCan('payments.delete');
+  const mayDelete = useCan('customers.delete');
   if (!c) return <EmptyState icon="person" title="الزبون غير موجود" />;
   const owed = balanceText(balance);
 
@@ -181,7 +184,9 @@ export function CustomerDetail({
       ) : null}
 
       {payments.length ? (
-        <ListGroup header="الدفعات" footer="اضغط على دفعة لحذفها إن سُجلت بالخطأ.">
+        <ListGroup
+          header="الدفعات"
+          footer={mayDeletePayment ? 'اضغط على دفعة لحذفها إن سُجلت بالخطأ.' : undefined}>
           {payments.map((p) => (
             <ListRow
               key={p.id}
@@ -190,7 +195,7 @@ export function CustomerDetail({
               subtitle={[formatDate(new Date(p.createdAt)), paymentWayLabel(p.method), p.note]
                 .filter(Boolean)
                 .join(' • ')}
-              onPress={() => removePayment(p)}
+              onPress={mayDeletePayment ? () => removePayment(p) : undefined}
               chevron={false}
               testID={`payment-${p.id}`}
             />
@@ -221,14 +226,16 @@ export function CustomerDetail({
         fullWidth
         onPress={onEdit}
       />
-      <Button
-        title="حذف الزبون"
-        icon="trash"
-        variant="destructive"
-        fullWidth
-        onPress={remove}
-        testID="customer-delete"
-      />
+      {mayDelete ? (
+        <Button
+          title="حذف الزبون"
+          icon="trash"
+          variant="destructive"
+          fullWidth
+          onPress={remove}
+          testID="customer-delete"
+        />
+      ) : null}
     </Page>
   );
 }

@@ -10,6 +10,7 @@
  * Times are measured on the computer running the test with the same SQL the app runs; an iPhone
  * or iPad is in the same range for this kind of work. Each line must stay under the target.
  */
+import { OWNER } from '@/staff/model';
 import { copyDatabase, restoreSnapshot, writeSnapshot } from '@/backup/engine';
 import { migrate } from '@/db/migrate';
 import { openFileDb } from '@/db/testing/node-db';
@@ -192,7 +193,7 @@ function measure(sales: number) {
   migrate(db);
   db.exec('PRAGMA journal_mode = WAL;');
   seed(db, 2_000, sales);
-  const ctx: Ctx = { db, system: 'jewelry', now: () => now };
+  const ctx: Ctx = { db, system: 'jewelry', now: () => now, actor: OWNER };
   const month = '2026-11';
   const months = recentMonths(12, now);
   const results: [string, number, number][] = [];

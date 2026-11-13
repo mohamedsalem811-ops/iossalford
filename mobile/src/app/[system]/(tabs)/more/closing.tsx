@@ -19,12 +19,13 @@ import { useCtx } from '@/state/system-db';
 import { spacing } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
 import { haptic } from '@/lib/haptics';
+import { Allowed } from '@/staff/allowed';
 
 /**
  * Management → Quarterly closing: choose a quarter, see what it totals (only its own sales,
  * returns and expenses), then issue or re-issue it. The history, and delete.
  */
-export default function ClosingRoute() {
+function ClosingRouteScreen() {
   const ctx = useCtx();
   const quarters = recentQuarters(ctx.now());
   const [q, setQ] = useState<Quarter>(quarters[0]);
@@ -154,6 +155,15 @@ function Line({
         {value}
       </Text>
     </View>
+  );
+}
+
+/** Guarded as a whole: only someone with `reports.view` can open it (see staff/permissions.ts). */
+export default function ClosingRoute() {
+  return (
+    <Allowed permission="reports.view" title="الإقفال الربع سنوي">
+      <ClosingRouteScreen />
+    </Allowed>
   );
 }
 

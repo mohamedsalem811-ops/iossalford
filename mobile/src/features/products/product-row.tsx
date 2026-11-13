@@ -9,6 +9,7 @@ import ReanimatedSwipeable, {
 import { Icon, Text } from '@/components';
 import type { Product } from '@/domain/products';
 import { formatDinars, formatLyd } from '@/lib/money';
+import { useCan } from '@/staff/use-can';
 import { radius, spacing, useTheme, type SystemId } from '@/theme';
 
 import { BrandBadge } from './brand-badge';
@@ -44,6 +45,10 @@ export function ProductRow({
   card?: number;
 }) {
   const { colors } = useTheme();
+  // An employee sees each piece's price and stock only: no cost, no editing, no stock changes.
+  const mayEdit = useCan('products.edit');
+  const mayStock = useCan('stock.adjust');
+  const seesCost = useCan('costs.view');
   const swipe = useRef<SwipeableMethods>(null);
   const run = (fn: () => void) => {
     swipe.current?.close();
@@ -52,16 +57,24 @@ export function ProductRow({
   // Tap edits (on iPad it opens beside the list); a long press shows every action as a menu.
   // A plain press is used rather than a native link preview: inside a swipeable list row the
   // preview view lost the row's layout on device.
-  const open = () => router.push(editHref);
+  const showPhoto = p.imageFile ? () => actions.onPhoto(p) : undefined;
+  const open = mayEdit ? () => router.push(editHref) : showPhoto;
   const menu = () => {
     const items: { title: string; run: () => void; destructive?: boolean }[] = [
-      { title: 'تعديل', run: open },
-      ...(p.imageFile ? [{ title: 'عرض الصورة', run: () => actions.onPhoto(p) }] : []),
-      { title: '+1 مخزون', run: () => actions.onStep(p, 1) },
-      ...(p.stock > 0 ? [{ title: '−1 مخزون', run: () => actions.onStep(p, -1) }] : []),
-      { title: 'تعديل المخزون مع السبب', run: () => actions.onAdjust(p) },
-      { title: 'حذف القطعة', run: () => actions.onDelete(p), destructive: true },
+      ...(mayEdit ? [{ title: 'تعديل', run: () => router.push(editHref) }] : []),
+      ...(showPhoto ? [{ title: 'عرض الصورة', run: showPhoto }] : []),
+      ...(mayStock
+        ? [
+            { title: '+1 مخزون', run: () => actions.onStep(p, 1) },
+            ...(p.stock > 0 ? [{ title: '−1 مخزون', run: () => actions.onStep(p, -1) }] : []),
+            { title: 'تعديل المخزون مع السبب', run: () => actions.onAdjust(p) },
+          ]
+        : []),
+      ...(mayEdit
+        ? [{ title: 'حذف القطعة', run: () => actions.onDelete(p), destructive: true }]
+        : []),
     ];
+    if (items.length === 0) return;
     ActionSheetIOS.showActionSheetWithOptions(
       {
         title: p.name,
@@ -78,7 +91,7 @@ export function ProductRow({
       <Pressable
         testID={`product-${p.sku}`}
         accessibilityRole="button"
-        accessibilityHint="اضغط للتعديل، أو اضغط مطولاً لمزيد من الخيارات"
+        accessibilityHint={mayEdit ? 'اضغط للتعديل، أو اضغط مطولاً لمزيد من الخيارات' : undefined}
         onPress={open}
         onLongPress={menu}
         style={({ pressed }) => ({
@@ -104,9 +117,11 @@ export function ProductRow({
             <Text variant="headline" tone="accent" numberOfLines={1}>
               {formatLyd(p.price)}
             </Text>
-            <Text variant="caption" tone="secondary" numberOfLines={1}>
-              تكلفة {formatDinars(p.cost)}
-            </Text>
+            {seesCost ? (
+              <Text variant="caption" tone="secondary" numberOfLines={1}>
+                تكلفة {formatDinars(p.cost)}
+              </Text>
+            ) : null}
           </View>
           <StockPill stock={p.stock} lowStock={p.lowStock} />
         </View>
@@ -118,7 +133,7 @@ export function ProductRow({
     <Pressable
       testID={`product-${p.sku}`}
       accessibilityRole="button"
-      accessibilityHint="اضغط للتعديل، أو اضغط مطولاً لمزيد من الخيارات"
+      accessibilityHint={mayEdit ? 'اضغط للتعديل، أو اضغط مطولاً لمزيد من الخيارات' : undefined}
       onPress={open}
       onLongPress={menu}
       style={({ pressed }) => ({
@@ -132,6 +147,8 @@ export function ProductRow({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={p.imageFile ? 'عرض صورة القطعة' : 'إضافة صورة'}
+        // Adding a photo edits the piece: an employee can only look at one.
+        disabled={!mayEdit && !p.imageFile}
         onPress={() => actions.onPhoto(p)}
         hitSlop={4}>
         <ProductPhoto system={system} imageFile={p.imageFile} size={60} />
@@ -150,14 +167,19 @@ export function ProductRow({
           <Text variant="headline" tone="accent">
             {formatLyd(p.price)}
           </Text>
-          <Text variant="caption" tone="secondary">
-            تكلفة {formatDinars(p.cost)}
-          </Text>
+          {seesCost ? (
+            <Text variant="caption" tone="secondary">
+              تكلفة {formatDinars(p.cost)}
+            </Text>
+          ) : null}
         </View>
       </View>
       <StockPill stock={p.stock} lowStock={p.lowStock} />
     </Pressable>
   );
+
+  // Nothing to swipe for someone who may not change pieces or stock.
+  if (!mayEdit && !mayStock) return body;
 
   return (
     <ReanimatedSwipeable
@@ -168,45 +190,49 @@ export function ProductRow({
       // The row covers its swipe buttons until it is swiped.
       containerStyle={{ backgroundColor: colors.surface, overflow: 'hidden' }}
       childrenContainerStyle={{ backgroundColor: colors.surface }}
-      renderRightActions={() => (
-        <View style={{ flexDirection: 'row' }}>
-          <SwipeAction
-            label="+1"
-            icon="plus"
-            color={colors.accent}
-            onPress={() => run(() => actions.onStep(p, 1))}
-          />
-          <SwipeAction
-            label="−1"
-            icon="minus"
-            color={colors.warning}
-            disabled={p.stock <= 0}
-            onPress={() => run(() => actions.onStep(p, -1))}
-          />
-          <SwipeAction
-            label="مخزون"
-            icon="shippingbox"
-            color={colors.textSecondary}
-            onPress={() => run(() => actions.onAdjust(p))}
-          />
-        </View>
-      )}
-      renderLeftActions={() => (
-        <View style={{ flexDirection: 'row' }}>
-          <SwipeAction
-            label="تعديل"
-            icon="pencil"
-            color={colors.accent}
-            onPress={() => run(open)}
-          />
-          <SwipeAction
-            label="حذف"
-            icon="trash"
-            color={colors.warning}
-            onPress={() => run(() => actions.onDelete(p))}
-          />
-        </View>
-      )}>
+      renderRightActions={() =>
+        mayStock ? (
+          <View style={{ flexDirection: 'row' }}>
+            <SwipeAction
+              label="+1"
+              icon="plus"
+              color={colors.accent}
+              onPress={() => run(() => actions.onStep(p, 1))}
+            />
+            <SwipeAction
+              label="−1"
+              icon="minus"
+              color={colors.warning}
+              disabled={p.stock <= 0}
+              onPress={() => run(() => actions.onStep(p, -1))}
+            />
+            <SwipeAction
+              label="مخزون"
+              icon="shippingbox"
+              color={colors.textSecondary}
+              onPress={() => run(() => actions.onAdjust(p))}
+            />
+          </View>
+        ) : null
+      }
+      renderLeftActions={() =>
+        mayEdit ? (
+          <View style={{ flexDirection: 'row' }}>
+            <SwipeAction
+              label="تعديل"
+              icon="pencil"
+              color={colors.accent}
+              onPress={() => run(() => router.push(editHref))}
+            />
+            <SwipeAction
+              label="حذف"
+              icon="trash"
+              color={colors.warning}
+              onPress={() => run(() => actions.onDelete(p))}
+            />
+          </View>
+        ) : null
+      }>
       {body}
     </ReanimatedSwipeable>
   );

@@ -48,6 +48,7 @@ import {
 import { ReceiptPreview } from './receipt-preview';
 import { TemplatePicker } from './template-picker';
 import { haptic } from '@/lib/haptics';
+import { useCan } from '@/staff/use-can';
 
 const PICK_LIMIT = 20;
 
@@ -67,6 +68,7 @@ export function ReceiptStudio({
 }) {
   const readable = useReadable();
   const { colors } = useTheme();
+  const mayDelete = useCan('receipts.delete');
   const [saved, setSaved] = useState<Receipt | null>(() =>
     receiptId ? (getReceipt(ctx, receiptId) ?? null) : null,
   );
@@ -451,7 +453,7 @@ export function ReceiptStudio({
           onPress={() => save()}
           testID="studio-save"
         />
-        {saved ? (
+        {saved && mayDelete ? (
           <Button
             title="حذف الإيصال"
             icon="trash"

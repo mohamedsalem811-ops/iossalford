@@ -3,6 +3,7 @@
  * details, a return against its line, the returns list, undoing a return, deleting a sale and a
  * return without a sale.
  */
+import { OWNER } from '@/staff/model';
 import { router } from 'expo-router';
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library';
 import { ActionSheetIOS, Alert } from 'react-native';
@@ -97,6 +98,7 @@ const ctx = (): Ctx => ({
   db: jest.requireMock('@/db/manager').openSystemDb('jewelry').db,
   system: 'jewelry',
   now: () => new Date(),
+  actor: OWNER,
 });
 
 const routes = {

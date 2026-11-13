@@ -1,9 +1,10 @@
 import { cartProblems, lineTotal, problemMessage, type CartLine, type CartProblem } from './cart';
-import { clean, nowMonth, nowStamp, RuleError, type Ctx } from './context';
+import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx } from './context';
 import { ensureCustomer, hasIdentity } from './customers';
 import { displayName, getProduct, moveStock } from './products';
 import { issueReceipt, type Receipt, type TemplateId } from './receipts';
 import { getRate } from './settings';
+import { actorKey, actorName } from '@/staff/model';
 
 export const PAYMENT_METHODS = ['cash', 'card', 'transfer', 'credit'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
@@ -39,6 +40,7 @@ export type CheckoutResult = { saleId: number; receipt: Receipt; total: number }
  * price), stock goes down with a "sale" move, and the receipt is issued with the next number.
  */
 export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
+  const seller = allow(ctx, 'sales.create');
   const c = input.customer ?? {};
   if (input.paymentMethod === 'credit' && !hasIdentity(c.name, c.phone)) {
     throw new CheckoutError([{ kind: 'credit-needs-customer' }]);
@@ -58,8 +60,8 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
     const totalCost = lines.reduce((t, x) => t + x.cost, 0);
 
     const saleId = ctx.db.run(
-      `INSERT INTO sales (created_at, month, payment_method, customer_id, customer_name, note, rate, total, total_cost)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO sales (created_at, month, payment_method, customer_id, customer_name, note, rate, total, total_cost, seller, seller_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         stamp,
         nowMonth(ctx),
@@ -70,6 +72,8 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
         getRate(ctx),
         total,
         totalCost,
+        actorKey(seller),
+        actorName(seller),
       ],
     ).lastInsertRowId;
 

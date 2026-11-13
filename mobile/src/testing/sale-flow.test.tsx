@@ -3,6 +3,7 @@
  * piece, the cart, a credit sale that needs a customer, the success screen, a scarf size, a set
  * and the long-press quantity and price sheet.
  */
+import { OWNER } from '@/staff/model';
 import { router } from 'expo-router';
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library';
 import { Alert } from 'react-native';
@@ -110,6 +111,7 @@ const ctxOf = (system: SystemId): Ctx => ({
   db: jest.requireMock('@/db/manager').openSystemDb(system).db,
   system,
   now: () => new Date(),
+  actor: OWNER,
 });
 
 const routes = {

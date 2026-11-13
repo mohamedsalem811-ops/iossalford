@@ -3,6 +3,7 @@
  * studio's checks, pieces from the stock, reordering, a gift receipt, printing and sharing,
  * searching the history and deleting.
  */
+import { OWNER } from '@/staff/model';
 import { router } from 'expo-router';
 import { act, fireEvent, renderRouter, screen } from 'expo-router/testing-library';
 import { Alert } from 'react-native';
@@ -99,6 +100,7 @@ const ctx = (): Ctx => ({
   db: jest.requireMock('@/db/manager').openSystemDb('jewelry').db,
   system: 'jewelry',
   now: () => new Date(),
+  actor: OWNER,
 });
 
 const routes = {

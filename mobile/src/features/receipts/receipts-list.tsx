@@ -8,6 +8,7 @@ import { useReadable } from '@/hooks/use-readable';
 import { radius, spacing, useTheme } from '@/theme';
 
 import { receiptSummary, templateName } from './model';
+import { useCan } from '@/staff/use-can';
 
 export type ReceiptActions = {
   onOpen: (r: Receipt) => void;
@@ -37,19 +38,20 @@ export function ReceiptsList({
 }) {
   const { colors } = useTheme();
   const readable = useReadable();
+  const mayDelete = useCan('receipts.delete');
   const menu = (r: Receipt) => {
     const items = [
       { title: 'فتح وتعديل', run: () => actions.onOpen(r) },
       { title: 'طباعة', run: () => actions.onPrint(r) },
       { title: 'مشاركة PDF', run: () => actions.onShare(r) },
-      { title: 'حذف الإيصال', run: () => actions.onDelete(r) },
+      ...(mayDelete ? [{ title: 'حذف الإيصال', run: () => actions.onDelete(r) }] : []),
     ];
     ActionSheetIOS.showActionSheetWithOptions(
       {
         title: r.receiptNo,
         options: [...items.map((i) => i.title), 'إلغاء'],
         cancelButtonIndex: items.length,
-        destructiveButtonIndex: items.length - 1,
+        destructiveButtonIndex: mayDelete ? items.length - 1 : undefined,
       },
       (i) => items[i]?.run(),
     );

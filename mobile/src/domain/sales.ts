@@ -2,7 +2,17 @@ import { latinDigits } from '@/lib/digits';
 import { divRound, formatDinars } from '@/lib/money';
 
 import type { PaymentMethod } from './checkout';
-import { clean, nowMonth, nowStamp, pageSql, RuleError, type Ctx, type Page } from './context';
+import {
+  allow,
+  clean,
+  nowMonth,
+  nowStamp,
+  pageSql,
+  RuleError,
+  visibleTo,
+  type Ctx,
+  type Page,
+} from './context';
 import { getProduct, moveStock } from './products';
 
 export type SaleLine = {
@@ -37,6 +47,10 @@ export type Sale = {
   rate: number;
   total: number;
   totalCost: number;
+  /** Who sold it: "owner" or "emp-<id>" (sales before staff were all the owner's). */
+  seller: string;
+  /** A copy of their name at the time. */
+  sellerName: string;
   lines: SaleLine[];
 };
 
@@ -93,6 +107,8 @@ type SaleRow = {
   rate: number;
   total: number;
   total_cost: number;
+  seller: string | null;
+  seller_name: string | null;
 };
 
 /** The lines of several sales in one query (in chunks, well under SQLite's parameter limit). */
@@ -121,6 +137,8 @@ function toSale(r: SaleRow, lines: SaleLine[]): Sale {
     rate: r.rate,
     total: r.total,
     totalCost: r.total_cost,
+    seller: r.seller ?? 'owner',
+    sellerName: r.seller_name ?? 'المالك',
     lines,
   };
 }
@@ -133,8 +151,14 @@ const withLines = (ctx: Ctx, rows: SaleRow[]): Sale[] => {
   return rows.map((r) => toSale(r, lines.get(r.id) ?? []));
 };
 
+const visible = (ctx: Ctx) => visibleTo(ctx, 's.seller');
+
 export function getSale(ctx: Ctx, id: number): Sale | undefined {
-  const r = ctx.db.get<SaleRow>('SELECT * FROM sales WHERE id = ?', [id]);
+  const v = visible(ctx);
+  const r = ctx.db.get<SaleRow>(`SELECT s.* FROM sales s WHERE s.id = ? AND ${v.sql}`, [
+    id,
+    ...v.params,
+  ]);
   return r ? withLines(ctx, [r])[0] : undefined;
 }
 
@@ -145,17 +169,24 @@ export function getSaleLine(ctx: Ctx, lineId: number): SaleLine | undefined {
 
 export type SaleQuery = {
   month?: string;
+  /** One day, "2026-11-12". */
+  day?: string;
   paymentMethod?: PaymentMethod;
   customerId?: number;
   search?: string;
 };
 
-function saleFilter(q: SaleQuery) {
-  const where: string[] = [];
-  const params: (string | number)[] = [];
+function saleFilter(ctx: Ctx, q: SaleQuery) {
+  const v = visible(ctx);
+  const where: string[] = [v.sql];
+  const params: (string | number)[] = [...v.params];
   if (q.month) {
     where.push('s.month = ?');
     params.push(q.month);
+  }
+  if (q.day) {
+    where.push('substr(s.created_at, 1, 10) = ?');
+    params.push(q.day);
   }
   if (q.paymentMethod) {
     where.push('s.payment_method = ?');
@@ -180,7 +211,7 @@ function saleFilter(q: SaleQuery) {
  * customer). Long lists ask for one page at a time; each page reads its lines in one query.
  */
 export function listSales(ctx: Ctx, q: SaleQuery = {}, page?: Page): Sale[] {
-  const f = saleFilter(q);
+  const f = saleFilter(ctx, q);
   return withLines(
     ctx,
     ctx.db.all<SaleRow>(
@@ -192,7 +223,7 @@ export function listSales(ctx: Ctx, q: SaleQuery = {}, page?: Page): Sale[] {
 
 /** How many sales match and their total, without reading them. */
 export function salesSummary(ctx: Ctx, q: SaleQuery = {}): { count: number; total: number } {
-  const f = saleFilter(q);
+  const f = saleFilter(ctx, q);
   const r = ctx.db.get<{ n: number; t: number }>(
     `SELECT count(*) n, coalesce(sum(s.total), 0) t FROM sales s ${f.where}`,
     f.params,
@@ -202,8 +233,12 @@ export function salesSummary(ctx: Ctx, q: SaleQuery = {}): { count: number; tota
 
 /** Months that have sales, newest first ("2026-11"), from the month index. */
 export function saleMonths(ctx: Ctx): string[] {
+  const v = visible(ctx);
   return ctx.db
-    .all<{ month: string }>('SELECT DISTINCT month FROM sales ORDER BY month DESC')
+    .all<{ month: string }>(
+      `SELECT DISTINCT month FROM sales s WHERE ${v.sql} ORDER BY month DESC`,
+      v.params,
+    )
     .map((r) => r.month);
 }
 
@@ -212,6 +247,7 @@ export function saleMonths(ctx: Ctx): string[] {
  * come back through a return go back into stock. Its receipt stays (unlinked) with its number.
  */
 export function deleteSale(ctx: Ctx, saleId: number) {
+  allow(ctx, 'sales.delete');
   ctx.db.transaction(() => {
     const sale = getSale(ctx, saleId);
     if (!sale) throw new RuleError('البيعة غير موجودة');
@@ -282,6 +318,7 @@ export function addReturn(
   ctx: Ctx,
   input: { saleLineId: number; quantity: number; refund?: number; reason?: string },
 ): number {
+  allow(ctx, 'returns.create');
   return ctx.db.transaction(() => {
     const line = getSaleLine(ctx, input.saleLineId);
     if (!line) throw new RuleError('البيعة غير موجودة');
@@ -326,6 +363,7 @@ export function addReturnWithoutSale(
   ctx: Ctx,
   input: { productId: number; quantity: number; refund: number; reason?: string },
 ): number {
+  allow(ctx, 'returns.create');
   if (!Number.isInteger(input.quantity) || input.quantity < 1)
     throw new RuleError('الكمية يجب أن تكون 1 على الأقل');
   if (!Number.isInteger(input.refund) || input.refund < 0)
@@ -354,6 +392,7 @@ export function addReturnWithoutSale(
 
 /** Undoes a return recorded by mistake. Refused if those pieces are no longer in stock (sold again). */
 export function deleteReturn(ctx: Ctx, returnId: number) {
+  allow(ctx, 'returns.delete');
   ctx.db.transaction(() => {
     const r = ctx.db.get<ReturnRow>('SELECT * FROM returns WHERE id = ?', [returnId]);
     if (!r) throw new RuleError('المرتجع غير موجود');

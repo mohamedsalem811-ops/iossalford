@@ -33,7 +33,8 @@ export function SettingsScreen({
   updates: UpdateRows;
   /** Errors written to the log on this device; opening it offers to share or clear it. */
   errors: { count: number; onOpen: () => void };
-  onEditRate: () => void;
+  /** Absent for someone who may not change it: the rate is shown, not editable. */
+  onEditRate?: () => void;
   onChangePin: () => void;
   onAppearance: (a: Appearance) => void;
 }) {

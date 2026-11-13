@@ -1,7 +1,6 @@
 import { Stack, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import { EmptyState } from '@/components';
 import { errorBoundary } from '@/components/error-screen';
 import {
   addEmployeeFlow,
@@ -15,26 +14,25 @@ import {
 } from '@/features/staff/actions';
 import { StaffScreen } from '@/features/staff/staff-screen';
 import { pinVault } from '@/security/device';
-import { isOwner } from '@/staff/model';
+import { Allowed } from '@/staff/allowed';
 import { useStaff } from '@/staff/store';
-import { useLock } from '@/state/lock';
 
 /** Management → الموظفون: the owner only (an employee can't open it, even from a link). */
 export default function StaffRoute() {
-  const { actor } = useLock();
+  return (
+    <Allowed permission="staff.manage" title="الموظفون">
+      <StaffRouteScreen />
+    </Allowed>
+  );
+}
+
+function StaffRouteScreen() {
   const staff = useStaff();
   const [hasCode, setHasCode] = useState(false);
   const readCode = useCallback(() => {
     pinVault.hasEmergencyCode().then(setHasCode);
   }, []);
   useFocusEffect(readCode);
-  if (!isOwner(actor))
-    return (
-      <>
-        <Stack.Title>الموظفون</Stack.Title>
-        <EmptyState icon="lock" title="للمالك فقط" message="هذه الشاشة يفتحها المالك وحده." />
-      </>
-    );
   return (
     <>
       <Stack.Title>الموظفون</Stack.Title>
