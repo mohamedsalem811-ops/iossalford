@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
@@ -49,7 +49,9 @@ import {
   type SaleCustomerDetails,
 } from '@/domain/customers';
 import { balance } from '@/domain/debts';
-import { redeemable } from '@/domain/loyalty';
+import { getLoyalty, redeemable } from '@/domain/loyalty';
+import { getRewards } from '@/domain/rewards';
+import { rewardCart, rewardStatus } from '@/domain/visit-reward';
 import { getRate } from '@/domain/settings';
 import { formatLyd, formatRate, formatUsd } from '@/lib/money';
 import { putCart, useCart } from '@/state/cart';
@@ -61,6 +63,8 @@ import {
   checkoutProblem,
   creditUse,
   emptyCheckoutForm,
+  pointsForShare,
+  typedPoints,
   type CheckoutForm,
 } from './model';
 import { CustomerCard } from '@/features/customers/customer-card';
@@ -108,6 +112,8 @@ export function CheckoutView({
     .filter((q) => q.total > 0);
   const toggleQuick = (q: (typeof quick)[number]) => {
     haptic.tap();
+    // A quick discount and the visit reward are never used together.
+    setUseReward(false);
     putCart(
       ctx.system,
       hasPercentOff(cart, priceOf, q.percent) ? listPrices(cart, priceOf) : q.cart,
@@ -117,7 +123,8 @@ export function CheckoutView({
     setForm((f) => ({ ...f, [k]: v }));
 
   const [picked, setPicked] = useState<Customer | null>(null);
-  const [usePoints, setUsePoints] = useState(false);
+  const [pointsText, setPointsText] = useState('');
+  const [useReward, setUseReward] = useState(false);
   const [gender, setGender] = useState<Gender | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [details, setDetails] = useState<DetailsForm>(emptyDetailsForm);
@@ -137,6 +144,13 @@ export function CheckoutView({
   };
   /** The registered customer this sale goes to: by phone, or the one picked by name. */
   const customer = known ?? (picked && picked.name === form.name ? picked : undefined);
+  const customerId = customer?.id;
+  const rewards = useMemo(() => getRewards(ctx), [ctx]);
+  const loyalty = useMemo(() => getLoyalty(ctx), [ctx]);
+  const reward = useMemo(
+    () => (customerId ? rewardStatus(ctx, customerId, rewards) : null),
+    [ctx, customerId, rewards],
+  );
   /** What the shop owes this customer (له رصيد), which a sale on credit uses up. */
   const customerCredit = customer ? Math.max(0, -balance(ctx, customer.id)) : 0;
 
@@ -178,7 +192,8 @@ export function CheckoutView({
           details: saleDetails,
         },
         note: form.note,
-        points: usePoints && points ? points.points : 0,
+        points: pointsUsed,
+        reward: rewardOn,
         ...extra,
       });
       putCart(ctx.system, []);
@@ -250,15 +265,45 @@ export function CheckoutView({
       Alert.alert('لم يتم البيع', problem);
       return;
     }
+    // A reward ready and not used: ask, and keep it for the next purchase if not (G2).
+    if (canReward && !rewardOn) {
+      haptic.medium();
+      Alert.alert('لم يستخدم الزبون المكافأة؟', 'تبقى المكافأة محفوظة للشراء القادم.', [
+        { text: 'استخدامها الآن', onPress: () => setUseReward(true) },
+        { text: 'إبقاؤها للمرة القادمة', onPress: () => sell() },
+      ]);
+      return;
+    }
     return sell();
   };
 
   const credit = form.method === 'credit';
   const use = creditUse(customerCredit, totals.total);
   /** Loyalty points (F3): what this customer may pay with on this sale (cash or card only). */
-  const points = !credit && customer ? redeemable(ctx, customer.id, totals.total) : null;
-  const pointsPaid = usePoints && points ? points.value : 0;
-  const toPay = totals.total - pointsPaid;
+  // The visit reward (G2) comes off first; points then pay at most their share of what is left.
+  const canReward = !!reward?.ready && totals.total >= rewards.minRewardSale;
+  const rewardOn = useReward && canReward;
+  const rewardOff = rewardOn ? rewardCart(cart, rewards).off : 0;
+  const afterReward = totals.total - rewardOff;
+  const points = !credit && customer ? redeemable(ctx, customer.id, afterReward, loyalty) : null;
+  const pointsUsed = points ? typedPoints(pointsText, points.points) : 0;
+  const pointsPaid = pointsUsed * loyalty.pointValue;
+  const toPay = afterReward - pointsPaid;
+  const toggleReward = () => {
+    haptic.tap();
+    if (!useReward && policies.quickDiscounts.some((p) => hasPercentOff(cart, priceOf, p)))
+      putCart(ctx.system, listPrices(cart, priceOf));
+    setUseReward((u) => !u);
+  };
+  const setShare = (percent: number | 'max') => {
+    if (!points) return;
+    haptic.tap();
+    const n =
+      percent === 'max'
+        ? points.points
+        : pointsForShare(afterReward, percent, loyalty.pointValue, points.points);
+    setPointsText(n > 0 ? String(n) : '');
+  };
   return (
     <>
       <FormHeader title="إتمام البيع" onCancel={onCancel} onSave={confirmOnce} cancelLabel="رجوع" />
@@ -460,22 +505,63 @@ export function CheckoutView({
               </Text>
             </View>
           ) : null}
+          {canReward ? (
+            <FilterChip
+              label={`${rewardOn ? '✓ ' : ''}تطبيق مكافأة ${rewards.percent}% • ${formatLyd(rewardCart(cart, rewards).off)}`}
+              selected={rewardOn}
+              onPress={toggleReward}
+              testID="checkout-reward"
+            />
+          ) : reward?.ready ? (
+            <Text variant="caption" tone="secondary" testID="checkout-reward-waits">
+              {`مكافأة ${rewards.percent}% جاهزة لبيعة من ${formatLyd(rewards.minRewardSale)} أو أكثر.`}
+            </Text>
+          ) : null}
+          {rewardOff > 0 ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text variant="subhead" tone="accent">
+                مكافأة الزيارة
+              </Text>
+              <Text variant="subhead" tone="accent" testID="checkout-reward-off">
+                {`− ${formatLyd(rewardOff)}`}
+              </Text>
+            </View>
+          ) : null}
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text variant="headline">المجموع</Text>
             <Text variant="title" tone="accent" testID="checkout-total">
-              {formatLyd(totals.total)}
+              {formatLyd(afterReward)}
             </Text>
           </View>
           {points ? (
-            <FilterChip
-              label={`${usePoints ? '✓ ' : ''}الدفع بالنقاط: ${points.points} من ${points.balance} نقطة • ${formatLyd(points.value)}`}
-              selected={usePoints}
-              onPress={() => {
-                haptic.tap();
-                setUsePoints((u) => !u);
-              }}
-              testID="checkout-points"
-            />
+            <View style={{ gap: spacing.sm }} testID="checkout-points">
+              <NumberField
+                label={`الدفع بالنقاط (حتى ${points.points} من ${points.balance} نقطة • ${formatLyd(points.value)})`}
+                kind="integer"
+                value={pointsText}
+                onChangeText={setPointsText}
+                placeholder="0"
+                suffix="نقطة"
+                testID="checkout-points-field"
+              />
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                {([20, 30, 'max'] as const).map((p) => (
+                  <FilterChip
+                    key={p}
+                    label={p === 'max' ? 'الأقصى' : `${p}%`}
+                    selected={
+                      pointsUsed > 0 &&
+                      pointsUsed ===
+                        (p === 'max'
+                          ? points.points
+                          : pointsForShare(afterReward, p, loyalty.pointValue, points.points))
+                    }
+                    onPress={() => setShare(p)}
+                    testID={`checkout-points-${p}`}
+                  />
+                ))}
+              </View>
+            </View>
           ) : null}
           {pointsPaid > 0 ? (
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

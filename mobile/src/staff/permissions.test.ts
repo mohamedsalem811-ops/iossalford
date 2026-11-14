@@ -30,6 +30,7 @@ import { exchange } from '@/domain/exchange';
 import { addCashMove, chargeShortage, closeShift, openShift } from '@/domain/shifts';
 import { setPolicies } from '@/domain/policies';
 import { adjustPoints, setLoyalty } from '@/domain/loyalty';
+import { setRewards } from '@/domain/rewards';
 import { acknowledgeAlert } from '@/domain/alerts';
 import { applyCount, cancelCount, countPiece, startCount, submitCount } from '@/domain/stock-count';
 import { chargeReturn, recordRepayment, waiveCharge } from '@/domain/staff-ledger';
@@ -295,6 +296,10 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     adjustPoints: {
       permission: 'loyalty.adjust',
       run: (ctx, s) => adjustPoints(ctx, s.customer, 5, 'هدية'),
+    },
+    setRewards: {
+      permission: 'settings.edit',
+      run: (ctx) => setRewards(ctx, { enabled: true }),
     },
     setVip: {
       permission: 'customers.vip',

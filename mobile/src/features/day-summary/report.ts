@@ -55,6 +55,10 @@ export function daySections(d: DaySummary): Section[] {
         ...some([
           d.points.paid > 0 && { label: 'مدفوع بالنقاط', value: formatLyd(d.points.paid) },
           d.discounts > 0 && { label: 'الخصومات', value: formatLyd(d.discounts) },
+          d.rewards.count > 0 && {
+            label: 'مكافآت الزيارة',
+            value: `${d.rewards.count} • ${formatLyd(d.rewards.off)}`,
+          },
           d.approvals > 0 && { label: 'موافقات المالك', value: String(d.approvals) },
         ]),
       ],

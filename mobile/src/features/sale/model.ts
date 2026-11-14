@@ -4,7 +4,7 @@ import type { PaymentMethod } from '@/domain/checkout';
 import { hasIdentity } from '@/domain/customers';
 import type { Product } from '@/domain/products';
 import type { ScarfDesign } from '@/domain/scarves';
-import { parseInteger, parseThousandths } from '@/lib/digits';
+import { latinDigits, parseInteger, parseThousandths } from '@/lib/digits';
 import { lydToUsd, formatDinars } from '@/lib/money';
 import { applyQuery, DEFAULT_QUERY, type BrandFilter } from '@/features/products/model';
 import { applyDesignQuery, DEFAULT_DESIGN_QUERY } from '@/features/scarves/model';
@@ -164,4 +164,14 @@ export function creditUse(
 export function belowCostNote(unitPrice: number, cost: number): string | null {
   if (cost <= 0 || unitPrice <= 0 || unitPrice >= cost) return null;
   return `أقل من التكلفة (${formatDinars(cost)} د.ل)`;
+}
+
+/** Points for a share of the sale ("20%" of what is left to pay), never more than allowed. */
+export const pointsForShare = (total: number, percent: number, pointValue: number, most: number) =>
+  Math.min(most, Math.floor((total * percent) / 100 / pointValue));
+
+/** The points typed at checkout, as a whole number from 0 to the most allowed. */
+export function typedPoints(text: string, most: number): number {
+  const n = Number(latinDigits(text).trim());
+  return Number.isInteger(n) && n > 0 ? Math.min(n, most) : 0;
 }

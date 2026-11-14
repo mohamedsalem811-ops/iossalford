@@ -5,8 +5,9 @@
  */
 import { formatLyd } from '@/lib/money';
 
-import { getSetting } from './settings';
-import type { Ctx } from './context';
+import { logAction } from './activity';
+import { allow, nowStamp, RuleError, type Ctx } from './context';
+import { getSetting, setSetting } from './settings';
 
 export type RewardRules = {
   /** The visit reward is on. */
@@ -67,4 +68,45 @@ export function spendRange(amount: number, ranges: readonly number[]): string {
   const reached = sorted.filter((r) => amount >= r).pop();
   if (reached) return `أكثر من ${formatLyd(reached)}`;
   return sorted.length ? `أقل من ${formatLyd(sorted[0])}` : 'مشتريات سابقة';
+}
+
+const describe = (r: RewardRules) =>
+  [
+    r.enabled
+      ? `مكافأة الزيارة: بعد ${r.every} مشتريات من ${formatLyd(r.minPurchase)}، خصم ${r.percent}% حتى ${formatLyd(r.maxOff)} على بيعة من ${formatLyd(r.minRewardSale)}`
+      : 'مكافأة الزيارة متوقفة',
+    `VIP: أكثر من ${formatLyd(r.vipSpend)} في ${r.vipMonths} شهراً، النقاط ×${r.vipPointsTimes}`,
+  ].join('، ');
+
+/**
+ * The owner sets the rewards; each change is logged. Turning the visit reward on starts the
+ * count from now (purchases before don't count); turning it off and on again starts it anew.
+ */
+export function setRewards(ctx: Ctx, changes: Partial<RewardRules>): RewardRules {
+  allow(ctx, 'settings.edit');
+  const old = getRewards(ctx);
+  const next: RewardRules = { ...old, ...changes, startedAt: old.startedAt };
+  const whole = (n: number, min: number) => Number.isInteger(n) && n >= min;
+  if (!whole(next.minPurchase, 1)) throw new RuleError('اكتب أقل مبلغ للشراء الذي يُحسب');
+  if (!whole(next.every, 1) || next.every > 20) throw new RuleError('عدد المشتريات من 1 إلى 20');
+  if (!whole(next.percent, 1) || next.percent > 50)
+    throw new RuleError('نسبة المكافأة من 1 إلى 50%');
+  if (!whole(next.maxOff, 1000)) throw new RuleError('اكتب أكبر مبلغ للمكافأة بالدينار');
+  if (!whole(next.minRewardSale, 0)) throw new RuleError('اكتب أقل مبلغ لبيعة المكافأة');
+  if (!whole(next.vipSpend, 1)) throw new RuleError('اكتب مبلغ VIP');
+  if (!whole(next.vipMonths, 1) || next.vipMonths > 60)
+    throw new RuleError('مدة VIP من 1 إلى 60 شهراً');
+  if (!whole(next.vipPointsTimes, 1) || next.vipPointsTimes > 5)
+    throw new RuleError('مضاعفة نقاط VIP من 1 إلى 5');
+  const ranges = [...new Set(next.ranges)].sort((a, b) => a - b);
+  if (!ranges.length || ranges.some((r) => !whole(r, 1000)) || ranges.length > 8)
+    throw new RuleError('اكتب من 1 إلى 8 حدود للمشتريات بالدينار');
+  next.ranges = ranges;
+  if (next.enabled && !old.enabled) next.startedAt = nowStamp(ctx);
+  if (JSON.stringify(next) === JSON.stringify(old)) return old;
+  ctx.db.transaction(() => {
+    setSetting(ctx, REWARDS_KEY, JSON.stringify(next));
+    logAction(ctx, 'rewards.set', describe(next), { from: old, to: next });
+  });
+  return next;
 }

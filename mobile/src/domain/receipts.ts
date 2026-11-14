@@ -62,6 +62,10 @@ export type Receipt = {
   showSpecs: boolean;
   /** Part of the sale paid with loyalty points (F3), printed as its own line. */
   pointsPaid: number;
+  /** The visit reward taken off the sale (G2), printed as what the customer saved. */
+  rewardOff: number;
+  /** Printed under the total, as it was at the sale (points left, purchases to the reward). */
+  footer: string | null;
   saleId: number | null;
   items: ReceiptItem[];
   total: number;
@@ -139,6 +143,8 @@ export type IssueInput = {
   showSpecs?: boolean;
   saleId?: number | null;
   pointsPaid?: number;
+  rewardOff?: number;
+  footer?: string | null;
 };
 
 /** Saves a new receipt with the next number. Used by checkout and for receipts made by hand. */
@@ -152,8 +158,8 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
     const { date, time } = receiptDateTime(ctx.now());
     const id = ctx.db.run(
       `INSERT INTO receipts (receipt_no, date, time, customer, template, show_prices, show_specs, sale_id, points_paid,
-         created_at, issued_by, issued_by_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         reward_off, footer, created_at, issued_by, issued_by_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         takeReceiptNo(ctx),
         date,
@@ -164,6 +170,8 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
         input.showSpecs ?? true,
         input.saleId ?? null,
         input.pointsPaid ?? 0,
+        input.rewardOff ?? 0,
+        input.footer?.trim() || null,
         nowStamp(ctx),
         actorKey(by),
         actorName(by),
@@ -217,6 +225,8 @@ type ReceiptRow = {
   show_prices: number;
   show_specs: number;
   points_paid?: number | null;
+  reward_off?: number | null;
+  footer?: string | null;
   sale_id: number | null;
   created_at: string;
   updated_at: string | null;
@@ -259,6 +269,8 @@ function toReceipt(r: ReceiptRow, items: ReceiptItem[]): Receipt {
     showPrices: r.show_prices === 1,
     showSpecs: r.show_specs !== 0,
     pointsPaid: r.points_paid ?? 0,
+    rewardOff: r.reward_off ?? 0,
+    footer: r.footer ?? null,
     saleId: r.sale_id,
     items,
     total: items.reduce((t, i) => t + i.price * i.quantity, 0),

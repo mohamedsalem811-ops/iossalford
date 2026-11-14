@@ -1,6 +1,8 @@
 import {
   cartDiscount,
   cartProblems,
+  cartTotal,
+  hasPercentOff,
   lineTotal,
   needsApproval,
   priceChanges,
@@ -13,7 +15,9 @@ import { getPolicies, type Policies } from './policies';
 import { shiftFor } from './shifts';
 import { allow, clean, nowMonth, nowStamp, ownerSays, RuleError, type Ctx } from './context';
 import { ensureCustomer, hasIdentity, type SaleCustomerDetails } from './customers';
-import { earnOnSale, redeemOnSale } from './loyalty';
+import { earnOnSale, getLoyalty, pointsBalance, redeemOnSale } from './loyalty';
+import { getRewards, type RewardRules } from './rewards';
+import { rewardCart, rewardStatus } from './visit-reward';
 import { displayName, getProduct, moveStock } from './products';
 import { issueReceipt, type Receipt, type TemplateId } from './receipts';
 import { getSet, setForCart } from './sets';
@@ -74,6 +78,8 @@ export type CheckoutInput = {
   approval?: string;
   /** Loyalty points the customer pays part of the sale with (F3; cash or card only). */
   points?: number;
+  /** Use the customer's visit reward on this sale (G2). */
+  reward?: boolean;
 };
 
 export type CheckoutResult = { saleId: number; receipt: Receipt; total: number };
@@ -122,7 +128,26 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
     const customerId = ensureCustomer(ctx, c.name, c.phone, c.area, c.details);
     const customerName = clean(c.name);
     const stamp = nowStamp(ctx);
-    const lines = input.cart.map((l) => {
+    // The visit reward (G2): set up by the owner in advance, so it needs no approval and is not
+    // in the employee's discount limit above; it comes off the prices, so returns stay right.
+    let cart = input.cart;
+    let rewardOff = 0;
+    if (input.reward) {
+      const rules = getRewards(ctx);
+      if (!rewardStatus(ctx, customerId, rules)?.ready)
+        throw new RuleError('لا توجد مكافأة جاهزة لهذا الزبون');
+      const priceOf = (id: number) => getProduct(ctx, id)?.price;
+      if (policies.quickDiscounts.some((p) => hasPercentOff(cart, priceOf, p)))
+        throw new RuleError('لا تُجمع المكافأة مع أزرار الخصم السريع');
+      if (cartTotal(cart) < rules.minRewardSale)
+        throw new RuleError(
+          `تُستخدم المكافأة في بيعة من ${formatLyd(rules.minRewardSale)} أو أكثر`,
+        );
+      const r = rewardCart(cart, rules);
+      cart = r.cart;
+      rewardOff = r.off;
+    }
+    const lines = cart.map((l) => {
       const p = getProduct(ctx, l.productId)!;
       return { l, p, total: lineTotal(l), cost: p.cost * l.quantity };
     });
@@ -161,6 +186,8 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
     );
     if (pointsPaid > 0)
       ctx.db.run('UPDATE sales SET points_paid = ? WHERE id = ?', [pointsPaid, saleId]);
+    if (rewardOff > 0)
+      ctx.db.run('UPDATE sales SET reward_off = ? WHERE id = ?', [rewardOff, saleId]);
     earnOnSale(ctx, {
       id: saleId,
       customerId,
@@ -207,6 +234,8 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       template: input.template,
       showPrices: input.showPrices,
       pointsPaid,
+      rewardOff,
+      footer: receiptFooter(ctx, customerId),
       items: lines.map(({ l, p }) => ({
         name: displayName(ctx, p),
         brand: p.brand,
@@ -226,12 +255,15 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
         discount.total
           ? `، خصم ${formatLyd(discount.total)}${approvedBy ? ' بموافقة المالك' : ''}`
           : ''
-      }${pointsPaid ? `، مدفوع بالنقاط ${formatLyd(pointsPaid)}` : ''}`,
+      }${rewardOff ? `، مكافأة الزيارة ${formatLyd(rewardOff)}` : ''}${
+        pointsPaid ? `، مدفوع بالنقاط ${formatLyd(pointsPaid)}` : ''
+      }`,
       {
         saleId,
         total,
         pieces,
         ...(pointsPaid ? { pointsPaid } : {}),
+        ...(rewardOff ? { rewardOff } : {}),
         payment: input.paymentMethod,
         receipt: receipt.receiptNo,
         ...(discount.total ? { discount: discount.total, reason, approvedBy } : {}),
@@ -239,4 +271,31 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
     );
     return { saleId, receipt, total };
   });
+}
+
+/**
+ * What the receipt prints under the total (G2), kept with it so a receipt printed again later
+ * never changes: the customer's points now, and how far the next visit reward is.
+ */
+export function receiptFooter(
+  ctx: Ctx,
+  customerId: number | null,
+  rules: RewardRules = getRewards(ctx),
+): string | null {
+  if (!customerId) return null;
+  const lines: string[] = [];
+  if (getLoyalty(ctx).enabled)
+    lines.push(`Points / رصيد النقاط: ${pointsBalance(ctx, customerId)}`);
+  const status = rewardStatus(ctx, customerId, rules);
+  if (status) {
+    const left = status.every - status.count;
+    lines.push(
+      left <= 0
+        ? `مكافأة ${rules.percent}% جاهزة في زيارتك القادمة 🎁`
+        : left === 1
+          ? `بقي شراء واحد على مكافأة ${rules.percent}%`
+          : `بقي ${left} مشتريات على مكافأة ${rules.percent}%`,
+    );
+  }
+  return lines.length ? lines.join('\n') : null;
 }

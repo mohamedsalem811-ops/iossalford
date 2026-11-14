@@ -6,6 +6,7 @@ import * as Sharing from 'expo-sharing';
 import { ActionSheetIOS, Alert } from 'react-native';
 
 import { getLoyalty } from '@/domain/loyalty';
+import { getRewards } from '@/domain/rewards';
 import { getRate } from '@/domain/settings';
 import { promptRate } from '@/features/settings/rate';
 import { outcomeMessage, restartWarning, runningLabel } from '@/features/updates/model';
@@ -32,11 +33,13 @@ export default function SettingsRoute() {
   const ctx = useCtx();
   const mayEditRate = useCan('settings.edit');
   const [rate, setRate] = useState(() => getRate(ctx));
-  const [loyaltyOn, setLoyaltyOn] = useState(() => getLoyalty(ctx).enabled);
+  const [loyaltyOn, setLoyaltyOn] = useState(
+    () => getLoyalty(ctx).enabled || getRewards(ctx).enabled,
+  );
   const [appearance, setLook] = useState(getAppearance);
   const refresh = useCallback(() => {
     setRate(getRate(ctx));
-    setLoyaltyOn(getLoyalty(ctx).enabled);
+    setLoyaltyOn(getLoyalty(ctx).enabled || getRewards(ctx).enabled);
   }, [ctx]);
   useFocusEffect(refresh);
   useOnDataChanged(refresh);
