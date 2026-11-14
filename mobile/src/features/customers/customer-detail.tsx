@@ -20,6 +20,7 @@ import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
 import { CustomerAvatar } from './customer-avatar';
+import { CustomerFacts } from './customer-facts';
 import { PointsCard } from './points-card';
 import { balanceText, paymentWayLabel } from './model';
 import { haptic } from '@/lib/haptics';
@@ -66,6 +67,8 @@ export function CustomerDetail({
   const mayDelete = useCan('customers.delete');
   const mayPayBack = useCan('payouts.create');
   const fullPhone = useCan('customers.phones');
+  /** An employee without the grant sees the purchases without their amounts (G1). */
+  const exact = useCan('customers.spend');
   if (!c) return <EmptyState icon="person" title="الزبون غير موجود" />;
   const owed = balanceText(balance);
 
@@ -162,6 +165,8 @@ export function CustomerDetail({
           </Text>
         ) : null}
       </Card>
+
+      <CustomerFacts ctx={ctx} customer={c} />
 
       <PointsCard ctx={ctx} customerId={c.id} />
 
@@ -278,7 +283,7 @@ export function CustomerDetail({
             <ListRow
               key={s.id}
               icon="cart"
-              title={`بيعة رقم ${s.id} • ${formatLyd(s.total)}`}
+              title={exact ? `بيعة رقم ${s.id} • ${formatLyd(s.total)}` : `بيعة رقم ${s.id}`}
               subtitle={`${formatDate(new Date(s.createdAt))} • ${PAYMENT_LABELS[s.paymentMethod]} • ${saleSummary(s)}`}
               onPress={() => onSale(s.id)}
               testID={`customer-sale-${s.id}`}

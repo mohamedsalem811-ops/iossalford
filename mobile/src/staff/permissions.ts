@@ -38,6 +38,8 @@ export const PERMISSIONS = {
   'alerts.manage': 'تنبيهات المالك',
   'backup.restore': 'استرجاع نسخة احتياطية',
   'loyalty.adjust': 'تعديل نقاط الولاء',
+  'customers.vip': 'تحديد زبون VIP',
+  'customers.merge': 'دمج الزبائن المكررين',
   // Seeing (checked by the screens).
   'costs.view': 'التكلفة والربح',
   'reports.view': 'ملخص الشهر والتقارير',
@@ -49,6 +51,7 @@ export const PERMISSIONS = {
   'shifts.view': 'تقارير الورديات',
   'counts.view': 'نتائج الجرد',
   'customers.phones': 'رؤية أرقام الزبائن',
+  'customers.spend': 'رؤية مجموع مشتريات الزبون',
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -88,6 +91,8 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'alerts.manage': false,
   'backup.restore': false,
   'loyalty.adjust': false,
+  'customers.vip': false,
+  'customers.merge': false,
   'costs.view': false,
   'reports.view': false,
   'sales.viewAll': false,
@@ -99,13 +104,18 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'counts.view': false,
   // Shown as 091•••4567; the owner can give it to a trusted employee (feature 26).
   'customers.phones': false,
+  // An employee sees a range ("أكثر من 2000 د.ل"), never the exact total (G1); grantable.
+  'customers.spend': false,
 };
 
 /**
  * What the owner may give to one employee on the staff screen, on top of EMPLOYEE_MAY. Each
  * employee's grants are kept with them in the staff list (staff/model.ts).
  */
-export const GRANTABLE: Partial<Record<Permission, true>> = { 'customers.phones': true };
+export const GRANTABLE: Partial<Record<Permission, true>> = {
+  'customers.phones': true,
+  'customers.spend': true,
+};
 
 let grantsOf: (employeeId: string) => readonly string[] = () => [];
 /** The staff store tells this file who was given what (kept apart so this file stays pure). */

@@ -14,10 +14,16 @@ import { balanceText } from './model';
 export function CustomerRow({
   customer: c,
   balance,
+  vip = false,
+  spent,
   onPress,
 }: {
   customer: Customer;
   balance: number;
+  /** VIP (G1): by spending or the owner's choice. */
+  vip?: boolean;
+  /** What they spent, as this person may see it (a range for an employee). */
+  spent?: string;
   onPress: () => void;
 }) {
   const { colors } = useTheme();
@@ -47,7 +53,13 @@ export function CustomerRow({
         <Text variant="caption" tone="secondary" numberOfLines={1}>
           {[shownPhone(c.phone, full), c.area].filter(Boolean).join(' • ') || 'بدون هاتف'}
         </Text>
+        {spent ? (
+          <Text variant="caption" tone="secondary" numberOfLines={1}>
+            {spent}
+          </Text>
+        ) : null}
       </View>
+      {vip ? <Badge label="VIP" tone="warning" /> : null}
       {owed ? <Badge label={owed} tone={balance > 0 ? 'warning' : 'accent'} /> : null}
     </Pressable>
   );

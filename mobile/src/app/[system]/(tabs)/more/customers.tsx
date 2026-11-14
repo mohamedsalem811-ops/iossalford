@@ -6,6 +6,9 @@ import { EmptyState, Text } from '@/components';
 import { listCustomers } from '@/domain/customers';
 import { useCan } from '@/staff/use-can';
 import { allBalances } from '@/domain/debts';
+import { isVip, spendingByCustomer } from '@/domain/customer-stats';
+import { getRewards } from '@/domain/rewards';
+import { spendText } from '@/features/customers/model';
 import { CustomerRow } from '@/features/customers/customer-row';
 import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
@@ -25,13 +28,21 @@ export default function CustomersRoute() {
   useShortcut('new', add);
   const [search, setSearch] = useState('');
   const fullPhones = useCan('customers.phones');
+  const exactSpend = useCan('customers.spend');
   const read = useCallback(() => {
     const balances = allBalances(ctx);
-    return listCustomers(ctx, search, fullPhones).map((c) => ({
-      customer: c,
-      balance: balances.get(c.id) ?? 0,
-    }));
-  }, [ctx, search, fullPhones]);
+    const rules = getRewards(ctx);
+    const spending = spendingByCustomer(ctx, rules);
+    return listCustomers(ctx, search, fullPhones).map((c) => {
+      const spent = spending.get(c.id) ?? { spent: 0, inWindow: 0 };
+      return {
+        customer: c,
+        balance: balances.get(c.id) ?? 0,
+        vip: isVip(c.vip, spent.inWindow, rules),
+        spent: spendText(spent.spent, exactSpend, rules.ranges),
+      };
+    });
+  }, [ctx, search, fullPhones, exactSpend]);
   const [rows, setRows] = useState(read);
   const refresh = useCallback(() => setRows(read()), [read]);
   useFocusEffect(refresh);
@@ -82,6 +93,8 @@ export default function CustomersRoute() {
           <CustomerRow
             customer={item.customer}
             balance={item.balance}
+            vip={item.vip}
+            spent={item.spent}
             onPress={() =>
               router.push({
                 pathname: '/[system]/more/customer/[id]',

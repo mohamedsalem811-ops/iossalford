@@ -1,4 +1,13 @@
-import { balanceText, checkPayment, customerFormFrom, paymentWayLabel } from './model';
+import {
+  balanceText,
+  checkPayment,
+  customerFormFrom,
+  detailsFromForm,
+  detailsTouched,
+  emptyDetailsForm,
+  monthHint,
+  paymentWayLabel,
+} from './model';
 
 describe('customers model', () => {
   it('says who owes whom', () => {
@@ -18,6 +27,14 @@ describe('customers model', () => {
         gender: 'female',
         imageFile: null,
         createdAt: '',
+        vip: null,
+        birthMonth: null,
+        birthDay: null,
+        heard: null,
+        ringSize: null,
+        metal: null,
+        colours: null,
+        offers: false,
       }),
     ).toEqual({
       name: 'سارة',
@@ -26,7 +43,30 @@ describe('customers model', () => {
       notes: '',
       gender: 'female',
       imageFile: null,
+      details: emptyDetailsForm(),
     });
+  });
+
+  it('checks the details typed: a whole real birthday or none', () => {
+    const f = { ...emptyDetailsForm(), birthDay: '29', birthMonth: '2', heard: 'tiktok' as const };
+    expect(detailsFromForm(f)).toEqual({
+      ok: true,
+      details: {
+        birthDay: 29,
+        birthMonth: 2,
+        heard: 'tiktok',
+        ringSize: null,
+        metal: null,
+        colours: null,
+        offers: false,
+      },
+    });
+    expect(detailsFromForm({ ...f, birthMonth: '' }).ok).toBe(false);
+    expect(detailsFromForm({ ...f, birthDay: '31', birthMonth: '4' }).ok).toBe(false);
+    expect(monthHint('3')).toBe('مارس');
+    expect(monthHint('13')).toBeUndefined();
+    expect(detailsTouched(emptyDetailsForm())).toBe(false);
+    expect(detailsTouched({ ...emptyDetailsForm(), offers: true })).toBe(true);
   });
 
   it('takes a payment up to what is owed, Arabic digits too', () => {

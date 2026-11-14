@@ -1,0 +1,130 @@
+# Phase G1. At checkout Ring Zircon (350) goes to Huda with a gender tap and the extra details
+# (birthday 14 / 3, heard on Instagram, ring size 16, gold, offers). On the next sale her phone
+# finds her and the customer card shows her: new, one visit, "المزيد" with her last purchase and
+# details. Her page shows the same and the owner's VIP choice.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- tapOn: 'بيع'
+- tapOn:
+    id: 'sale-tile-Ring Zircon'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
+- tapOn:
+    id: 'cart-checkout'
+- tapOn:
+    id: 'checkout-phone'
+- inputText: '0912345678'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'checkout-name'
+- inputText: 'Huda'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-gender-female'
+- tapOn:
+    id: 'checkout-gender-female'
+- tapOn:
+    id: 'checkout-details-toggle'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-details-birth-day'
+- tapOn:
+    id: 'checkout-details-birth-day'
+- inputText: '14'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'checkout-details-birth-month'
+- inputText: '3'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- assertVisible: 'مارس'
+- tapOn:
+    id: 'checkout-details-heard-instagram'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-details-ring'
+- tapOn:
+    id: 'checkout-details-ring'
+- inputText: '16'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-details-offers'
+- tapOn:
+    id: 'checkout-details-metal-ذهب'
+- tapOn:
+    id: 'checkout-details-offers'
+- takeScreenshot: ${DEVICE}-checkout-details
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
+- tapOn:
+    id: 'checkout-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'sold-title'
+    timeout: 30000
+- tapOn:
+    id: 'sold-new-sale'
+# The next sale: her phone finds her, and the card shows her.
+- tapOn: 'بيع'
+- tapOn:
+    id: 'sale-tile-Ring Zircon'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
+- tapOn:
+    id: 'cart-checkout'
+- tapOn:
+    id: 'checkout-phone'
+- inputText: '0912345678'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- extendedWaitUntil:
+    visible:
+      id: 'checkout-known'
+    timeout: 10000
+- assertVisible: 'جديد'
+- assertVisible:
+    id: 'checkout-known-facts'
+    text: 'زيارة واحدة.*'
+- tapOn:
+    id: 'checkout-known-more'
+- assertVisible: '.*مقاس الخاتم: 16.*'
+- assertVisible: '.*الميلاد: 14 مارس.*'
+- takeScreenshot: ${DEVICE}-customer-card
+- tapOn: 'رجوع'
+# Her page: the facts and the owner's VIP choice.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-customers'
+- tapOn:
+    id: 'customer-Huda'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'customer-vip'
+- assertVisible: '.*عرفنا من.*'
+- takeScreenshot: ${DEVICE}-customer-facts

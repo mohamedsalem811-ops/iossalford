@@ -120,6 +120,19 @@ export function togglePhonesFlow(e: Employee) {
   haptic.success();
 }
 
+/** Gives or takes back seeing customers' exact totals instead of a range (G1). Logged. */
+export function toggleSpendFlow(e: Employee) {
+  const on = !(e.grants ?? []).includes('customers.spend');
+  saveStaff(setGrant(getStaff(), e.id, 'customers.spend', on));
+  logStaffChange(
+    on
+      ? `السماح لـ ${e.name} برؤية مجموع مشتريات الزبائن`
+      : `إخفاء مجموع مشتريات الزبائن عن ${e.name}`,
+    { id: e.id },
+  );
+  haptic.success();
+}
+
 export function toggleActiveFlow(e: Employee) {
   if (!e.active) {
     saveStaff(setActive(getStaff(), e.id, true));

@@ -1,6 +1,6 @@
 import { Stack } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Alert, View } from 'react-native';
+import { Alert, Pressable, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import {
@@ -41,9 +41,12 @@ import { RuleError, type Ctx } from '@/domain/context';
 import {
   customerByPhone,
   customerSuggestions,
+  GENDER_LABELS,
   shownName,
   shownPhone,
   type Customer,
+  type Gender,
+  type SaleCustomerDetails,
 } from '@/domain/customers';
 import { balance } from '@/domain/debts';
 import { redeemable } from '@/domain/loyalty';
@@ -60,9 +63,18 @@ import {
   emptyCheckoutForm,
   type CheckoutForm,
 } from './model';
-import { CustomerAvatar } from '@/features/customers/customer-avatar';
+import { CustomerCard } from '@/features/customers/customer-card';
+import { DetailsFields } from '@/features/customers/details-fields';
+import {
+  detailsFromForm,
+  detailsTouched,
+  emptyDetailsForm,
+  type DetailsForm,
+} from '@/features/customers/model';
 import { useSaveOnce } from '@/hooks/use-save-once';
 import { haptic } from '@/lib/haptics';
+
+const GENDERS: Gender[] = ['female', 'male'];
 
 /**
  * Checkout: how the customer pays, who the customer is (found by phone first, then name, or
@@ -106,6 +118,10 @@ export function CheckoutView({
 
   const [picked, setPicked] = useState<Customer | null>(null);
   const [usePoints, setUsePoints] = useState(false);
+  const [gender, setGender] = useState<Gender | null>(null);
+  const [showDetails, setShowDetails] = useState(false);
+  const [details, setDetails] = useState<DetailsForm>(emptyDetailsForm);
+  const [customerNotes, setCustomerNotes] = useState('');
   const known = form.phone ? customerByPhone(ctx, form.phone) : undefined;
   const fullPhone = useCan('customers.phones');
   const suggestions = form.name && !known ? customerSuggestions(ctx, form.name, 4, fullPhone) : [];
@@ -138,6 +154,18 @@ export function CheckoutView({
 
   /** Sells; on a discount over the limits, asks the owner on the spot and sells again. */
   const sell = (extra: { discountReason?: string; approval?: string } = {}) => {
+    const checked = detailsFromForm(details);
+    if (!checked.ok) {
+      haptic.error();
+      setShowDetails(true);
+      Alert.alert('لم يتم البيع', checked.message);
+      return;
+    }
+    const saleDetails: SaleCustomerDetails = {
+      ...(detailsTouched(details) ? checked.details : {}),
+      gender: gender ?? undefined,
+      notes: customerNotes || undefined,
+    };
     setBusy(true);
     try {
       const r = checkout(ctx, {
@@ -147,6 +175,7 @@ export function CheckoutView({
           name: form.name || customer?.name,
           phone: form.phone || (customer?.phone ?? undefined),
           area: form.area,
+          details: saleDetails,
         },
         note: form.note,
         points: usePoints && points ? points.points : 0,
@@ -269,22 +298,11 @@ export function CheckoutView({
             testID="checkout-phone"
           />
           {customer ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <CustomerAvatar
-                system={ctx.system}
-                gender={customer.gender}
-                imageFile={customer.imageFile}
-                size={36}
-                testID="checkout-avatar"
-              />
-              <Text
-                variant="caption"
-                tone="accent"
-                style={{ flex: 1 }}
-                testID={known ? 'checkout-known' : 'checkout-picked'}>
-                {`زبون مسجل: ${shownName(customer.name, fullPhone)}${customer.area ? ` • ${customer.area}` : ''}`}
-              </Text>
-            </View>
+            <CustomerCard
+              ctx={ctx}
+              customer={customer}
+              testID={known ? 'checkout-known' : 'checkout-picked'}
+            />
           ) : null}
           {use ? (
             <View style={{ gap: spacing.sm }} testID="checkout-credit">
@@ -339,6 +357,57 @@ export function CheckoutView({
             placeholder="اختياري"
             testID="checkout-area"
           />
+          {!customer?.gender ? (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+              {GENDERS.map((g) => (
+                <FilterChip
+                  key={g}
+                  label={GENDER_LABELS[g]}
+                  selected={gender === g}
+                  onPress={() => {
+                    haptic.tap();
+                    setGender((x) => (x === g ? null : g));
+                  }}
+                  testID={`checkout-gender-${g}`}
+                />
+              ))}
+            </View>
+          ) : null}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: showDetails }}
+            hitSlop={8}
+            onPress={() => {
+              haptic.tap();
+              setShowDetails((v) => !v);
+            }}
+            testID="checkout-details-toggle">
+            <Text variant="subhead" tone="accent">
+              {showDetails ? 'إخفاء التفاصيل الإضافية' : 'تفاصيل إضافية (اختياري)'}
+            </Text>
+          </Pressable>
+          {showDetails ? (
+            <View style={{ gap: spacing.ms }}>
+              <DetailsFields
+                system={ctx.system}
+                value={details}
+                onChange={setDetails}
+                testID="checkout-details"
+              />
+              <TextField
+                label="ملاحظات عن الزبون"
+                value={customerNotes}
+                onChangeText={setCustomerNotes}
+                placeholder="اختياري"
+                testID="checkout-customer-notes"
+              />
+              {customer ? (
+                <Text variant="caption" tone="secondary">
+                  تُضاف فقط إلى ما ليس محفوظاً للزبون؛ التعديل من صفحة الزبون.
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
           <Text variant="caption" tone="secondary">
             يُبحث عن الزبون برقم الهاتف أولاً ثم بالاسم، ويُضاف تلقائياً إن كان جديداً.
           </Text>
