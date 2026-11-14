@@ -1,0 +1,92 @@
+# Phase F1. Feature 10: the owner sells Ring Zircon (350) on credit to Huda with the quick 3%
+# button: 3% of 350 is 10.5, rounded down to 10, so 340; tapping it again takes it off, and once
+# more puts it back. Feature 26: the owner sees Huda's phone in full; the employee سارة sees it
+# as 091•••5678 in the customer list and on Huda's page, with no call button.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- tapOn: 'بيع'
+- tapOn:
+    id: 'sale-tile-Ring Zircon'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
+- tapOn:
+    id: 'cart-checkout'
+- tapOn: 'آجل'
+- tapOn:
+    id: 'checkout-phone'
+- inputText: '0912345678'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'checkout-name'
+- inputText: 'Huda'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
+- tapOn:
+    id: 'checkout-quick-3'
+- assertVisible:
+    id: 'checkout-total'
+    text: '340 د.ل'
+- assertVisible:
+    id: 'checkout-discount'
+    text: '10 د.ل'
+- takeScreenshot: ${DEVICE}-checkout-quick-discount
+- tapOn:
+    id: 'checkout-quick-3'
+- assertVisible:
+    id: 'checkout-total'
+    text: '350 د.ل'
+- assertNotVisible:
+    id: 'checkout-discount'
+- tapOn:
+    id: 'checkout-quick-3'
+- assertVisible:
+    id: 'checkout-total'
+    text: '340 د.ل'
+# The discount line came in above the button: it is brought into view again.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
+- tapOn:
+    id: 'checkout-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'sold-title'
+    timeout: 30000
+- assertVisible: '.*340 د.ل.*'
+- tapOn:
+    id: 'sold-new-sale'
+# The owner sees the number in full.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-customers'
+- assertVisible: '.*0912345678.*'
+# سارة doesn't.
+- runFlow: subflows/add-employee.yaml
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-customers'
+- assertVisible: '.*091•••5678.*'
+- assertNotVisible: '.*0912345678.*'
+- takeScreenshot: ${DEVICE}-employee-customers-masked
+- tapOn:
+    id: 'customer-Huda'
+- assertVisible:
+    id: 'customer-phone-masked'
+    text: '091•••5678'
+- assertNotVisible: '.*0912345678.*'
+- takeScreenshot: ${DEVICE}-employee-customer-masked

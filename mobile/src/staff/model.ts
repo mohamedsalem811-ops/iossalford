@@ -6,6 +6,8 @@
 import type { PinAccount } from '@/security/pin';
 import type { SystemId } from '@/theme';
 
+import { GRANTABLE, type Permission } from './permissions';
+
 export type Employee = {
   id: string;
   name: string;
@@ -13,6 +15,8 @@ export type Employee = {
   createdAt: string;
   /** Signed in with a temporary PIN (set by the owner, or none yet after a transfer). */
   mustChangePin: boolean;
+  /** What the owner gave this person beyond an employee's permissions (GRANTABLE only). */
+  grants?: Permission[];
 };
 
 /** Who is using the app now. */
@@ -83,6 +87,15 @@ export const renameEmployee = (staff: Staff, id: string, name: string): Staff =>
 };
 export const setActive = (staff: Staff, id: string, active: boolean) =>
   update(staff, id, { active });
+/** Gives or takes back one of the GRANTABLE permissions from an employee. */
+export function setGrant(staff: Staff, id: string, permission: Permission, on: boolean): Staff {
+  if (!GRANTABLE[permission]) return staff;
+  const e = staff.employees.find((x) => x.id === id);
+  if (!e) return staff;
+  const rest = (e.grants ?? []).filter((g) => g !== permission);
+  return update(staff, id, { grants: on ? [...rest, permission] : rest });
+}
+
 export const setMustChangePin = (staff: Staff, id: string, must: boolean) =>
   update(staff, id, { mustChangePin: must });
 
@@ -113,7 +126,11 @@ export function parseStaff(text: string | null): Staff {
       ownerToo: l.ownerToo === true,
     };
     return {
-      employees: employees.map((e) => ({ ...e, mustChangePin: e.mustChangePin !== false })),
+      employees: employees.map((e) => ({
+        ...e,
+        mustChangePin: e.mustChangePin !== false,
+        grants: (Array.isArray(e.grants) ? e.grants : []).filter((g) => GRANTABLE[g] === true),
+      })),
       lock,
     };
   } catch {

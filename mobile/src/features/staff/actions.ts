@@ -18,6 +18,7 @@ import {
   nameProblem,
   renameEmployee,
   setActive,
+  setGrant,
   setMustChangePin,
   transferText,
   type Employee,
@@ -104,6 +105,19 @@ export function renameFlow(e: Employee) {
     'plain-text',
     e.name,
   );
+}
+
+/** Gives or takes back seeing customers' phone numbers in full (feature 26). Logged. */
+export function togglePhonesFlow(e: Employee) {
+  const on = !(e.grants ?? []).includes('customers.phones');
+  saveStaff(setGrant(getStaff(), e.id, 'customers.phones', on));
+  logStaffChange(
+    on ? `السماح لـ ${e.name} برؤية أرقام الزبائن` : `إخفاء أرقام الزبائن عن ${e.name}`,
+    {
+      id: e.id,
+    },
+  );
+  haptic.success();
 }
 
 export function toggleActiveFlow(e: Employee) {

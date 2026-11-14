@@ -2,7 +2,7 @@
  * The cart is plain data held on screen (not in the database) until checkout. Every function
  * returns a new cart or a problem; a problem means nothing changed.
  */
-import { divRound, formatLyd, split } from '@/lib/money';
+import { DIRHAMS_PER_DINAR, divRound, formatLyd, split } from '@/lib/money';
 
 import type { Product } from './products';
 
@@ -389,3 +389,67 @@ export function cartDiscount(
 }
 
 export const needsApproval = (d: CartDiscount) => d.overPiece.length > 0 || d.overSale;
+
+/**
+ * A quick percentage off the whole sale (feature 10): the percentage of the pieces' list prices,
+ * rounded down to a whole dinar, taken off whole dinars per piece so every piece (and the receipt)
+ * keeps a round price. Sets keep their own price. The pieces' current prices are replaced, so
+ * pressing it twice gives the same cart, and the employee limits, the owner's approval and the
+ * log apply as for any discount.
+ */
+export function percentOff(
+  cart: CartLine[],
+  listPrice: (productId: number) => number | undefined,
+  percent: number,
+): { cart: CartLine[]; total: number } {
+  const lines = cart
+    .map((l, n) => ({ n, l, list: l.bundleGroup ? undefined : listPrice(l.productId) }))
+    .filter((x): x is { n: number; l: CartLine; list: number } => x.list !== undefined);
+  const listTotal = lines.reduce((s, x) => s + x.list * x.l.quantity, 0);
+  if (!(percent > 0) || listTotal === 0) return { cart, total: 0 };
+  const dinars = Math.floor((listTotal * percent) / 100 / DIRHAMS_PER_DINAR);
+  // Each line's share in whole dinars per piece; what is left goes one dinar a piece to the lines
+  // that lost the most to rounding, round after round, while it fits.
+  const shares = lines.map((x) => {
+    const exact = (dinars * x.list) / listTotal;
+    const most = Math.floor(x.list / DIRHAMS_PER_DINAR);
+    const off = Math.min(Math.floor(exact), most);
+    return { ...x, off, most, rest: exact - off };
+  });
+  let left = dinars - shares.reduce((s, x) => s + x.off * x.l.quantity, 0);
+  const order = [...shares].sort((a, b) => b.rest - a.rest);
+  for (let moved = true; moved && left > 0;) {
+    moved = false;
+    for (const x of order) {
+      if (x.l.quantity <= left && x.off < x.most) {
+        x.off += 1;
+        left -= x.l.quantity;
+        moved = true;
+      }
+    }
+  }
+  const next = [...cart];
+  for (const x of shares) next[x.n] = { ...x.l, unitPrice: x.list - x.off * DIRHAMS_PER_DINAR };
+  return { cart: next, total: (dinars - left) * DIRHAMS_PER_DINAR };
+}
+
+/** The pieces back at their list prices (taking a quick discount off again). Sets stay. */
+export function listPrices(
+  cart: CartLine[],
+  listPrice: (productId: number) => number | undefined,
+): CartLine[] {
+  return cart.map((l) => {
+    const list = l.bundleGroup ? undefined : listPrice(l.productId);
+    return list === undefined ? l : { ...l, unitPrice: list };
+  });
+}
+
+/** The cart is exactly this quick discount (its chip shows as chosen). */
+export const hasPercentOff = (
+  cart: CartLine[],
+  listPrice: (productId: number) => number | undefined,
+  percent: number,
+) => {
+  const r = percentOff(cart, listPrice, percent);
+  return r.total > 0 && r.cart.every((l, n) => l.unitPrice === cart[n].unitPrice);
+};

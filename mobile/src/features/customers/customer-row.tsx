@@ -1,7 +1,8 @@
 import { Pressable, View } from 'react-native';
 
 import { Badge, Icon, Text } from '@/components';
-import type { Customer } from '@/domain/customers';
+import { shownName, shownPhone, type Customer } from '@/domain/customers';
+import { useCan } from '@/staff/use-can';
 import { radius, spacing, useTheme } from '@/theme';
 
 import { balanceText } from './model';
@@ -18,6 +19,7 @@ export function CustomerRow({
 }) {
   const { colors } = useTheme();
   const owed = balanceText(balance);
+  const full = useCan('customers.phones');
   return (
     <Pressable
       onPress={onPress}
@@ -46,10 +48,10 @@ export function CustomerRow({
       </View>
       <View style={{ flex: 1, gap: spacing.xxs }}>
         <Text variant="bodyStrong" numberOfLines={1}>
-          {c.name}
+          {shownName(c.name, full)}
         </Text>
         <Text variant="caption" tone="secondary" numberOfLines={1}>
-          {[c.phone, c.area].filter(Boolean).join(' • ') || 'بدون هاتف'}
+          {[shownPhone(c.phone, full), c.area].filter(Boolean).join(' • ') || 'بدون هاتف'}
         </Text>
       </View>
       {owed ? <Badge label={owed} tone={balance > 0 ? 'warning' : 'accent'} /> : null}

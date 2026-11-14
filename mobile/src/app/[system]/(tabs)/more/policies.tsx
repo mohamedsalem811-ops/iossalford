@@ -77,6 +77,8 @@ function PoliciesScreen() {
   const [hours, setHours] = useState(String(saved.returnHours));
   const [conditions, setConditions] = useState(saved.returnConditions);
   const [reasons, setReasons] = useState(saved.discountReasons);
+  const quickText = (p: Policies) => p.quickDiscounts.join('، ');
+  const [quick, setQuick] = useState(quickText(saved));
   type AlertLimit = (typeof ALERT_LIMITS)[number];
   const alertDraft = (p: Policies) =>
     Object.fromEntries(
@@ -94,6 +96,7 @@ function PoliciesScreen() {
       Alert.alert('لم يتم الحفظ', 'اكتب حد الخصم بالدينار.');
       return;
     }
+    const quickDiscounts = (latinDigits(quick).match(/\d+/g) ?? []).map(Number);
     const limits: Partial<Record<AlertLimit, number>> = {};
     for (const k of ALERT_LIMITS) {
       const text = latinDigits(alerts[k]).trim() || '0';
@@ -112,12 +115,14 @@ function PoliciesScreen() {
         returnHours: h,
         returnConditions: conditions,
         discountReasons: reasons,
+        quickDiscounts,
         ...limits,
       });
       setSaved(next);
       setAlerts(alertDraft(next));
       setConditions(next.returnConditions);
       setReasons(next.discountReasons);
+      setQuick(quickText(next));
     } catch (error) {
       showError(error);
       return;
@@ -158,6 +163,16 @@ function PoliciesScreen() {
             onChangeText={setSale}
             suffix="د.ل"
             testID="policy-sale"
+          />
+          <TextField
+            label="أزرار الخصم السريع عند البيع (٪)"
+            value={quick}
+            onChangeText={(t) => setQuick(latinDigits(t))}
+            placeholder="مثلاً: 3، 5"
+            hint="تُخصم النسبة من البيعة مقرّبة لأسفل إلى دينار كامل. اتركه فارغاً لإخفاء الأزرار."
+            keyboardType="numbers-and-punctuation"
+            returnKeyType="done"
+            testID="policy-quick"
           />
           <Text variant="subhead" tone="secondary">
             أسباب الخصم الجاهزة

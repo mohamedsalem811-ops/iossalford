@@ -3,7 +3,7 @@ import { Alert, Linking, Pressable, View } from 'react-native';
 import { Button, Card, EmptyState, ListGroup, ListRow, Page, Text } from '@/components';
 import { PAYMENT_LABELS } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
-import type { Customer } from '@/domain/customers';
+import { shownName, shownPhone, type Customer } from '@/domain/customers';
 import {
   deleteCustomer,
   deletePayment,
@@ -63,6 +63,7 @@ export function CustomerDetail({
   const mayDeletePayment = useCan('payments.delete');
   const mayDelete = useCan('customers.delete');
   const mayPayBack = useCan('payouts.create');
+  const fullPhone = useCan('customers.phones');
   if (!c) return <EmptyState icon="person" title="الزبون غير موجود" />;
   const owed = balanceText(balance);
 
@@ -123,8 +124,13 @@ export function CustomerDetail({
   return (
     <Page>
       <Card>
-        <Text variant="title">{c.name}</Text>
-        {c.phone ? (
+        <Text variant="title">{shownName(c.name, fullPhone)}</Text>
+        {c.phone && !fullPhone ? (
+          // An employee who may not see the numbers (feature 26): no call, which would show it.
+          <Text variant="body" tone="secondary" testID="customer-phone-masked">
+            {shownPhone(c.phone, false)}
+          </Text>
+        ) : c.phone ? (
           <Pressable
             onPress={() => Linking.openURL(`tel:${c.phone}`).catch(() => {})}
             accessibilityRole="link"

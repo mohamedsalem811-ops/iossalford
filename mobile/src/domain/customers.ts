@@ -57,24 +57,61 @@ export function customerByPhone(ctx: Ctx, phone: string): Customer | undefined {
   return r ? toCustomer(r) : undefined;
 }
 
-export function listCustomers(ctx: Ctx, search = ''): Customer[] {
+/**
+ * A phone number for someone who may not see it (feature 26): the first 3 and last 4 digits,
+ * "091•••4567", enough to tell two customers apart. A short number keeps only its last 2.
+ */
+export function maskPhone(phone: string | null | undefined): string | null {
+  const digits = sanitize(phone ?? '', 'integer');
+  if (!digits) return null;
+  if (digits.length >= 8) return `${digits.slice(0, 3)}•••${digits.slice(-4)}`;
+  return `•••${digits.slice(-2)}`;
+}
+
+/** A name with any phone number in it masked ("زبون 091•••4567"), for the same people. */
+export const shownName = (name: string, full: boolean) =>
+  full ? name : name.replace(/[0-9٠-٩۰-۹]{6,}/g, (n) => maskPhone(n) ?? n);
+
+/** The phone as this person may see it: in full, or masked. */
+export const shownPhone = (phone: string | null | undefined, full: boolean) =>
+  full ? phone || null : maskPhone(phone);
+
+/**
+ * Customers by name, area or phone. `fullPhones` false (an employee who may not see the numbers):
+ * a phone finds its customer only when typed in full, so part of a number can't list them all.
+ */
+export function listCustomers(ctx: Ctx, search = '', fullPhones = true): Customer[] {
   const q = clean(latinDigits(search));
   if (!q)
     return ctx.db.all<Row>('SELECT * FROM customers ORDER BY name COLLATE NOCASE').map(toCustomer);
   const digits = sanitize(q, 'integer');
+  const key = fullPhones ? `%${digits.replace(/^0+/, '')}%` : (phoneKey(digits) ?? '');
+  // A customer added from a sale by phone only is named "زبون 0912345678": part of a number
+  // must not find it by its name either.
+  const byName = fullPhones || !/\d{3}/.test(q) ? 1 : 0;
   return ctx.db
     .all<Row>(
-      `SELECT * FROM customers WHERE name LIKE ? OR (? <> '' AND phone_key LIKE ?) OR area LIKE ? ORDER BY name COLLATE NOCASE`,
-      [`%${q}%`, digits, `%${digits.replace(/^0+/, '')}%`, `%${q}%`],
+      `SELECT * FROM customers WHERE (? AND name LIKE ?) OR (? <> '' AND phone_key LIKE ?) OR area LIKE ? ORDER BY name COLLATE NOCASE`,
+      [byName, `%${q}%`, fullPhones ? digits : key, key, `%${q}%`],
     )
     .map(toCustomer);
 }
 
 /** Customers whose name or phone contains what is being typed (at least 2 letters / 3 digits). */
-export function customerSuggestions(ctx: Ctx, text: string, limit = 4): Customer[] {
+export function customerSuggestions(
+  ctx: Ctx,
+  text: string,
+  limit = 4,
+  fullPhones = true,
+): Customer[] {
   const q = nameKey(text);
   if (q.length < 2) return [];
   const digits = sanitize(q, 'integer');
+  // Someone who may not see the numbers finds a customer by phone only with the whole number.
+  if (!fullPhones && digits.length >= 3) {
+    const c = customerByPhone(ctx, digits);
+    return c ? [c] : [];
+  }
   // The name is matched in the database (name_key); the phone, when digits are typed, here.
   return ctx.db
     .all<Row>(

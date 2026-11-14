@@ -1,7 +1,8 @@
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 
-import { getCustomer } from '@/domain/customers';
+import { getCustomer, shownName } from '@/domain/customers';
+import { useCan } from '@/staff/use-can';
 import { balance, payments, statement } from '@/domain/debts';
 import { listSales } from '@/domain/sales';
 import { CustomerDetail } from '@/features/customers/customer-detail';
@@ -25,13 +26,16 @@ export default function CustomerRoute() {
     }),
     [ctx, customerId],
   );
+  const fullPhone = useCan('customers.phones');
   const [data, setData] = useState(read);
   const refresh = useCallback(() => setData(read()), [read]);
   useFocusEffect(refresh);
   useOnDataChanged(refresh);
   return (
     <>
-      <Stack.Title>{data.customer?.name ?? 'الزبون'}</Stack.Title>
+      <Stack.Title>
+        {data.customer ? shownName(data.customer.name, fullPhone) : 'الزبون'}
+      </Stack.Title>
       <CustomerDetail
         ctx={ctx}
         {...data}

@@ -9,6 +9,7 @@ import { create } from 'zustand';
 import { privateRoot } from '@/lib/storage';
 
 import { EMPTY_STAFF, parseStaff, type Staff } from './model';
+import { setGrantsLookup } from './permissions';
 
 const NAME = 'staff.json';
 const PART = 'staff.json.part';
@@ -59,3 +60,6 @@ export const useStaffStore = create<StaffStore>()((set) => ({
 export const getStaff = () => useStaffStore.getState().staff;
 export const saveStaff = (next: Staff) => useStaffStore.getState().save(next);
 export const useStaff = () => useStaffStore((s) => s.staff);
+
+// can() reads an employee's grants from the list as it is now (a change applies at once).
+setGrantsLookup((id) => getStaff().employees.find((e) => e.id === id)?.grants ?? []);
