@@ -1,42 +1,36 @@
-# Phase S3: who did what. Runs after staff-permissions.yaml (سارة has sold the Ring and is
-# signed in). The owner signs in, finds her sale under her name in the activity log and her
-# sales in the month summary per seller. iPhone and iPad, light and dark (screens: log, seller).
+# Phase S3: who did what. سارة opens a shift and sells Ring Zircon; the owner signs in, finds her
+# sales in the month summary per seller and her sale under her name in the activity log.
+# iPhone and iPad (screens: sales per seller, activity log).
 appId: com.salford.pos
 ---
-- tapOn: 'الإدارة'
-- scrollUntilVisible:
-    element:
-      id: 'manage-lock'
-    direction: DOWN
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- runFlow: subflows/add-employee.yaml
+- runFlow: subflows/open-shift.yaml
+- runFlow: subflows/sell-ring.yaml
 - tapOn:
-    id: 'manage-lock'
-- tapOn:
-    id: 'person-owner'
-- runFlow: subflows/pin-jewelry.yaml
-- extendedWaitUntil:
-    visible: 'مبيعات اليوم'
-    timeout: 30000
+    id: 'sold-new-sale'
+- runFlow: subflows/sign-in-owner.yaml
 # The month summary: sales per seller.
 - scrollUntilVisible:
     element:
       text: 'البائع'
     direction: DOWN
+    centerElement: true
+    timeout: 60000
 - tapOn: 'البائع'
 - assertVisible:
     id: 'by-seller'
-- assertVisible: 'سارة'
+- assertVisible: 'سارة.*'
 - takeScreenshot: ${DEVICE}-sales-per-seller
-# The activity log: her sale, by her, and the sign-ins.
-- tapOn: 'الإدارة'
-- scrollUntilVisible:
-    element:
-      id: 'manage-log'
-    direction: DOWN
-- tapOn:
-    id: 'manage-log'
+# The activity log: her sale, by her, and the owner's sign-in.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-log'
 - extendedWaitUntil:
     visible: 'بيعة رقم .*'
     timeout: 15000
-- assertVisible: 'سارة • .*'
-- assertVisible: 'دخول المالك'
+- assertVisible: 'بيعة رقم .*سارة.*'
+- assertVisible: 'دخول المالك.*'
 - takeScreenshot: ${DEVICE}-activity-log

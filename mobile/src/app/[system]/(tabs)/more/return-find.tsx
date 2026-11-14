@@ -1,6 +1,6 @@
 import { router, Stack } from 'expo-router';
-import { useState } from 'react';
-import { View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Keyboard, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import {
@@ -19,6 +19,7 @@ import { findSaleForReturn, hoursSince, type ReturnableSale } from '@/domain/sal
 import { useReadable } from '@/hooks/use-readable';
 import { formatDate, formatTime } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
+import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { Allowed } from '@/staff/allowed';
 import { spacing, useTheme } from '@/theme';
@@ -35,7 +36,20 @@ function ReturnFindScreen() {
   const [found, setFound] = useState<ReturnableSale | null | undefined>();
   const hours = getPolicies(ctx).returnHours;
 
-  const find = () => setFound(text.trim() ? (findSaleForReturn(ctx, text) ?? null) : undefined);
+  const [query, setQuery] = useState('');
+  const look = useCallback(
+    (q: string) => setFound(q.trim() ? (findSaleForReturn(ctx, q) ?? null) : undefined),
+    [ctx],
+  );
+  // The keyboard closes with the search: left open, iOS brings it back over the tab bar when the
+  // return form closes.
+  const find = () => {
+    Keyboard.dismiss();
+    setQuery(text);
+    look(text);
+  };
+  // After a return the sale is read again, so "أُرجع" counts it.
+  useOnDataChanged(useCallback(() => look(query), [look, query]));
   const age = found ? hoursSince(found.createdAt, ctx.now()) : 0;
 
   return (

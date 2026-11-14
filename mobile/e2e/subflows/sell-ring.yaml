@@ -1,4 +1,4 @@
-# Sells one "Ring Zircon" for cash from the Sale tab and closes the success screen.
+# Sells one "Ring Zircon" for cash from the Sale tab and waits for the success screen.
 # iPhone: the cart bar above the tabs opens the cart; iPad: the cart is beside the products.
 appId: com.salford.pos
 ---
@@ -14,10 +14,15 @@ appId: com.salford.pos
           id: 'cart-bar'
 - tapOn:
     id: 'cart-checkout'
+# Checkout opens with the customer's phone near the top; its confirm button ends the form.
 - extendedWaitUntil:
     visible:
-      id: 'checkout-confirm'
+      id: 'checkout-phone'
     timeout: 30000
+- runFlow:
+    file: scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
 - tapOn:
     id: 'checkout-confirm'
 - extendedWaitUntil:

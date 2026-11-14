@@ -26,10 +26,10 @@ appId: com.salford.pos
 - tapOn: 'الإيصالات'
 - assertVisible: 'لا توجد إيصالات بعد'
 - tapOn: 'الإدارة'
-- scrollUntilVisible:
-    element: 'قفل النظام'
-    direction: DOWN
 - takeScreenshot: ${DEVICE}-management-jewelry
 # The lock button shows the login again in place of the screens.
-- tapOn: 'قفل النظام'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-lock'
 - assertVisible: 'أدخل رمز الدخول'

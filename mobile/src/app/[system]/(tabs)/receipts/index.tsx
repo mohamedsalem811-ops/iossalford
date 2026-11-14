@@ -117,8 +117,9 @@ export default function ReceiptsRoute() {
         <Stack.Toolbar.Button
           icon="plus"
           accessibilityLabel="إيصال جديد"
-          onPress={() => open('new')}
-        />
+          onPress={() => open('new')}>
+          إيصال جديد
+        </Stack.Toolbar.Button>
       </Stack.Toolbar>
       {split ? (
         <BelowHeader>

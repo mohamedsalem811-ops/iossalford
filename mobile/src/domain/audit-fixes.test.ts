@@ -11,6 +11,7 @@ import {
   cartTotal,
   priceChanges,
   setUnitPrice,
+  problemMessage,
   updatePrices,
   type CartLine,
 } from './cart';
@@ -92,8 +93,31 @@ describe('F-1: a kept cart never sells at an old price', () => {
     ];
     expect(priceChanges(old, now, setNow)).toEqual([]);
     reprice(ring, 360_000);
-    expect(priceChanges(old, now, setNow)).toHaveLength(1);
+    expect(priceChanges(old, now, setNow)).toEqual([
+      expect.objectContaining({ was: 350_000, now: 360_000, unsure: true }),
+    ]);
     expect(updatePrices(old, now, setNow)[0]).toMatchObject({ unitPrice: 360_000 });
+  });
+
+  it('lets a cart kept before this check keep a price agreed with the customer', () => {
+    // Added at 300 when the list price was 350: agreed, or the old list price? Checkout asks.
+    const ring = product('خاتم', 350_000);
+    const old: CartLine[] = [
+      { key: 'k', productId: ring.id, name: 'خاتم', quantity: 1, unitPrice: 300_000 },
+    ];
+    const [problem] = priceChanges(old, now, setNow);
+    expect(problemMessage(problem)).toBe(
+      '«خاتم» في السلة بسعر 300 د.ل وسعره الآن 350 د.ل. إن كان سعراً اتفقت عليه مع الزبون فأبقِه، وإلا فحدّث السعر.',
+    );
+    // Kept: the price stays, now as a discount from today's list price, checked like any other.
+    const kept = updatePrices(old, now, setNow, { keepUnsure: true });
+    expect(kept[0]).toMatchObject({ unitPrice: 300_000, listPrice: 350_000 });
+    expect(priceChanges(kept, now, setNow)).toEqual([]);
+    // A line that remembers its list price is not "unsure": only its list price is compared.
+    reprice(ring, 360_000);
+    expect(priceChanges(kept, now, setNow)).toEqual([
+      expect.not.objectContaining({ unsure: true }),
+    ]);
   });
 
   it('refuses a set whose price or pieces changed, or that was deleted', () => {

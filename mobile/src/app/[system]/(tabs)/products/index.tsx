@@ -91,7 +91,9 @@ function Header<Q extends Filters>({
           </Stack.Toolbar.Menu>
         </Stack.Toolbar.Menu>
         {onAdd ? (
-          <Stack.Toolbar.Button icon="plus" accessibilityLabel={addLabel} onPress={onAdd} />
+          <Stack.Toolbar.Button icon="plus" accessibilityLabel={addLabel} onPress={onAdd}>
+            {addLabel}
+          </Stack.Toolbar.Button>
         ) : null}
       </Stack.Toolbar>
     </>

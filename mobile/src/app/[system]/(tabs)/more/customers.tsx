@@ -47,7 +47,9 @@ export default function CustomersRoute() {
         onCancelButtonPress={() => setSearch('')}
       />
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button icon="plus" accessibilityLabel="زبون جديد" onPress={add} />
+        <Stack.Toolbar.Button icon="plus" accessibilityLabel="زبون جديد" onPress={add}>
+          زبون جديد
+        </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <FlashList
         data={rows}

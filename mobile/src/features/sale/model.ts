@@ -145,6 +145,19 @@ export function checkoutProblem(f: CheckoutForm, cart: CartLine[]): string | nul
 }
 
 /**
+ * What a sale on credit does to a customer the shop owes (له رصيد): the credit pays for it, and
+ * either some credit is left or the rest becomes a debt. Null when the customer has no credit.
+ */
+export function creditUse(
+  credit: number,
+  total: number,
+): { used: number; left: number; owed: number } | null {
+  if (credit <= 0) return null;
+  const used = Math.min(credit, total);
+  return { used, left: credit - used, owed: total - used };
+}
+
+/**
  * A gentle note when a piece is priced below what it cost (a typo, or a deliberate loss), or null.
  * A free piece (price 0) and a piece with no known cost get no note.
  */

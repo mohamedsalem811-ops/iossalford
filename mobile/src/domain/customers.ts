@@ -1,3 +1,4 @@
+import { nameKey } from '@/lib/names';
 import { latinDigits, sanitize } from '@/lib/digits';
 
 import { allow, clean, nowStamp, RuleError, type Ctx } from './context';
@@ -42,9 +43,7 @@ export function phoneKey(phone: string | null | undefined): string | null {
 }
 
 /** A name compared without case or extra spaces. */
-export function nameKey(name: string): string {
-  return latinDigits(name).toLowerCase().trim().split(/\s+/).join(' ');
-}
+export { nameKey };
 
 export function getCustomer(ctx: Ctx, id: number): Customer | undefined {
   const r = ctx.db.get<Row>('SELECT * FROM customers WHERE id = ?', [id]);
@@ -76,8 +75,13 @@ export function customerSuggestions(ctx: Ctx, text: string, limit = 4): Customer
   const q = nameKey(text);
   if (q.length < 2) return [];
   const digits = sanitize(q, 'integer');
+  // The name is matched in the database (name_key); the phone, when digits are typed, here.
   return ctx.db
-    .all<Row>('SELECT * FROM customers ORDER BY id DESC')
+    .all<Row>(
+      `SELECT * FROM customers WHERE instr(name_key, ?) > 0 OR (? AND phone IS NOT NULL)
+       ORDER BY id DESC`,
+      [q, digits.length >= 3 ? 1 : 0],
+    )
     .map(toCustomer)
     .filter(
       (c) =>
@@ -113,15 +117,15 @@ export function saveCustomer(ctx: Ctx, input: CustomerInput): number {
   return ctx.db.transaction(() => {
     if (input.id) {
       ctx.db.run(
-        'UPDATE customers SET name = ?, phone = ?, phone_key = ?, area = ?, notes = ? WHERE id = ?',
-        [name, phone, key, clean(input.area), clean(input.notes), input.id],
+        'UPDATE customers SET name = ?, name_key = ?, phone = ?, phone_key = ?, area = ?, notes = ? WHERE id = ?',
+        [name, nameKey(name), phone, key, clean(input.area), clean(input.notes), input.id],
       );
       logAction(ctx, 'customer.edit', `تعديل بيانات الزبون «${name}»`, { customerId: input.id });
       return input.id;
     }
     const id = ctx.db.run(
-      'INSERT INTO customers (name, phone, phone_key, area, notes, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, phone, key, clean(input.area), clean(input.notes), nowStamp(ctx)],
+      'INSERT INTO customers (name, name_key, phone, phone_key, area, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [name, nameKey(name), phone, key, clean(input.area), clean(input.notes), nowStamp(ctx)],
     ).lastInsertRowId;
     logAction(ctx, 'customer.add', `زبون جديد «${name}»`, { customerId: id });
     return id;
@@ -163,17 +167,20 @@ export function ensureCustomer(
     if (byPhone) return fillMissing(byPhone);
   }
   if (n) {
-    const k = nameKey(n);
-    const sameName = ctx.db
-      .all<Row>('SELECT * FROM customers ORDER BY id')
-      .map(toCustomer)
-      .filter((c) => nameKey(c.name) === k && (c.phone === null || key === null));
-    if (sameName.length) return fillMissing(sameName[sameName.length - 1]);
+    // The newest customer with this name (by its index), when the phones don't disagree.
+    const sameName = ctx.db.get<Row>(
+      `SELECT * FROM customers WHERE name_key = ? AND (phone IS NULL OR ? IS NULL)
+       ORDER BY id DESC LIMIT 1`,
+      [nameKey(n), key],
+    );
+    if (sameName) return fillMissing(toCustomer(sameName));
   }
+  const newName = n ?? `زبون ${p}`;
   return ctx.db.run(
-    'INSERT INTO customers (name, phone, phone_key, area, notes, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+    'INSERT INTO customers (name, name_key, phone, phone_key, area, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
     [
-      n ?? `زبون ${p}`,
+      newName,
+      nameKey(newName),
       key ? p : null,
       key,
       a,

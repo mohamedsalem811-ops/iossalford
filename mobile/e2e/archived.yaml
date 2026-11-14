@@ -1,0 +1,30 @@
+# Archived pieces: Ring Zircon is sold, then deleted from Products. Having a sale, it is archived
+# instead of deleted; Management → القطع المؤرشفة lists it, and it is brought back.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- runFlow: subflows/sell-ring.yaml
+- tapOn:
+    id: 'sold-new-sale'
+- tapOn: 'المنتجات'
+- longPressOn: '.*Ring Zircon.*'
+- tapOn: 'حذف القطعة'
+- tapOn:
+    text: 'حذف'
+    below: 'حذف «Ring Zircon»؟'
+- extendedWaitUntil:
+    notVisible: '.*Ring Zircon.*'
+    timeout: 15000
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-archived'
+- extendedWaitUntil:
+    visible: '.*Ring Zircon.*'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-archived
+- tapOn: '.*Ring Zircon.*'
+- tapOn: 'إعادة'
+- tapOn: 'المنتجات'
+- assertVisible: '.*Ring Zircon.*'

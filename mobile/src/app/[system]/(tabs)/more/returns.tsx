@@ -174,8 +174,9 @@ function ReturnsRouteScreen() {
           accessibilityLabel="مرتجع بدون فاتورة"
           onPress={() =>
             router.push({ pathname: '/[system]/return/[id]', params: { system, id: 'new' } })
-          }
-        />
+          }>
+          مرتجع بدون فاتورة
+        </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <FlashList
         data={data.shown}

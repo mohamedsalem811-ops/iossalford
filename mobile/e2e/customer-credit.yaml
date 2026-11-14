@@ -23,6 +23,10 @@ appId: com.salford.pos
 - inputText: 'Sara'
 - tapOn:
     id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
 - tapOn:
     id: 'checkout-confirm'
 - extendedWaitUntil:
@@ -32,8 +36,10 @@ appId: com.salford.pos
 - tapOn:
     id: 'sold-new-sale'
 # She pays it all.
-- tapOn: 'الإدارة'
-- tapOn: 'الزبائن'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-customers'
 - tapOn:
     id: 'customer-Sara'
 - tapOn:
@@ -41,13 +47,24 @@ appId: com.salford.pos
 - tapOn:
     id: 'payment-save'
 # She returns it: the refund becomes her credit.
-- tapOn: '.*بيعة رقم.*'
-- tapOn: 'إرجاع'
-- tapOn: 'الكاميرا'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'customer-sale-[0-9]+'
 - tapOn:
-    id: 'return-save'
-- tapOn: 'الإدارة'
-- tapOn: 'الزبائن'
+    id: 'customer-sale-[0-9]+'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'sale-return-[0-9]+'
+- tapOn:
+    id: 'sale-return-[0-9]+'
+- runFlow: subflows/return-photo.yaml
+- runFlow: subflows/save-return.yaml
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-customers'
 - tapOn:
     id: 'customer-Sara'
 - assertVisible: '.*له رصيد.*'

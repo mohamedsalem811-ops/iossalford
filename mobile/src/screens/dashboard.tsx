@@ -57,7 +57,7 @@ export function DashboardScreen({
         onNewProduct={actions.onNewProduct}
       />
       <Grid columns={Math.min(columns, 2)}>
-        <TodayCard data={data} piece={piece} />
+        <TodayCard data={data} piece={piece} onOpenDay={actions.onOpenDay} />
         <AttentionCard data={data} actions={actions} />
       </Grid>
       <MonthSummary data={data} piece={piece} wide={wide} onMonth={actions.onMonth} />

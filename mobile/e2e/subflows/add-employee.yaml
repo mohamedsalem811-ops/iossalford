@@ -1,0 +1,39 @@
+# The owner adds the employee سارة (temporary PIN 147036); she signs in, chooses her own PIN
+# (963258) and lands on her home screen, signed in.
+appId: com.salford.pos
+---
+- runFlow:
+    file: open-section.yaml
+    env:
+      ID: 'manage-staff'
+- tapOn: 'إضافة موظف'
+- inputText: 'سارة'
+- tapOn: 'التالي'
+- inputText: '147036'
+- tapOn: 'حفظ'
+- assertVisible:
+    id: 'staff-سارة'
+- runFlow:
+    file: open-section.yaml
+    env:
+      ID: 'manage-lock'
+- tapOn:
+    id: 'person-سارة'
+- tapOn:
+    id: 'pin-key-1'
+- tapOn:
+    id: 'pin-key-4'
+- tapOn:
+    id: 'pin-key-7'
+- tapOn:
+    id: 'pin-key-0'
+- tapOn:
+    id: 'pin-key-3'
+- tapOn:
+    id: 'pin-key-6'
+- assertVisible: 'سارة: اختر رمزك'
+- runFlow: pin-sara.yaml
+- runFlow: pin-sara.yaml
+- extendedWaitUntil:
+    visible: 'أهلاً، سارة'
+    timeout: 30000

@@ -29,7 +29,6 @@ export function photoUri(system: SystemId, file: string): string {
 
 const DENIED = {
   camera: 'اسمح للتطبيق باستخدام الكاميرا من الإعدادات ← SALFORD POS ← الكاميرا.',
-  library: 'اسمح للتطبيق بالوصول إلى الصور من الإعدادات ← SALFORD POS ← الصور.',
 };
 
 /**
@@ -41,11 +40,12 @@ export async function pickPhoto(
   source: PhotoSource,
   name: string,
 ): Promise<PickResult> {
-  const permission =
-    source === 'camera'
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) return { status: 'denied', message: DENIED[source] };
+  // Only the camera asks. The library opens Apple's photo picker, which runs outside the app
+  // and needs no access to the library: only the chosen photo comes back.
+  if (source === 'camera') {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) return { status: 'denied', message: DENIED.camera };
+  }
 
   const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images'], quality: 1 };
   const result =
@@ -53,15 +53,75 @@ export async function pickPhoto(
       ? await ImagePicker.launchCameraAsync(options)
       : await ImagePicker.launchImageLibraryAsync(options);
   if (result.canceled || !result.assets?.length) return { status: 'canceled' };
+  const uri = result.assets[0].uri;
+
+  const target = new File(photoFolder(system), name);
 
   // Decoded at the reduced size, so a large camera photo is never fully loaded into memory.
-  const image = await ImageManipulator.manipulate(result.assets[0].uri, {
-    maxWidth: PHOTO_MAX_SIDE,
-    maxHeight: PHOTO_MAX_SIDE,
-  }).renderAsync();
-  const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: JPEG_QUALITY });
-  await new File(saved.uri).move(new File(photoFolder(system), name));
+  const resized = await withinTime(
+    slowStepLogged('resize', async () => {
+      const image = await ImageManipulator.manipulate(uri, {
+        maxWidth: PHOTO_MAX_SIDE,
+        maxHeight: PHOTO_MAX_SIDE,
+      }).renderAsync();
+      return image.saveAsync({ format: SaveFormat.JPEG, compress: JPEG_QUALITY });
+    }),
+    RESIZE_LIMIT_MS,
+  );
+  if (resized) {
+    new File(resized.uri).move(target);
+  } else {
+    // Run 58 on the simulator: resizing never ended in any pick, on iPhone and iPad. Rather than
+    // wait forever, the photo is kept as picked (larger on disk, shown the same).
+    console.error(`[photo] resizing took over ${RESIZE_LIMIT_MS / 1000}s; kept as picked`);
+    new File(uri).copy(target);
+  }
   return { status: 'picked', file: name };
+}
+
+/** How long resizing a picked photo may take before the photo is kept as picked. */
+export const RESIZE_LIMIT_MS = 15_000;
+
+/** The promise's value, or null if it hasn't settled within `ms` (it keeps running). */
+export function withinTime<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise<T | null>((resolve, reject) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
+  });
+}
+
+/** How long a step after the picker may take before it is written to the device log. */
+export const SLOW_STEP_MS = 10_000;
+
+/**
+ * Runs one step of saving a picked photo. If it takes longer than SLOW_STEP_MS, the device log
+ * gets "[photo] <step> still running" (and how long it took once it ends), so a photo that never
+ * appears shows where it stopped. Run 57 and 58 on the simulator: the picker handed the file
+ * over and the photo never came.
+ */
+export async function slowStepLogged<T>(step: string, run: () => Promise<T> | T): Promise<T> {
+  const started = Date.now();
+  let slow = false;
+  const timer = setTimeout(() => {
+    slow = true;
+    console.error(`[photo] ${step} still running after ${SLOW_STEP_MS / 1000}s`);
+  }, SLOW_STEP_MS);
+  try {
+    return await run();
+  } finally {
+    clearTimeout(timer);
+    if (slow)
+      console.error(`[photo] ${step} ended after ${Math.round((Date.now() - started) / 1000)}s`);
+  }
 }
 
 /** Removes a photo file. Call only when nothing uses it any more (see photoInUse). */

@@ -1,57 +1,41 @@
-# Phase S6: the owner's alerts, the blind stock count and the device guide. Runs after
-# staff-shift.yaml (the owner is signed in; سارة's shift closed short, so a shortage alert is
-# waiting). سارة counts the Ring one short without seeing its stock; the owner sees the
-# difference and applies it, reads the shortage alert and marks it seen, then opens the guide.
-# iPhone and iPad, light and dark (screens: alerts, count sheet, count result, guide).
+# Phase S6: the owner's alerts, the blind stock count and the device guide. سارة closes her
+# shift 100 short, then counts Ring Zircon at 0 without seeing its stock; the owner sees the
+# shortage alert and marks it seen, applies the count's difference, then opens the guide.
+# iPhone and iPad (screens: alerts, count sheet, count result, guide).
 appId: com.salford.pos
 ---
-# The alert on the home screen: the shortage from her shift.
-- tapOn: 'الرئيسية'
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- runFlow: subflows/add-employee.yaml
+- runFlow: subflows/open-shift.yaml
+# She closes with nothing counted: 100 short.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'shift-counted'
+- tapOn:
+    id: 'shift-counted'
+- inputText: '0'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'shift-close'
+- tapOn:
+    id: 'shift-close'
+- tapOn: 'إغلاق'
 - assertVisible:
-    id: 'alert-shortage'
-- takeScreenshot: ${DEVICE}-alerts
-- tapOn:
-    id: 'alert-shortage'
-- tapOn: 'اطلعت'
-- assertNotVisible:
-    id: 'alert-shortage'
-# سارة counts.
-- tapOn: 'الإدارة'
-- scrollUntilVisible:
-    element:
-      id: 'manage-lock'
-    direction: DOWN
-- tapOn:
-    id: 'manage-lock'
-- tapOn:
-    id: 'person-سارة'
-- tapOn:
-    id: 'pin-key-9'
-- tapOn:
-    id: 'pin-key-6'
-- tapOn:
-    id: 'pin-key-3'
-- tapOn:
-    id: 'pin-key-2'
-- tapOn:
-    id: 'pin-key-5'
-- tapOn:
-    id: 'pin-key-8'
-- extendedWaitUntil:
-    visible: 'أهلاً، سارة'
-    timeout: 30000
-- tapOn: 'الإدارة'
-- scrollUntilVisible:
-    element:
-      id: 'manage-stockCount'
-    direction: DOWN
-- tapOn:
-    id: 'manage-stockCount'
+    id: 'shift-difference'
+# She counts the Ring: 0 (the owner sees the real difference).
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-stockCount'
 - tapOn:
     id: 'count-start'
 - assertVisible:
     id: 'count-open'
-# The Ring: she types 0 (one short or more: the owner sees the real difference).
 - tapOn:
     id: 'count-row-[0-9]+'
     index: 0
@@ -65,44 +49,54 @@ appId: com.salford.pos
 - tapOn: 'إنهاء وإرسال'
 - assertVisible:
     id: 'count-start'
-# The owner: the result, applied.
-- tapOn: 'الإدارة'
+# The owner: the shortage alert on the home screen, marked seen.
+- runFlow: subflows/sign-in-owner.yaml
 - scrollUntilVisible:
     element:
-      id: 'manage-lock'
+      id: 'alert-shortage'
     direction: DOWN
+    centerElement: true
+    timeout: 60000
+- takeScreenshot: ${DEVICE}-alerts
 - tapOn:
-    id: 'manage-lock'
-- tapOn:
-    id: 'person-owner'
-- runFlow: subflows/pin-jewelry.yaml
-- extendedWaitUntil:
-    visible: 'مبيعات اليوم'
-    timeout: 30000
-- tapOn: 'الإدارة'
-- scrollUntilVisible:
-    element:
-      id: 'manage-stockCount'
-    direction: DOWN
-- tapOn:
-    id: 'manage-stockCount'
+    id: 'alert-shortage'
+- tapOn: 'اطلعت'
+- assertNotVisible:
+    id: 'alert-shortage'
+# The count's result, applied.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-stockCount'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'count-[0-9]+'
 - tapOn:
     id: 'count-[0-9]+'
     index: 0
 - assertVisible:
     id: 'count-summary'
 - takeScreenshot: ${DEVICE}-count-result
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'count-apply'
 - tapOn:
     id: 'count-apply'
 - tapOn: 'تطبيق'
-- assertVisible: 'طُبّق'
-# The device guide.
-- tapOn: 'الإدارة'
+# The status is at the top of the page.
 - scrollUntilVisible:
     element:
-      id: 'manage-deviceGuide'
-    direction: DOWN
-- tapOn:
-    id: 'manage-deviceGuide'
+      id: 'count-status'
+    direction: UP
+- assertVisible:
+    id: 'count-status'
+    text: 'طُبّق'
+# The device guide.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-deviceGuide'
 - assertVisible: 'الوصول الموجّه: يبقى الموظف داخل التطبيق'
 - takeScreenshot: ${DEVICE}-device-guide

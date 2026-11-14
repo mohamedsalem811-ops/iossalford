@@ -1,4 +1,4 @@
-import { LATEST_VERSION } from '@/db/schema';
+import { fillNameKeys, LATEST_VERSION } from '@/db/schema';
 import type { Db, SqlValue } from '@/db/types';
 import type { SystemId } from '@/theme';
 
@@ -214,6 +214,8 @@ export function restoreBackup(ctx: Ctx, data: unknown): { safetyCopy: Backup } {
         ctx.db.run('INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)', [name, seq]);
     }
     keepUsedNumbers(ctx.db, used);
+    // A backup made before database 8 has no name keys.
+    fillNameKeys(ctx.db);
     logAction(ctx, 'backup.restore', `استرجاع نسخة احتياطية من ${b.exportedAt.replace('T', ' ')}`, {
       madeAt: b.exportedAt,
     });

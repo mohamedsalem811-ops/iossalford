@@ -1,60 +1,69 @@
 # Phase S4: the owner's rules, a discount over the limit approved on the spot, and a return with
-# its photo and conditions. Runs after staff-log.yaml (the owner is signed in, سارة has sold the
-# Ring). iPhone and iPad, light and dark (screens: rules, approval, return form, account).
+# its photo and conditions. The owner sets the limits (10 د.ل a piece, 20 a sale) and adds Ring
+# Zircon and سارة; she sells it 50 below its price, gives a reason and the owner types his PIN;
+# then she takes it back. iPhone and iPad (screens: rules, approval, return form).
 appId: com.salford.pos
 ---
-# The owner sets the limits: 10 د.ل per piece, 20 per sale, returns within 24 hours.
-- tapOn: 'الإدارة'
-- scrollUntilVisible:
-    element:
-      id: 'manage-policies'
-    direction: DOWN
-- tapOn:
-    id: 'manage-policies'
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-policies'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'policy-piece'
 - tapOn:
     id: 'policy-piece'
+- eraseText
 - inputText: '10'
 - tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'policy-sale'
+- tapOn:
     id: 'policy-sale'
+- eraseText
 - inputText: '20'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'policy-save'
 - tapOn:
     id: 'policy-save'
 - assertVisible: 'تم الحفظ'
-- tapOn: 'حسناً'
+- tapOn: 'OK'
 - takeScreenshot: ${DEVICE}-policies
-# سارة sells the Ring 50 د.ل below its price: the reason, then the owner's PIN.
-- tapOn: 'الإدارة'
-- scrollUntilVisible:
-    element:
-      id: 'manage-lock'
-    direction: DOWN
+- runFlow: subflows/add-employee.yaml
+- runFlow: subflows/open-shift.yaml
+# 300 instead of 350: over her limit, so the owner approves.
+- tapOn: 'بيع'
 - tapOn:
-    id: 'manage-lock'
+    id: 'sale-tile-Ring Zircon'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
 - tapOn:
-    id: 'person-سارة'
-- tapOn:
-    id: 'pin-key-9'
-- tapOn:
-    id: 'pin-key-6'
-- tapOn:
-    id: 'pin-key-3'
-- tapOn:
-    id: 'pin-key-2'
-- tapOn:
-    id: 'pin-key-5'
-- tapOn:
-    id: 'pin-key-8'
-- extendedWaitUntil:
-    visible: 'أهلاً، سارة'
-    timeout: 30000
-- runFlow: subflows/add-ring.yaml
-- tapOn: 'السلة'
-- longPressOn: 'Ring'
-- tapOn: 'تغيير السعر'
+    id: 'cart-price-Ring Zircon'
 - eraseText
 - inputText: '300'
 - tapOn: 'حفظ'
-- tapOn: 'إتمام البيع'
+- tapOn:
+    id: 'cart-checkout'
+# The discount line is in the totals, just above the confirm button at the end of the form.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
 - assertVisible: '.*يحتاج موافقة المالك'
 - takeScreenshot: ${DEVICE}-discount-needs-owner
 - tapOn:
@@ -63,31 +72,30 @@ appId: com.salford.pos
 - inputText: '19283746'
 - tapOn: 'موافقة'
 - extendedWaitUntil:
-    visible: 'تم البيع'
-    timeout: 15000
+    visible:
+      id: 'sold-title'
+    timeout: 30000
 - tapOn:
     id: 'sold-new-sale'
-# A return of that sale: the conditions and a photo from the library.
-- tapOn: 'الإدارة'
-- tapOn:
-    id: 'manage-returnFind'
+# The return of that sale: the conditions and a photo.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-returnFind'
 - tapOn:
     id: 'return-find-text'
-- inputText: '2'
+- inputText: '1'
 - tapOn:
     id: 'return-find'
 - tapOn:
     id: 'return-line-.*'
-- tapOn:
-    id: 'cond-yes-0'
-- tapOn:
-    id: 'cond-yes-1'
+    index: 0
 - assertVisible:
     id: 'return-refund-fixed'
-- tapOn: 'الألبوم'
-- tapOn:
-    index: 0
-    text: '.*Photo.*'
+- runFlow: subflows/return-photo.yaml
 - takeScreenshot: ${DEVICE}-return-form
-- tapOn:
-    id: 'return-save'
+- runFlow: subflows/save-return.yaml
+- extendedWaitUntil:
+    notVisible:
+      id: 'return-save'
+    timeout: 15000

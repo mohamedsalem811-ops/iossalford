@@ -9,6 +9,7 @@ import { spacing } from '@/theme';
 export type ManageTarget =
   | 'shift'
   | 'shifts'
+  | 'daySummary'
   | 'sales'
   | 'returns'
   | 'returnFind'
@@ -51,6 +52,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
   {
     title: 'المال',
     rows: [
+      { target: 'daySummary', icon: 'calendar', title: 'ملخص اليوم' },
       { target: 'shifts', icon: 'tray.full', title: 'الورديات وعدّ النقد' },
       { target: 'expenses', icon: 'banknote', title: 'المصروفات' },
       { target: 'closing', icon: 'checkmark.seal', title: 'الإقفال الربع سنوي' },
@@ -199,7 +201,12 @@ export function ManagementScreen({
           </ListGroup>
         ))}
       <ListGroup header="النظام">
-        <ListRow icon="arrow.left.arrow.right" title="تبديل النظام" onPress={onSwitch} />
+        <ListRow
+          icon="arrow.left.arrow.right"
+          title="تبديل النظام"
+          onPress={onSwitch}
+          testID="manage-switch"
+        />
         <ListRow
           icon="lock"
           title={person ? 'تبديل المستخدم أو القفل' : 'قفل النظام'}

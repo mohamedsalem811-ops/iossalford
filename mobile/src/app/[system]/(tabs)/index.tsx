@@ -167,6 +167,7 @@ function Dashboard() {
         onOpenSale: (id) => openSale(system, id),
         onOpenDebts: () => router.push(sectionHref('debts', system)),
         onOpenBackup: () => router.push(sectionHref('backup', system)),
+        onOpenDay: () => router.push(sectionHref('daySummary', system)),
         onOpenProducts: () => router.push({ pathname: '/[system]/products', params: { system } }),
         onOpenAlert: (alert) => showAlert(ctx, alert, refresh),
         onNewSale: () => newSale(system),

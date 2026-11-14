@@ -173,7 +173,7 @@ export function CustomerDetail({
               testID="customer-payout"
             />
             <Text variant="caption" tone="secondary">
-              أو يُستخدم الرصيد في بيعة جديدة: بيع آجل لهذا الزبون يُخصم من رصيده.
+              أو يُستخدم في بيعة جديدة: اكتب رقمه عند إتمام البيع واختر «استخدام رصيده لهذا البيع».
             </Text>
           </>
         ) : null}
@@ -262,6 +262,7 @@ export function CustomerDetail({
               title={`بيعة رقم ${s.id} • ${formatLyd(s.total)}`}
               subtitle={`${formatDate(new Date(s.createdAt))} • ${PAYMENT_LABELS[s.paymentMethod]} • ${saleSummary(s)}`}
               onPress={() => onSale(s.id)}
+              testID={`customer-sale-${s.id}`}
             />
           ))
         )}

@@ -8,7 +8,31 @@
  * time; `month` columns are "YYYY-MM" keys.
  */
 
-export type Migration = { version: number; name: string; sql: string };
+import { nameKey } from '@/lib/names';
+
+import type { Db } from './types';
+
+/**
+ * One database version. `sql` runs first; `after` (optional) then fills what SQL can't compute,
+ * in the same all-or-nothing step.
+ */
+export type Migration = {
+  version: number;
+  name: string;
+  sql: string;
+  after?: (db: Db) => void;
+};
+
+/**
+ * Fills customers.name_key where it is missing: after the upgrade to database 8, and after a
+ * restore from a backup made before it.
+ */
+export function fillNameKeys(db: Db) {
+  for (const c of db.all<{ id: number; name: string }>(
+    'SELECT id, name FROM customers WHERE name_key IS NULL',
+  ))
+    db.run('UPDATE customers SET name_key = ? WHERE id = ?', [nameKey(c.name), c.id]);
+}
 
 export const migrations: Migration[] = [
   {
@@ -562,6 +586,57 @@ CREATE INDEX sales_created ON sales(created_at);
 CREATE INDEX returns_created ON returns(created_at);
 CREATE INDEX shifts_closed ON shifts(closed_at);
 `,
+  },
+  {
+    version: 8,
+    name: 'returns keep their sale, customers found by name',
+    sql: `
+-- A return now stops its sale from being deleted (the app already refuses; now the database does
+-- too). Before, deleting a sale silently deleted its returns. SQLite changes a link by rebuilding
+-- the table: same columns in the same order, only ON DELETE CASCADE becomes RESTRICT.
+CREATE TEMP TABLE returns_seq AS SELECT seq FROM sqlite_sequence WHERE name = 'returns';
+CREATE TABLE returns_new (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  sale_line_id INTEGER REFERENCES sale_lines(id) ON DELETE RESTRICT,
+  product_id   INTEGER NOT NULL,
+  name         TEXT NOT NULL,
+  quantity     INTEGER NOT NULL CHECK (quantity > 0),
+  refund       INTEGER NOT NULL CHECK (refund >= 0),
+  cost         INTEGER NOT NULL CHECK (cost >= 0),
+  reason       TEXT,
+  created_at   TEXT NOT NULL,
+  month        TEXT NOT NULL,
+  by TEXT, by_name TEXT, uid TEXT, device TEXT, photo TEXT, conditions TEXT,
+  override_reason TEXT, approved_by TEXT,
+  exchange_sale_id INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+  shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL
+);
+INSERT INTO returns_new SELECT * FROM returns;
+DROP TABLE returns;
+ALTER TABLE returns_new RENAME TO returns;
+-- Ids are never given twice: the counter keeps the highest id ever used, even if the newest
+-- returns were deleted.
+DELETE FROM sqlite_sequence WHERE name IN ('returns', 'returns_new');
+INSERT INTO sqlite_sequence (name, seq)
+  SELECT 'returns', max(coalesce((SELECT seq FROM temp.returns_seq), 0),
+                        coalesce((SELECT max(id) FROM returns), 0));
+DROP TABLE temp.returns_seq;
+CREATE INDEX returns_line ON returns(sale_line_id);
+CREATE INDEX returns_month ON returns(month);
+CREATE UNIQUE INDEX returns_uid ON returns(uid);
+CREATE INDEX returns_shift ON returns(shift_id);
+CREATE INDEX returns_created ON returns(created_at);
+CREATE TRIGGER returns_new_uid AFTER INSERT ON returns WHEN NEW.uid IS NULL BEGIN
+  UPDATE returns SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+-- A customer's name as it is compared (lib/names), so a sale finds the customer by name with an
+-- index instead of reading every customer. Filled by the app (fillNameKeys).
+ALTER TABLE customers ADD COLUMN name_key TEXT;
+CREATE INDEX customers_name_key ON customers(name_key);
+`,
+    after: fillNameKeys,
   },
 ];
 

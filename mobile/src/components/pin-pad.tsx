@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { radius, spacing, useTheme } from '@/theme';
@@ -35,19 +36,28 @@ export function PinPad({
   error?: boolean;
 }) {
   const { colors } = useTheme();
+  // The digits so far, kept up to date between renders: two keys pressed before the screen
+  // redraws (a busy moment) each add their digit instead of the second replacing the first.
+  const current = useRef(value);
+  useLayoutEffect(() => {
+    current.current = value;
+  }, [value]);
 
   const press = (key: string) => {
     if (disabled) return;
+    const typed = current.current;
     if (key === 'del') {
-      if (value.length) {
+      if (typed.length) {
         haptic.tap();
-        onChange(value.slice(0, -1));
+        current.current = typed.slice(0, -1);
+        onChange(current.current);
       }
       return;
     }
-    if (value.length >= length) return;
+    if (typed.length >= length) return;
     haptic.light();
-    const next = value + key;
+    const next = typed + key;
+    current.current = next;
     onChange(next);
     if (next.length === length) onComplete?.(next);
   };

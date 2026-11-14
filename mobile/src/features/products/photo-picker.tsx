@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Alert, View } from 'react-native';
 
 import { Button, Text } from '@/components';
@@ -29,16 +29,25 @@ export function PhotoPicker({
   const { colors } = useTheme();
   const [busy, setBusy] = useState<PhotoSource | null>(null);
 
+  // Apple's picker can close without handing the photo over (seen on the simulator), and then
+  // the pick never ends. So the buttons are never locked: picking again replaces a pick still
+  // waiting, and only the newest pick's result is used.
+  const latest = useRef(0);
+
   const pick = async (source: PhotoSource) => {
+    const id = ++latest.current;
     setBusy(source);
     try {
       const result = await pickPhoto(ctx.system, source, newPhotoName(ctx));
+      if (id !== latest.current) return;
       if (result.status === 'picked') onPicked(result.file);
       else if (result.status === 'denied') Alert.alert('لا يوجد إذن', result.message);
     } catch {
-      Alert.alert('تعذر حفظ الصورة', 'حاول مرة أخرى أو اختر صورة أخرى.');
+      if (id === latest.current) {
+        Alert.alert('تعذر حفظ الصورة', 'حاول مرة أخرى أو اختر صورة أخرى.');
+      }
     } finally {
-      setBusy(null);
+      if (id === latest.current) setBusy(null);
     }
   };
 
@@ -70,8 +79,6 @@ export function PhotoPicker({
         <Button
           title="الكاميرا"
           icon="camera.fill"
-          loading={busy === 'camera'}
-          disabled={busy !== null}
           onPress={() => pick('camera')}
           style={{ flex: 1 }}
         />
@@ -79,8 +86,6 @@ export function PhotoPicker({
           title="الألبوم"
           icon="photo.on.rectangle"
           variant="secondary"
-          loading={busy === 'library'}
-          disabled={busy !== null}
           onPress={() => pick('library')}
           style={{ flex: 1 }}
           testID="photo-library"
@@ -89,6 +94,11 @@ export function PhotoPicker({
           <Button title="حذف الصورة" icon="trash" variant="destructive" onPress={onRemove} />
         ) : null}
       </View>
+      {busy ? (
+        <Text variant="caption" tone="secondary" center>
+          جارٍ تجهيز الصورة…
+        </Text>
+      ) : null}
     </View>
   );
 }

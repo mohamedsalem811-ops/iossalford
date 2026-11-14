@@ -6,9 +6,10 @@ appId: com.salford.pos
 - runFlow: subflows/sell-ring.yaml
 - tapOn:
     id: 'sold-new-sale'
-- tapOn: 'الإدارة'
-- tapOn:
-    id: 'manage-sales'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-sales'
 - extendedWaitUntil:
     visible:
       id: 'sales-summary'
@@ -25,13 +26,15 @@ appId: com.salford.pos
     id: 'sale-return-1'
 - extendedWaitUntil:
     visible:
-      id: 'return-save'
+      id: 'cond-yes-0'
     timeout: 30000
-- tapOn:
-    id: 'return-save'
-- tapOn: 'الإدارة'
-- tapOn:
-    id: 'manage-returns'
+# Since S4 a return needs its conditions answered and a photo.
+- runFlow: subflows/return-photo.yaml
+- runFlow: subflows/save-return.yaml
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-returns'
 - extendedWaitUntil:
     visible: '1 مرتجع • 350 د.ل'
     timeout: 30000

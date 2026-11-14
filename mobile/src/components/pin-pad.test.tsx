@@ -53,6 +53,20 @@ describe('PinPad', () => {
     expect(screen.getByLabelText('تم إدخال 1 من 8')).toBeOnTheScreen();
   });
 
+  it('keeps both digits of two keys pressed before the screen redraws', async () => {
+    // The parent hasn't re-rendered with the first digit yet when the second key comes in (a
+    // busy moment on the device): the second key adds to it instead of replacing it.
+    const change = jest.fn();
+    await render(
+      <ThemeProvider system="jewelry" appearance="light">
+        <PinPad value="" onChange={change} />
+      </ThemeProvider>,
+    );
+    await press('1');
+    await press('2');
+    expect(change.mock.calls.map((c) => c[0])).toEqual(['1', '12']);
+  });
+
   it('ignores keys while disabled (locked out)', async () => {
     const done = jest.fn();
     await render(<Harness onComplete={done} disabled />);

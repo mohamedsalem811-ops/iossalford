@@ -2,7 +2,7 @@
  * The dashboard's figures, read in one go, and the pure rules that shape them (tested): which
  * months can be chosen, ranked rows with bars, the daily chart's bars, cash against credit.
  */
-import { copyReminder } from '@/backup/model';
+import { copyOverdueDays, copyReminder } from '@/backup/model';
 import { PAYMENT_LABELS, type PaymentMethod } from '@/domain/checkout';
 import { ownerAlerts, type OwnerAlert } from '@/domain/alerts';
 import type { Ctx } from '@/domain/context';
@@ -85,7 +85,8 @@ export type DashboardData = {
     outCount: number;
     owed: number;
     debtors: number;
-    backupReminder: string | null;
+    /** Days since a copy left the device, once 7 or more (null before), and the line under it. */
+    backupReminder: { days: number; text: string } | null;
     /** The weekly check found a problem in the database file. */
     dataProblem: boolean;
     /** The owner's alerts not seen yet (phase S6). */
@@ -102,6 +103,12 @@ export type DashboardData = {
   latest: Sale[];
   stock: ReturnType<typeof stockSummary>;
 };
+
+function backupReminder(lastCopied: Date | null, now: Date, firstBackup: Date | null) {
+  const days = copyOverdueDays(lastCopied, now, firstBackup);
+  const text = copyReminder(lastCopied, now, firstBackup);
+  return days === null || text === null ? null : { days, text };
+}
 
 export function readDashboard(
   ctx: Ctx,
@@ -127,7 +134,7 @@ export function readDashboard(
       outCount: stock.out,
       owed: balances.reduce((t, b) => t + b, 0),
       debtors: balances.length,
-      backupReminder: copyReminder(backup.lastCopied, now, backup.firstBackup),
+      backupReminder: backupReminder(backup.lastCopied, now, backup.firstBackup),
       dataProblem: healthProblem(ctx.db) !== null,
       alerts: ownerAlerts(ctx),
     },

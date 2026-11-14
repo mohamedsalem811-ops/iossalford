@@ -1,0 +1,106 @@
+# Money screens: Sara buys Ring Zircon on credit, so she is in the debts list; an expense of 50
+# is added; the quarter is closed (net profit 350 − 200 − 50 = 100); the month comparison opens.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- tapOn: 'بيع'
+- tapOn:
+    id: 'sale-tile-Ring Zircon'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
+- tapOn:
+    id: 'cart-checkout'
+- tapOn: 'آجل'
+- tapOn:
+    id: 'checkout-name'
+- inputText: 'Sara'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
+- tapOn:
+    id: 'checkout-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'sold-title'
+    timeout: 30000
+- tapOn:
+    id: 'sold-new-sale'
+# Debts: Sara owes 350.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-debts'
+- extendedWaitUntil:
+    visible:
+      id: 'debts-total'
+    timeout: 30000
+- assertVisible: '.*350.*'
+- assertVisible:
+    id: 'customer-Sara'
+- takeScreenshot: ${DEVICE}-debts
+# Expenses: electricity, 50.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-expenses'
+- tapOn:
+    id: 'expense-description'
+- inputText: 'Electricity'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'expense-amount'
+- inputText: '50'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'expense-add'
+- tapOn:
+    id: 'expense-add'
+- extendedWaitUntil:
+    visible: '.*Electricity.*'
+    timeout: 15000
+- takeScreenshot: ${DEVICE}-expenses
+# The quarter: net profit 100, then closed.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-closing'
+- extendedWaitUntil:
+    visible:
+      id: 'closing-net'
+    timeout: 30000
+- assertVisible: '100 د.ل'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'closing-issue'
+- tapOn:
+    id: 'closing-issue'
+- tapOn: 'إقفال'
+- extendedWaitUntil:
+    visible:
+      id: 'closing-existing'
+    timeout: 15000
+- takeScreenshot: ${DEVICE}-closing
+# The month comparison.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-comparison'
+- extendedWaitUntil:
+    visible:
+      id: 'comparison-total'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-comparison

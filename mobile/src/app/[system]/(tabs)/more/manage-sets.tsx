@@ -28,11 +28,9 @@ function ManageSetsRouteScreen() {
     <>
       <Stack.Title>الأطقم</Stack.Title>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button
-          icon="plus"
-          accessibilityLabel="طقم جديد"
-          onPress={() => open('new')}
-        />
+        <Stack.Toolbar.Button icon="plus" accessibilityLabel="طقم جديد" onPress={() => open('new')}>
+          طقم جديد
+        </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <ScrollView
         style={{ flex: 1, backgroundColor: colors.background }}

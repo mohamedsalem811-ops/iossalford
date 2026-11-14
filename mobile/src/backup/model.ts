@@ -109,21 +109,35 @@ export function daysBetween(then: Date, now: Date): number {
 }
 
 /**
- * The reminder line, or null while a copy is recent. Before any copy, the 7 days count from the
- * first backup on the device (a new shop is not reminded on its first day).
+ * Days since a copy last left the device, once the reminder is due (null before). Before any copy,
+ * the days count from the first backup on the device (a new shop is not reminded on its first day).
  */
+export function copyOverdueDays(
+  lastCopied: Date | null,
+  now: Date,
+  firstBackup: Date | null = null,
+): number | null {
+  const since = lastCopied ?? firstBackup;
+  if (!since) return null;
+  const days = daysBetween(since, now);
+  return days >= REMIND_AFTER_DAYS ? days : null;
+}
+
+/** The reminder line, or null while a copy is recent. */
 export function copyReminder(
   lastCopied: Date | null,
   now: Date,
   firstBackup: Date | null = null,
 ): string | null {
-  if (!lastCopied) {
-    if (!firstBackup || daysBetween(firstBackup, now) < REMIND_AFTER_DAYS) return null;
-    return `لم تُنسخ أي نسخة احتياطية خارج الجهاز منذ ${daysText(daysBetween(firstBackup, now))}. انسخ نسخة إلى الجهاز الآخر أو إلى كمبيوتر.`;
-  }
-  if (daysBetween(lastCopied, now) < REMIND_AFTER_DAYS) return null;
+  const days = copyOverdueDays(lastCopied, now, firstBackup);
+  if (days === null) return null;
+  if (!lastCopied)
+    return `لم تُنسخ أي نسخة احتياطية خارج الجهاز منذ ${daysText(days)}. انسخ نسخة إلى الجهاز الآخر أو إلى كمبيوتر.`;
   return `آخر نسخة نُسخت خارج الجهاز ${agoText(lastCopied, now)}. انسخ نسخة جديدة إلى الجهاز الآخر أو إلى كمبيوتر.`;
 }
+
+/** The home screen's red line: "لا نسخة خارج الجهاز منذ 9 أيام". */
+export const copyReminderTitle = (days: number) => `لا نسخة خارج الجهاز منذ ${daysText(days)}`;
 
 /** "يومين", "5 أيام", "21 يوماً". */
 function daysText(d: number): string {

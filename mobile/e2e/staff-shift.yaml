@@ -1,47 +1,35 @@
-# Phase S5: the shift and the cash count. Runs after staff-returns.yaml (سارة has an open shift
-# from staff-permissions.yaml). She takes 20 د.ل out for change, sells the Ring in cash, and
-# closes with a blind count of 0: a shortage in her name. The owner reads the report and puts the
-# shortage on her account. iPhone and iPad, light and dark (screens: shift, close, list, report).
+# Phase S5: the shift and the cash count. سارة opens a shift with 100 د.ل, sells Ring Zircon in
+# cash, takes 20 out for change, and closes with a blind count of 0: a shortage in her name.
+# The owner reads the report and puts the shortage on her account. iPhone and iPad (screens:
+# shift, close, list, report).
 appId: com.salford.pos
 ---
-- tapOn: 'الإدارة'
-- scrollUntilVisible:
-    element:
-      id: 'manage-lock'
-    direction: DOWN
-- tapOn:
-    id: 'manage-lock'
-- tapOn:
-    id: 'person-سارة'
-- tapOn:
-    id: 'pin-key-9'
-- tapOn:
-    id: 'pin-key-6'
-- tapOn:
-    id: 'pin-key-3'
-- tapOn:
-    id: 'pin-key-2'
-- tapOn:
-    id: 'pin-key-5'
-- tapOn:
-    id: 'pin-key-8'
-- extendedWaitUntil:
-    visible: 'أهلاً، سارة'
-    timeout: 30000
-# A cash sale in her shift.
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- runFlow: subflows/add-employee.yaml
+- runFlow: subflows/open-shift.yaml
 - runFlow: subflows/sell-ring.yaml
 - tapOn:
     id: 'sold-new-sale'
 # Cash out with a reason.
-- tapOn: 'الإدارة'
-- tapOn:
-    id: 'manage-shift'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-shift'
 - tapOn:
     id: 'shift-move-amount'
 - inputText: '20'
 - tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
     id: 'shift-move-reason'
 - inputText: 'فكة'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'shift-cash-out'
 - tapOn:
     id: 'shift-cash-out'
 - assertVisible: 'فكة'
@@ -49,13 +37,19 @@ appId: com.salford.pos
 # The blind count: the expected cash shows only after closing.
 - assertNotVisible:
     id: 'shift-expected'
-- scrollUntilVisible:
-    element:
-      id: 'shift-counted'
-    direction: DOWN
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'shift-counted'
 - tapOn:
     id: 'shift-counted'
 - inputText: '0'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'shift-close'
 - tapOn:
     id: 'shift-close'
 - tapOn: 'إغلاق'
@@ -68,26 +62,11 @@ appId: com.salford.pos
 - assertVisible:
     id: 'open-shift'
 # The owner: the list of shifts, the report, the shortage on her account.
-- tapOn: 'الإدارة'
-- scrollUntilVisible:
-    element:
-      id: 'manage-lock'
-    direction: DOWN
-- tapOn:
-    id: 'manage-lock'
-- tapOn:
-    id: 'person-owner'
-- runFlow: subflows/pin-jewelry.yaml
-- extendedWaitUntil:
-    visible: 'مبيعات اليوم'
-    timeout: 30000
-- tapOn: 'الإدارة'
-- scrollUntilVisible:
-    element:
-      id: 'manage-shifts'
-    direction: DOWN
-- tapOn:
-    id: 'manage-shifts'
+- runFlow: subflows/sign-in-owner.yaml
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-shifts'
 - takeScreenshot: ${DEVICE}-shifts
 - tapOn:
     index: 0
@@ -99,6 +78,8 @@ appId: com.salford.pos
     element:
       id: 'report-charge'
     direction: DOWN
+    centerElement: true
+    timeout: 60000
 - tapOn:
     id: 'report-charge'
 - tapOn: 'تحميل'

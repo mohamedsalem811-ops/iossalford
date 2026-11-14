@@ -7,6 +7,7 @@ import {
   cartTotals,
   checkAddForm,
   checkoutProblem,
+  creditUse,
   DEFAULT_SALE_QUERY,
   emptyCheckoutForm,
   freeStock,
@@ -141,6 +142,15 @@ describe('checkoutProblem', () => {
     expect(checkoutProblem(credit, cart)).toContain('البيع الآجل');
     expect(checkoutProblem({ ...credit, phone: '0912345678' }, cart)).toBeNull();
     expect(checkoutProblem({ ...credit, name: 'سارة' }, cart)).toBeNull();
+  });
+});
+
+describe('using a customer’s credit', () => {
+  it('pays from the credit, leaving some credit or a debt', () => {
+    expect(creditUse(0, 350_000)).toBeNull();
+    expect(creditUse(500_000, 350_000)).toEqual({ used: 350_000, left: 150_000, owed: 0 });
+    expect(creditUse(200_000, 350_000)).toEqual({ used: 200_000, left: 0, owed: 150_000 });
+    expect(creditUse(350_000, 350_000)).toEqual({ used: 350_000, left: 0, owed: 0 });
   });
 });
 

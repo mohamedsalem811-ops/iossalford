@@ -82,9 +82,10 @@ appId: com.salford.pos
 - tapOn:
     id: 'brand-chip-Pandora'
 # Management → Brands lists the brand added with the piece.
-- tapOn: 'الإدارة'
-- tapOn:
-    id: 'manage-brands'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-brands'
 - extendedWaitUntil:
     visible:
       id: 'brand-row-Pandora'

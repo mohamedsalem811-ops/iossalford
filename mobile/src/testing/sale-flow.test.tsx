@@ -25,7 +25,13 @@ import SoldRoute from '@/app/[system]/sold/[id]';
 import type { Ctx } from '@/domain/context';
 import { adjustStock, getProduct, saveProduct } from '@/domain/products';
 import { saveScarfDesign } from '@/domain/scarves';
-import { listSales } from '@/domain/sales';
+import { addReturn, getSale, listSales } from '@/domain/sales';
+import { addToCart, type CartLine } from '@/domain/cart';
+import { checkout } from '@/domain/checkout';
+import { listCustomers } from '@/domain/customers';
+import { balance, recordPayment } from '@/domain/debts';
+import { getPolicies } from '@/domain/policies';
+
 import { saveSet } from '@/domain/sets';
 import { getCart, putCart } from '@/state/cart';
 import type { SystemId } from '@/theme';
@@ -219,6 +225,68 @@ it('sells two pieces on credit to a named customer, after refusing an out-of-sto
   // The receipt opens in the studio, to print or share.
   await fireEvent.press(screen.getByTestId('sold-show-receipt'));
   expect(await screen.findByTestId('studio-number')).toHaveTextContent(/^GR-\d{4}-0001$/);
+});
+
+it('uses a customer’s credit (له رصيد) for a new piece', async () => {
+  // Mona paid a credit sale in full, then returned the piece: the shop owes her 500.
+  const ctx = ctxOf('jewelry');
+  const bag = saveProduct(ctx, { name: 'Bracelet', category: 'أساور', price: 500_000, stock: 1 });
+  const first = checkout(ctx, {
+    cart: (addToCart([], getProduct(ctx, bag)!, 'Bracelet', 1) as { cart: CartLine[] }).cart,
+    paymentMethod: 'credit',
+    customer: { name: 'منى', phone: '0915555555' },
+  });
+  const mona = listCustomers(ctx).find((c) => c.name === 'منى')!.id;
+  recordPayment(ctx, { customerId: mona, amount: 500_000, method: 'cash' });
+  addReturn(ctx, {
+    photo: 'p.jpg',
+    answers: Object.fromEntries(getPolicies(ctx).returnConditions.map((c) => [c, true])),
+    saleLineId: getSale(ctx, first.saleId)!.lines[0].id,
+    quantity: 1,
+  });
+  expect(balance(ctx, mona)).toBe(-500_000);
+
+  const pin = saveProduct(ctx, { name: 'Pin', category: 'دبابيس', price: 350_000, stock: 1 });
+  putCart('jewelry', (addToCart([], getProduct(ctx, pin)!, 'Pin', 1) as { cart: CartLine[] }).cart);
+  await renderRouter(routes, { initialUrl: '/jewelry/checkout' });
+  await fireEvent.changeText(await screen.findByTestId('checkout-phone'), '0915555555');
+  expect(screen.getByTestId('checkout-credit')).toHaveTextContent(/له رصيد 500 د\.ل/);
+  await fireEvent.press(screen.getByTestId('checkout-use-credit'));
+  expect(screen.getByTestId('checkout-credit-use')).toHaveTextContent(
+    'يُخصم 350 د.ل من رصيده، ويبقى له 150 د.ل.',
+  );
+  await fireEvent.press(screen.getByTestId('checkout-confirm'));
+  expect(await screen.findByTestId('sold-title')).toHaveTextContent('تم البيع بنجاح');
+  expect(balance(ctx, mona)).toBe(-150_000);
+});
+
+it('asks about a price changed in a kept cart, and can keep a price agreed before the update', async () => {
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  const ctx = ctxOf('jewelry');
+  const brooch = saveProduct(ctx, { name: 'Brooch', category: 'دبابيس', price: 400_000, stock: 3 });
+  // A cart kept by the app before it remembered list prices: 350 may be agreed, or the old price.
+  putCart('jewelry', [
+    { key: 'k1', productId: brooch, name: 'Brooch', quantity: 1, unitPrice: 350_000 },
+  ]);
+  const sold = listSales(ctx).length;
+  await renderRouter(routes, { initialUrl: '/jewelry/checkout' });
+  await fireEvent.press(await screen.findByTestId('checkout-confirm'));
+  expect(listSales(ctx)).toHaveLength(sold);
+  const [title, message, buttons] = alert.mock.calls.at(-1)! as [
+    string,
+    string,
+    { text: string; onPress?: () => void }[],
+  ];
+  expect(title).toBe('تغيّرت الأسعار');
+  expect(message).toMatch(/في السلة بسعر 350 د\.ل وسعره الآن 400 د\.ل/);
+  expect(buttons.map((b) => b.text)).toEqual(['رجوع', 'إبقاء السعر المتفق عليه', 'تحديث الأسعار']);
+  await act(() => buttons[1].onPress!());
+  expect(getCart('jewelry')).toMatchObject([{ unitPrice: 350_000, listPrice: 400_000 }]);
+  // The owner sells at the kept price; the discount is recorded against today's price.
+  await fireEvent.press(screen.getByTestId('checkout-confirm'));
+  expect(await screen.findByTestId('sold-title')).toHaveTextContent('تم البيع بنجاح');
+  expect(listSales(ctx)).toHaveLength(sold + 1);
+  expect(listSales(ctx)[0]).toMatchObject({ total: 350_000, discount: 50_000 });
 });
 
 it('adds a scarf by its size', async () => {

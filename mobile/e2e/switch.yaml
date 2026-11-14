@@ -18,11 +18,10 @@ appId: com.salford.pos
 - assertVisible: 'أدخل رمز الدخول'
 - runFlow: subflows/pin-scarves.yaml
 - assertVisible: 'مبيعات اليوم'
-- tapOn: 'الإدارة'
-- scrollUntilVisible:
-    element: 'تبديل النظام'
-    direction: DOWN
-- tapOn: 'تبديل النظام'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-switch'
 - assertVisible: 'اختر النظام'
 - takeScreenshot: ${DEVICE}-chooser-after-switch
 # Going back into the system used before still needs its PIN.

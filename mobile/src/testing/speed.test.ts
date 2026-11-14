@@ -10,6 +10,7 @@
  * Times are measured on the computer running the test with the same SQL the app runs; an iPhone
  * or iPad is in the same range for this kind of work. Each line must stay under the target.
  */
+import { daySummary } from '@/domain/day-summary';
 import { OWNER } from '@/staff/model';
 import { copyDatabase, restoreSnapshot, writeSnapshot } from '@/backup/engine';
 import { migrate } from '@/db/migrate';
@@ -19,7 +20,7 @@ import type { Db } from '@/db/types';
 import { addToCart, type CartLine } from '@/domain/cart';
 import { checkout } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
-import { listCustomers } from '@/domain/customers';
+import { ensureCustomer, listCustomers } from '@/domain/customers';
 import { allBalances, creditBalances, debtors } from '@/domain/debts';
 import { displayName, getProduct, listProducts } from '@/domain/products';
 import { countReceipts, listReceipts, receiptMonths } from '@/domain/receipts';
@@ -33,7 +34,7 @@ import {
   topProducts,
 } from '@/domain/reports';
 import { listReturns, listSales, saleMonths, salesSummary } from '@/domain/sales';
-import { recentMonths } from '@/lib/dates';
+import { dayKey, recentMonths } from '@/lib/dates';
 
 const run = process.env.SPEED === '1' ? describe : describe.skip;
 
@@ -68,12 +69,10 @@ function seed(db: Db, products: number, sales: number) {
     }
     for (let i = 1; i <= 1_500; i++) {
       const phone = `09${String(10_000_000 + i)}`;
-      db.run('INSERT INTO customers (name, phone, phone_key, created_at) VALUES (?, ?, ?, ?)', [
-        `زبون ${i}`,
-        phone,
-        phone,
-        at,
-      ]);
+      db.run(
+        'INSERT INTO customers (name, name_key, phone, phone_key, created_at) VALUES (?, ?, ?, ?, ?)',
+        [`زبون ${i}`, `زبون ${i}`, phone, phone, at],
+      );
     }
     const methods = ['cash', 'cash', 'cash', 'card', 'transfer', 'credit'];
     let receipt = 0;
@@ -233,6 +232,8 @@ function measure(sales: number) {
     topProducts(ctx, [month]);
     stockSummary(ctx);
   });
+  check('End-of-day summary: a day with its shifts', () => daySummary(ctx, dayKey(now)));
+  check('Checkout: find a customer by name (no phone)', () => ensureCustomer(ctx, 'زبون 1200'));
   check('Comparison: 12 months', () =>
     monthlyComparison(ctx, months[months.length - 1], months[0]),
   );

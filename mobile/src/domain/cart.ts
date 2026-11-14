@@ -31,7 +31,17 @@ export type CartProblem =
   | { kind: 'missing'; name: string }
   | { kind: 'stock'; name: string; requested: number; available: number }
   | { kind: 'quantity'; name: string }
-  | { kind: 'price'; name: string; was: number; now: number | null }
+  | {
+      kind: 'price';
+      name: string;
+      was: number;
+      now: number | null;
+      /**
+       * A line kept from before carts remembered the list price: its price may be one agreed with
+       * the customer, or the old list price. The person at checkout chooses.
+       */
+      unsure?: true;
+    }
   | { kind: 'credit-needs-customer' };
 
 export function problemMessage(p: CartProblem): string {
@@ -45,9 +55,10 @@ export function problemMessage(p: CartProblem): string {
     case 'quantity':
       return `«${p.name}»: الكمية يجب أن تكون 1 على الأقل`;
     case 'price':
-      return p.now === null
-        ? `الطقم «${p.name}» لم يعد موجوداً. حدّث السلة قبل البيع.`
-        : `سعر «${p.name}» تغيّر من ${formatLyd(p.was)} إلى ${formatLyd(p.now)}. حدّث السلة قبل البيع.`;
+      if (p.now === null) return `الطقم «${p.name}» لم يعد موجوداً. حدّث السلة قبل البيع.`;
+      if (p.unsure)
+        return `«${p.name}» في السلة بسعر ${formatLyd(p.was)} وسعره الآن ${formatLyd(p.now)}. إن كان سعراً اتفقت عليه مع الزبون فأبقِه، وإلا فحدّث السعر.`;
+      return `سعر «${p.name}» تغيّر من ${formatLyd(p.was)} إلى ${formatLyd(p.now)}. حدّث السلة قبل البيع.`;
     case 'credit-needs-customer':
       return 'البيع الآجل يحتاج اسم الزبون أو رقم هاتفه لتسجيل الدين عليه';
   }
@@ -238,7 +249,13 @@ export function priceChanges(
     if (l.bundleGroup) continue;
     const p = current(l.productId);
     if (p && !p.archived && p.price !== addedAt(l))
-      out.push({ kind: 'price', name: l.name, was: addedAt(l), now: p.price });
+      out.push({
+        kind: 'price',
+        name: l.name,
+        was: addedAt(l),
+        now: p.price,
+        ...(l.listPrice === undefined ? { unsure: true as const } : null),
+      });
   }
   for (const b of bundles(cart)) {
     const now = bundleNow(b, currentSet(b.setId));
@@ -258,12 +275,15 @@ export function priceChanges(
 /**
  * The cart at today's prices: a piece sold at its list price takes the new one (a price agreed
  * with the customer stays), a set is put in again as it is now, and a set that no longer exists
- * becomes its pieces at their own prices.
+ * becomes its pieces at their own prices. A line kept from before carts remembered the list price
+ * (`unsure` in priceChanges) takes the new price, or with `keepUnsure` keeps its price as one
+ * agreed with the customer (then checked against the discount limits like any other).
  */
 export function updatePrices(
   cart: CartLine[],
   current: (productId: number) => Product | undefined,
   currentSet: (setId: number) => SetForCart | undefined,
+  { keepUnsure = false }: { keepUnsure?: boolean } = {},
 ): CartLine[] {
   const rebuilt = new Map<string, CartLine[]>();
   for (const b of bundles(cart)) {
@@ -298,7 +318,7 @@ export function updatePrices(
       out.push(l);
       continue;
     }
-    const agreed = l.listPrice !== undefined && l.unitPrice !== l.listPrice;
+    const agreed = l.listPrice === undefined ? keepUnsure : l.unitPrice !== l.listPrice;
     out.push({ ...l, unitPrice: agreed ? l.unitPrice : p.price, listPrice: p.price });
   }
   return out;

@@ -26,6 +26,7 @@ import type { SystemId } from '@/theme';
 export const SECTION_NEEDS: Record<ManageTarget, Permission | null> = {
   shift: 'shifts.open',
   shifts: 'shifts.view',
+  daySummary: 'reports.view',
   sales: null,
   returns: 'sales.viewAll',
   returnFind: 'returns.create',
@@ -57,6 +58,7 @@ export const hiddenSections = (actor: Actor | null): ManageTarget[] =>
 export const SECTION_ROUTE: Record<ManageTarget, string> = {
   shift: 'shift',
   shifts: 'shifts',
+  daySummary: 'day-summary',
   sales: 'sales',
   returns: 'returns',
   returnFind: 'return-find',

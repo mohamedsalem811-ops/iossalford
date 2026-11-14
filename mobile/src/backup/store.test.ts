@@ -23,6 +23,7 @@ import {
   restore,
   saveBackup,
   savedBackupUri,
+  confirmCopied,
   shareCopy,
 } from './store';
 
@@ -170,7 +171,15 @@ describe('copying off the device', () => {
     await shareCopy(ctx);
     expect(shared).toMatch(/\/jewelry_\d{4}-\d{2}-\d{2}_\d{2}\.\d{2}\.db$/);
     expect(photos).toEqual({ 'r.jpg': [1, 2, 3] });
+    // iOS reports a cancelled share sheet like a sent one: only the owner's "yes" counts as a copy
+    // off the device, and it is logged.
+    expect(lastCopied('jewelry')).toBeNull();
+    confirmCopied(ctx);
     expect(lastCopied('jewelry')).toEqual(clock);
+    expect(
+      ctx.db.get<{ action: string }>('SELECT action FROM activity ORDER BY id DESC LIMIT 1')
+        ?.action,
+    ).toBe('backup.copied');
     // It is also kept as a backup on this device; the shared file is not left in the cache.
     expect(listBackups('jewelry')[0].kind).toBe('manual');
     expect(new File(shared).exists).toBe(false);
@@ -288,6 +297,9 @@ describe('who may', () => {
     ctx.setActor(EMPLOYEE);
     await expect(restore(ctx, picked)).rejects.toThrow('استرجاع نسخة احتياطية: للمالك فقط.');
     await expect(shareCopy(ctx)).rejects.toThrow('النسخ الاحتياطي: للمالك فقط.');
+    const copied = lastCopied('jewelry');
+    expect(() => confirmCopied(ctx)).toThrow('النسخ الاحتياطي: للمالك فقط.');
+    expect(lastCopied('jewelry')).toEqual(copied);
     expect(() => deleteBackup(ctx, saved.name)).toThrow('للمالك فقط');
     // No safety copy, no shared copy, nothing deleted.
     expect(listBackups('jewelry').map((b) => b.name)).toEqual(before);

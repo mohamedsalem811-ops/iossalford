@@ -16,6 +16,13 @@ appId: com.salford.pos
     timeout: 30000
 - takeScreenshot: ${DEVICE}-receipt-studio
 - tapOn: 'إغلاق'
+- runFlow:
+    when:
+      visible:
+        id: 'sold-new-sale'
+    commands:
+      - tapOn:
+          id: 'sold-new-sale'
 # A credit sale needs the customer.
 - tapOn: 'بيع'
 - tapOn:
@@ -36,6 +43,10 @@ appId: com.salford.pos
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
 - tapOn:
     id: 'checkout-confirm'
 - extendedWaitUntil:
@@ -56,9 +67,26 @@ appId: com.salford.pos
     element:
       id: 'daily-chart'
     direction: DOWN
+    centerElement: true
+    timeout: 60000
 - takeScreenshot: ${DEVICE}-dashboard-chart
-- scrollUntilVisible:
-    element:
-      id: 'stock-summary'
-    direction: DOWN
+# Swiped at the page's edge: Maestro's scroll starts at the middle of the screen, which here is
+# the native segmented control (الصنف / الماركة / الدفع), and a drag starting on it doesn't
+# scroll the page (run 57). The last swipe brings the whole card up (the page stops at its end).
+- repeat:
+    while:
+      notVisible:
+        id: 'stock-summary'
+    times: 4
+    commands:
+      - swipe:
+          start: 3%, 80%
+          end: 3%, 30%
+          duration: 400
+- swipe:
+    start: 3%, 80%
+    end: 3%, 30%
+    duration: 400
+- assertVisible:
+    id: 'stock-summary'
 - takeScreenshot: ${DEVICE}-dashboard-bottom

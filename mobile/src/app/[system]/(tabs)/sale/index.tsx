@@ -76,8 +76,9 @@ export default function SaleRoute() {
         <Stack.Toolbar.Button
           icon="square.stack.3d.up"
           accessibilityLabel="إضافة طقم"
-          onPress={() => router.push({ pathname: '/[system]/sets', params: { system } })}
-        />
+          onPress={() => router.push({ pathname: '/[system]/sets', params: { system } })}>
+          إضافة طقم
+        </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <BelowHeader>
         {cartBeside ? (

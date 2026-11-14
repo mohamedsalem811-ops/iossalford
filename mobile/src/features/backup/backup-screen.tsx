@@ -7,6 +7,7 @@ import { RuleError, type Ctx } from '@/domain/context';
 import { canExcludeFromBackup, isAppDataExcluded } from '@/backup/exclusion';
 import { agoText, copyReminder, KIND_LABELS, type BackupInfo } from '@/backup/model';
 import {
+  confirmCopied,
   deleteBackup,
   pickBackupFile,
   readBackupFile,
@@ -63,16 +64,44 @@ export function BackupScreen({
     onChanged();
   };
 
+  /**
+   * iOS says only that the share sheet closed, sent or cancelled, so the owner confirms: only "نعم"
+   * resets the reminder.
+   */
+  const askArrived = () =>
+    Alert.alert(
+      'هل حُفظت النسخة خارج الجهاز؟',
+      'اختر «نعم» فقط إذا وصلت إلى الجهاز الآخر، أو حُفظت في الملفات على iCloud، أو على كمبيوتر. يُحسب التذكير من آخر نسخة تؤكدها.',
+      [
+        { text: 'لا', style: 'cancel' },
+        {
+          text: 'نعم، حُفظت',
+          onPress: () => {
+            try {
+              confirmCopied(ctx);
+            } catch (error) {
+              return fail(error);
+            }
+            haptic.success();
+            onChanged();
+          },
+        },
+      ],
+    );
+
   const copy = async () => {
     setBusy(true);
+    let shared = false;
     try {
       await shareCopy(ctx);
+      shared = true;
     } catch (error) {
       fail(error, 'لم تُنسخ النسخة');
     } finally {
       setBusy(false);
       onChanged();
     }
+    if (shared) askArrived();
   };
 
   /** Shows what the backup holds and asks; restores only on "استعادة". */
@@ -162,7 +191,7 @@ export function BackupScreen({
     <Page>
       {reminder ? (
         <Card>
-          <Text variant="bodyStrong" tone="warning" testID="backup-reminder">
+          <Text variant="bodyStrong" tone="negative" testID="backup-reminder">
             {reminder}
           </Text>
         </Card>

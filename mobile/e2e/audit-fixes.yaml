@@ -37,11 +37,19 @@ appId: com.salford.pos
           id: 'cart-bar'
 - tapOn:
     id: 'cart-checkout'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
 - tapOn:
     id: 'checkout-confirm'
 - assertVisible: 'تغيّرت الأسعار'
 - takeScreenshot: ${DEVICE}-price-changed
 - tapOn: 'تحديث الأسعار'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
 - tapOn:
     id: 'checkout-confirm'
 - extendedWaitUntil:
@@ -52,13 +60,20 @@ appId: com.salford.pos
 - tapOn:
     id: 'sold-new-sale'
 # Deleting it asks about its receipt.
-- tapOn: 'الإدارة'
-- tapOn: 'سجل المبيعات'
-- tapOn: '.*300.*'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-sales'
+- tapOn:
+    index: 0
+    id: 'sale-[0-9]+'
+- assertVisible: '.*300.*'
 - scrollUntilVisible:
     element:
       id: 'sale-delete'
     direction: DOWN
+    centerElement: true
+    timeout: 60000
 - tapOn:
     id: 'sale-delete'
 - takeScreenshot: ${DEVICE}-delete-sale

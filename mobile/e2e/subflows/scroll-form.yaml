@@ -1,14 +1,17 @@
-# Scrolls the product form until the element with id ${ID} shows, swiping in the middle of the
-# form: a sheet on iPhone, a window centred over the product cards on iPad.
+# Scrolls a form or a Management section until the element with id ${ID} is in the upper part of
+# the screen, ready to tap. Maestro swipes from the middle of the screen, which is inside the
+# form on both layouts: a sheet or a pushed screen on iPhone; on iPad a window centred over the
+# product cards, or the section pane left of the Management menu (0 to 60% across).
+# centerElement keeps scrolling until the element's middle is above 70% of the screen height, so
+# it never stops under iPhone's floating tab bar (the bottom 9%), where a tap lands on a tab; at
+# the end of a short form it stops after a few tries where the form ends, above the tab bar.
+# Each of those tries takes about 4 seconds, and Maestro's 20-second default ran out before it
+# accepted an element left at the end (run 57): hence 60 seconds.
 appId: com.salford.pos
 ---
-- repeat:
-    times: 8
-    while:
-      notVisible:
-        id: ${ID}
-    commands:
-      - swipe:
-          start: 50%, 75%
-          end: 50%, 45%
-          duration: 600
+- scrollUntilVisible:
+    element:
+      id: ${ID}
+    direction: DOWN
+    centerElement: true
+    timeout: 60000
