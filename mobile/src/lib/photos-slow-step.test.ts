@@ -24,7 +24,9 @@ describe('slowStepLogged', () => {
     expect(error).toHaveBeenCalledWith('[photo] save still running after 10s');
     finish('ok');
     await expect(done).resolves.toBe('ok');
-    expect(error).toHaveBeenLastCalledWith(expect.stringMatching(/^\[photo\] save ended after \d+s$/));
+    expect(error).toHaveBeenLastCalledWith(
+      expect.stringMatching(/^\[photo\] save ended after \d+s$/),
+    );
     error.mockRestore();
   });
 });

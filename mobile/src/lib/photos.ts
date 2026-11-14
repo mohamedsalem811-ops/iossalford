@@ -89,7 +89,8 @@ export async function slowStepLogged<T>(step: string, run: () => Promise<T> | T)
     return await run();
   } finally {
     clearTimeout(timer);
-    if (slow) console.error(`[photo] ${step} ended after ${Math.round((Date.now() - started) / 1000)}s`);
+    if (slow)
+      console.error(`[photo] ${step} ended after ${Math.round((Date.now() - started) / 1000)}s`);
   }
 }
 
