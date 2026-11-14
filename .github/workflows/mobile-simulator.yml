@@ -26,7 +26,9 @@ jobs:
       matrix:
         device: [iPhone, iPad]
     runs-on: macos-26
-    timeout-minutes: 240
+    # Run 60: the iPhone job (a 52-minute build, then 28 flows) ran out of 240 minutes. GitHub
+    # allows a job up to 360.
+    timeout-minutes: 340
     defaults:
       run:
         working-directory: mobile
