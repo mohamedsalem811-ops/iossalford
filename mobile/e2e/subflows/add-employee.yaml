@@ -19,18 +19,7 @@ appId: com.salford.pos
       ID: 'manage-lock'
 - tapOn:
     id: 'person-سارة'
-- tapOn:
-    id: 'pin-key-1'
-- tapOn:
-    id: 'pin-key-4'
-- tapOn:
-    id: 'pin-key-7'
-- tapOn:
-    id: 'pin-key-0'
-- tapOn:
-    id: 'pin-key-3'
-- tapOn:
-    id: 'pin-key-6'
+- runFlow: pin-sara-temp.yaml
 - assertVisible: 'سارة: اختر رمزك'
 - runFlow: pin-sara.yaml
 - runFlow: pin-sara.yaml

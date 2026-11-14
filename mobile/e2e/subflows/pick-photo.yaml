@@ -2,12 +2,26 @@
 # The picker's photos are named like "Photo, March 30, 2018, 7:14 PM" (the simulator's log shows
 # them in the screen details): it waits until they have loaded (run 57's iPad picture was still
 # "Loading…" when it tapped) and taps the first. If they can't be found by name, it taps where
-# a photo shows: iPad (run 55) 6 in a row right of the picker's sidebar, the first at 41%, 15%;
-# iPhone (run 57) 3 in a row under its title, the second at 45%, 24%.
+# a photo shows: iPad 6 in a row right of the picker's sidebar; iPhone 3 in a row under its title.
+# Run 60: iOS sometimes shows a "Private Access to Photos" tip above the grid, which moves the
+# photos down (iPad about 13% of the screen, iPhone about 17%), and the old taps (iPad 41%, 15%;
+# iPhone 45%, 24%) hit the tip. These points land on a photo either way:
+# - iPad 41%, 26%: without the tip, the first photo of the second row (20% to 28% down); with it,
+#   the first photo of the first row (24% to 32% down).
+# - iPhone 50%, 40%: without the tip, the middle photo of the second row (32% to 47% down); with
+#   it, the middle photo of the first row (33% to 48% down).
 appId: com.salford.pos
+# Run 60: when a tap missed, the picker stayed open and the next pick stopped on the album button,
+# which Maestro can't see while the picker covers the app. The button is tapped only when it shows;
+# otherwise the picker is still open and a photo is tapped in it.
 ---
-- tapOn:
-    id: 'photo-library'
+- runFlow:
+    when:
+      visible:
+        id: 'photo-library'
+    commands:
+      - tapOn:
+          id: 'photo-library'
 - extendedWaitUntil:
     visible: 'Photo, [^,]+, [0-9]{4}, [^,]+'
     timeout: 30000
@@ -29,10 +43,10 @@ appId: com.salford.pos
       true: ${!output.photoTapped && DEVICE == 'iPad'}
     commands:
       - tapOn:
-          point: 41%, 15%
+          point: 41%, 26%
 - runFlow:
     when:
       true: ${!output.photoTapped && DEVICE != 'iPad'}
     commands:
       - tapOn:
-          point: 45%, 24%
+          point: 50%, 40%
