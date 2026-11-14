@@ -31,6 +31,11 @@ export type RewardRules = {
   vipPointsTimes: number;
   /** The spending ranges an employee sees, in dirhams, smallest first. */
   ranges: number[];
+  /**
+   * The birthday gift (G3), shown on the customer card in their birthday week and in the
+   * birthday message ("هدية مجانية", "خصم 5%"); empty: none.
+   */
+  birthdayGift: string;
 };
 
 export const DEFAULT_REWARDS: RewardRules = {
@@ -45,6 +50,7 @@ export const DEFAULT_REWARDS: RewardRules = {
   vipMonths: 12,
   vipPointsTimes: 2,
   ranges: [500_000, 1_000_000, 2_000_000, 5_000_000, 10_000_000],
+  birthdayGift: '',
 };
 
 export const REWARDS_KEY = 'rewards';
@@ -102,6 +108,8 @@ export function setRewards(ctx: Ctx, changes: Partial<RewardRules>): RewardRules
   if (!ranges.length || ranges.some((r) => !whole(r, 1000)) || ranges.length > 8)
     throw new RuleError('اكتب من 1 إلى 8 حدود للمشتريات بالدينار');
   next.ranges = ranges;
+  next.birthdayGift = (next.birthdayGift ?? '').trim();
+  if (next.birthdayGift.length > 60) throw new RuleError('نص هدية عيد الميلاد أطول من 60 حرفاً');
   if (next.enabled && !old.enabled) next.startedAt = nowStamp(ctx);
   if (JSON.stringify(next) === JSON.stringify(old)) return old;
   ctx.db.transaction(() => {

@@ -40,6 +40,9 @@ import {
 import { PhotoPicker } from './photo-picker';
 import { haptic } from '@/lib/haptics';
 import { useSaveOnce } from '@/hooks/use-save-once';
+import { wantedMatches } from '@/domain/customer-care';
+import { shownName } from '@/domain/customers';
+import { useCan } from '@/staff/use-can';
 
 /**
  * Add or edit a piece: photo, details, price with live profit, and stock. Saving checks the code
@@ -58,6 +61,7 @@ export function ProductFormView({
   const readable = useReadable();
   const { colors } = useTheme();
   const once = useSaveOnce();
+  const fullNames = useCan('customers.phones');
   const saveOnce = () => once(save);
   const bottomSpace = useSheetBottomSpace();
   const [initial] = useState(() => {
@@ -97,8 +101,9 @@ export function ProductFormView({
       Alert.alert('لم يتم الحفظ', first);
       return;
     }
+    const input = formToInput(form, productId);
     try {
-      saveProduct(ctx, formToInput(form, productId));
+      saveProduct(ctx, input);
     } catch (error) {
       Alert.alert(
         'لم يتم الحفظ',
@@ -111,6 +116,18 @@ export function ProductFormView({
     notifyDataChanged();
     haptic.success();
     onDone();
+    // A new piece someone asked for (G3): remind who wanted it.
+    if (!productId) {
+      const matches = wantedMatches(ctx, input);
+      if (matches.length)
+        Alert.alert(
+          'زبائن طلبوا قطعة مشابهة',
+          matches
+            .slice(0, 8)
+            .map((m) => `${shownName(m.customer.name, fullNames)}: ${m.piece.text}`)
+            .join('\n'),
+        );
+    }
     return true;
   };
 

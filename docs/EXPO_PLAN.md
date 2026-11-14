@@ -738,6 +738,15 @@ The owner chose these on 2026-11-14 and, after the plan was checked against the 
 5. **Owner reports:** where customers come from (Facebook, Instagram, TikTok, friend, other) with what each brought in; the top customers this month and this year; the share of returning customers; rewards and points given and what they cost.
 6. **Duplicate customers:** a warning when the same name appears with two phones, with a merge (owner; logged) that moves the purchases, payments, credit paid back, points, receipts, wanted pieces and notes to the customer kept.
 
+**G3 as built (2026-11-14):** everything above, with these notes:
+
+- the birthday gift is a short text the owner sets in "الولاء والمكافآت" ("هدية مجانية", "خصم 5%"); it shows on the customer card in the birthday week and in the birthday message, and the seller gives it (a gift, or the usual discount);
+- birthdays, "لم يعودوا" (90 days), the duplicates and the owner's report are one screen, Customers → "متابعة الزبائن"; the home screen's "يحتاج انتباهك" lists this week's birthdays and opens it;
+- tapping a customer there offers a ready WhatsApp message (`wa.me`) when they accept offers and the person may see phones, or opens their page;
+- wanted pieces are on the customer page (both shops); a new piece whose name, brand, category or colour shares a word with an open request shows who asked for it;
+- the merge moves sales, debt payments, credit paid back, points and wanted pieces, fills the empty details, joins the notes, and is logged;
+- new simulator flow `e2e/customer-care.yaml`, run only in the final simulator run.
+
 ### Phase 10: switching over
 
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):

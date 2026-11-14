@@ -1,4 +1,6 @@
 import type { SymbolViewProps } from 'expo-symbols';
+import { shownName } from '@/domain/customers';
+import { useCan } from '@/staff/use-can';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { Card, HeroCard, Icon, ListGroup, ListRow, Segmented, Stat, Text } from '@/components';
@@ -24,6 +26,8 @@ export type DashboardActions = {
   onOpenDebts: () => void;
   onOpenBackup: () => void;
   onOpenProducts: () => void;
+  /** The birthdays this week (G3). */
+  onOpenBirthdays?: () => void;
   /** Today's card: the end-of-day summary. */
   onOpenDay?: () => void;
   /** An alert (phase S6): what happened, open it, or mark it seen. */
@@ -108,6 +112,7 @@ export function AttentionCard({
   actions: DashboardActions;
 }) {
   const a = data.attention;
+  const fullNames = useCan('customers.phones');
   const alerts = a.alerts ?? [];
   const nothing =
     !a.lowCount &&
@@ -115,6 +120,7 @@ export function AttentionCard({
     !a.owed &&
     !a.backupReminder &&
     !a.dataProblem &&
+    !a.birthdays?.length &&
     alerts.length === 0;
   return (
     <Card style={{ flex: 1 }} testID="attention">
@@ -175,6 +181,18 @@ export function AttentionCard({
                 .join('، ')}
               onPress={actions.onOpenProducts}
               testID="attention-stock"
+            />
+          ) : null}
+          {a.birthdays?.length ? (
+            <ListRow
+              icon="gift"
+              title={`أعياد ميلاد هذا الأسبوع: ${a.birthdays.length}`}
+              subtitle={a.birthdays
+                .slice(0, 4)
+                .map((n) => shownName(n, fullNames))
+                .join('، ')}
+              onPress={actions.onOpenBirthdays}
+              testID="attention-birthdays"
             />
           ) : null}
           {a.owed ? (

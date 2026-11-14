@@ -5,6 +5,7 @@
  * metal, colours, offers), the owner's VIP choice, the reward taken off a sale and its receipt
  * (used by G2), the receipt footer, and the wanted pieces list (G3).
  */
+import { OWNER } from '@/staff/model';
 import { checksumOf, exportBackup, restoreBackup } from '@/domain/backup';
 import { addToCart, type CartLine } from '@/domain/cart';
 import { checkout } from '@/domain/checkout';
@@ -220,7 +221,7 @@ describe('VIP by hand', () => {
     expect(listActivity(ctx, {})[0]).toMatchObject({ action: 'customer.vip' });
     ctx.setActor(EMPLOYEE);
     expect(() => setVip(ctx, id, null)).toThrow(PermissionError);
-    ctx.setActor(null);
+    ctx.setActor(OWNER);
   });
 
   it('the choice comes first, else the spending in the window', () => {

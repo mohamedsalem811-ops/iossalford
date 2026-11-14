@@ -48,6 +48,7 @@ function LoyaltyScreen() {
   const [vipSpend, setVipSpend] = useState(editableDinars(rewards.vipSpend));
   const [vipMonths, setVipMonths] = useState(String(rewards.vipMonths));
   const [vipTimes, setVipTimes] = useState(String(rewards.vipPointsTimes));
+  const [gift, setGift] = useState(rewards.birthdayGift);
   const [ranges, setRanges] = useState(rewards.ranges.map(editableDinars).join('، '));
 
   const save = () => {
@@ -85,6 +86,7 @@ function LoyaltyScreen() {
             vipMonths: int(vipMonths),
             vipPointsTimes: int(vipTimes),
             ranges: rangeList as number[],
+            birthdayGift: gift,
           }),
         );
       });
@@ -253,6 +255,22 @@ function LoyaltyScreen() {
           />
           <Text variant="caption" tone="secondary">
             يمكنك أيضاً جعل زبون VIP دائماً أو ليس VIP من صفحته.
+          </Text>
+        </Card>
+        <Text variant="subhead" tone="secondary" style={{ paddingHorizontal: spacing.xs }}>
+          عيد الميلاد
+        </Text>
+        <Card>
+          <TextField
+            label="هدية أسبوع عيد الميلاد (اختياري)"
+            value={gift}
+            onChangeText={setGift}
+            placeholder="مثلاً: هدية مجانية أو خصم 5%"
+            maxLength={60}
+            testID="rewards-birthday-gift"
+          />
+          <Text variant="caption" tone="secondary">
+            تظهر على بطاقة الزبون في أسبوع عيد ميلاده وفي رسالة التهنئة، ويطبّقها البائع.
           </Text>
         </Card>
         <Text variant="subhead" tone="secondary" style={{ paddingHorizontal: spacing.xs }}>

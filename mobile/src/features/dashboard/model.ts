@@ -2,6 +2,7 @@
  * The dashboard's figures, read in one go, and the pure rules that shape them (tested): which
  * months can be chosen, ranked rows with bars, the daily chart's bars, cash against credit.
  */
+import { birthdaysThisWeek } from '@/domain/customer-care';
 import { copyOverdueDays, copyReminder } from '@/backup/model';
 import { PAYMENT_LABELS, type PaymentMethod } from '@/domain/checkout';
 import { ownerAlerts, type OwnerAlert } from '@/domain/alerts';
@@ -91,6 +92,8 @@ export type DashboardData = {
     dataProblem: boolean;
     /** The owner's alerts not seen yet (phase S6). */
     alerts: OwnerAlert[];
+    /** Customers whose birthday is in the next 7 days (G3): names, today first. */
+    birthdays: string[];
   };
   byCategory: RankedRow[];
   byBrand: RankedRow[];
@@ -137,6 +140,7 @@ export function readDashboard(
       backupReminder: backupReminder(backup.lastCopied, now, backup.firstBackup),
       dataProblem: healthProblem(ctx.db) !== null,
       alerts: ownerAlerts(ctx),
+      birthdays: birthdaysThisWeek(ctx).map((b) => b.customer.name),
     },
     byCategory: ranked(breakdown(ctx, [month], 'category')),
     byBrand: ranked(breakdown(ctx, [month], 'brand')),
