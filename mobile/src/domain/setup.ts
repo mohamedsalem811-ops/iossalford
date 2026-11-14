@@ -11,7 +11,7 @@ import { birthdayOn, getBirthday } from './birthday';
 import { getContact, SOCIALS } from './contact';
 import { allow, RuleError, type Ctx } from './context';
 import { getLoyalty } from './loyalty';
-import { getRewards } from './rewards';
+import { getRewards, oldBirthdayGift } from './rewards';
 import { getSetting, setSetting } from './settings';
 
 export const SETUP_IDS = [
@@ -55,11 +55,14 @@ export function setupNeeds(ctx: Ctx, opts: { withDismissed?: boolean } = {}): Se
   const rewards = getRewards(ctx);
   const loyalty = getLoyalty(ctx);
   const items: SetupItem[] = [];
+  const oldGift = oldBirthdayGift(ctx);
   if (!birthdayOn(birthday))
     items.push({
       id: 'birthday',
       title: 'خصم عيد الميلاد',
-      detail: 'حدد أكبر مبلغ للخصم ثم فعّله.',
+      detail: oldGift
+        ? `هديتك السابقة «${oldGift}» لم تعد تظهر للزبائن: خصم عيد الميلاد مكانها. حدد أكبر مبلغ للخصم ثم فعّله.`
+        : 'حدد أكبر مبلغ للخصم ثم فعّله.',
       required: true,
       goes: 'birthday',
     });

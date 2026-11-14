@@ -9,8 +9,8 @@ import {
 import { Button, Card, FilterChip, KEYBOARD_GAP, NumberField, Text, TextField } from '@/components';
 import { errorBoundary } from '@/components/error-screen';
 import { getLoyalty, setLoyalty, type LoyaltyRules } from '@/domain/loyalty';
-import { getRewards, setRewards, type RewardRules } from '@/domain/rewards';
-import { getBirthday, setBirthday, type BirthdayRules } from '@/domain/birthday';
+import { getRewards, oldBirthdayGift, setRewards, type RewardRules } from '@/domain/rewards';
+import { birthdayOn, getBirthday, setBirthday, type BirthdayRules } from '@/domain/birthday';
 import { getContact, setContact, SOCIAL_LABELS, SOCIALS, type Social } from '@/domain/contact';
 import { dismissedSetup, dismissSetup, restoreSetup, type SetupItem } from '@/domain/setup';
 import { SetupCard } from '@/features/setup/setup-card';
@@ -57,6 +57,7 @@ function LoyaltyScreen() {
   const [vipMonths, setVipMonths] = useState(String(rewards.vipMonths));
   const [vipTimes, setVipTimes] = useState(String(rewards.vipPointsTimes));
   const [birthday, setBirthdaySaved] = useState<BirthdayRules>(() => getBirthday(ctx));
+  const [oldGift] = useState(() => oldBirthdayGift(ctx));
   const [giftOn, setGiftOn] = useState(birthday.enabled);
   const [giftPercent, setGiftPercent] = useState(String(birthday.percent));
   const [giftMax, setGiftMax] = useState(birthday.maxOff ? editableDinars(birthday.maxOff) : '');
@@ -370,6 +371,11 @@ function LoyaltyScreen() {
             onPress={() => setGiftOn((e) => !e)}
             testID="birthday-enabled"
           />
+          {oldGift && !birthdayOn(birthday) ? (
+            <Text variant="caption" tone="warning" testID="birthday-old-gift">
+              {`كانت هديتك لعيد الميلاد «${oldGift}» تظهر في صفحة الزبون ورسالة واتساب، ولم تعد تظهر: خصم عيد الميلاد يحل محلها. شغّله ليظهر للزبائن.`}
+            </Text>
+          ) : null}
           <Text variant="caption" tone="secondary">
             خصم على شراء الزبون من 3 أيام قبل عيد ميلاده إلى 3 أيام بعده، مرة واحدة في السنة، لزبون
             مسجل برقم هاتف. لا يُجمع مع مكافأة الزيارة أو أي خصم آخر. تاريخ ميلاد سُجّل قبل أقل من

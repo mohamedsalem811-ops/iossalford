@@ -131,7 +131,10 @@ export function CustomerCard({
                 gift.used
                   ? 'استُخدم خصم عيد الميلاد هذه السنة'
                   : `خصم ${giftRules.percent}% متاح حتى ${windowEnd(gift)}`,
-                !gift.used && gift.needsOwner ? 'يحتاج موافقة المالك' : null,
+                // The owner's own sale needs no approval: shown to the staff only.
+                !gift.used && gift.needsOwner && ctx.actor?.kind !== 'owner'
+                  ? 'يحتاج موافقة المالك'
+                  : null,
               ]
                 .filter(Boolean)
                 .join(' • ')

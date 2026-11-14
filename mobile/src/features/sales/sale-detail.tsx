@@ -118,7 +118,7 @@ export function SaleDetail({
         ) : null}
         {sale.birthdayOff > 0 ? (
           <Text variant="subhead" testID="sale-birthday-off">
-            {`خصم عيد الميلاد ${formatLyd(sale.birthdayOff)}`}
+            {`خصم عيد الميلاد ${formatLyd(sale.birthdayOff)}${sale.approvedBy ? ' • بموافقة المالك' : ''}`}
           </Text>
         ) : null}
         {sale.pointsPaid > 0 ? (

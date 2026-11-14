@@ -1,0 +1,178 @@
+# Phase H1. The owner turns on the birthday discount (10%, at most 200 د.ل) in Settings →
+# الولاء والمكافآت. Huda, with a phone and a birthday today, buys Ring Zircon (350): her card shows
+# the discount; confirming without it asks once and offers it; with it the sale is 315 and its
+# details show "خصم عيد الميلاد 35 د.ل". On her next sale it is used for this year.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+# Today's day and month, so the birthday is always in its week.
+- evalScript: ${output.day = String(new Date().getDate()); output.month = String(new Date().getMonth() + 1)}
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-settings'
+- tapOn:
+    id: 'settings-loyalty'
+- extendedWaitUntil:
+    visible:
+      id: 'setup-birthday'
+    timeout: 30000
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'birthday-enabled'
+- tapOn:
+    id: 'birthday-enabled'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'birthday-max-off'
+- tapOn:
+    id: 'birthday-max-off'
+- inputText: '200'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- takeScreenshot: ${DEVICE}-birthday-rules
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'loyalty-save'
+- tapOn:
+    id: 'loyalty-save'
+- assertVisible: '.*يعمل خصم عيد الميلاد من اليوم.*'
+- tapOn: 'OK'
+# Huda: a phone number and a birthday today.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-customers'
+- tapOn: 'زبون جديد'
+- tapOn:
+    id: 'customer-name'
+- inputText: 'Huda'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'customer-phone'
+- inputText: '0912345678'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'customer-details-birth-day'
+- tapOn:
+    id: 'customer-details-birth-day'
+- inputText: ${output.day}
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'customer-details-birth-month'
+- inputText: ${output.month}
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'customer-save'
+- tapOn:
+    id: 'customer-save'
+- extendedWaitUntil:
+    visible:
+      id: 'customer-Huda'
+    timeout: 30000
+# The sale: her phone finds her, and her card shows the discount (the owner needs no approval).
+- tapOn: 'بيع'
+- tapOn:
+    id: 'sale-tile-Ring Zircon'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
+- tapOn:
+    id: 'cart-checkout'
+- tapOn:
+    id: 'checkout-phone'
+- inputText: '0912345678'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- assertVisible:
+    id: 'checkout-known-birthday'
+    text: '.*خصم 10% متاح حتى.*'
+- assertNotVisible: '.*يحتاج موافقة المالك.*'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-birthday'
+- takeScreenshot: ${DEVICE}-checkout-birthday-ready
+# Confirming without it: asked once, and offered.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
+- tapOn:
+    id: 'checkout-confirm'
+- assertVisible: 'لم يستخدم الزبون خصم عيد الميلاد؟'
+- tapOn: 'استخدام خصم عيد الميلاد.*'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
+- assertVisible:
+    id: 'checkout-birthday-off'
+    text: '− 35 د.ل'
+- assertVisible: '.*تأكيد البيع • 315 د.ل.*'
+- takeScreenshot: ${DEVICE}-checkout-birthday-on
+- tapOn:
+    id: 'checkout-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'sold-title'
+    timeout: 30000
+- tapOn:
+    id: 'sold-new-sale'
+# The sale's details.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-sales'
+- tapOn:
+    index: 0
+    id: 'sale-[0-9]+'
+- extendedWaitUntil:
+    visible:
+      id: 'sale-birthday-off'
+    timeout: 30000
+- assertVisible:
+    id: 'sale-birthday-off'
+    text: 'خصم عيد الميلاد 35 د.ل'
+- takeScreenshot: ${DEVICE}-sale-birthday
+# Her next sale: used for this year, no button.
+- tapOn: 'بيع'
+- tapOn:
+    id: 'sale-tile-Ring Zircon'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
+- tapOn:
+    id: 'cart-checkout'
+- tapOn:
+    id: 'checkout-phone'
+- inputText: '0912345678'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-birthday-used'
+- assertNotVisible:
+    id: 'checkout-birthday'
+- takeScreenshot: ${DEVICE}-checkout-birthday-used

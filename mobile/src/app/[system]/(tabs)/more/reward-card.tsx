@@ -10,7 +10,7 @@ import { getBirthday } from '@/domain/birthday';
 import { getContact } from '@/domain/contact';
 import { getLoyalty } from '@/domain/loyalty';
 import { getRewards } from '@/domain/rewards';
-import { dismissSetup } from '@/domain/setup';
+import { dismissedSetup, dismissSetup } from '@/domain/setup';
 import { useReadable } from '@/hooks/use-readable';
 import { haptic } from '@/lib/haptics';
 import { logError } from '@/lib/error-log';
@@ -25,7 +25,7 @@ import { radius, spacing, useTheme } from '@/theme';
 /**
  * Settings → الولاء والمكافآت → بطاقة المكافآت (H3, the owner): the card for customers as it is
  * now, from the rules that are on; the print shop's PDF (3 mm bleed and crop marks), a test print
- * on A6, share and save to Files. Printing or sharing it marks "راجع البطاقة" as done.
+ * on A6, share and save to Files. Printing, saving or sending it marks "راجع البطاقة" as done.
  */
 function RewardCardScreen() {
   const ctx = useCtx();
@@ -59,14 +59,33 @@ function RewardCardScreen() {
   const [busy, setBusy] = useState(false);
   const parts = cardSections(input);
 
+  /** "راجع البطاقة" is done once the card was printed, saved or sent. */
+  const reviewed = () => {
+    dismissSetup(ctx, 'card-review');
+    notifyDataChanged();
+  };
   const run = async (kind: 'share' | 'save' | 'print') => {
     if (busy) return;
     setBusy(true);
     try {
-      if (kind === 'print') await printCard(input);
-      else if (kind === 'share') await shareCard(input);
-      else {
+      if (kind === 'print') {
+        if (!(await printCard(input))) return; // closed without printing
+        reviewed();
+      } else if (kind === 'share') {
+        await shareCard(input);
+        // iOS can't tell a sent file from a closed share sheet: ask, only while it's still to do.
+        if (!dismissedSetup(ctx).includes('card-review'))
+          Alert.alert(
+            'هل أرسلت ملف البطاقة؟',
+            'إن أرسلته، تُزال «راجع بطاقة المكافآت» من «يحتاج إعداد».',
+            [
+              { text: 'ليس بعد', style: 'cancel' },
+              { text: 'نعم، أرسلته', onPress: reviewed },
+            ],
+          );
+      } else {
         const name = await saveCardToFiles(input);
+        reviewed();
         Alert.alert(
           'حُفظ في الملفات',
           isRunningInExpoGo()
@@ -74,8 +93,6 @@ function RewardCardScreen() {
             : `${name}\nتجده في تطبيق الملفات ← على الـ iPhone (أو الـ iPad) ← SALFORD POS ← Receipts.`,
         );
       }
-      dismissSetup(ctx, 'card-review');
-      notifyDataChanged();
       haptic.success();
     } catch (error) {
       logError('بطاقة المكافآت', error);
@@ -107,7 +124,12 @@ function RewardCardScreen() {
             <Text variant="caption" tone="secondary">
               شغّل مكافأة الزيارة أو النقاط أو خصم عيد الميلاد أولاً، لتظهر على البطاقة.
             </Text>
-            <Button title="الإعدادات" variant="secondary" onPress={openSettings} />
+            <Button
+              title="الإعدادات"
+              variant="secondary"
+              onPress={openSettings}
+              testID="card-empty-settings"
+            />
           </Card>
         ) : null}
         {!input.contact.whatsapp ? (
@@ -115,7 +137,13 @@ function RewardCardScreen() {
             <Text variant="caption" tone="warning">
               لم يُكتب رقم واتساب المحل: لن يظهر رمز QR ولا الرقم على البطاقة.
             </Text>
-            <Button title="إضافة الرقم" variant="ghost" size="sm" onPress={openSettings} />
+            <Button
+              title="إضافة الرقم"
+              variant="ghost"
+              size="sm"
+              onPress={openSettings}
+              testID="card-add-whatsapp"
+            />
           </Card>
         ) : null}
         <View

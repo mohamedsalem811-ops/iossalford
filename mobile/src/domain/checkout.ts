@@ -196,6 +196,9 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       const r = rewardCart(cart, rules);
       cart = r.cart;
       birthdayOff = r.off;
+      // Counted with the owner's other approvals (day summary, shift, alerts). Never with a
+      // discount on the same sale, so the sale's one approval is this one.
+      if (birthdayBy === 'approved') approvedBy = 'owner';
     }
     const lines = cart.map((l) => {
       const p = getProduct(ctx, l.productId)!;

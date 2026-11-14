@@ -63,6 +63,22 @@ export function getRewards(ctx: Ctx): RewardRules {
 }
 
 /**
+ * The birthday gift typed in before (G3, "هدية مجانية"): no longer shown to customers, as the
+ * birthday discount took its place (H1). The owner is told about it until that discount is on;
+ * empty if there was none.
+ */
+export function oldBirthdayGift(ctx: Ctx): string {
+  try {
+    const { birthdayGift } = JSON.parse(getSetting(ctx, REWARDS_KEY) ?? '{}') as {
+      birthdayGift?: unknown;
+    };
+    return typeof birthdayGift === 'string' ? birthdayGift.trim() : '';
+  } catch {
+    return '';
+  }
+}
+
+/**
  * What an employee sees instead of the exact total: "أكثر من 2000 د.ل" (the highest range
  * reached), "أقل من 500 د.ل" below the first, or "لا مشتريات".
  */

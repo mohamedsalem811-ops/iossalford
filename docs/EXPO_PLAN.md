@@ -747,6 +747,29 @@ The owner chose these on 2026-11-14 and, after the plan was checked against the 
 - the merge moves sales, debt payments, credit paid back, points and wanted pieces, fills the empty details, joins the notes, and is logged;
 - new simulator flow `e2e/customer-care.yaml`, run only in the final simulator run.
 
+### Customers H1 to H3: birthday discount, shop contact, setup markers, rewards card (after G1 to G3)
+
+**Owner's answers (2026-11-14):**
+
+- **Birthday discount:** 10%, with a cap the owner sets (off until the cap is set); from 3 days before to 3 days after the birthday; once a year; for a customer with a phone number; a birthday saved less than 30 days before it needs the owner's approval.
+- **Rewards and other discounts:** one reward a purchase (the visit reward or the birthday discount), and never with any other discount, an agreed price included. This replaces the G1 rule that kept an agreed price and took the 10% off what was left. Set prices are not a discount.
+- **Rewards card for customers:** the ivory design only, made from the rules that are on; the shop's WhatsApp as a QR code and a number; Instagram, Facebook and TikTok if filled in; a print-shop PDF with 3 mm bleed and crop marks.
+- **Setup markers:** the owner sees what still needs setting up, as a badge and a notice.
+- Database 11, so it ships in a new `.ipa` built when the pull request is merged.
+
+**H1 to H3 as built (2026-11-14):** everything above, with these notes:
+
+- database 11 adds `sales.birthday_off`, `receipts.birthday_off` and `customers.birthday_set_at` (a birthday saved before database 11 is trusted);
+- "once a year" is "not again within 330 days", so a use late in last year's window never blocks this year's; a full return gives it back;
+- the discount comes off the prices, like the visit reward, so returns refund the right amount; it is on the receipt ("Birthday gift / هدية عيد الميلاد"), the sale details, the day summary, the owner's report and the log;
+- an employee's sale that needs the owner's approval asks for it on the spot; it is counted with the owner's other approvals (day summary, shift, alerts); the owner's own sales need none, and the owner is not shown "يحتاج موافقة المالك";
+- at checkout, a reward turns off when a price is lowered; confirming with an unused reward asks once and offers each one ready;
+- the G3 birthday gift text is replaced by the discount; if one was set, the owner is told about it (setup list and the birthday section) until the discount is on;
+- the shop's contact details (WhatsApp, Instagram, Facebook, TikTok) are set in "الولاء والمكافآت";
+- setup markers, for the owner only: a badge on the Management tab, a notice in Management and on the dashboard, "يحتاج إعداد" on the settings row, and the list at the top of "الولاء والمكافآت", whose items can be put aside and shown again; "راجع بطاقة المكافآت" appears once the required items are done or put aside;
+- the card page (Settings → الولاء والمكافآت → بطاقة المكافآت): preview, the print-shop PDF (127 × 170 mm: A6 with 3 mm bleed and the crop-mark margin; front, then back), a test print on A6 and save to Files; the review reminder clears when the card is printed, saved, or sent and confirmed (iOS can't tell a sent file from a closed share sheet);
+- new simulator flows `e2e/birthday-discount.yaml` and `e2e/reward-card.yaml`, run only in the final simulator run; `e2e/loyalty-points.yaml` scrolls past the setup list.
+
 ### Phase 10: switching over
 
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):

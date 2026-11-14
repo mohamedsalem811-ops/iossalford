@@ -246,8 +246,23 @@ describe('a birthday saved just before it', () => {
       BirthdayApprovalNeeded,
     );
     ctx.setActor(OWNER);
-    // The owner selling: their own approval.
+    // The owner selling: their own approval, not counted as one.
     expect(sell({ birthday: true }).total).toBe(900_000);
+    expect(daySummary(ctx, '2026-11-05').approvals).toBe(0);
+  });
+
+  it("counts the owner's approval with the others", () => {
+    saveCustomer(ctx, { name: 'هدى', phone: PHONE, birthMonth: 11, birthDay: 5 });
+    at(2026, 11, 5);
+    const granted = new Set(['birthday:t1']);
+    ctx.approvals = { take: (t, p) => granted.delete(`${p}:${t}`) };
+    ctx.setActor(EMPLOYEE);
+    const { saleId, total } = sell({ birthday: true, birthdayApproval: 't1' });
+    expect(total).toBe(900_000);
+    ctx.setActor(OWNER);
+    expect(getSale(ctx, saleId)!.approvedBy).toBe('owner');
+    expect(daySummary(ctx, '2026-11-05').approvals).toBe(1);
+    expect(listActivity(ctx)[0].summary).toContain('خصم عيد الميلاد 100 د.ل بموافقة المالك');
   });
 
   it('needs the owner for a birthday typed in at checkout', () => {

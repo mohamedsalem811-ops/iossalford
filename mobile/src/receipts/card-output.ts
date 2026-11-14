@@ -30,17 +30,24 @@ export async function makeCardPdf(input: CardInput, mode: 'a6' | 'press'): Promi
   return file;
 }
 
-/** A test print on the shop's printer: the AirPrint window with the card on A6. */
-export async function printCard(input: CardInput): Promise<void> {
+/**
+ * A test print on the shop's printer: the AirPrint window with the card on A6. True when it was
+ * printed; false when the window was closed without printing (not an error for the owner).
+ */
+export async function printCard(input: CardInput): Promise<boolean> {
   const file = await makeCardPdf(input, 'a6');
   try {
     await Print.printAsync({ uri: file.uri });
+    return true;
   } catch {
-    // Closing the print window without printing is not an error for the owner.
+    return false;
   }
 }
 
-/** The print shop's file in the iOS share sheet (WhatsApp, Mail, AirDrop...). */
+/**
+ * The print shop's file in the iOS share sheet (WhatsApp, Mail, AirDrop...). iOS reports the
+ * sheet closing the same way whether the file was sent or not.
+ */
 export async function shareCard(input: CardInput): Promise<void> {
   const file = await makeCardPdf(input, 'press');
   await Sharing.shareAsync(file.uri, {

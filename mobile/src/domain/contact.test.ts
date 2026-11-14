@@ -9,7 +9,8 @@ import { setBirthday } from './birthday';
 import { cleanHandle, getContact, setContact, whatsappDigits, whatsappText } from './contact';
 import { PermissionError, RuleError } from './context';
 import { setLoyalty } from './loyalty';
-import { setRewards } from './rewards';
+import { getRewards, oldBirthdayGift, REWARDS_KEY, setRewards } from './rewards';
+import { setSetting } from './settings';
 import { dismissSetup, restoreSetup, setupCount, setupNeeds } from './setup';
 import { EMPLOYEE, makeCtx, type TestCtx } from './testing/ctx';
 
@@ -87,6 +88,16 @@ describe('what needs setting up', () => {
     expect(listActivity(ctx, {})[0]).toMatchObject({ action: 'setup.dismiss' });
     restoreSetup(ctx);
     expect(setupCount(ctx)).toBe(2);
+  });
+
+  it('tells the owner about the birthday gift typed in before, until the discount is on', () => {
+    setSetting(ctx, REWARDS_KEY, JSON.stringify({ birthdayGift: ' هدية مجانية ' }));
+    expect(oldBirthdayGift(ctx)).toBe('هدية مجانية');
+    expect(getRewards(ctx)).not.toHaveProperty('birthdayGift');
+    const birthday = () => setupNeeds(ctx).find((i) => i.id === 'birthday');
+    expect(birthday()?.detail).toContain('«هدية مجانية» لم تعد تظهر');
+    setBirthday(ctx, { enabled: true, maxOff: 200_000 });
+    expect(birthday()).toBeUndefined();
   });
 
   it('is shown to the owner only', () => {
