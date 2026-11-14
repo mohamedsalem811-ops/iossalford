@@ -46,13 +46,16 @@ describe('the upgrade from database 7', () => {
     migrate(db, migrations.slice(0, 7));
     const old = { ...ctx, db } as TestCtx;
     expect(schemaVersion(db)).toBe(7);
-    // This test writes through today's code, which also fills database 9's columns: they are
-    // added here (database 8 doesn't touch these tables; database-9.test covers 9 itself).
+    // This test writes through today's code, which also fills database 9's and 10's columns: they
+    // are added here (database 8 doesn't touch these tables; database-9/10.test cover them).
     db.exec(`ALTER TABLE products ADD COLUMN specs TEXT;
       ALTER TABLE receipt_items ADD COLUMN specs TEXT;
       ALTER TABLE receipts ADD COLUMN show_specs INTEGER NOT NULL DEFAULT 1;
       ALTER TABLE receipts ADD COLUMN points_paid INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE sales ADD COLUMN points_paid INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE sales ADD COLUMN reward_off INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE receipts ADD COLUMN reward_off INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE receipts ADD COLUMN footer TEXT;
       CREATE TABLE loyalty_moves (id INTEGER PRIMARY KEY, customer_id INTEGER, kind TEXT, points INTEGER,
         sale_id INTEGER, return_id INTEGER, payment_id INTEGER, value INTEGER, note TEXT,
         created_at TEXT, month TEXT, by TEXT, by_name TEXT);`);

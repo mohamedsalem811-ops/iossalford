@@ -22,6 +22,10 @@ export type ReceiptDoc = {
   showSpecs?: boolean;
   /** Paid with loyalty points (F3), in dirhams: printed under the total with what is left. */
   pointsPaid?: number;
+  /** The visit reward (G2) already taken off the prices: printed as what the customer saved. */
+  rewardOff?: number;
+  /** Printed under the total as it was at the sale (points left, purchases to the reward). */
+  footer?: string | null;
   receiptNo: string | null;
   date: string;
   time: string;
@@ -68,6 +72,26 @@ export function pointsLines(doc: Pick<ReceiptDoc, 'items' | 'showPrices' | 'poin
   return `
     <div class="points"><span>Paid with points / مدفوع بالنقاط</span><span>${receiptMoney(points)} LYD</span></div>
     <div class="points"><span>Paid / المدفوع</span><span>${receiptMoney(Math.max(0, total - points))} LYD</span></div>`;
+}
+
+/** Under the total: the visit reward saved (G2) and the footer kept from the sale. */
+export function rewardLines(doc: Pick<ReceiptDoc, 'showPrices' | 'rewardOff' | 'footer'>): string {
+  const off = doc.rewardOff ?? 0;
+  const saved =
+    doc.showPrices && off > 0
+      ? `
+    <div class="points"><span>Visit reward / مكافأة الزيارة</span><span>${receiptMoney(off)} LYD</span></div>`
+      : '';
+  const footer = (doc.footer ?? '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map(
+      (l) => `
+    <div class="points" dir="auto">${escapeHtml(l)}</div>`,
+    )
+    .join('');
+  return saved + footer;
 }
 
 /** "Pandora — Ring (Gold)": brand, name and colour, as on the current receipts. */
@@ -273,7 +297,7 @@ export function receiptHtml(
     ${rows}
   </table>
   <div class="end">
-    <div class="total"><span>Total</span><span>${receiptTotal(doc)}</span></div>${pointsLines(doc)}
+    <div class="total"><span>Total</span><span>${receiptTotal(doc)}</span></div>${pointsLines(doc)}${rewardLines(doc)}
     <div class="customer" dir="auto">Customer: ${e(doc.customer)}</div>
     <div class="note">This is a gift receipt. Original receipt is required for returns or exchanges.<br>Returns are subject to store policy.</div>
     <div class="thanks">${look.thanks}</div>

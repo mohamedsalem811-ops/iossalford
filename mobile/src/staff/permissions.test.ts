@@ -30,6 +30,8 @@ import { exchange } from '@/domain/exchange';
 import { addCashMove, chargeShortage, closeShift, openShift } from '@/domain/shifts';
 import { setPolicies } from '@/domain/policies';
 import { adjustPoints, setLoyalty } from '@/domain/loyalty';
+import { setRewards } from '@/domain/rewards';
+import { addWanted, deleteWanted, mergeCustomers, setWantedDone } from '@/domain/customer-care';
 import { acknowledgeAlert } from '@/domain/alerts';
 import { applyCount, cancelCount, countPiece, startCount, submitCount } from '@/domain/stock-count';
 import { chargeReturn, recordRepayment, waiveCharge } from '@/domain/staff-ledger';
@@ -55,6 +57,10 @@ type Seed = {
   ring: number;
   chain: number;
   customer: number;
+  /** The same name with another phone, to merge. */
+  twin: number;
+  /** A piece the customer asked for. */
+  wanted: number;
   sale: number;
   plainSale: number;
   owedTo: number;
@@ -149,7 +155,11 @@ function seed(ctx: TestCtx): Seed {
   submitCount(ctx, sentCount);
   const openCount = startCount(ctx);
   countPiece(ctx, openCount, ring, 10);
+  const twin = saveCustomer(ctx, { name: 'منى', phone: '0919999999' });
+  const wanted = addWanted(ctx, customer, 'خاتم فضة');
   return {
+    twin,
+    wanted,
     openCount,
     sentCount,
     shortShift,
@@ -295,6 +305,26 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     adjustPoints: {
       permission: 'loyalty.adjust',
       run: (ctx, s) => adjustPoints(ctx, s.customer, 5, 'هدية'),
+    },
+    setRewards: {
+      permission: 'settings.edit',
+      run: (ctx) => setRewards(ctx, { enabled: true }),
+    },
+    addWanted: {
+      permission: 'customers.edit',
+      run: (ctx, s) => addWanted(ctx, s.customer, 'سوار ذهب'),
+    },
+    setWantedDone: {
+      permission: 'customers.edit',
+      run: (ctx, s) => setWantedDone(ctx, s.wanted, true),
+    },
+    deleteWanted: {
+      permission: 'customers.edit',
+      run: (ctx, s) => deleteWanted(ctx, s.wanted),
+    },
+    mergeCustomers: {
+      permission: 'customers.merge',
+      run: (ctx, s) => mergeCustomers(ctx, s.customer, s.twin),
     },
     setVip: {
       permission: 'customers.vip',

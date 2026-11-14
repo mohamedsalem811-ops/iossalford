@@ -9,6 +9,8 @@ import { formatLyd } from '@/lib/money';
 
 import { logAction } from './activity';
 import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx, who } from './context';
+import { customerStats } from './customer-stats';
+import { getRewards } from './rewards';
 import { getSetting, setSetting } from './settings';
 
 export type LoyaltyRules = {
@@ -123,8 +125,14 @@ export function loyaltyMoves(ctx: Ctx, customerId: number, limit = 50): LoyaltyM
 }
 
 /** Points earned on an amount paid. */
-export const pointsFor = (paid: number, rules: LoyaltyRules) =>
-  paid > 0 ? Math.floor(paid / rules.spendPerPoint) : 0;
+export const pointsFor = (paid: number, rules: LoyaltyRules, times = 1) =>
+  paid > 0 ? Math.floor(paid / rules.spendPerPoint) * times : 0;
+
+/** A VIP earns `vipPointsTimes` the points (G2). */
+function timesFor(ctx: Ctx, customerId: number): number {
+  const rewards = getRewards(ctx);
+  return customerStats(ctx, customerId, rewards).vip ? rewards.vipPointsTimes : 1;
+}
 
 /**
  * The most points this customer may pay with on a sale of `total`: up to the owner's share of the
@@ -221,7 +229,7 @@ export function earnOnSale(
   addMove(ctx, {
     customerId: sale.customerId,
     kind: 'earn',
-    points: pointsFor(sale.paid, rules),
+    points: pointsFor(sale.paid, rules, timesFor(ctx, sale.customerId)),
     saleId: sale.id,
   });
 }
@@ -236,7 +244,7 @@ export function earnOnPayment(
   addMove(ctx, {
     customerId: payment.customerId,
     kind: 'earn',
-    points: pointsFor(payment.amount, rules),
+    points: pointsFor(payment.amount, rules, timesFor(ctx, payment.customerId)),
     paymentId: payment.id,
     note: 'دفعة دين',
   });

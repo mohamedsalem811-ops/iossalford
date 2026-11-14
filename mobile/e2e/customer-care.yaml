@@ -1,0 +1,57 @@
+# Phase G3. A customer with a birthday today and a wanted piece: the home screen lists the
+# birthday; Customers → متابعة الزبائن shows it, with "لم يعودوا", "المكررون" and the owner's
+# report; adding a matching piece reminds who wanted it.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+# Today's day and month, so the birthday is always this week.
+- evalScript: ${output.day = String(new Date().getDate()); output.month = String(new Date().getMonth() + 1)}
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-customers'
+- tapOn: 'زبون جديد'
+- tapOn:
+    id: 'customer-name'
+- inputText: 'Noor'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'customer-details-birth-day'
+- tapOn:
+    id: 'customer-details-birth-day'
+- inputText: ${output.day}
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'customer-details-birth-month'
+- inputText: ${output.month}
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'customer-save'
+- tapOn:
+    id: 'customer-save'
+- tapOn:
+    id: 'customer-Noor'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'wanted-add'
+- tapOn:
+    id: 'wanted-add'
+- inputText: 'سوار ذهب'
+- tapOn: 'حفظ'
+- assertVisible: 'سوار ذهب'
+- takeScreenshot: ${DEVICE}-customer-wanted
+- tapOn: 'الزبائن'
+- tapOn: 'متابعة الزبائن'
+- assertVisible: 'أعياد ميلاد هذا الأسبوع'
+- takeScreenshot: ${DEVICE}-care-birthdays
+- tapOn: 'التقرير'
+- assertVisible: 'الزبائن العائدون'
+- takeScreenshot: ${DEVICE}-care-report
