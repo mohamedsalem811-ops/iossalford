@@ -186,16 +186,6 @@ export function AttentionCard({
               testID="attention-stock"
             />
           ) : null}
-          {a.setup ? (
-            <ListRow
-              icon="gearshape"
-              tone="warning"
-              title={`إعدادات تحتاج إكمالاً (${a.setup})`}
-              subtitle="الولاء والمكافآت"
-              onPress={actions.onOpenSetup}
-              testID="attention-setup"
-            />
-          ) : null}
           {a.birthdays?.length ? (
             <ListRow
               icon="gift"
@@ -217,6 +207,16 @@ export function AttentionCard({
               tone="warning"
               onPress={actions.onOpenDebts}
               testID="attention-debts"
+            />
+          ) : null}
+          {a.setup ? (
+            <ListRow
+              icon="gearshape"
+              tone="warning"
+              title={`إعدادات تحتاج إكمالاً (${a.setup})`}
+              subtitle="الولاء والمكافآت"
+              onPress={actions.onOpenSetup}
+              testID="attention-setup"
             />
           ) : null}
         </ListGroup>

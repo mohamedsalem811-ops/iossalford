@@ -10,7 +10,9 @@
  * - "press": for a print shop: 3 mm of bleed on every side and crop marks around it. Text stays at
  *   least 5 mm inside the cut.
  *
- * Sizes are in card units ("12u"): 1/420 of the card's width (0.25 mm on paper). Arabic, digits
+ * Sizes are in card units ("12u"): 1/420 of the card's width (0.25 mm on paper). On paper they are
+ * worked out from the page's width (like the receipts), never from CSS millimetres: iOS lays the
+ * page out in points, so only sizes relative to the page land where they should. Arabic, digits
  * 0-9, like the app.
  */
 import { countText, MONTHS, PURCHASES } from '@/lib/arabic-count';
@@ -188,13 +190,22 @@ export function rewardCardHtml(
   const keep = (text: string) => `\u0001${kept.push(text) - 1}\u0001`;
   const e = (text: string) => keep(escapeHtml(text));
   const press = mode === 'press';
-  // Card units and, for the print shop, the bleed and the marks' room.
-  const sizes =
+  // A millimetre of paper (--mm), the card unit, and for the print shop the bleed and the marks'
+  // room. On paper: from the page's width (100cqw of .doc), which is the page in millimetres.
+  const pageMm = {
+    w: CARD_MM.width + (press ? 2 * (BLEED_MM + MARKS_MM) : 0),
+    h: CARD_MM.height + (press ? 2 * (BLEED_MM + MARKS_MM) : 0),
+  };
+  const mm =
     mode === 'screen'
-      ? `:root { --u: ${+((opts.previewWidth ?? 420) / 420).toFixed(5)}px; --bleed: 0px; --marks: 0px; }`
-      : `:root { --u: ${CARD_MM.width / 420}mm; --bleed: ${press ? BLEED_MM : 0}mm; --marks: ${press ? MARKS_MM : 0}mm; }`;
+      ? `${+(((opts.previewWidth ?? 420) / 420) * 4).toFixed(5)}px`
+      : `calc(100cqw / ${pageMm.w})`;
+  const sizes = `.doc { width: 100%; container-type: inline-size; }
+  .sheet { --mm: ${mm}; --u: calc(var(--mm) / 4); --bleed: calc(var(--mm) * ${press ? BLEED_MM : 0}); --marks: calc(var(--mm) * ${press ? MARKS_MM : 0}); }`;
   const pageW = `calc(420u + 2 * (var(--bleed) + var(--marks)))`;
-  const pageH = `calc(592u + 2 * (var(--bleed) + var(--marks)))`;
+  // On paper 1px short, so rounding never pushes a sliver onto a third, empty page (the print
+  // shop's page ends in the marks' white room).
+  const pageH = `calc(592u + 2 * (var(--bleed) + var(--marks))${mode === 'screen' ? '' : ' - 1px'})`;
   const list = cardSections(input);
   const lines = (s: CardSection) =>
     s.lines
@@ -259,7 +270,7 @@ export function rewardCardHtml(
 <style>
   ${keep(opts.fontCss ?? '')}
   ${sizes}
-  @page { size: ${mode === 'screen' ? 'auto' : `${CARD_MM.width + (press ? 2 * (BLEED_MM + MARKS_MM) : 0)}mm ${CARD_MM.height + (press ? 2 * (BLEED_MM + MARKS_MM) : 0)}mm`}; margin: 0; }
+  @page { size: ${mode === 'screen' ? 'auto' : `${pageMm.w}mm ${pageMm.h}mm`}; margin: 0; }
   * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   html, body { margin: 0; padding: 0; background: ${mode === 'screen' ? 'transparent' : '#fff'}; }
   body { font-family: 'IBMPlexSansArabic_400Regular', -apple-system, 'Geeza Pro', sans-serif; color: ${l.ink}; }
@@ -306,10 +317,10 @@ export function rewardCardHtml(
   .foot { margin-top: auto; text-align: center; padding-top: 10u; }
   .foot .how { font-family: 'IBMPlexSansArabic_500Medium', sans-serif; font-size: 11u; }
   .foot .fine { font-size: 8.6u; color: ${l.soft}; margin-top: 4u; line-height: 1.45; }
-</style></head><body>
+</style></head><body><div class="doc">
 ${front}
 ${back}
-</body></html>`);
+</div></body></html>`);
   return html.replace(/\u0001(\d+)\u0001/g, (_, n: string) => kept[Number(n)]);
 }
 
@@ -318,19 +329,21 @@ ${back}
  * bleed (they never touch the art).
  */
 function cropMarks(): string {
-  const len = `calc(var(--marks) - 2mm)`;
+  const len = `calc(var(--marks) - 2 * var(--mm))`;
   const cut = (n: number) => `calc(var(--marks) + var(--bleed) + ${n}u)`;
-  const t = '0.1mm';
+  const t = 'calc(var(--mm) * 0.15)';
+  const edge = 'var(--mm)';
+  const half = 'calc(var(--mm) * -0.075)';
   const out: string[] = [];
   for (const y of [cut(0), cut(592)])
     for (const side of ['left', 'right'])
       out.push(
-        `<div class="mark" style="top:${y};${side}:1mm;width:${len};height:${t};margin-top:-0.05mm"></div>`,
+        `<div class="mark" style="top:${y};${side}:${edge};width:${len};height:${t};margin-top:${half}"></div>`,
       );
   for (const x of [cut(0), cut(420)])
     for (const side of ['top', 'bottom'])
       out.push(
-        `<div class="mark" style="left:${x};${side}:1mm;height:${len};width:${t};margin-left:-0.05mm"></div>`,
+        `<div class="mark" style="left:${x};${side}:${edge};height:${len};width:${t};margin-left:${half}"></div>`,
       );
   return out.join('');
 }

@@ -180,7 +180,7 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       const rules = getBirthday(ctx);
       const status = birthdayStatus(ctx, customerId, rules);
       if (!status) throw new RuleError('لا يوجد خصم عيد ميلاد لهذا الزبون اليوم');
-      if (status.used) throw new RuleError('استُخدم خصم عيد الميلاد لهذا الزبون في آخر 12 شهراً');
+      if (status.used) throw new RuleError('استُخدم خصم عيد الميلاد لهذا الزبون هذه السنة');
       if (cartTotal(cart) < rules.minSale)
         throw new RuleError(
           `يُستخدم خصم عيد الميلاد في شراء من ${formatLyd(rules.minSale)} أو أكثر`,

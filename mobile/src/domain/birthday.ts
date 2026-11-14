@@ -6,7 +6,9 @@
  *
  * The rules, agreed with the owner:
  * - from 3 days before to 3 days after the birthday (29 February: 28 February in other years);
- * - once in any 12 months, whatever the birthday says; a sale fully returned gives it back;
+ * - once a year: not again within 330 days, whatever the birthday says (two birthdays are a year
+ *   apart, so last year's use late in its week never blocks this year's week); a sale fully
+ *   returned gives it back;
  * - for a customer with a phone number on file;
  * - a birthday saved (or changed) less than 30 days before it needs the owner's approval;
  * - never with the visit reward or any other discount on the same sale (one reward a purchase);
@@ -42,8 +44,11 @@ export const BIRTHDAY_KEY = 'birthday_discount';
 export const WINDOW_DAYS = 3;
 /** A birthday saved less than this many days before it needs the owner. */
 export const NOTICE_DAYS = 30;
-/** Once in this many days. */
-const ONCE_DAYS = 365;
+/**
+ * Not again within this many days. Safely under 358 (a year minus the 7-day window), so a use on
+ * the last day of last year's window never blocks the first day of this year's.
+ */
+const ONCE_DAYS = 330;
 
 export function getBirthday(ctx: Ctx): BirthdayRules {
   try {
@@ -138,7 +143,7 @@ export function nextWindow(
 }
 
 export type BirthdayStatus = BirthdayWindow & {
-  /** Already used in the last 12 months (on a sale not fully returned). */
+  /** Already used this year (on a sale not fully returned). */
   used: boolean;
   /** The birthday was saved less than 30 days before it: the owner approves. */
   needsOwner: boolean;
@@ -158,15 +163,20 @@ export function birthdayStatus(
   if (!c || !phoneKey(c.phone)) return null;
   const w = birthdayWindow(c, ctx.now());
   if (!w) return null;
-  const since = timestamp(addDays(startOfDay(ctx.now()), -ONCE_DAYS));
-  const used = customerSales(ctx, customerId).some(
-    (s) => s.birthdayOff > 0 && !s.fullyReturned && s.createdAt >= since,
-  );
+  const used = birthdayUsed(ctx, customerId);
   // By the day: saved on the 1st for a birthday on the 31st is 30 days before.
   const needsOwner =
     !!c.birthdaySetAt &&
     c.birthdaySetAt.slice(0, 10) > timestamp(addDays(w.date, -NOTICE_DAYS)).slice(0, 10);
   return { ...w, used, needsOwner };
+}
+
+/** Used on a sale (not fully returned) in the last 330 days: not again yet. */
+export function birthdayUsed(ctx: Ctx, customerId: number): boolean {
+  const since = timestamp(addDays(startOfDay(ctx.now()), -ONCE_DAYS));
+  return customerSales(ctx, customerId).some(
+    (s) => s.birthdayOff > 0 && !s.fullyReturned && s.createdAt >= since,
+  );
 }
 
 /** "17 نوفمبر": the last day of the window. */

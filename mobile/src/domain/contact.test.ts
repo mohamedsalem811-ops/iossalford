@@ -71,6 +71,13 @@ describe('what needs setting up', () => {
     expect(ids()).toEqual([]);
   });
 
+  it('asks to review the card once the required items are done or put aside', () => {
+    dismissSetup(ctx, 'birthday');
+    setContact(ctx, { whatsapp: '0912345678' });
+    expect(ids()).toContain('card-review');
+    expect(setupCount(ctx)).toBe(0);
+  });
+
   it('puts items aside and shows them again', () => {
     dismissSetup(ctx, 'birthday');
     dismissSetup(ctx, 'social');

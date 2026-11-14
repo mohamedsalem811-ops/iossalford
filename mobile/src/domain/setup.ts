@@ -95,7 +95,9 @@ export function setupNeeds(ctx: Ctx, opts: { withDismissed?: boolean } = {}): Se
       required: false,
       goes: 'points',
     });
-  if (!items.some((i) => i.required))
+  const aside = dismissedSetup(ctx);
+  // Once every required item is done or put aside (the owner may not want one of them).
+  if (!items.some((i) => i.required && !aside.includes(i.id)))
     items.push({
       id: 'card-review',
       title: 'راجع بطاقة المكافآت',
@@ -104,7 +106,6 @@ export function setupNeeds(ctx: Ctx, opts: { withDismissed?: boolean } = {}): Se
       goes: 'card',
     });
   if (opts.withDismissed) return items;
-  const aside = dismissedSetup(ctx);
   return items.filter((i) => !aside.includes(i.id));
 }
 

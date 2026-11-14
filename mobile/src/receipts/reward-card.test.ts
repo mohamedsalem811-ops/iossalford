@@ -154,7 +154,9 @@ describe('the sizes', () => {
     // 105 + 2 × (3 + 8) = 127 mm by 148 + 22 = 170 mm.
     expect(cardPage('press')).toEqual({ width: 360, height: 481.89 });
     const press = rewardCardHtml(all, { mode: 'press' });
-    expect(press).toContain('--bleed: 3mm; --marks: 8mm;');
+    // Sized from the page's width (127 mm wide), like the receipts.
+    expect(press).toContain('--mm: calc(100cqw / 127)');
+    expect(press).toContain('--bleed: calc(var(--mm) * 3); --marks: calc(var(--mm) * 8)');
     expect(press).toContain('size: 127mm 170mm');
     expect(press.match(/class="mark"/g)).toHaveLength(16);
     expect(rewardCardHtml(all, { mode: 'a6' })).toContain('size: 105mm 148mm');

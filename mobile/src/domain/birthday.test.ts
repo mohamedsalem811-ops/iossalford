@@ -1,6 +1,6 @@
 /**
  * The birthday discount (H1): off and with no cap until the owner sets it; from 3 days before to
- * 3 days after the birthday; once in any 12 months; a full return gives it back; a phone number is
+ * 3 days after the birthday; once a year (not again within 330 days); a full return gives it back; a phone number is
  * needed; a birthday saved less than 30 days before it needs the owner; never with the visit
  * reward or another discount; on the receipt, the day summary, the report and the log.
  */
@@ -157,15 +157,15 @@ describe('at checkout', () => {
     expect(() => sell({ birthday: true })).toThrow(/أو أكثر/);
   });
 
-  it('is once in 12 months, and a full return gives it back', () => {
+  it('is once a year, and a full return gives it back', () => {
     const first = sell({ birthday: true });
     expect(birthdayStatus(ctx, huda())?.used).toBe(true);
-    expect(() => sell({ birthday: true })).toThrow(/آخر 12 شهراً/);
+    expect(() => sell({ birthday: true })).toThrow(/هذه السنة/);
     returnAll(first.saleId);
     expect(birthdayStatus(ctx, huda())?.used).toBe(false);
   });
 
-  it('is once in 12 months even when the birthday is changed', () => {
+  it('is not used twice in a year by changing the birthday', () => {
     sell({ birthday: true });
     saveCustomer(ctx, { id: huda(), name: 'هدى', phone: PHONE, birthMonth: 1, birthDay: 2 });
     at(2026, 12, 31);
@@ -174,6 +174,14 @@ describe('at checkout', () => {
     saveCustomer(ctx, { id: huda(), name: 'هدى', phone: PHONE, birthMonth: 11, birthDay: 14 });
     ctx.db.run('UPDATE customers SET birthday_set_at = NULL');
     expect(birthdayStatus(ctx, huda())?.used).toBe(false);
+  });
+
+  it('used on the last day of last year’s week, is there from the first day of this year’s', () => {
+    at(2026, 11, 17);
+    sell({ birthday: true });
+    at(2027, 11, 11);
+    expect(birthdayStatus(ctx, huda())).toMatchObject({ days: 3, used: false });
+    expect(sell({ birthday: true }).total).toBe(900_000);
   });
 
   it('needs a phone number', () => {

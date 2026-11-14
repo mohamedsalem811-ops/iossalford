@@ -22,7 +22,7 @@ import {
   shownPhone,
   type Customer,
 } from '@/domain/customers';
-import { birthdayOn, getBirthday, windowEnd, windowText } from '@/domain/birthday';
+import { birthdayOn, birthdayUsed, getBirthday, windowEnd, windowText } from '@/domain/birthday';
 import { showError } from '@/features/products/actions';
 import { haptic } from '@/lib/haptics';
 import { formatLyd } from '@/lib/money';
@@ -113,7 +113,7 @@ export default function CustomerCareRoute() {
         <Segmented<Tab> options={tabs} value={tab} onChange={setTab} testID="care-tab" />
         {tab === 'birthdays' ? (
           data.birthdays.length ? (
-            <ListGroup header="أعياد الميلاد: آخر 3 أيام والأسبوع القادم" footer={offersHint}>
+            <ListGroup header="أعياد ميلاد هذا الأسبوع" footer={offersHint}>
               {data.birthdays.map(({ customer: c, days, window }) => (
                 <ListRow
                   key={c.id}
@@ -130,7 +130,11 @@ export default function CustomerCareRoute() {
                           : days < 0
                             ? `كان قبل ${days === -2 ? 'يومين' : `${-days} أيام`}`
                             : `بعد ${days === 2 ? 'يومين' : `${days} أيام`}`,
-                    birthdayOn(data.gift) ? `الخصم حتى ${windowEnd(window)}` : null,
+                    birthdayOn(data.gift)
+                      ? birthdayUsed(ctx, c.id)
+                        ? 'استُخدم الخصم هذه السنة'
+                        : `الخصم حتى ${windowEnd(window)}`
+                      : null,
                     c.offers ? 'يقبل العروض' : null,
                   ]
                     .filter(Boolean)
@@ -140,7 +144,7 @@ export default function CustomerCareRoute() {
                       c,
                       birthdayMessage(
                         c,
-                        birthdayOn(data.gift)
+                        birthdayOn(data.gift) && !birthdayUsed(ctx, c.id)
                           ? { percent: data.gift.percent, when: windowText(window) }
                           : null,
                       ),

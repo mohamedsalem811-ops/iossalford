@@ -116,6 +116,11 @@ export function SaleDetail({
             {`مكافأة الزيارة ${formatLyd(sale.rewardOff)}`}
           </Text>
         ) : null}
+        {sale.birthdayOff > 0 ? (
+          <Text variant="subhead" testID="sale-birthday-off">
+            {`خصم عيد الميلاد ${formatLyd(sale.birthdayOff)}`}
+          </Text>
+        ) : null}
         {sale.pointsPaid > 0 ? (
           <Text variant="subhead" testID="sale-points-paid">
             {`مدفوع بالنقاط ${formatLyd(sale.pointsPaid)} • المدفوع ${formatLyd(sale.total - sale.pointsPaid)}`}
