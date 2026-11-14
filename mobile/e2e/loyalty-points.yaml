@@ -1,0 +1,127 @@
+# Phase F3 (feature 34). Loyalty points start switched off; the owner turns them on in Settings →
+# نقاط الولاء with 10 points as the least to use. Ring Zircon (350) sold for cash to Huda earns 35
+# points; on the next sale "الدفع بالنقاط" pays 3.5 د.ل of it as its own line ("مدفوع بالنقاط"), and
+# Huda's page shows her points.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-settings'
+- tapOn:
+    id: 'settings-loyalty'
+- extendedWaitUntil:
+    visible:
+      id: 'loyalty-enabled'
+    timeout: 30000
+- assertVisible: '.*متوقفة.*'
+- tapOn:
+    id: 'loyalty-enabled'
+- tapOn:
+    id: 'loyalty-min'
+- eraseText
+- inputText: '10'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'loyalty-save'
+- tapOn:
+    id: 'loyalty-save'
+- assertVisible: 'تم الحفظ'
+- tapOn: 'OK'
+- takeScreenshot: ${DEVICE}-loyalty-rules
+# First sale: earns 35 points.
+- tapOn: 'بيع'
+- tapOn:
+    id: 'sale-tile-Ring Zircon'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
+- tapOn:
+    id: 'cart-checkout'
+- tapOn:
+    id: 'checkout-phone'
+- inputText: '0912345678'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'checkout-name'
+- inputText: 'Huda'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
+- tapOn:
+    id: 'checkout-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'sold-title'
+    timeout: 30000
+- tapOn:
+    id: 'sold-new-sale'
+# Second sale: her phone finds her, and 35 points pay 3.5 of it.
+- tapOn: 'بيع'
+- tapOn:
+    id: 'sale-tile-Ring Zircon'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
+- tapOn:
+    id: 'cart-checkout'
+- tapOn:
+    id: 'checkout-phone'
+- inputText: '0912345678'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-points'
+- tapOn:
+    id: 'checkout-points'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
+- assertVisible:
+    id: 'checkout-points-paid'
+    text: '− 3.5 د.ل'
+- assertVisible: '.*تأكيد البيع • 346.5 د.ل.*'
+- takeScreenshot: ${DEVICE}-checkout-points
+- tapOn:
+    id: 'checkout-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'sold-title'
+    timeout: 30000
+- tapOn:
+    id: 'sold-new-sale'
+# Her page: 35 − 35 + 34 (346.5 paid in money) = 34 points.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-customers'
+- tapOn:
+    id: 'customer-Huda'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'customer-points'
+- assertVisible:
+    id: 'customer-points'
+    text: '34 نقطة.*'
+- takeScreenshot: ${DEVICE}-customer-points

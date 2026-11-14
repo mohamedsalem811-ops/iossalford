@@ -23,6 +23,7 @@ export function SettingsScreen({
   updates,
   errors,
   onEditRate,
+  loyalty,
   onChangePin,
   onAppearance,
 }: {
@@ -35,6 +36,8 @@ export function SettingsScreen({
   errors: { count: number; onOpen: () => void };
   /** Absent for someone who may not change it: the rate is shown, not editable. */
   onEditRate?: () => void;
+  /** Loyalty points (F3), for the owner: on or off, and the screen with the rules. */
+  loyalty?: { on: boolean; onOpen: () => void };
   onChangePin: () => void;
   onAppearance: (a: Appearance) => void;
 }) {
@@ -48,6 +51,15 @@ export function SettingsScreen({
           onPress={onEditRate}
           testID="settings-rate"
         />
+        {loyalty ? (
+          <ListRow
+            icon="star.circle"
+            title="نقاط الولاء"
+            value={loyalty.on ? 'تعمل' : 'متوقفة'}
+            onPress={loyalty.onOpen}
+            testID="settings-loyalty"
+          />
+        ) : null}
       </ListGroup>
       <ListGroup
         header="الأمان"

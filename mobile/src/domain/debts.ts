@@ -3,6 +3,7 @@ import { formatDinars, formatLyd } from '@/lib/money';
 import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx, who } from './context';
 import { getCustomer, type Customer } from './customers';
 import { logAction } from './activity';
+import { earnOnPayment, pointsBalance } from './loyalty';
 import { shiftFor } from './shifts';
 
 /**
@@ -116,6 +117,8 @@ export function recordPayment(
       `دفعة ${formatLyd(input.amount)} من «${getCustomer(ctx, input.customerId)?.name}»`,
       { paymentId: id, customerId: input.customerId, amount: input.amount },
     );
+    // A credit sale earns its points as it is paid (F3).
+    earnOnPayment(ctx, { id, customerId: input.customerId, amount: input.amount });
     return id;
   });
 }
@@ -235,6 +238,10 @@ export function deleteCustomer(ctx: Ctx, id: number) {
       [id],
     );
     if (credit) throw new RuleError(`لا يمكن حذف «${c.name}»: له تعاملات آجلة مسجلة`);
+    const points = pointsBalance(ctx, id);
+    if (points > 0) throw new RuleError(`لا يمكن حذف «${c.name}»: له ${points} نقطة ولاء`);
+    // No points left: their history goes with them.
+    ctx.db.run('DELETE FROM loyalty_moves WHERE customer_id = ?', [id]);
     ctx.db.run('DELETE FROM customers WHERE id = ?', [id]);
     logAction(ctx, 'customer.delete', `حذف الزبون «${c.name}»`, { customerId: id });
   });

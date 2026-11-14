@@ -13,6 +13,7 @@ import { getPolicies, type Policies } from './policies';
 import { shiftFor } from './shifts';
 import { allow, clean, nowMonth, nowStamp, ownerSays, RuleError, type Ctx } from './context';
 import { ensureCustomer, hasIdentity } from './customers';
+import { earnOnSale, redeemOnSale } from './loyalty';
 import { displayName, getProduct, moveStock } from './products';
 import { issueReceipt, type Receipt, type TemplateId } from './receipts';
 import { getSet, setForCart } from './sets';
@@ -71,6 +72,8 @@ export type CheckoutInput = {
   discountReason?: string;
   /** The owner's one-time approval for a discount over the limits. */
   approval?: string;
+  /** Loyalty points the customer pays part of the sale with (F3; cash or card only). */
+  points?: number;
 };
 
 export type CheckoutResult = { saleId: number; receipt: Receipt; total: number };
@@ -149,6 +152,22 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       ],
     ).lastInsertRowId;
 
+    // Points paying part of the sale (F3): checked against the customer's points and the
+    // owner's rules, then the rest earns new points.
+    const pointsPaid = redeemOnSale(
+      ctx,
+      { id: saleId, customerId, total, method: input.paymentMethod },
+      input.points ?? 0,
+    );
+    if (pointsPaid > 0)
+      ctx.db.run('UPDATE sales SET points_paid = ? WHERE id = ?', [pointsPaid, saleId]);
+    earnOnSale(ctx, {
+      id: saleId,
+      customerId,
+      paid: total - pointsPaid,
+      method: input.paymentMethod,
+    });
+
     for (const { l, p, total: lt, cost } of lines) {
       const lineId = ctx.db.run(
         `INSERT INTO sale_lines (sale_id, product_id, name, sku, brand, category, size, color, quantity, unit_cost,
@@ -187,6 +206,7 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       customer: customerName ?? undefined,
       template: input.template,
       showPrices: input.showPrices,
+      pointsPaid,
       items: lines.map(({ l, p }) => ({
         name: displayName(ctx, p),
         brand: p.brand,
@@ -206,11 +226,12 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
         discount.total
           ? `، خصم ${formatLyd(discount.total)}${approvedBy ? ' بموافقة المالك' : ''}`
           : ''
-      }`,
+      }${pointsPaid ? `، مدفوع بالنقاط ${formatLyd(pointsPaid)}` : ''}`,
       {
         saleId,
         total,
         pieces,
+        ...(pointsPaid ? { pointsPaid } : {}),
         payment: input.paymentMethod,
         receipt: receipt.receiptNo,
         ...(discount.total ? { discount: discount.total, reason, approvedBy } : {}),

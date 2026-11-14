@@ -37,6 +37,7 @@ export const PERMISSIONS = {
   'stock.count': 'جرد المخزون',
   'alerts.manage': 'تنبيهات المالك',
   'backup.restore': 'استرجاع نسخة احتياطية',
+  'loyalty.adjust': 'تعديل نقاط الولاء',
   // Seeing (checked by the screens).
   'costs.view': 'التكلفة والربح',
   'reports.view': 'ملخص الشهر والتقارير',
@@ -86,6 +87,7 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'stock.count': true,
   'alerts.manage': false,
   'backup.restore': false,
+  'loyalty.adjust': false,
   'costs.view': false,
   'reports.view': false,
   'sales.viewAll': false,

@@ -16,7 +16,10 @@ export type DaySummary = {
   sales: number;
   pieces: number;
   total: number;
+  /** Paid in money, by method (the part paid with points is `points.paid`). */
   byMethod: Record<PaymentMethod, number>;
+  /** Loyalty points (F3): what points paid that day, and the points earned and paid with. */
+  points: { paid: number; earned: number; redeemed: number };
   /** Sales per person, the largest first. */
   bySeller: { name: string; sales: number; total: number }[];
   discounts: number;
@@ -67,7 +70,7 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
     number
   >;
   for (const r of ctx.db.all<{ m: PaymentMethod; t: number }>(
-    `SELECT payment_method m, sum(total) t FROM sales
+    `SELECT payment_method m, sum(total - points_paid) t FROM sales
       WHERE created_at >= ? AND created_at < ? GROUP BY payment_method`,
     range,
   ))
@@ -129,12 +132,21 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
   );
   const differences = closedToday.map((s) => s.shift.difference ?? 0);
 
+  const pts = one(
+    `SELECT coalesce((SELECT sum(points_paid) FROM sales WHERE created_at >= ?1 AND created_at < ?2), 0) paid,
+            coalesce((SELECT sum(points) FROM loyalty_moves
+                       WHERE kind = 'earn' AND created_at >= ?1 AND created_at < ?2), 0) earned,
+            coalesce((SELECT -sum(points) FROM loyalty_moves
+                       WHERE kind = 'redeem' AND created_at >= ?1 AND created_at < ?2), 0) redeemed`,
+    { paid: 0, earned: 0, redeemed: 0 },
+  );
   return {
     day,
     sales: sales.n,
     pieces,
     total: sales.t,
     byMethod,
+    points: pts,
     bySeller,
     discounts: sales.d,
     approvals: sales.a + ret.a,

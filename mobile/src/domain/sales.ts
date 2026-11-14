@@ -19,6 +19,7 @@ import {
 } from './context';
 import { getProduct, moveStock } from './products';
 import { logAction } from './activity';
+import { reverseOnReturn } from './loyalty';
 import { getPolicies, type Policies } from './policies';
 import { shiftFor } from './shifts';
 
@@ -41,6 +42,9 @@ export type SaleLine = {
   setName: string | null;
   /** Pieces of this line already returned. */
   returned: number;
+  /** The sale's part paid with points, and its total (a refund gives that share back as points). */
+  salePointsPaid?: number;
+  saleTotal?: number;
 };
 
 export type Sale = {
@@ -62,6 +66,8 @@ export type Sale = {
   discount: number;
   discountReason: string | null;
   approvedBy: string | null;
+  /** Paid with loyalty points (F3), in dirhams: the rest was paid in money. */
+  pointsPaid: number;
   lines: SaleLine[];
 };
 
@@ -83,9 +89,13 @@ type LineRow = {
   line_cost: number;
   set_name: string | null;
   returned: number;
+  sale_points_paid: number | null;
+  sale_total: number | null;
 };
 
-const LINE_SELECT = `SELECT l.*, coalesce((SELECT sum(quantity) FROM returns r WHERE r.sale_line_id = l.id), 0) AS returned FROM sale_lines l`;
+const LINE_SELECT = `SELECT l.*, coalesce((SELECT sum(quantity) FROM returns r WHERE r.sale_line_id = l.id), 0) AS returned,
+  s.points_paid AS sale_points_paid, s.total AS sale_total
+  FROM sale_lines l JOIN sales s ON s.id = l.sale_id`;
 
 const toLine = (r: LineRow): SaleLine => ({
   id: r.id,
@@ -105,6 +115,8 @@ const toLine = (r: LineRow): SaleLine => ({
   lineCost: r.line_cost,
   setName: r.set_name,
   returned: r.returned,
+  salePointsPaid: r.sale_points_paid ?? 0,
+  saleTotal: r.sale_total ?? 0,
 });
 
 type SaleRow = {
@@ -123,6 +135,7 @@ type SaleRow = {
   discount: number;
   discount_reason: string | null;
   approved_by: string | null;
+  points_paid?: number | null;
 };
 
 /** The lines of several sales in one query (in chunks, well under SQLite's parameter limit). */
@@ -156,6 +169,7 @@ function toSale(r: SaleRow, lines: SaleLine[]): Sale {
     discount: r.discount ?? 0,
     discountReason: r.discount_reason ?? null,
     approvedBy: r.approved_by ?? null,
+    pointsPaid: r.points_paid ?? 0,
     lines,
   };
 }
@@ -424,10 +438,14 @@ export function getReturn(ctx: Ctx, id: number): ReturnRecord | undefined {
 
 /** The most that can be refunded for `quantity` pieces of a line: what the customer paid for them. */
 export function maxRefund(
-  line: Pick<SaleLine, 'lineTotal' | 'quantity'>,
+  line: Pick<SaleLine, 'lineTotal' | 'quantity' | 'salePointsPaid' | 'saleTotal'>,
   quantity: number,
 ): number {
-  return divRound(line.lineTotal * quantity, line.quantity);
+  const paid = divRound(line.lineTotal * quantity, line.quantity);
+  // Points paid part of the sale (F3): that share comes back as points, the rest as money.
+  const points = line.salePointsPaid ?? 0;
+  if (points <= 0 || !line.saleTotal) return paid;
+  return paid - Math.min(paid, divRound(paid * points, line.saleTotal));
 }
 
 /**
@@ -566,6 +584,12 @@ export function addReturn(ctx: Ctx, input: ReturnInput): number {
     ).lastInsertRowId;
     if (getProduct(ctx, line.productId))
       moveStock(ctx, line.productId, input.quantity, 'return', id);
+    // Its share of the sale's loyalty points (F3): earned ones go, spent ones come back.
+    reverseOnReturn(ctx, {
+      id,
+      saleId: line.saleId,
+      lineTotal: divRound(line.lineTotal * input.quantity, line.quantity),
+    });
     logAction(
       ctx,
       'return.create',

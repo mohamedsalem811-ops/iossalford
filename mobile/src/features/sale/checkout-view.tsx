@@ -46,6 +46,7 @@ import {
   type Customer,
 } from '@/domain/customers';
 import { balance } from '@/domain/debts';
+import { redeemable } from '@/domain/loyalty';
 import { getRate } from '@/domain/settings';
 import { formatLyd, formatRate, formatUsd } from '@/lib/money';
 import { putCart, useCart } from '@/state/cart';
@@ -104,6 +105,7 @@ export function CheckoutView({
     setForm((f) => ({ ...f, [k]: v }));
 
   const [picked, setPicked] = useState<Customer | null>(null);
+  const [usePoints, setUsePoints] = useState(false);
   const known = form.phone ? customerByPhone(ctx, form.phone) : undefined;
   const fullPhone = useCan('customers.phones');
   const suggestions = form.name && !known ? customerSuggestions(ctx, form.name, 4, fullPhone) : [];
@@ -147,6 +149,7 @@ export function CheckoutView({
           area: form.area,
         },
         note: form.note,
+        points: usePoints && points ? points.points : 0,
         ...extra,
       });
       putCart(ctx.system, []);
@@ -223,6 +226,10 @@ export function CheckoutView({
 
   const credit = form.method === 'credit';
   const use = creditUse(customerCredit, totals.total);
+  /** Loyalty points (F3): what this customer may pay with on this sale (cash or card only). */
+  const points = !credit && customer ? redeemable(ctx, customer.id, totals.total) : null;
+  const pointsPaid = usePoints && points ? points.value : 0;
+  const toPay = totals.total - pointsPaid;
   return (
     <>
       <FormHeader title="إتمام البيع" onCancel={onCancel} onSave={confirmOnce} cancelLabel="رجوع" />
@@ -390,8 +397,29 @@ export function CheckoutView({
               {formatLyd(totals.total)}
             </Text>
           </View>
+          {points ? (
+            <FilterChip
+              label={`${usePoints ? '✓ ' : ''}الدفع بالنقاط: ${points.points} من ${points.balance} نقطة • ${formatLyd(points.value)}`}
+              selected={usePoints}
+              onPress={() => {
+                haptic.tap();
+                setUsePoints((u) => !u);
+              }}
+              testID="checkout-points"
+            />
+          ) : null}
+          {pointsPaid > 0 ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text variant="subhead" tone="secondary">
+                مدفوع بالنقاط
+              </Text>
+              <Text variant="subhead" tone="secondary" testID="checkout-points-paid">
+                {`− ${formatLyd(pointsPaid)}`}
+              </Text>
+            </View>
+          ) : null}
           <Button
-            title={`تأكيد البيع • ${formatLyd(totals.total)}`}
+            title={`تأكيد البيع • ${formatLyd(toPay)}`}
             icon="checkmark.circle.fill"
             size="lg"
             fullWidth

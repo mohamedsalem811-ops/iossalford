@@ -129,7 +129,7 @@ export function studioProblem(f: StudioForm): string | null {
 /** What the preview and the PDF show for the form (a new receipt has no number yet). */
 export function studioDoc(
   f: StudioForm,
-  saved: Pick<Receipt, 'receiptNo' | 'date' | 'time'> | null,
+  saved: (Pick<Receipt, 'receiptNo' | 'date' | 'time'> & { pointsPaid?: number }) | null,
   now: Date,
 ): ReceiptDoc {
   const when = saved ?? receiptDateTime(now);
@@ -137,6 +137,7 @@ export function studioDoc(
     template: f.template,
     showPrices: f.showPrices,
     showSpecs: f.showSpecs,
+    pointsPaid: saved?.pointsPaid ?? 0,
     receiptNo: saved?.receiptNo ?? null,
     date: when.date,
     time: when.time,
@@ -151,6 +152,7 @@ export function receiptDoc(r: Receipt): ReceiptDoc {
     template: r.template,
     showPrices: r.showPrices,
     showSpecs: r.showSpecs,
+    pointsPaid: r.pointsPaid,
     receiptNo: r.receiptNo,
     date: r.date,
     time: r.time,

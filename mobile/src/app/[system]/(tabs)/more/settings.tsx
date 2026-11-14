@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import * as Sharing from 'expo-sharing';
 import { ActionSheetIOS, Alert } from 'react-native';
 
+import { getLoyalty } from '@/domain/loyalty';
 import { getRate } from '@/domain/settings';
 import { promptRate } from '@/features/settings/rate';
 import { outcomeMessage, restartWarning, runningLabel } from '@/features/updates/model';
@@ -31,8 +32,12 @@ export default function SettingsRoute() {
   const ctx = useCtx();
   const mayEditRate = useCan('settings.edit');
   const [rate, setRate] = useState(() => getRate(ctx));
+  const [loyaltyOn, setLoyaltyOn] = useState(() => getLoyalty(ctx).enabled);
   const [appearance, setLook] = useState(getAppearance);
-  const refresh = useCallback(() => setRate(getRate(ctx)), [ctx]);
+  const refresh = useCallback(() => {
+    setRate(getRate(ctx));
+    setLoyaltyOn(getLoyalty(ctx).enabled);
+  }, [ctx]);
   useFocusEffect(refresh);
   useOnDataChanged(refresh);
   const update = useAppUpdate();
@@ -92,6 +97,18 @@ export default function SettingsRoute() {
         }}
         errors={{ count: errorCount, onOpen: openLog }}
         onEditRate={mayEditRate ? () => promptRate(ctx, refresh) : undefined}
+        loyalty={
+          mayEditRate
+            ? {
+                on: loyaltyOn,
+                onOpen: () =>
+                  router.push({
+                    pathname: '/[system]/more/loyalty',
+                    params: { system: ctx.system },
+                  }),
+              }
+            : undefined
+        }
         onChangePin={() =>
           router.push({ pathname: '/[system]/change-pin', params: { system: ctx.system } })
         }

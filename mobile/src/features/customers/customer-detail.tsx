@@ -20,6 +20,7 @@ import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
 import { CustomerAvatar } from './customer-avatar';
+import { PointsCard } from './points-card';
 import { balanceText, paymentWayLabel } from './model';
 import { haptic } from '@/lib/haptics';
 import { useCan } from '@/staff/use-can';
@@ -161,6 +162,8 @@ export function CustomerDetail({
           </Text>
         ) : null}
       </Card>
+
+      <PointsCard ctx={ctx} customerId={c.id} />
 
       <Card>
         <Text variant="subhead" tone="secondary">

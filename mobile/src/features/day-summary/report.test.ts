@@ -12,6 +12,7 @@ const quiet: DaySummary = {
   pieces: 1,
   total: 350_000,
   byMethod: { cash: 350_000, card: 0, transfer: 0, credit: 0 },
+  points: { paid: 0, earned: 0, redeemed: 0 },
   bySeller: [{ name: 'المالك', sales: 1, total: 350_000 }],
   discounts: 0,
   approvals: 0,

@@ -29,6 +29,7 @@ import { deleteReceipt, issueReceipt, updateReceipt } from '@/domain/receipts';
 import { exchange } from '@/domain/exchange';
 import { addCashMove, chargeShortage, closeShift, openShift } from '@/domain/shifts';
 import { setPolicies } from '@/domain/policies';
+import { adjustPoints, setLoyalty } from '@/domain/loyalty';
 import { acknowledgeAlert } from '@/domain/alerts';
 import { applyCount, cancelCount, countPiece, startCount, submitCount } from '@/domain/stock-count';
 import { chargeReturn, recordRepayment, waiveCharge } from '@/domain/staff-ledger';
@@ -287,6 +288,14 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     },
     deleteClosing: { permission: 'closing.edit', run: (ctx, s) => deleteClosing(ctx, s.closing) },
     setRate: { permission: 'settings.edit', run: (ctx) => setRate(ctx, 7_000) },
+    setLoyalty: {
+      permission: 'settings.edit',
+      run: (ctx) => setLoyalty(ctx, { enabled: true }),
+    },
+    adjustPoints: {
+      permission: 'loyalty.adjust',
+      run: (ctx, s) => adjustPoints(ctx, s.customer, 5, 'هدية'),
+    },
     setPolicies: {
       permission: 'settings.edit',
       run: (ctx) => setPolicies(ctx, { returnHours: 48 }),
@@ -476,6 +485,11 @@ describe('every action has a check', () => {
     // their person (a sign-in, a wrong PIN) from the sign-in screens.
     'logAs',
     'logAction',
+    // Loyalty points moved by the checked sale, payment and return they belong to (F3).
+    'redeemOnSale',
+    'earnOnSale',
+    'earnOnPayment',
+    'reverseOnReturn',
     ...EVENTS,
   ];
 

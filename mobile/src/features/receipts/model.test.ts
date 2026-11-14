@@ -24,6 +24,7 @@ const receipt: Receipt = {
   template: 'salford_light',
   showPrices: false,
   showSpecs: true,
+  pointsPaid: 0,
   saleId: null,
   items: [
     { name: 'Ring', brand: 'Pandora', color: null, code: 'RNG-0001', quantity: 2, price: 350_500 },
