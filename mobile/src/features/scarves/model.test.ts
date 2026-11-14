@@ -33,6 +33,7 @@ const scarf = (over: Partial<Product>): Product => ({
   stock: 3,
   lowStock: 2,
   imageFile: null,
+  specs: null,
   archived: false,
   createdAt: '',
   updatedAt: '',

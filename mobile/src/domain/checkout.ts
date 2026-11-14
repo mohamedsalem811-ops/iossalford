@@ -192,6 +192,7 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
         brand: p.brand,
         color: p.color,
         code: p.sku,
+        specs: p.specs,
         quantity: l.quantity,
         // Bundle lines already carry their share of the set price per piece.
         price: l.unitPrice,

@@ -207,6 +207,7 @@ describe('data from before staff', () => {
             'stock_counts',
             'stock_count_lines',
             'payouts',
+            'loyalty_moves',
           ].includes(t),
       ).map((t) => [t, old.all(`SELECT * FROM ${t}`)]),
     ) as Backup['tables'];

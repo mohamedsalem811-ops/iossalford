@@ -112,6 +112,15 @@ export function ProductRow({
         <Text variant="caption" tone="secondary" numberOfLines={1}>
           {productDetails(p)}
         </Text>
+        {p.specs ? (
+          <Text
+            variant="caption"
+            tone="secondary"
+            numberOfLines={2}
+            testID={`product-specs-${p.sku}`}>
+            {p.specs}
+          </Text>
+        ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
           <View style={{ flex: 1 }}>
             <Text variant="headline" tone="accent" numberOfLines={1}>
@@ -163,6 +172,15 @@ export function ProductRow({
         <Text variant="caption" tone="secondary" numberOfLines={1}>
           {productDetails(p)}
         </Text>
+        {p.specs ? (
+          <Text
+            variant="caption"
+            tone="secondary"
+            numberOfLines={1}
+            testID={`product-specs-${p.sku}`}>
+            {p.specs}
+          </Text>
+        ) : null}
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm }}>
           <Text variant="headline" tone="accent">
             {formatLyd(p.price)}

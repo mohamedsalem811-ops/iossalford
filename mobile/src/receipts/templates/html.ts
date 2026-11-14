@@ -18,6 +18,8 @@ import { logoHtml, type LogoColors } from '../logo-html';
 export type ReceiptDoc = {
   template: TemplateId;
   showPrices: boolean;
+  /** The items' specs printed under each (feature 16); left out: shown. */
+  showSpecs?: boolean;
   receiptNo: string | null;
   date: string;
   time: string;
@@ -27,6 +29,7 @@ export type ReceiptDoc = {
     brand?: string | null;
     color?: string | null;
     code?: string | null;
+    specs?: string | null;
     quantity: number;
     price: number;
   }[];
@@ -187,7 +190,11 @@ export function receiptHtml(
     .map(
       (i) => `<tbody class="item">
         <tr><td dir="auto" class="name">${e(itemTitle(i))}</td><td class="qty">${i.quantity}</td><td class="price">${linePrice(doc, i)}</td></tr>
-        <tr><td dir="auto" class="code">Item Code: ${e(i.code?.trim() || '—')}</td><td></td><td></td></tr>
+        <tr><td dir="auto" class="code">Item Code: ${e(i.code?.trim() || '—')}</td><td></td><td></td></tr>${
+          doc.showSpecs !== false && i.specs?.trim()
+            ? `\n        <tr><td dir="auto" class="specs">${e(i.specs.trim()).replace(/\n/g, '<br>')}</td><td></td><td></td></tr>`
+            : ''
+        }
       </tbody>`,
     )
     .join('');
@@ -223,6 +230,7 @@ export function receiptHtml(
   tbody.item { break-inside: avoid; page-break-inside: avoid; }
   td.name { overflow-wrap: anywhere; unicode-bidi: plaintext; }
   td.code { color: #555; font-size: 10.5u; overflow-wrap: anywhere; }
+  td.specs { color: #555; font-size: 10.5u; overflow-wrap: anywhere; unicode-bidi: plaintext; }
   td.qty { text-align: center; }
   .end { break-inside: avoid; page-break-inside: avoid; margin: ${v(14)}u ${paper.side}u 0; }
   .total { display: flex; justify-content: space-between; border-top: 1.2u solid #000; padding: 8u 8u 0; font-weight: 700; font-size: 12u; }

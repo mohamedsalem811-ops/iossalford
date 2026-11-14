@@ -42,6 +42,7 @@ describe('migrations', () => {
       'closings',
       'customers',
       'expenses',
+      'loyalty_moves',
       'payments',
       'payouts',
       'products',

@@ -2,7 +2,13 @@
  * The product form: what is typed (always text, digits 0-9), the Arabic messages for anything
  * missing, the live margin, and the save input for the business rules.
  */
-import { CATEGORIES, type Product, type ProductInput } from '@/domain/products';
+import {
+  CATEGORIES,
+  cleanSpecs,
+  SPECS_MAX,
+  type Product,
+  type ProductInput,
+} from '@/domain/products';
 import { parseHundredths, parseInteger, parseThousandths } from '@/lib/digits';
 import { editableDinars, editableUsd, usdToLyd } from '@/lib/money';
 import type { SystemId } from '@/theme';
@@ -16,6 +22,8 @@ export type ProductForm = {
   category: string;
   color: string;
   size: string;
+  /** المواصفات والخامة (feature 16), free text up to SPECS_MAX letters. */
+  specs: string;
   /** The currency the cost is typed in. */
   currency: Currency;
   cost: string;
@@ -35,6 +43,7 @@ export function emptyForm(system: SystemId): ProductForm {
     category: CATEGORIES[system][0],
     color: '',
     size: '',
+    specs: '',
     currency: 'lyd',
     cost: '',
     price: '',
@@ -53,6 +62,7 @@ export function formFromProduct(p: Product): ProductForm {
     category: p.category,
     color: p.color ?? '',
     size: p.size ?? '',
+    specs: p.specs ?? '',
     currency: usd ? 'usd' : 'lyd',
     cost: usd ? editableUsd(p.costUsd!) : editableDinars(p.cost),
     price: editableDinars(p.price),
@@ -62,7 +72,9 @@ export function formFromProduct(p: Product): ProductForm {
   };
 }
 
-export type FormErrors = Partial<Record<'name' | 'price' | 'cost' | 'stock' | 'lowStock', string>>;
+export type FormErrors = Partial<
+  Record<'name' | 'price' | 'cost' | 'stock' | 'lowStock' | 'specs', string>
+>;
 
 export function validateForm(f: ProductForm): FormErrors {
   const errors: FormErrors = {};
@@ -73,6 +85,7 @@ export function validateForm(f: ProductForm): FormErrors {
   if (cost === null) errors.cost = 'أدخل التكلفة، أو 0 إذا كانت غير معروفة';
   if (parseInteger(f.stock) === null) errors.stock = 'أدخل الكمية المتوفرة في المخزن';
   if (parseInteger(f.lowStock) === null) errors.lowStock = 'أدخل حد تنبيه المخزون';
+  if ((cleanSpecs(f.specs)?.length ?? 0) > SPECS_MAX) errors.specs = `${SPECS_MAX} حرف على الأكثر`;
   return errors;
 }
 
@@ -108,6 +121,7 @@ export function formToInput(f: ProductForm, id?: number): ProductInput {
     category: f.category,
     color: f.color.trim() || null,
     size: f.size.trim() || null,
+    specs: f.specs,
     cost: usd ? undefined : (parseThousandths(f.cost) ?? 0),
     costUsd: usd ? (parseHundredths(f.cost) ?? 0) : null,
     price: parseThousandths(f.price) ?? 0,

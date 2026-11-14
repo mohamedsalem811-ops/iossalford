@@ -32,6 +32,7 @@ const product = (over: Partial<Product>): Product => ({
   stock: 3,
   lowStock: 1,
   imageFile: null,
+  specs: null,
   archived: false,
   createdAt: '2026-11-10T10:00:00',
   updatedAt: '2026-11-10T10:00:00',

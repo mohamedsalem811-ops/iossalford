@@ -46,6 +46,11 @@ describe('the upgrade from database 7', () => {
     migrate(db, migrations.slice(0, 7));
     const old = { ...ctx, db } as TestCtx;
     expect(schemaVersion(db)).toBe(7);
+    // This test writes through today's code, which also fills database 9's columns: they are
+    // added here (database 8 doesn't touch these tables; database-9.test covers 9 itself).
+    db.exec(`ALTER TABLE products ADD COLUMN specs TEXT;
+      ALTER TABLE receipt_items ADD COLUMN specs TEXT;
+      ALTER TABLE receipts ADD COLUMN show_specs INTEGER NOT NULL DEFAULT 1;`);
     // Written as the app did before database 8 (no name key).
     db.run(
       "INSERT INTO customers (name, phone, phone_key, created_at) VALUES ('  هدى   علي ', '0912222222', '912222222', '2026-11-01T10:00:00')",
@@ -55,7 +60,7 @@ describe('the upgrade from database 7', () => {
     deleteReturn(old, gone.ret); // the newest return id (2) was used, then deleted
     const before = db.all('SELECT * FROM returns ORDER BY id');
 
-    migrate(db);
+    migrate(db, migrations.slice(0, 8));
     expect(schemaVersion(db)).toBe(8);
     expect(db.all('SELECT * FROM returns ORDER BY id')).toEqual(before);
     expect(db.all('PRAGMA foreign_key_check')).toEqual([]);

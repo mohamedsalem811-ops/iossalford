@@ -26,6 +26,8 @@ export type Product = {
   stock: number;
   lowStock: number;
   imageFile: string | null;
+  /** "المواصفات والخامة": what the piece is made of, typed freely (feature 16). */
+  specs: string | null;
   archived: boolean;
   createdAt: string;
   updatedAt: string;
@@ -48,6 +50,7 @@ type ProductRow = {
   stock: number;
   low_stock: number;
   image_file: string | null;
+  specs: string | null;
   archived: number;
   created_at: string;
   updated_at: string;
@@ -73,6 +76,7 @@ function toProduct(r: ProductRow): Product {
     stock: r.stock,
     lowStock: r.low_stock,
     imageFile: r.image_file,
+    specs: r.specs ?? null,
     archived: r.archived === 1,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
@@ -159,7 +163,21 @@ export type ProductInput = {
   lowStock?: number;
   imageFile?: string | null;
   designId?: string | null;
+  /** Up to SPECS_MAX letters; empty clears it. Left out on an edit: kept as it is. */
+  specs?: string | null;
 };
+
+export const SPECS_MAX = 300;
+
+/** The specs as saved: single spaces per line, no empty lines; null when empty. */
+export function cleanSpecs(text: string | null | undefined): string | null {
+  const t = (text ?? '')
+    .split('\n')
+    .map((l) => l.trim().replace(/[ \t]+/g, ' '))
+    .filter(Boolean)
+    .join('\n');
+  return t ? latinDigits(t) : null;
+}
 
 function validate(input: ProductInput) {
   if (!clean(input.name)) throw new RuleError('يرجى إدخال اسم القطعة');
@@ -167,6 +185,8 @@ function validate(input: ProductInput) {
   if (!Number.isInteger(input.stock) || input.stock < 0) throw new RuleError('الكمية غير صحيحة');
   if (input.cost !== undefined && (!Number.isInteger(input.cost) || input.cost < 0))
     throw new RuleError('التكلفة غير صحيحة');
+  if ((cleanSpecs(input.specs)?.length ?? 0) > SPECS_MAX)
+    throw new RuleError(`المواصفات والخامة ${SPECS_MAX} حرف على الأكثر`);
 }
 
 function recordMove(
@@ -219,7 +239,8 @@ export function saveProduct(ctx: Ctx, input: ProductInput): number {
       const costChanged = !sameUsd && (cost !== old.cost || usd !== old.costUsd);
       ctx.db.run(
         `UPDATE products SET sku = ?, name = ?, brand_id = ?, category = ?, size = ?, color = ?, cost = ?,
-           cost_usd = ?, cost_rate = ?, price = ?, stock = ?, low_stock = ?, image_file = ?, design_id = ?, updated_at = ?
+           cost_usd = ?, cost_rate = ?, price = ?, stock = ?, low_stock = ?, image_file = ?, design_id = ?, specs = ?,
+           updated_at = ?
          WHERE id = ?`,
         [
           sku,
@@ -236,6 +257,7 @@ export function saveProduct(ctx: Ctx, input: ProductInput): number {
           input.lowStock ?? old.lowStock,
           input.imageFile === undefined ? old.imageFile : input.imageFile,
           input.designId === undefined ? old.designId : input.designId,
+          input.specs === undefined ? old.specs : cleanSpecs(input.specs),
           stamp,
           input.id,
         ],
@@ -251,8 +273,8 @@ export function saveProduct(ctx: Ctx, input: ProductInput): number {
 
     const id = ctx.db.run(
       `INSERT INTO products (sku, name, brand_id, category, size, color, cost, cost_usd, cost_rate, price, stock,
-         low_stock, image_file, design_id, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         low_stock, image_file, design_id, specs, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         typed || generateSku(ctx, input.category),
         input.name.trim(),
@@ -268,6 +290,7 @@ export function saveProduct(ctx: Ctx, input: ProductInput): number {
         input.lowStock ?? 2,
         input.imageFile ?? null,
         input.designId ?? null,
+        cleanSpecs(input.specs),
         stamp,
         stamp,
       ],
@@ -418,9 +441,11 @@ export function listProducts(ctx: Ctx, q: ProductQuery = {}): Product[] {
   const params: (string | number)[] = [q.archived ? 1 : 0];
   const search = clean(latinDigits(q.search ?? ''));
   if (search) {
-    where.push('(p.name LIKE ? OR p.sku LIKE ? OR b.name LIKE ? OR p.color LIKE ?)');
+    where.push(
+      '(p.name LIKE ? OR p.sku LIKE ? OR b.name LIKE ? OR p.color LIKE ? OR p.specs LIKE ?)',
+    );
     const like = `%${search}%`;
-    params.push(like, like, like, like);
+    params.push(like, like, like, like, like);
   }
   if (q.brandId !== undefined) {
     if (q.brandId === null) where.push('p.brand_id IS NULL');

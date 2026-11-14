@@ -638,6 +638,57 @@ CREATE INDEX customers_name_key ON customers(name_key);
 `,
     after: fillNameKeys,
   },
+  {
+    version: 9,
+    name: 'product specs, customer gender and photo, loyalty points',
+    sql: `
+-- What a piece is made of, typed freely ("فضة 925 مطلية روديوم، زركون"), up to 300 letters.
+ALTER TABLE products ADD COLUMN specs TEXT;
+-- The customer's portrait: 'female' or 'male' (none: a neutral one), and an optional real photo.
+ALTER TABLE customers ADD COLUMN gender TEXT CHECK (gender IN ('female', 'male'));
+ALTER TABLE customers ADD COLUMN image_file TEXT;
+-- The specs print under each piece on the receipt, unless the receipt turns them off.
+ALTER TABLE receipt_items ADD COLUMN specs TEXT;
+ALTER TABLE receipts ADD COLUMN show_specs INTEGER NOT NULL DEFAULT 1 CHECK (show_specs IN (0, 1));
+-- Part of a sale paid with loyalty points (F3), in dirhams: not money in the drawer. The receipt
+-- keeps its own copy, as it keeps everything it prints.
+ALTER TABLE sales ADD COLUMN points_paid INTEGER NOT NULL DEFAULT 0 CHECK (points_paid >= 0);
+ALTER TABLE receipts ADD COLUMN points_paid INTEGER NOT NULL DEFAULT 0 CHECK (points_paid >= 0);
+-- Every change to a customer's loyalty points (F3): earned on a paid sale, redeemed at checkout,
+-- taken back by a return, or adjusted by the owner. The balance is the sum, never stored. A
+-- move belongs to its sale, return or payment: deleting that deletes the move with it.
+CREATE TABLE loyalty_moves (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
+  kind        TEXT NOT NULL CHECK (kind IN ('earn', 'redeem', 'reverse', 'adjust')),
+  points      INTEGER NOT NULL CHECK (points <> 0),
+  sale_id     INTEGER REFERENCES sales(id) ON DELETE CASCADE,
+  return_id   INTEGER REFERENCES returns(id) ON DELETE CASCADE,
+  -- Points earned on a debt payment (a credit sale earns as it is paid).
+  payment_id  INTEGER REFERENCES payments(id) ON DELETE CASCADE,
+  -- What redeemed points were worth, in dirhams, at the time.
+  value       INTEGER NOT NULL DEFAULT 0,
+  note        TEXT,
+  created_at  TEXT NOT NULL,
+  month       TEXT NOT NULL,
+  by          TEXT,
+  by_name     TEXT,
+  uid         TEXT,
+  device      TEXT
+);
+CREATE INDEX loyalty_customer ON loyalty_moves(customer_id);
+CREATE INDEX loyalty_sale ON loyalty_moves(sale_id);
+CREATE INDEX loyalty_return ON loyalty_moves(return_id);
+CREATE INDEX loyalty_payment ON loyalty_moves(payment_id);
+CREATE INDEX loyalty_created ON loyalty_moves(created_at);
+CREATE UNIQUE INDEX loyalty_uid ON loyalty_moves(uid);
+CREATE TRIGGER loyalty_moves_new_uid AFTER INSERT ON loyalty_moves WHEN NEW.uid IS NULL BEGIN
+  UPDATE loyalty_moves SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
@@ -8,14 +8,16 @@ import {
   FormHeader,
   KEYBOARD_GAP,
   NumberField,
+  Segmented,
   Text,
   TextField,
   useSheetBottomSpace,
 } from '@/components';
 import type { Ctx } from '@/domain/context';
-import { getCustomer, maskPhone, saveCustomer } from '@/domain/customers';
+import { getCustomer, maskPhone, saveCustomer, type Gender } from '@/domain/customers';
+import { releasePhoto, showError } from '@/features/products/actions';
+import { PhotoPicker } from '@/features/products/photo-picker';
 import { useCan } from '@/staff/use-can';
-import { showError } from '@/features/products/actions';
 import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
@@ -37,13 +39,21 @@ export function CustomerFormView({
   const once = useSaveOnce();
   const saveOnce = () => once(save);
   const bottomSpace = useSheetBottomSpace();
-  const [form, setForm] = useState<CustomerForm>(() =>
+  const [initial] = useState(() =>
     customerFormFrom(customerId ? getCustomer(ctx, customerId) : undefined),
   );
+  const [form, setForm] = useState<CustomerForm>(initial);
+  const picked = useRef(new Set<string>());
+  // Photos picked here but not saved are removed when the form closes, however it is closed.
+  useEffect(() => {
+    const files = picked.current;
+    return () => files.forEach((f) => releasePhoto(ctx, f));
+  }, [ctx]);
   const fullPhone = useCan('customers.phones');
   /** An employee who may not see this customer's number keeps it as it is (feature 26). */
   const [hiddenPhone] = useState(() => (!fullPhone && form.phone ? maskPhone(form.phone) : null));
-  const set = (k: keyof CustomerForm, v: string) => setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof CustomerForm>(k: K, v: CustomerForm[K]) =>
+    setForm((f) => ({ ...f, [k]: v }));
   const save = () => {
     if (!form.name.trim()) {
       haptic.error();
@@ -56,6 +66,8 @@ export function CustomerFormView({
       showError(error);
       return;
     }
+    // The photo this customer had before, if it was replaced or removed.
+    releasePhoto(ctx, initial.imageFile);
     haptic.success();
     notifyDataChanged();
     onDone();
@@ -74,6 +86,28 @@ export function CustomerFormView({
         contentContainerStyle={{ padding: spacing.md, paddingBottom: bottomSpace, gap: spacing.md }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled">
+        <Card>
+          <PhotoPicker
+            ctx={ctx}
+            imageFile={form.imageFile}
+            onPicked={(file) => {
+              picked.current.add(file);
+              set('imageFile', file);
+            }}
+            onRemove={() => set('imageFile', null)}
+            placeholder="صورة الزبون (اختياري): بدونها تظهر صورة مرسومة"
+          />
+          <Segmented<Gender | 'none'>
+            options={[
+              { value: 'female', label: 'أنثى' },
+              { value: 'male', label: 'ذكر' },
+              { value: 'none', label: 'غير محدد' },
+            ]}
+            value={form.gender ?? 'none'}
+            onChange={(g) => set('gender', g === 'none' ? null : g)}
+            testID="customer-gender"
+          />
+        </Card>
         <Card>
           <TextField
             label="الاسم"

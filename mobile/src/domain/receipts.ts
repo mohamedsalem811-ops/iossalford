@@ -44,6 +44,8 @@ export type ReceiptItem = {
   brand?: string | null;
   color?: string | null;
   code?: string | null;
+  /** The piece's specs and material (feature 16), printed under it unless the receipt hides them. */
+  specs?: string | null;
   quantity: number;
   price: number;
 };
@@ -56,6 +58,8 @@ export type Receipt = {
   customer: string;
   template: TemplateId;
   showPrices: boolean;
+  /** The items' specs printed under them (feature 16). */
+  showSpecs: boolean;
   saleId: number | null;
   items: ReceiptItem[];
   total: number;
@@ -109,7 +113,7 @@ function writeItems(ctx: Ctx, receiptId: number, items: ReceiptItem[]) {
   ctx.db.run('DELETE FROM receipt_items WHERE receipt_id = ?', [receiptId]);
   items.forEach((i, n) =>
     ctx.db.run(
-      'INSERT INTO receipt_items (receipt_id, position, name, brand, color, code, quantity, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO receipt_items (receipt_id, position, name, brand, color, code, specs, quantity, price) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [
         receiptId,
         n,
@@ -117,6 +121,7 @@ function writeItems(ctx: Ctx, receiptId: number, items: ReceiptItem[]) {
         clean(i.brand),
         clean(i.color),
         clean(i.code),
+        i.specs?.trim() || null,
         i.quantity,
         i.price,
       ],
@@ -129,6 +134,7 @@ export type IssueInput = {
   customer?: string;
   template?: TemplateId;
   showPrices?: boolean;
+  showSpecs?: boolean;
   saleId?: number | null;
 };
 
@@ -142,8 +148,8 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
   return ctx.db.transaction(() => {
     const { date, time } = receiptDateTime(ctx.now());
     const id = ctx.db.run(
-      `INSERT INTO receipts (receipt_no, date, time, customer, template, show_prices, sale_id, created_at, issued_by, issued_by_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO receipts (receipt_no, date, time, customer, template, show_prices, show_specs, sale_id, created_at, issued_by, issued_by_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         takeReceiptNo(ctx),
         date,
@@ -151,6 +157,7 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
         clean(input.customer) ?? DEFAULT_RECEIPT_CUSTOMER,
         template,
         input.showPrices ?? true,
+        input.showSpecs ?? true,
         input.saleId ?? null,
         nowStamp(ctx),
         actorKey(by),
@@ -179,11 +186,12 @@ export function updateReceipt(ctx: Ctx, id: number, input: Omit<IssueInput, 'sal
     if (TEMPLATES[template]?.system !== ctx.system)
       throw new RuleError('هذا القالب غير متاح في هذا النظام');
     ctx.db.run(
-      'UPDATE receipts SET customer = ?, template = ?, show_prices = ?, updated_at = ? WHERE id = ?',
+      'UPDATE receipts SET customer = ?, template = ?, show_prices = ?, show_specs = ?, updated_at = ? WHERE id = ?',
       [
         clean(input.customer) ?? DEFAULT_RECEIPT_CUSTOMER,
         template,
         input.showPrices ?? old.showPrices,
+        input.showSpecs ?? old.showSpecs,
         nowStamp(ctx),
         id,
       ],
@@ -202,6 +210,7 @@ type ReceiptRow = {
   customer: string;
   template: TemplateId;
   show_prices: number;
+  show_specs: number;
   sale_id: number | null;
   created_at: string;
   updated_at: string | null;
@@ -213,6 +222,7 @@ type ItemRow = {
   brand: string | null;
   color: string | null;
   code: string | null;
+  specs: string | null;
   quantity: number;
   price: number;
 };
@@ -223,7 +233,7 @@ function itemsOf(ctx: Ctx, ids: number[]): Map<number, ReceiptItem[]> {
   for (let i = 0; i < ids.length; i += 500) {
     const chunk = ids.slice(i, i + 500);
     const rows = ctx.db.all<ItemRow>(
-      `SELECT receipt_id, name, brand, color, code, quantity, price FROM receipt_items
+      `SELECT receipt_id, name, brand, color, code, specs, quantity, price FROM receipt_items
        WHERE receipt_id IN (${chunk.map(() => '?').join(', ')}) ORDER BY receipt_id, position`,
       chunk,
     );
@@ -241,6 +251,7 @@ function toReceipt(r: ReceiptRow, items: ReceiptItem[]): Receipt {
     customer: r.customer,
     template: r.template,
     showPrices: r.show_prices === 1,
+    showSpecs: r.show_specs !== 0,
     saleId: r.sale_id,
     items,
     total: items.reduce((t, i) => t + i.price * i.quantity, 0),

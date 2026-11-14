@@ -15,9 +15,18 @@ describe('customers model', () => {
         phone: null,
         area: 'حي الأندلس',
         notes: null,
+        gender: 'female',
+        imageFile: null,
         createdAt: '',
       }),
-    ).toEqual({ name: 'سارة', phone: '', area: 'حي الأندلس', notes: '' });
+    ).toEqual({
+      name: 'سارة',
+      phone: '',
+      area: 'حي الأندلس',
+      notes: '',
+      gender: 'female',
+      imageFile: null,
+    });
   });
 
   it('takes a payment up to what is owed, Arabic digits too', () => {

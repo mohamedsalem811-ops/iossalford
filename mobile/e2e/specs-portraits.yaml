@@ -1,0 +1,104 @@
+# Phase F2. Feature 16: a piece with its specs and material ("Silver 925 rhodium") shows them in
+# the products list (search by them is covered by Jest). Feature 30: a new customer chosen as أنثى
+# gets the drawn woman's portrait in the customer list and on her page, and one left as
+# غير محدد gets the neutral one.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- tapOn: 'المنتجات'
+- tapOn: 'إضافة قطعة'
+- extendedWaitUntil:
+    visible:
+      id: 'product-name'
+    timeout: 30000
+- tapOn:
+    id: 'product-name'
+- inputText: 'Ring Swarovski'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'product-specs'
+- tapOn:
+    id: 'product-specs'
+- inputText: 'Silver 925 rhodium'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'product-price'
+- tapOn:
+    id: 'product-price'
+- inputText: '120'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'product-cost'
+- tapOn:
+    id: 'product-cost'
+- inputText: '60'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'product-save'
+- tapOn:
+    id: 'product-save'
+- extendedWaitUntil:
+    visible: '.*Ring Swarovski.*'
+    timeout: 30000
+- assertVisible: '.*Silver 925 rhodium.*'
+- takeScreenshot: ${DEVICE}-product-specs
+# Customers: one woman, one not said.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-customers'
+- tapOn: 'زبون جديد'
+- extendedWaitUntil:
+    visible:
+      id: 'customer-name'
+    timeout: 30000
+- tapOn: 'أنثى'
+- tapOn:
+    id: 'customer-name'
+- inputText: 'Mona'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'customer-save'
+- extendedWaitUntil:
+    visible:
+      id: 'customer-Mona'
+    timeout: 30000
+- assertVisible:
+    id: 'avatar-female'
+- tapOn: 'زبون جديد'
+- extendedWaitUntil:
+    visible:
+      id: 'customer-name'
+    timeout: 30000
+- tapOn:
+    id: 'customer-name'
+- inputText: 'Nour'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'customer-save'
+- extendedWaitUntil:
+    visible:
+      id: 'customer-Nour'
+    timeout: 30000
+- assertVisible:
+    id: 'avatar-neutral'
+- takeScreenshot: ${DEVICE}-customer-portraits
+- tapOn:
+    id: 'customer-Mona'
+- assertVisible:
+    id: 'customer-avatar'
+- takeScreenshot: ${DEVICE}-customer-portrait-page

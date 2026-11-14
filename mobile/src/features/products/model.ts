@@ -137,7 +137,7 @@ const ORDER: Record<SortOrder, (a: Product, b: Product) => number> = {
 };
 
 /**
- * Search (name, code, brand or colour, in any case, Arabic digits accepted), brand, category,
+ * Search (name, code, brand, colour or specs, in any case, Arabic digits accepted), brand, category,
  * stock filter and sort, applied to the system's products.
  */
 export function applyQuery(products: Product[], q: ListQuery): Product[] {
@@ -147,7 +147,9 @@ export function applyQuery(products: Product[], q: ListQuery): Product[] {
       return false;
     if (q.category && p.category !== q.category) return false;
     if (!search) return true;
-    return [p.name, p.sku, p.brand, p.color].some((f) => f?.toLowerCase().includes(search));
+    return [p.name, p.sku, p.brand, p.color, p.specs].some((f) =>
+      f?.toLowerCase().includes(search),
+    );
   });
   return filterStock(matches, q.stock).sort(ORDER[q.sort]);
 }

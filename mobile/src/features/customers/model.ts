@@ -1,5 +1,5 @@
 /** Pure rules of the customers and debts screens. */
-import type { Customer, CustomerInput } from '@/domain/customers';
+import type { Customer, CustomerInput, Gender } from '@/domain/customers';
 import { parseThousandths } from '@/lib/digits';
 import { formatLyd } from '@/lib/money';
 
@@ -10,13 +10,22 @@ export function balanceText(balance: number): string | null {
   return null;
 }
 
-export type CustomerForm = { name: string; phone: string; area: string; notes: string };
+export type CustomerForm = {
+  name: string;
+  phone: string;
+  area: string;
+  notes: string;
+  gender: Gender | null;
+  imageFile: string | null;
+};
 
 export const customerFormFrom = (c?: Customer): CustomerForm => ({
   name: c?.name ?? '',
   phone: c?.phone ?? '',
   area: c?.area ?? '',
   notes: c?.notes ?? '',
+  gender: c?.gender ?? null,
+  imageFile: c?.imageFile ?? null,
 });
 
 export const customerFormToInput = (f: CustomerForm, id?: number): CustomerInput => ({
@@ -25,6 +34,8 @@ export const customerFormToInput = (f: CustomerForm, id?: number): CustomerInput
   phone: f.phone,
   area: f.area,
   notes: f.notes,
+  gender: f.gender,
+  imageFile: f.imageFile,
 });
 
 /** How a debt payment was received. */

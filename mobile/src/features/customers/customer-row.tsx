@@ -1,8 +1,11 @@
 import { Pressable, View } from 'react-native';
 
-import { Badge, Icon, Text } from '@/components';
+import { Badge, Text } from '@/components';
 import { shownName, shownPhone, type Customer } from '@/domain/customers';
 import { useCan } from '@/staff/use-can';
+import { useCtx } from '@/state/system-db';
+
+import { CustomerAvatar } from './customer-avatar';
 import { radius, spacing, useTheme } from '@/theme';
 
 import { balanceText } from './model';
@@ -20,6 +23,7 @@ export function CustomerRow({
   const { colors } = useTheme();
   const owed = balanceText(balance);
   const full = useCan('customers.phones');
+  const { system } = useCtx();
   return (
     <Pressable
       onPress={onPress}
@@ -35,17 +39,7 @@ export function CustomerRow({
         borderCurve: 'continuous',
         backgroundColor: pressed ? colors.accentSoft : colors.surface,
       })}>
-      <View
-        style={{
-          width: 40,
-          height: 40,
-          borderRadius: radius.full,
-          backgroundColor: colors.accentSoft,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-        <Icon name="person.fill" size={18} color={colors.accent} />
-      </View>
+      <CustomerAvatar system={system} gender={c.gender} imageFile={c.imageFile} size={44} />
       <View style={{ flex: 1, gap: spacing.xxs }}>
         <Text variant="bodyStrong" numberOfLines={1}>
           {shownName(c.name, full)}

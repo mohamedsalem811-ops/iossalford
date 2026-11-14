@@ -23,6 +23,7 @@ const receipt: Receipt = {
   customer: 'Salford Libya',
   template: 'salford_light',
   showPrices: false,
+  showSpecs: true,
   saleId: null,
   items: [
     { name: 'Ring', brand: 'Pandora', color: null, code: 'RNG-0001', quantity: 2, price: 350_500 },
@@ -37,6 +38,7 @@ describe('studio form', () => {
     expect(emptyStudio('scarves')).toEqual({
       template: 'scarves_libya',
       showPrices: true,
+      showSpecs: true,
       customer: '',
       items: [],
     });
@@ -88,7 +90,15 @@ describe('studio form', () => {
       ],
     };
     expect(studioItems(f)).toEqual([
-      { name: 'Ring', brand: null, color: null, code: null, quantity: 1, price: 350_000 },
+      {
+        name: 'Ring',
+        brand: null,
+        color: null,
+        code: null,
+        specs: null,
+        quantity: 1,
+        price: 350_000,
+      },
     ]);
     expect(studioProblem(f)).toBeNull();
     expect(studioProblem({ ...f, items: [] })).toBe('أضف قطعة واحدة على الأقل إلى الإيصال');
