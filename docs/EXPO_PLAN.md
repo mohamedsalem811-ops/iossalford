@@ -721,6 +721,14 @@ The owner chose these on 2026-11-14 and, after the plan was checked against the 
 - an exchange is not a new purchase and can't use the reward;
 - a purchase counts only for a registered customer with a phone.
 
+**G2 as built (2026-11-14):** everything above, with these notes:
+
+- the reward is applied by checkout itself (`reward: true`): it checks the reward is ready, the sale is 250 د.ل or more and no quick discount is chosen, then takes the 10% off the prices it saves; the employee's discount limit is checked on the prices before it;
+- "ready" also needs the purchase that completed the count to be on an earlier day, since a day's sales are one purchase;
+- the points field takes a number of points, with 20%, 30% and "الأقصى" (the most allowed, half of what is left after the reward);
+- the receipt prints "Visit reward / مكافأة الزيارة" and a footer kept from the sale (points left, purchases to the next reward); the day summary shows the rewards used;
+- `e2e/loyalty-points.yaml` now taps "الأقصى" and photographs the reward section; a 4-visit reward can't be shown in one simulator day, so it is covered by the Jest tests.
+
 **G3, instant update after G1 and G2 (no database change).**
 
 1. **Birthdays:** an optional birthday gift or discount in the birthday week (set in "الولاء والمكافآت"); a list on the home screen, "أعياد ميلاد هذا الأسبوع"; a WhatsApp button for customers who accept offers.

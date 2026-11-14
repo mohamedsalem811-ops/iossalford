@@ -22,6 +22,8 @@ import { checkout } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
 import { ensureCustomer, listCustomers } from '@/domain/customers';
 import { customerStats, spendingByCustomer } from '@/domain/customer-stats';
+import { getRewards } from '@/domain/rewards';
+import { rewardStatus } from '@/domain/visit-reward';
 import { allBalances, creditBalances, debtors } from '@/domain/debts';
 import { displayName, getProduct, listProducts } from '@/domain/products';
 import { countReceipts, listReceipts, receiptMonths } from '@/domain/receipts';
@@ -226,6 +228,9 @@ function measure(sales: number) {
     return listCustomers(ctx).map((c) => spent.get(c.id));
   });
   check('Checkout: the customer card (G1)', () => customerStats(ctx, 4));
+  check('Checkout: the visit reward (G2)', () =>
+    rewardStatus(ctx, 4, { ...getRewards(ctx), enabled: true, startedAt: '2000-01-01' }),
+  );
   check('Debts: who owes, who is owed', () => {
     debtors(ctx);
     creditBalances(ctx);

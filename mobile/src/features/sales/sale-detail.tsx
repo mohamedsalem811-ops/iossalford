@@ -111,6 +111,11 @@ export function SaleDetail({
             {`خصم ${formatLyd(sale.discount)}${sale.discountReason ? `: ${sale.discountReason}` : ''}${sale.approvedBy ? ' • بموافقة المالك' : ''}`}
           </Text>
         ) : null}
+        {sale.rewardOff > 0 ? (
+          <Text variant="subhead" testID="sale-reward-off">
+            {`مكافأة الزيارة ${formatLyd(sale.rewardOff)}`}
+          </Text>
+        ) : null}
         {sale.pointsPaid > 0 ? (
           <Text variant="subhead" testID="sale-points-paid">
             {`مدفوع بالنقاط ${formatLyd(sale.pointsPaid)} • المدفوع ${formatLyd(sale.total - sale.pointsPaid)}`}
