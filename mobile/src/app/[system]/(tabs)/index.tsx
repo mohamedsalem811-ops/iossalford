@@ -166,6 +166,8 @@ function Dashboard() {
         onMonth: setMonth,
         onOpenSale: (id) => openSale(system, id),
         onOpenDebts: () => router.push(sectionHref('debts', system)),
+        onOpenBirthdays: () =>
+          router.push({ pathname: '/[system]/more/customer-care', params: { system } }),
         onOpenBackup: () => router.push(sectionHref('backup', system)),
         onOpenDay: () => router.push(sectionHref('daySummary', system)),
         onOpenProducts: () => router.push({ pathname: '/[system]/products', params: { system } }),

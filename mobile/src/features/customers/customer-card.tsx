@@ -12,7 +12,9 @@ import {
 } from '@/domain/customers';
 import { BADGE_LABELS, birthdayNote, customerStats, sinceText } from '@/domain/customer-stats';
 import { balance } from '@/domain/debts';
+import { getLoyalty, pointsBalance } from '@/domain/loyalty';
 import { getRewards } from '@/domain/rewards';
+import { rewardStatus } from '@/domain/visit-reward';
 import { formatLyd } from '@/lib/money';
 import { useLayout } from '@/hooks/use-layout';
 import { haptic } from '@/lib/haptics';
@@ -43,9 +45,15 @@ export function CustomerCard({
   const wide = useLayout().split;
   const id = c.id;
   // Worked out once per customer, not on every key press at checkout.
-  const { rules, s, owes } = useMemo(() => {
+  const { rules, s, owes, reward, points } = useMemo(() => {
     const rules = getRewards(ctx);
-    return { rules, s: customerStats(ctx, id, rules), owes: balance(ctx, id) };
+    return {
+      rules,
+      s: customerStats(ctx, id, rules),
+      owes: balance(ctx, id),
+      reward: rewardStatus(ctx, id, rules),
+      points: getLoyalty(ctx).enabled ? pointsBalance(ctx, id) : null,
+    };
   }, [ctx, id]);
   const birthday = birthdayNote(c, ctx.now());
   const note = c.notes && c.notes !== AUTO_NOTE ? c.notes : null;
@@ -94,6 +102,18 @@ export function CustomerCard({
           </Text>
         </View>
       </View>
+      {reward || points !== null ? (
+        <Text variant="caption" tone="accent" testID={`${testID}-reward`}>
+          {[
+            reward
+              ? `${reward.dots} ${reward.ready ? `مكافأة ${rules.percent}% جاهزة` : `مكافأة الزيارة ${reward.count} من ${reward.every}`}`
+              : null,
+            points !== null ? `${points} نقطة` : null,
+          ]
+            .filter(Boolean)
+            .join(' • ')}
+        </Text>
+      ) : null}
       {owes > 0 ? (
         <Text variant="caption" tone="warning" testID={`${testID}-owes`}>
           {`عليه دين ${formatLyd(owes)}`}
@@ -101,7 +121,7 @@ export function CustomerCard({
       ) : null}
       {birthday ? (
         <Text variant="caption" tone="accent" testID={`${testID}-birthday`}>
-          {birthday}
+          {rules.birthdayGift ? `${birthday} • الهدية: ${rules.birthdayGift}` : birthday}
         </Text>
       ) : null}
       {note ? (

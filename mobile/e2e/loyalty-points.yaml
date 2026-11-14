@@ -1,6 +1,6 @@
 # Phase F3 (feature 34). Loyalty points start switched off; the owner turns them on in Settings →
-# نقاط الولاء with 10 points as the least to use. Ring Zircon (350) sold for cash to Huda earns 35
-# points; on the next sale "الدفع بالنقاط" pays 3.5 د.ل of it as its own line ("مدفوع بالنقاط"), and
+# الولاء والمكافآت (G2) with 10 points as the least to use. Ring Zircon (350) sold for cash to Huda earns 35
+# points; on the next sale "الأقصى" under "الدفع بالنقاط" pays 3.5 د.ل of it as its own line ("مدفوع بالنقاط"), and
 # Huda's page shows her points.
 appId: com.salford.pos
 ---
@@ -25,6 +25,13 @@ appId: com.salford.pos
 - inputText: '10'
 - tapOn:
     id: 'keyboard.toolbar.done'
+# G2: the same screen has the visit reward, VIP and the ranges (left as they are, reward off).
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'rewards-vip-spend'
+- assertVisible: '.*مكافأة الزيارة متوقفة.*'
+- takeScreenshot: ${DEVICE}-rewards-rules
 - runFlow:
     file: subflows/scroll-form.yaml
     env:
@@ -90,9 +97,9 @@ appId: com.salford.pos
 - runFlow:
     file: subflows/scroll-form.yaml
     env:
-      ID: 'checkout-points'
+      ID: 'checkout-points-max'
 - tapOn:
-    id: 'checkout-points'
+    id: 'checkout-points-max'
 - runFlow:
     file: subflows/scroll-form.yaml
     env:

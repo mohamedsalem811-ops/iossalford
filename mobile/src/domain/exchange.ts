@@ -35,6 +35,8 @@ export function exchange(
     const refund = getReturn(ctx, returnId)!.refund;
     const { saleId, total } = checkout(ctx, {
       ...input.sale,
+      // An exchange is not a new purchase: it never uses the visit reward (G2).
+      reward: false,
       note: clean(input.sale.note) ?? `استبدال (مرتجع رقم ${returnId})`,
     });
     ctx.db.run('UPDATE returns SET exchange_sale_id = ? WHERE id = ?', [saleId, returnId]);

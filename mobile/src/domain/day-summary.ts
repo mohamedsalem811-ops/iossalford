@@ -23,6 +23,8 @@ export type DaySummary = {
   /** Sales per person, the largest first. */
   bySeller: { name: string; sales: number; total: number }[];
   discounts: number;
+  /** Visit rewards used that day (G2): how many and what they took off. */
+  rewards: { count: number; off: number };
   approvals: number;
   returns: number;
   refunded: number;
@@ -76,9 +78,10 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
   ))
     byMethod[r.m] = r.t;
   const sales = one(
-    `SELECT count(*) n, coalesce(sum(total), 0) t, coalesce(sum(discount), 0) d, count(approved_by) a
+    `SELECT count(*) n, coalesce(sum(total), 0) t, coalesce(sum(discount), 0) d, count(approved_by) a,
+            count(nullif(reward_off, 0)) rn, coalesce(sum(reward_off), 0) ro
        FROM sales WHERE created_at >= ? AND created_at < ?`,
-    { n: 0, t: 0, d: 0, a: 0 },
+    { n: 0, t: 0, d: 0, a: 0, rn: 0, ro: 0 },
   );
   const pieces = one(
     `SELECT coalesce(sum(l.quantity), 0) q FROM sale_lines l JOIN sales s ON s.id = l.sale_id
@@ -149,6 +152,7 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
     points: pts,
     bySeller,
     discounts: sales.d,
+    rewards: { count: sales.rn, off: sales.ro },
     approvals: sales.a + ret.a,
     returns: ret.n,
     refunded: ret.t,

@@ -22,6 +22,7 @@ import { spacing, useTheme } from '@/theme';
 import { CustomerAvatar } from './customer-avatar';
 import { CustomerFacts } from './customer-facts';
 import { PointsCard } from './points-card';
+import { WantedCard } from './wanted-card';
 import { balanceText, paymentWayLabel } from './model';
 import { haptic } from '@/lib/haptics';
 import { useCan } from '@/staff/use-can';
@@ -169,6 +170,8 @@ export function CustomerDetail({
       <CustomerFacts ctx={ctx} customer={c} />
 
       <PointsCard ctx={ctx} customerId={c.id} />
+
+      <WantedCard ctx={ctx} customerId={c.id} />
 
       <Card>
         <Text variant="subhead" tone="secondary">

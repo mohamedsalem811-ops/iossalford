@@ -54,7 +54,7 @@ export function SettingsScreen({
         {loyalty ? (
           <ListRow
             icon="star.circle"
-            title="نقاط الولاء"
+            title="الولاء والمكافآت"
             value={loyalty.on ? 'تعمل' : 'متوقفة'}
             onPress={loyalty.onOpen}
             testID="settings-loyalty"

@@ -721,6 +721,14 @@ The owner chose these on 2026-11-14 and, after the plan was checked against the 
 - an exchange is not a new purchase and can't use the reward;
 - a purchase counts only for a registered customer with a phone.
 
+**G2 as built (2026-11-14):** everything above, with these notes:
+
+- the reward is applied by checkout itself (`reward: true`): it checks the reward is ready, the sale is 250 د.ل or more and no quick discount is chosen, then takes the 10% off the prices it saves; the employee's discount limit is checked on the prices before it;
+- "ready" also needs the purchase that completed the count to be on an earlier day, since a day's sales are one purchase;
+- the points field takes a number of points, with 20%, 30% and "الأقصى" (the most allowed, half of what is left after the reward);
+- the receipt prints "Visit reward / مكافأة الزيارة" and a footer kept from the sale (points left, purchases to the next reward); the day summary shows the rewards used;
+- `e2e/loyalty-points.yaml` now taps "الأقصى" and photographs the reward section; a 4-visit reward can't be shown in one simulator day, so it is covered by the Jest tests.
+
 **G3, instant update after G1 and G2 (no database change).**
 
 1. **Birthdays:** an optional birthday gift or discount in the birthday week (set in "الولاء والمكافآت"); a list on the home screen, "أعياد ميلاد هذا الأسبوع"; a WhatsApp button for customers who accept offers.
@@ -729,6 +737,15 @@ The owner chose these on 2026-11-14 and, after the plan was checked against the 
 4. **Wanted pieces (jewelry):** note a piece a customer asked for ("تريد سوار ذهب عيار 21"); when a matching product is added, the app reminds the owner who wanted it.
 5. **Owner reports:** where customers come from (Facebook, Instagram, TikTok, friend, other) with what each brought in; the top customers this month and this year; the share of returning customers; rewards and points given and what they cost.
 6. **Duplicate customers:** a warning when the same name appears with two phones, with a merge (owner; logged) that moves the purchases, payments, credit paid back, points, receipts, wanted pieces and notes to the customer kept.
+
+**G3 as built (2026-11-14):** everything above, with these notes:
+
+- the birthday gift is a short text the owner sets in "الولاء والمكافآت" ("هدية مجانية", "خصم 5%"); it shows on the customer card in the birthday week and in the birthday message, and the seller gives it (a gift, or the usual discount);
+- birthdays, "لم يعودوا" (90 days), the duplicates and the owner's report are one screen, Customers → "متابعة الزبائن"; the home screen's "يحتاج انتباهك" lists this week's birthdays and opens it;
+- tapping a customer there offers a ready WhatsApp message (`wa.me`) when they accept offers and the person may see phones, or opens their page;
+- wanted pieces are on the customer page (both shops); a new piece whose name, brand, category or colour shares a word with an open request shows who asked for it;
+- the merge moves sales, debt payments, credit paid back, points and wanted pieces, fills the empty details, joins the notes, and is logged;
+- new simulator flow `e2e/customer-care.yaml`, run only in the final simulator run.
 
 ### Phase 10: switching over
 
