@@ -10,8 +10,15 @@ export type Customer = {
   phone: string | null;
   area: string | null;
   notes: string | null;
+  /** For the portrait when there is no photo (feature 30): أنثى / ذكر, or not said. */
+  gender: Gender | null;
+  /** A real photo of the customer, in the system's photo folder. */
+  imageFile: string | null;
   createdAt: string;
 };
+
+export type Gender = 'female' | 'male';
+export const GENDER_LABELS: Record<Gender, string> = { female: 'أنثى', male: 'ذكر' };
 
 type Row = {
   id: number;
@@ -19,6 +26,8 @@ type Row = {
   phone: string | null;
   area: string | null;
   notes: string | null;
+  gender?: string | null;
+  image_file?: string | null;
   created_at: string;
 };
 const toCustomer = (r: Row): Customer => ({
@@ -27,6 +36,8 @@ const toCustomer = (r: Row): Customer => ({
   phone: r.phone,
   area: r.area,
   notes: r.notes,
+  gender: r.gender === 'female' || r.gender === 'male' ? r.gender : null,
+  imageFile: r.image_file ?? null,
   createdAt: r.created_at,
 });
 
@@ -134,6 +145,10 @@ export type CustomerInput = {
   phone?: string;
   area?: string;
   notes?: string;
+  /** Left out on an edit: kept as it is; null: not said. */
+  gender?: Gender | null;
+  /** Left out on an edit: kept as it is; null: no photo. */
+  imageFile?: string | null;
 };
 
 /** Adds or edits a customer. Refuses a phone number that belongs to another customer. */
@@ -153,16 +168,38 @@ export function saveCustomer(ctx: Ctx, input: CustomerInput): number {
   }
   return ctx.db.transaction(() => {
     if (input.id) {
+      const old = getCustomer(ctx, input.id);
+      if (!old) throw new RuleError('الزبون غير موجود');
       ctx.db.run(
-        'UPDATE customers SET name = ?, name_key = ?, phone = ?, phone_key = ?, area = ?, notes = ? WHERE id = ?',
-        [name, nameKey(name), phone, key, clean(input.area), clean(input.notes), input.id],
+        'UPDATE customers SET name = ?, name_key = ?, phone = ?, phone_key = ?, area = ?, notes = ?, gender = ?, image_file = ? WHERE id = ?',
+        [
+          name,
+          nameKey(name),
+          phone,
+          key,
+          clean(input.area),
+          clean(input.notes),
+          input.gender === undefined ? old.gender : input.gender,
+          input.imageFile === undefined ? old.imageFile : input.imageFile,
+          input.id,
+        ],
       );
       logAction(ctx, 'customer.edit', `تعديل بيانات الزبون «${name}»`, { customerId: input.id });
       return input.id;
     }
     const id = ctx.db.run(
-      'INSERT INTO customers (name, name_key, phone, phone_key, area, notes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [name, nameKey(name), phone, key, clean(input.area), clean(input.notes), nowStamp(ctx)],
+      'INSERT INTO customers (name, name_key, phone, phone_key, area, notes, gender, image_file, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [
+        name,
+        nameKey(name),
+        phone,
+        key,
+        clean(input.area),
+        clean(input.notes),
+        input.gender ?? null,
+        input.imageFile ?? null,
+        nowStamp(ctx),
+      ],
     ).lastInsertRowId;
     logAction(ctx, 'customer.add', `زبون جديد «${name}»`, { customerId: id });
     return id;

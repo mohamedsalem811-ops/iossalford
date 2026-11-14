@@ -21,6 +21,8 @@ export type StudioItem = {
   brand: string;
   color: string;
   code: string;
+  /** المواصفات والخامة, printed under the line (feature 16). */
+  specs: string;
   quantity: number;
   /** As typed, in dinars. */
   price: string;
@@ -29,6 +31,7 @@ export type StudioItem = {
 export type StudioForm = {
   template: TemplateId;
   showPrices: boolean;
+  showSpecs: boolean;
   customer: string;
   items: StudioItem[];
 };
@@ -42,18 +45,26 @@ export const blankItem = (): StudioItem => ({
   brand: '',
   color: '',
   code: '',
+  specs: '',
   quantity: 1,
   price: '',
 });
 
 export function emptyStudio(system: SystemId): StudioForm {
-  return { template: DEFAULT_TEMPLATE[system], showPrices: true, customer: '', items: [] };
+  return {
+    template: DEFAULT_TEMPLATE[system],
+    showPrices: true,
+    showSpecs: true,
+    customer: '',
+    items: [],
+  };
 }
 
 export function studioFrom(r: Receipt): StudioForm {
   return {
     template: r.template,
     showPrices: r.showPrices,
+    showSpecs: r.showSpecs,
     customer: r.customer === DEFAULT_RECEIPT_CUSTOMER ? '' : r.customer,
     items: r.items.map((i) => ({
       key: newKey(),
@@ -61,6 +72,7 @@ export function studioFrom(r: Receipt): StudioForm {
       brand: i.brand ?? '',
       color: i.color ?? '',
       code: i.code ?? '',
+      specs: i.specs ?? '',
       quantity: i.quantity,
       price: editableDinars(i.price),
     })),
@@ -75,6 +87,7 @@ export function itemFromProduct(ctx: Pick<Ctx, 'system'>, p: Product): StudioIte
     brand: p.brand ?? '',
     color: p.color ?? '',
     code: p.sku,
+    specs: p.specs ?? '',
     quantity: 1,
     price: editableDinars(p.price),
   };
@@ -99,6 +112,7 @@ export function studioItems(f: StudioForm): ReceiptItem[] {
     brand: i.brand.trim() || null,
     color: i.color.trim() || null,
     code: i.code.trim() || null,
+    specs: i.specs.trim() || null,
     quantity: i.quantity,
     price: parseThousandths(i.price) ?? 0,
   }));
@@ -122,6 +136,7 @@ export function studioDoc(
   return {
     template: f.template,
     showPrices: f.showPrices,
+    showSpecs: f.showSpecs,
     receiptNo: saved?.receiptNo ?? null,
     date: when.date,
     time: when.time,
@@ -135,6 +150,7 @@ export function receiptDoc(r: Receipt): ReceiptDoc {
   return {
     template: r.template,
     showPrices: r.showPrices,
+    showSpecs: r.showSpecs,
     receiptNo: r.receiptNo,
     date: r.date,
     time: r.time,

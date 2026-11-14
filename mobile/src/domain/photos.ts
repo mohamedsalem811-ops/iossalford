@@ -16,7 +16,8 @@ export function newPhotoName(ctx: Ctx, random: () => number = Math.random): stri
  */
 export function photoInUse(ctx: Ctx, file: string): boolean {
   return !!ctx.db.get(
-    'SELECT 1 FROM products WHERE image_file = ? UNION ALL SELECT 1 FROM brands WHERE image_file = ? LIMIT 1',
-    [file, file],
+    `SELECT 1 FROM products WHERE image_file = ? UNION ALL SELECT 1 FROM brands WHERE image_file = ?
+     UNION ALL SELECT 1 FROM customers WHERE image_file = ? LIMIT 1`,
+    [file, file, file],
   );
 }

@@ -19,6 +19,7 @@ import { formatLyd } from '@/lib/money';
 import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
+import { CustomerAvatar } from './customer-avatar';
 import { balanceText, paymentWayLabel } from './model';
 import { haptic } from '@/lib/haptics';
 import { useCan } from '@/staff/use-can';
@@ -124,6 +125,15 @@ export function CustomerDetail({
   return (
     <Page>
       <Card>
+        <View style={{ alignItems: 'center' }}>
+          <CustomerAvatar
+            system={ctx.system}
+            gender={c.gender}
+            imageFile={c.imageFile}
+            size={96}
+            testID="customer-avatar"
+          />
+        </View>
         <Text variant="title">{shownName(c.name, fullPhone)}</Text>
         {c.phone && !fullPhone ? (
           // An employee who may not see the numbers (feature 26): no call, which would show it.

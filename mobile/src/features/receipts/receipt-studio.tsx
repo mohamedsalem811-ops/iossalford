@@ -7,6 +7,7 @@ import {
   Button,
   Card,
   EmptyState,
+  FilterChip,
   FormHeader,
   Icon,
   KEYBOARD_GAP,
@@ -107,6 +108,7 @@ export function ReceiptStudio({
         customer: form.customer,
         template: form.template,
         showPrices: form.showPrices,
+        showSpecs: form.showSpecs,
       };
       const current = savedRef.current;
       const r = current ? updateReceipt(ctx, current.id, input) : issueReceipt(ctx, input);
@@ -243,6 +245,12 @@ export function ReceiptStudio({
             onChange={(v) => change((f) => ({ ...f, showPrices: v === 'official' }))}
             testID="studio-type"
           />
+          <FilterChip
+            label={form.showSpecs ? '✓ المواصفات والخامة تحت القطع' : 'المواصفات والخامة مخفية'}
+            selected={form.showSpecs}
+            onPress={() => change((f) => ({ ...f, showSpecs: !f.showSpecs }))}
+            testID="studio-specs"
+          />
           <TextField
             label="الزبون"
             value={form.customer}
@@ -322,6 +330,15 @@ export function ReceiptStudio({
               value={it.code}
               onChangeText={(code) => setItem(it.key, { code })}
               placeholder="اختياري"
+            />
+            <TextField
+              label="المواصفات والخامة"
+              value={it.specs}
+              onChangeText={(specs) => setItem(it.key, { specs })}
+              placeholder="اختياري"
+              multiline
+              maxLength={300}
+              testID={`studio-specs-${n}`}
             />
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: spacing.md }}>
               <View style={{ flex: 1 }}>

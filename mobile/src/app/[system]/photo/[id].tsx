@@ -61,6 +61,11 @@ export default function PhotoRoute() {
               <Text variant="subhead" tone="secondary">
                 {productDetails(product)}
               </Text>
+              {product.specs ? (
+                <Text variant="body" testID="photo-specs">
+                  {product.specs}
+                </Text>
+              ) : null}
               <Text variant="headline" tone="accent">
                 {formatLyd(product.price)} • {product.stock} قطعة في المخزن
               </Text>

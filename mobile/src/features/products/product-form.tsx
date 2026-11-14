@@ -18,7 +18,7 @@ import {
 import { listBrands } from '@/domain/brands';
 import type { Ctx } from '@/domain/context';
 import { RuleError } from '@/domain/context';
-import { CATEGORIES, getProduct, productBySku, saveProduct } from '@/domain/products';
+import { CATEGORIES, getProduct, productBySku, saveProduct, SPECS_MAX } from '@/domain/products';
 import { getRate } from '@/domain/settings';
 import { parseInteger } from '@/lib/digits';
 import { formatLyd, formatRate } from '@/lib/money';
@@ -180,6 +180,17 @@ export function ProductFormView({
             value={form.size}
             onChangeText={(t) => set('size', t)}
             placeholder="مثال: 7 أو M"
+          />
+          <TextField
+            label="المواصفات والخامة (اختياري)"
+            value={form.specs}
+            onChangeText={(t) => set('specs', t)}
+            placeholder="فضة 925 مطلية روديوم، زركون، كريستال سواروفسكي"
+            multiline
+            maxLength={SPECS_MAX}
+            hint={`${form.specs.length}/${SPECS_MAX}`}
+            error={errors.specs}
+            testID="product-specs"
           />
           <TextField
             label="الكود"

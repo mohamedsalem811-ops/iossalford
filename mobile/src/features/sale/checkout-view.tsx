@@ -59,6 +59,7 @@ import {
   emptyCheckoutForm,
   type CheckoutForm,
 } from './model';
+import { CustomerAvatar } from '@/features/customers/customer-avatar';
 import { useSaveOnce } from '@/hooks/use-save-once';
 import { haptic } from '@/lib/haptics';
 
@@ -260,10 +261,23 @@ export function CheckoutView({
             placeholder="09XXXXXXXX"
             testID="checkout-phone"
           />
-          {known ? (
-            <Text variant="caption" tone="accent" testID="checkout-known">
-              {`زبون مسجل: ${shownName(known.name, fullPhone)}${known.area ? ` • ${known.area}` : ''}`}
-            </Text>
+          {customer ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <CustomerAvatar
+                system={ctx.system}
+                gender={customer.gender}
+                imageFile={customer.imageFile}
+                size={36}
+                testID="checkout-avatar"
+              />
+              <Text
+                variant="caption"
+                tone="accent"
+                style={{ flex: 1 }}
+                testID={known ? 'checkout-known' : 'checkout-picked'}>
+                {`زبون مسجل: ${shownName(customer.name, fullPhone)}${customer.area ? ` • ${customer.area}` : ''}`}
+              </Text>
+            </View>
           ) : null}
           {use ? (
             <View style={{ gap: spacing.sm }} testID="checkout-credit">
