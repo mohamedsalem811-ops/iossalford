@@ -53,15 +53,44 @@ export async function pickPhoto(
       ? await ImagePicker.launchCameraAsync(options)
       : await ImagePicker.launchImageLibraryAsync(options);
   if (result.canceled || !result.assets?.length) return { status: 'canceled' };
+  const uri = result.assets[0].uri;
 
   // Decoded at the reduced size, so a large camera photo is never fully loaded into memory.
-  const image = await ImageManipulator.manipulate(result.assets[0].uri, {
-    maxWidth: PHOTO_MAX_SIDE,
-    maxHeight: PHOTO_MAX_SIDE,
-  }).renderAsync();
-  const saved = await image.saveAsync({ format: SaveFormat.JPEG, compress: JPEG_QUALITY });
-  await new File(saved.uri).move(new File(photoFolder(system), name));
+  const image = await slowStepLogged('resize', () =>
+    ImageManipulator.manipulate(uri, {
+      maxWidth: PHOTO_MAX_SIDE,
+      maxHeight: PHOTO_MAX_SIDE,
+    }).renderAsync(),
+  );
+  const saved = await slowStepLogged('save', () =>
+    image.saveAsync({ format: SaveFormat.JPEG, compress: JPEG_QUALITY }),
+  );
+  await slowStepLogged('move', () => new File(saved.uri).move(new File(photoFolder(system), name)));
   return { status: 'picked', file: name };
+}
+
+/** How long a step after the picker may take before it is written to the device log. */
+export const SLOW_STEP_MS = 10_000;
+
+/**
+ * Runs one step of saving a picked photo. If it takes longer than SLOW_STEP_MS, the device log
+ * gets "[photo] <step> still running" (and how long it took once it ends), so a photo that never
+ * appears shows where it stopped. Run 57 and 58 on the simulator: the picker handed the file
+ * over and the photo never came.
+ */
+export async function slowStepLogged<T>(step: string, run: () => Promise<T> | T): Promise<T> {
+  const started = Date.now();
+  let slow = false;
+  const timer = setTimeout(() => {
+    slow = true;
+    console.error(`[photo] ${step} still running after ${SLOW_STEP_MS / 1000}s`);
+  }, SLOW_STEP_MS);
+  try {
+    return await run();
+  } finally {
+    clearTimeout(timer);
+    if (slow) console.error(`[photo] ${step} ended after ${Math.round((Date.now() - started) / 1000)}s`);
+  }
 }
 
 /** Removes a photo file. Call only when nothing uses it any more (see photoInUse). */
