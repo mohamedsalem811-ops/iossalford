@@ -15,7 +15,8 @@ import {
   type Customer,
   type Heard,
 } from './customers';
-import { customerSales, daysToBirthday, spendingByCustomer } from './customer-stats';
+import { nextWindow, type BirthdayWindow } from './birthday';
+import { customerSales, spendingByCustomer } from './customer-stats';
 
 // ---------------------------------------------------------------- WhatsApp
 
@@ -27,9 +28,13 @@ export function waLink(phone: string | null | undefined, text: string): string |
   return `https://wa.me/${digits}?text=${encodeURIComponent(text)}`;
 }
 
-export const birthdayMessage = (c: Pick<Customer, 'name' | 'gender'>, gift: string) =>
+/** The birthday message, with the birthday discount and its dates when it is on (H1). */
+export const birthdayMessage = (
+  c: Pick<Customer, 'name' | 'gender'>,
+  gift: { percent: number; when: string } | null,
+) =>
   `${c.gender === 'male' ? 'عزيزنا' : 'عزيزتنا'} ${c.name}، كل عام وأنت بخير بمناسبة عيد ميلادك 🎂${
-    gift ? `\nهديتك عندنا هذا الأسبوع: ${gift}` : ''
+    gift ? `\nهديتك عندنا: خصم ${gift.percent}% على مشترياتك ${gift.when}.` : ''
   }\nSALFORD`;
 
 export const missYouMessage = (c: Pick<Customer, 'name' | 'gender'>) =>
@@ -37,13 +42,20 @@ export const missYouMessage = (c: Pick<Customer, 'name' | 'gender'>) =>
 
 // ---------------------------------------------------------------- birthdays and visits
 
-/** Customers whose birthday is in the next 7 days (today first). */
-export function birthdaysThisWeek(ctx: Ctx): { customer: Customer; days: number }[] {
+/**
+ * Customers whose birthday is in the next 7 days, or was in the last 3 (their birthday discount
+ * is still on, H1): the earliest first. `days` is negative once it has passed.
+ */
+export function birthdaysThisWeek(
+  ctx: Ctx,
+): { customer: Customer; days: number; window: BirthdayWindow }[] {
   return ctx.db
     .all<{ id: number }>('SELECT id FROM customers WHERE birth_month IS NOT NULL')
     .map((r) => getCustomer(ctx, r.id)!)
-    .map((customer) => ({ customer, days: daysToBirthday(customer, ctx.now()) }))
-    .filter((x): x is { customer: Customer; days: number } => x.days !== null && x.days <= 6)
+    .map((customer) => ({ customer, window: nextWindow(customer, ctx.now()) }))
+    .filter((x): x is { customer: Customer; window: BirthdayWindow } => !!x.window)
+    .map((x) => ({ ...x, days: x.window.days }))
+    .filter((x) => x.days <= 6)
     .sort((a, b) => a.days - b.days || a.customer.name.localeCompare(b.customer.name));
 }
 
@@ -204,6 +216,7 @@ export function mergeCustomers(ctx: Ctx, keepId: number, dropId: number) {
       `UPDATE customers SET
          area = coalesce(area, ?), gender = coalesce(gender, ?), image_file = coalesce(image_file, ?),
          birth_month = coalesce(birth_month, ?), birth_day = CASE WHEN birth_month IS NULL THEN ? ELSE birth_day END,
+         birthday_set_at = CASE WHEN birth_month IS NULL THEN ? ELSE birthday_set_at END,
          heard = coalesce(heard, ?), ring_size = coalesce(ring_size, ?), metal = coalesce(metal, ?),
          colours = coalesce(colours, ?), offers = max(offers, ?), vip = coalesce(vip, ?), notes = ?
        WHERE id = ?`,
@@ -213,6 +226,7 @@ export function mergeCustomers(ctx: Ctx, keepId: number, dropId: number) {
         drop.imageFile,
         drop.birthMonth,
         drop.birthDay,
+        drop.birthdaySetAt,
         drop.heard,
         drop.ringSize,
         drop.metal,
@@ -259,6 +273,8 @@ export type CustomerReport = {
   returning: number;
   /** Visit rewards this year: how many and what they took off. */
   rewards: { count: number; off: number };
+  /** Birthday discounts this year (H1). */
+  birthdays: { count: number; off: number };
   /** Points this year: earned, and what the points paid. */
   points: { earned: number; paid: number };
 };
@@ -300,8 +316,10 @@ export function customerReport(ctx: Ctx): CustomerReport {
           .map((s) => s.day),
       ).size >= 2,
   ).length;
-  const rewards = ctx.db.get<{ n: number; t: number }>(
-    'SELECT count(nullif(reward_off, 0)) n, coalesce(sum(reward_off), 0) t FROM sales WHERE created_at >= ?',
+  const rewards = ctx.db.get<{ n: number; t: number; bn: number; bt: number }>(
+    `SELECT count(nullif(reward_off, 0)) n, coalesce(sum(reward_off), 0) t,
+            count(nullif(birthday_off, 0)) bn, coalesce(sum(birthday_off), 0) bt
+       FROM sales WHERE created_at >= ?`,
     [yearStart],
   )!;
   const points = ctx.db.get<{ e: number; p: number }>(
@@ -316,6 +334,7 @@ export function customerReport(ctx: Ctx): CustomerReport {
     buyers: yearBuyers.length,
     returning,
     rewards: { count: rewards.n, off: rewards.t },
+    birthdays: { count: rewards.bn, off: rewards.bt },
     points: { earned: points.e, paid: points.p },
   };
 }

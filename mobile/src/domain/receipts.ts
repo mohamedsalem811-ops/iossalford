@@ -64,6 +64,8 @@ export type Receipt = {
   pointsPaid: number;
   /** The visit reward taken off the sale (G2), printed as what the customer saved. */
   rewardOff: number;
+  /** The birthday discount taken off the sale (H1), printed as the customer's gift. */
+  birthdayOff: number;
   /** Printed under the total, as it was at the sale (points left, purchases to the reward). */
   footer: string | null;
   saleId: number | null;
@@ -144,6 +146,7 @@ export type IssueInput = {
   saleId?: number | null;
   pointsPaid?: number;
   rewardOff?: number;
+  birthdayOff?: number;
   footer?: string | null;
 };
 
@@ -158,8 +161,8 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
     const { date, time } = receiptDateTime(ctx.now());
     const id = ctx.db.run(
       `INSERT INTO receipts (receipt_no, date, time, customer, template, show_prices, show_specs, sale_id, points_paid,
-         reward_off, footer, created_at, issued_by, issued_by_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         reward_off, birthday_off, footer, created_at, issued_by, issued_by_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         takeReceiptNo(ctx),
         date,
@@ -171,6 +174,7 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
         input.saleId ?? null,
         input.pointsPaid ?? 0,
         input.rewardOff ?? 0,
+        input.birthdayOff ?? 0,
         input.footer?.trim() || null,
         nowStamp(ctx),
         actorKey(by),
@@ -226,6 +230,7 @@ type ReceiptRow = {
   show_specs: number;
   points_paid?: number | null;
   reward_off?: number | null;
+  birthday_off?: number | null;
   footer?: string | null;
   sale_id: number | null;
   created_at: string;
@@ -270,6 +275,7 @@ function toReceipt(r: ReceiptRow, items: ReceiptItem[]): Receipt {
     showSpecs: r.show_specs !== 0,
     pointsPaid: r.points_paid ?? 0,
     rewardOff: r.reward_off ?? 0,
+    birthdayOff: r.birthday_off ?? 0,
     footer: r.footer ?? null,
     saleId: r.sale_id,
     items,

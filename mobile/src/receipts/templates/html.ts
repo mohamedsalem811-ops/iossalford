@@ -24,6 +24,8 @@ export type ReceiptDoc = {
   pointsPaid?: number;
   /** The visit reward (G2) already taken off the prices: printed as what the customer saved. */
   rewardOff?: number;
+  /** The birthday discount (H1) already taken off the prices: printed as the customer's gift. */
+  birthdayOff?: number;
   /** Printed under the total as it was at the sale (points left, purchases to the reward). */
   footer?: string | null;
   receiptNo: string | null;
@@ -74,14 +76,21 @@ export function pointsLines(doc: Pick<ReceiptDoc, 'items' | 'showPrices' | 'poin
     <div class="points"><span>Paid / المدفوع</span><span>${receiptMoney(Math.max(0, total - points))} LYD</span></div>`;
 }
 
-/** Under the total: the visit reward saved (G2) and the footer kept from the sale. */
-export function rewardLines(doc: Pick<ReceiptDoc, 'showPrices' | 'rewardOff' | 'footer'>): string {
-  const off = doc.rewardOff ?? 0;
-  const saved =
-    doc.showPrices && off > 0
+/**
+ * Under the total: the visit reward saved (G2), the birthday discount (H1) and the footer kept
+ * from the sale.
+ */
+export function rewardLines(
+  doc: Pick<ReceiptDoc, 'showPrices' | 'rewardOff' | 'birthdayOff' | 'footer'>,
+): string {
+  const line = (label: string, off: number | undefined) =>
+    doc.showPrices && (off ?? 0) > 0
       ? `
-    <div class="points"><span>Visit reward / مكافأة الزيارة</span><span>${receiptMoney(off)} LYD</span></div>`
+    <div class="points"><span>${label}</span><span>${receiptMoney(off!)} LYD</span></div>`
       : '';
+  const saved =
+    line('Visit reward / مكافأة الزيارة', doc.rewardOff) +
+    line('Birthday gift / هدية عيد الميلاد', doc.birthdayOff);
   const footer = (doc.footer ?? '')
     .split('\n')
     .map((l) => l.trim())

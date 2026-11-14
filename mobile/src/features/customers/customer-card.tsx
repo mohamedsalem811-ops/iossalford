@@ -13,6 +13,7 @@ import {
 import { BADGE_LABELS, birthdayNote, customerStats, sinceText } from '@/domain/customer-stats';
 import { balance } from '@/domain/debts';
 import { getLoyalty, pointsBalance } from '@/domain/loyalty';
+import { birthdayStatus, getBirthday, windowEnd } from '@/domain/birthday';
 import { getRewards } from '@/domain/rewards';
 import { rewardStatus } from '@/domain/visit-reward';
 import { formatLyd } from '@/lib/money';
@@ -45,10 +46,13 @@ export function CustomerCard({
   const wide = useLayout().split;
   const id = c.id;
   // Worked out once per customer, not on every key press at checkout.
-  const { rules, s, owes, reward, points } = useMemo(() => {
+  const { rules, s, owes, reward, points, gift, giftRules } = useMemo(() => {
     const rules = getRewards(ctx);
+    const giftRules = getBirthday(ctx);
     return {
       rules,
+      giftRules,
+      gift: birthdayStatus(ctx, id, giftRules),
       s: customerStats(ctx, id, rules),
       owes: balance(ctx, id),
       reward: rewardStatus(ctx, id, rules),
@@ -121,7 +125,17 @@ export function CustomerCard({
       ) : null}
       {birthday ? (
         <Text variant="caption" tone="accent" testID={`${testID}-birthday`}>
-          {rules.birthdayGift ? `${birthday} • الهدية: ${rules.birthdayGift}` : birthday}
+          {gift
+            ? [
+                birthday,
+                gift.used
+                  ? 'استُخدم خصم عيد الميلاد هذه السنة'
+                  : `خصم ${giftRules.percent}% متاح حتى ${windowEnd(gift)}`,
+                !gift.used && gift.needsOwner ? 'يحتاج موافقة المالك' : null,
+              ]
+                .filter(Boolean)
+                .join(' • ')
+            : birthday}
         </Text>
       ) : null}
       {note ? (

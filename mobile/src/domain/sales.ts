@@ -70,6 +70,8 @@ export type Sale = {
   pointsPaid: number;
   /** The visit reward taken off its prices (G2), in dirhams. */
   rewardOff: number;
+  /** The birthday discount taken off its prices (H1), in dirhams. */
+  birthdayOff: number;
   lines: SaleLine[];
 };
 
@@ -139,6 +141,7 @@ type SaleRow = {
   approved_by: string | null;
   points_paid?: number | null;
   reward_off?: number | null;
+  birthday_off?: number | null;
 };
 
 /** The lines of several sales in one query (in chunks, well under SQLite's parameter limit). */
@@ -174,6 +177,7 @@ function toSale(r: SaleRow, lines: SaleLine[]): Sale {
     approvedBy: r.approved_by ?? null,
     pointsPaid: r.points_paid ?? 0,
     rewardOff: r.reward_off ?? 0,
+    birthdayOff: r.birthday_off ?? 0,
     lines,
   };
 }

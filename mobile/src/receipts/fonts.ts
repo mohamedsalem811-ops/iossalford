@@ -17,11 +17,14 @@ const FAMILIES: Record<SystemId, Family[]> = {
   scarves: [fonts.logoScarves, fonts.logoScarvesText, fonts.logoScarvesItalic],
 };
 
-const cache = new Map<SystemId, Promise<string>>();
+/** The rewards card (H3) also needs the Arabic text font, in its three weights. */
+const CARD_FAMILIES: Family[] = [fonts.regular, fonts.medium, fonts.semibold];
 
-async function load(system: SystemId): Promise<string> {
+const cache = new Map<string, Promise<string>>();
+
+async function load(families: Family[]): Promise<string> {
   const faces = await Promise.all(
-    FAMILIES[system].map(async (family) => {
+    families.map(async (family) => {
       const asset = Asset.fromModule(fontAssets[family]);
       await asset.downloadAsync();
       const base64 = await new File(asset.localUri ?? asset.uri).base64();
@@ -31,15 +34,23 @@ async function load(system: SystemId): Promise<string> {
   return faces.join('\n');
 }
 
-/** The @font-face rules for the system's logo; read once per app run. */
-export function logoFontCss(system: SystemId): Promise<string> {
-  let css = cache.get(system);
+function cached(key: string, families: Family[]): Promise<string> {
+  let css = cache.get(key);
   if (!css) {
-    css = load(system).catch(() => {
-      cache.delete(system);
+    css = load(families).catch(() => {
+      cache.delete(key);
       return '';
     });
-    cache.set(system, css);
+    cache.set(key, css);
   }
   return css;
 }
+
+/** The @font-face rules for the system's logo; read once per app run. */
+export const logoFontCss = (system: SystemId): Promise<string> => cached(system, FAMILIES[system]);
+
+/** The logo's fonts and the Arabic text font, for the rewards card; read once per app run. */
+export const cardFontCss = (system: SystemId): Promise<string> =>
+  cached(`card-${system}`, [
+    ...new Set([...FAMILIES[system], fonts.logoJewelryLight, ...CARD_FAMILIES]),
+  ]);

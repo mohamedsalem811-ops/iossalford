@@ -133,6 +133,7 @@ export function studioDoc(
     | (Pick<Receipt, 'receiptNo' | 'date' | 'time'> & {
         pointsPaid?: number;
         rewardOff?: number;
+        birthdayOff?: number;
         footer?: string | null;
       })
     | null,
@@ -145,6 +146,7 @@ export function studioDoc(
     showSpecs: f.showSpecs,
     pointsPaid: saved?.pointsPaid ?? 0,
     rewardOff: saved?.rewardOff ?? 0,
+    birthdayOff: saved?.birthdayOff ?? 0,
     footer: saved?.footer ?? null,
     receiptNo: saved?.receiptNo ?? null,
     date: when.date,
@@ -162,6 +164,7 @@ export function receiptDoc(r: Receipt): ReceiptDoc {
     showSpecs: r.showSpecs,
     pointsPaid: r.pointsPaid,
     rewardOff: r.rewardOff,
+    birthdayOff: r.birthdayOff,
     footer: r.footer,
     receiptNo: r.receiptNo,
     date: r.date,

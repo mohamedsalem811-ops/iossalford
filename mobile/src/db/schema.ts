@@ -736,6 +736,20 @@ END;
 CREATE INDEX sales_customer_created ON sales(customer_id, created_at);
 `,
   },
+  {
+    version: 11,
+    name: 'birthday discount',
+    sql: `
+-- What the birthday discount took off this sale (H1), in dirhams: already in the pieces' prices,
+-- kept apart from the visit reward (whose count starts again after a sale with reward_off), so
+-- the reward is not used up and the reports show each one. The receipt keeps its own copy.
+ALTER TABLE sales ADD COLUMN birthday_off INTEGER NOT NULL DEFAULT 0 CHECK (birthday_off >= 0);
+ALTER TABLE receipts ADD COLUMN birthday_off INTEGER NOT NULL DEFAULT 0 CHECK (birthday_off >= 0);
+-- When the birthday was last saved or changed. Empty: saved before this version (trusted).
+-- A birthday saved less than 30 days before it needs the owner for the discount.
+ALTER TABLE customers ADD COLUMN birthday_set_at TEXT;
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

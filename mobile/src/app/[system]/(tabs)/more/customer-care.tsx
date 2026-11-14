@@ -22,7 +22,7 @@ import {
   shownPhone,
   type Customer,
 } from '@/domain/customers';
-import { getRewards } from '@/domain/rewards';
+import { birthdayOn, getBirthday, windowEnd, windowText } from '@/domain/birthday';
 import { showError } from '@/features/products/actions';
 import { haptic } from '@/lib/haptics';
 import { formatLyd } from '@/lib/money';
@@ -53,7 +53,7 @@ export default function CustomerCareRoute() {
       away: notBack(ctx, 90),
       duplicates: mayMerge ? duplicateCustomers(ctx) : [],
       report: mayReport ? customerReport(ctx) : null,
-      gift: getRewards(ctx).birthdayGift,
+      gift: getBirthday(ctx),
     }),
     [ctx, mayMerge, mayReport],
   );
@@ -113,20 +113,39 @@ export default function CustomerCareRoute() {
         <Segmented<Tab> options={tabs} value={tab} onChange={setTab} testID="care-tab" />
         {tab === 'birthdays' ? (
           data.birthdays.length ? (
-            <ListGroup header="أعياد ميلاد هذا الأسبوع" footer={offersHint}>
-              {data.birthdays.map(({ customer: c, days }) => (
+            <ListGroup header="أعياد الميلاد: آخر 3 أيام والأسبوع القادم" footer={offersHint}>
+              {data.birthdays.map(({ customer: c, days, window }) => (
                 <ListRow
                   key={c.id}
                   icon="gift"
                   title={shownName(c.name, phones)}
                   subtitle={[
                     birthdayText(c.birthMonth, c.birthDay),
-                    days === 0 ? 'اليوم 🎂' : days === 1 ? 'غداً' : `بعد ${days} أيام`,
+                    days === 0
+                      ? 'اليوم 🎂'
+                      : days === 1
+                        ? 'غداً'
+                        : days === -1
+                          ? 'كان أمس'
+                          : days < 0
+                            ? `كان قبل ${days === -2 ? 'يومين' : `${-days} أيام`}`
+                            : `بعد ${days === 2 ? 'يومين' : `${days} أيام`}`,
+                    birthdayOn(data.gift) ? `الخصم حتى ${windowEnd(window)}` : null,
                     c.offers ? 'يقبل العروض' : null,
                   ]
                     .filter(Boolean)
                     .join(' • ')}
-                  onPress={() => choose(c, birthdayMessage(c, data.gift))}
+                  onPress={() =>
+                    choose(
+                      c,
+                      birthdayMessage(
+                        c,
+                        birthdayOn(data.gift)
+                          ? { percent: data.gift.percent, when: windowText(window) }
+                          : null,
+                      ),
+                    )
+                  }
                   testID={`care-birthday-${c.id}`}
                 />
               ))}
@@ -210,7 +229,7 @@ export default function CustomerCareRoute() {
                 }
               />
               <Text variant="caption" tone="secondary">
-                {`مكافآت الزيارة: ${data.report.rewards.count} • ${formatLyd(data.report.rewards.off)} — النقاط المكتسبة: ${data.report.points.earned} • مدفوع بالنقاط ${formatLyd(data.report.points.paid)}`}
+                {`مكافآت الزيارة: ${data.report.rewards.count} • ${formatLyd(data.report.rewards.off)} — خصومات عيد الميلاد: ${data.report.birthdays.count} • ${formatLyd(data.report.birthdays.off)} — النقاط المكتسبة: ${data.report.points.earned} • مدفوع بالنقاط ${formatLyd(data.report.points.paid)}`}
               </Text>
             </Card>
             <ListGroup header="من أين يأتي الزبائن">

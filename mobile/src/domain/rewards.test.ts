@@ -231,17 +231,20 @@ describe('using the reward', () => {
     expect(status()?.ready).toBe(true);
   });
 
-  it('keeps an agreed price and takes the 10% off what is left', () => {
+  // The owner's rule (H1): an agreed price under the list price is a discount, and rewards are
+  // never used with another discount. The reward waits for the next purchase.
+  it('is not used with an agreed price under the list price', () => {
     threeVisits();
     const agreed = cart().map((l) => ({ ...l, unitPrice: 800_000 }));
-    const r = checkout(ctx, {
-      cart: agreed,
-      paymentMethod: 'cash',
-      customer: { phone: '0912345678' },
-      reward: true,
-    });
-    expect(r.total).toBe(720_000);
-    expect(getSale(ctx, r.saleId)).toMatchObject({ rewardOff: 80_000, discount: 200_000 });
+    expect(() =>
+      checkout(ctx, {
+        cart: agreed,
+        paymentMethod: 'cash',
+        customer: { phone: '0912345678' },
+        reward: true,
+      }),
+    ).toThrow(/أي خصم آخر/);
+    expect(status()?.ready).toBe(true);
   });
 
   it('is never used with a quick discount', () => {
@@ -333,7 +336,7 @@ describe('the receipt and the day', () => {
     day(1);
     const first = sell(600_000);
     expect(getReceipt(ctx, first.receipt.id)?.footer).toBe(
-      'Points / رصيد النقاط: 60\nبقي 2 مشتريات على مكافأة 10%',
+      'Points / رصيد النقاط: 60\nبقي شراءان على مكافأة 10%',
     );
     day(2);
     sell(600_000);

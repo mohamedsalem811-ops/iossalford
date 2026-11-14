@@ -37,6 +37,7 @@ export function exchange(
       ...input.sale,
       // An exchange is not a new purchase: it never uses the visit reward (G2).
       reward: false,
+      birthday: false,
       note: clean(input.sale.note) ?? `استبدال (مرتجع رقم ${returnId})`,
     });
     ctx.db.run('UPDATE returns SET exchange_sale_id = ? WHERE id = ?', [saleId, returnId]);

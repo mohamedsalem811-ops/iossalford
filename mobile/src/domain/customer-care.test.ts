@@ -52,10 +52,13 @@ describe('WhatsApp', () => {
   });
 
   it('writes the birthday message with the gift', () => {
-    expect(birthdayMessage({ name: 'هدى', gender: 'female' }, 'هدية مجانية')).toContain(
-      'عزيزتنا هدى',
+    const huda = birthdayMessage(
+      { name: 'هدى', gender: 'female' },
+      { percent: 10, when: 'من 11 إلى 17 نوفمبر' },
     );
-    expect(birthdayMessage({ name: 'علي', gender: 'male' }, '')).not.toContain('هديتك');
+    expect(huda).toContain('عزيزتنا هدى');
+    expect(huda).toContain('خصم 10% على مشترياتك من 11 إلى 17 نوفمبر');
+    expect(birthdayMessage({ name: 'علي', gender: 'male' }, null)).not.toContain('هديتك');
   });
 });
 

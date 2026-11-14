@@ -37,7 +37,8 @@ export function SettingsScreen({
   /** Absent for someone who may not change it: the rate is shown, not editable. */
   onEditRate?: () => void;
   /** Loyalty points (F3), for the owner: on or off, and the screen with the rules. */
-  loyalty?: { on: boolean; onOpen: () => void };
+  /** `setup`: how many of its settings still need doing (H2). */
+  loyalty?: { on: boolean; setup?: number; onOpen: () => void };
   onChangePin: () => void;
   onAppearance: (a: Appearance) => void;
 }) {
@@ -55,7 +56,10 @@ export function SettingsScreen({
           <ListRow
             icon="star.circle"
             title="الولاء والمكافآت"
-            value={loyalty.on ? 'تعمل' : 'متوقفة'}
+            value={
+              loyalty.setup ? `يحتاج إعداد (${loyalty.setup})` : loyalty.on ? 'تعمل' : 'متوقفة'
+            }
+            tone={loyalty.setup ? 'warning' : undefined}
             onPress={loyalty.onOpen}
             testID="settings-loyalty"
           />
