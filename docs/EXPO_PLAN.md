@@ -632,33 +632,41 @@ As built: Settings → المال → نقاط الولاء (owner). The startin
 
 ### Customers G1 to G3: customer details, the customer card, rewards and VIP (after F1 to F3)
 
-The owner chose these on 2026-11-14 (answers recorded below). Each phase is its own pull request with Jest tests and simulator flows, built the same way as F1 to F3. Nothing is built until the owner says go. G1 and G2 change the database (database 10), so they ship together in one new `.ipa`; G3 is an instant update, sent only with the owner's OK.
+The owner chose these on 2026-11-14 and, after the plan was checked against the code, approved every recommendation (answers recorded below). Each phase is its own pull request, built the same way as F1 to F3, with Jest tests and `npm run check` (and the speed test). There is no simulator run for these phases (owner's decision, 2026-11-14); the existing simulator flows are kept, and the one that uses the points button is updated to the new points field. Nothing is built until the owner says go. G1 and G2 change the database (database 10), so they ship together in one new `.ipa`. G3 is an instant update, sent only with the owner's OK.
 
 **Owner's answers (2026-11-14):**
 
-- Visit reward: a sale counts as a purchase only from **500 د.ل**. After 3 counted purchases, the **4th gets 10% off, at most 250 د.ل**. The 4th purchase itself must be **250 د.ل or more** to use the reward; a smaller sale leaves it waiting. An unused reward **waits for the next purchase** and never expires.
-- The reward comes off first; then points can pay **up to 50%** of what is left.
-- **VIP:** more than **5,000 د.ل spent in the last 12 months**, worked out automatically; the owner can also mark a customer VIP by hand. VIP customers **earn double points**.
+- **Visit reward:**
+  - a sale counts as a purchase only from **500 د.ل**; several sales by the same customer on the same day are added together and count as one purchase (300 + 300 on one day is one purchase of 600);
+  - after 3 counted purchases, the **4th gets 10% off, at most 250 د.ل**;
+  - the 4th purchase itself must be **250 د.ل or more** to use the reward; a smaller sale leaves it waiting;
+  - an unused reward **waits for the next purchase** and never expires;
+  - the reward purchase doesn't count towards the next reward: counting starts again from the purchase after it;
+  - purchases made before the owner turns rewards on don't count: counting starts the day rewards are turned on.
+- **The reward with other discounts:** the 10% and the quick discount buttons ("خصم 3%") can't be used together; a price agreed with the customer stays, and the 10% comes off what is left. The 10% covers the whole sale, sets included, still at most 250 د.ل.
+- **The reward with points:** the reward comes off first; then points can pay **up to 50%** of what is left.
+- **Credit sales:** debts are kept per customer, not per sale, so a credit sale counts towards the reward and VIP when it is made, and a credit sale can use the reward.
+- **A full return of the reward purchase** gives the reward back, waiting for the next purchase.
+- **VIP:** more than **5,000 د.ل spent in the last 12 months** (sales less refunds), worked out automatically from the history; the owner can also mark a customer VIP, or never VIP, by hand. VIP customers **earn double points**.
 - **Points at checkout:** up to 50% of the invoice; the employee types how much the customer wants to use (for example 20%), or taps a quick button.
 - **Birthday:** day and month only, no year.
-- **Extra details, all optional:** city or area; how they heard about us; ring size and metal (jewelry) or favourite colours (scarves); notes; accepts offer messages.
+- **Extra details, all optional:** area (the existing "المنطقة"); how they heard about us; ring size and metal (jewelry) or favourite colours (scarves); notes (the existing "ملاحظات"); accepts offer messages.
 - **How they heard:** buttons only, never typed: Facebook, Instagram, TikTok, صديق / زبون آخر, أخرى.
-- **Employees see a spending range** ("أكثر من 2000 د.ل"), never the exact total; the owner sets the ranges (to start: under 500, 500+, 1000+, 2000+, 5000+, 10000+). Only the owner sees the exact total.
-- All the further suggestions are approved (listed under G3 and in "Rules that keep rewards fair").
+- **Employees see a spending range** ("أكثر من 2000 د.ل"), never the exact total; the owner sets the ranges (to start: under 500, 500+, 1000+, 2000+, 5000+, 10000+). On the customer page an employee sees each purchase's date and pieces, without amounts, so the total can't be added up. Only the owner sees the exact total; the owner can give it to a trusted employee, like the phones (F1).
+- **WhatsApp buttons** are the owner's (and an employee given the phones), since phones are hidden from employees.
+- **One settings screen,** Settings → المال → **"الولاء والمكافآت"** (owner), replacing "نقاط الولاء": points, the visit reward, VIP and the spending ranges, in sections.
+- All the further suggestions are approved (G3 and "Rules that keep rewards fair").
 
 **G1, database 10 (a new `.ipa`, together with G2): customer details and the customer card.**
 
-1. **New customer at checkout.** The phone stays the main field. If it matches a customer, their card shows. If not, a short form: name, gender (أنثى / ذكر / غير محدد, one tap; sets the portrait), and "تفاصيل إضافية (اختياري)", closed by default, with:
-   - birthday (day and month);
-   - city or area;
-   - how they heard (the five buttons);
-   - ring size and metal (jewelry) or favourite colours (scarves);
-   - notes;
-   - accepts offer messages (yes or no).
+1. **New customer at checkout.** The phone stays the main field. If it matches a customer, their card shows. If not:
+   - name and gender (أنثى / ذكر / غير محدد, one tap, on the checkout itself; it sets the portrait);
+   - the existing area field;
+   - a button "تفاصيل إضافية (اختياري)" opening a half-sheet with: birthday (day and month), how they heard (the five buttons), ring size and metal (jewelry) or favourite colours (scarves), notes, accepts offer messages.
 
-   A sale with only a phone still works. The same fields are on the customer form.
+   A sale with only a phone still works. Details typed at checkout only fill a customer's empty fields; they never change what is already saved (that is done on the customer page). Notes typed at checkout replace the automatic "تمت الإضافة تلقائياً من نافذة البيع". The same fields are on the customer form, in sections (basic, details, preferences).
 
-2. **The customer card at checkout,** above the payment:
+2. **The customer card at checkout,** compact, with "المزيد" for the rest:
    - portrait, name and phone (masked for employees, as in F1);
    - badge: جديد / عائد / VIP;
    - visits and the last visit ("منذ 12 يوماً");
@@ -666,42 +674,53 @@ The owner chose these on 2026-11-14 (answers recorded below). Each phase is its 
    - the reward progress ("●●●○");
    - points: the balance and what it is worth in dinars;
    - debt or credit warning ("عليه دين 120 د.ل" / "له رصيد 50 د.ل");
-   - birthday this week;
+   - birthday this week (never the year);
    - ring size or preferences and notes;
-   - the last 3 purchases.
-3. **The customer page** shows the same, plus the full history. The owner sees the exact total and can mark or unmark VIP by hand (logged).
-4. **Database 10:**
-   - customers get: birthday (day, month), city, how they heard, ring size, metal, colours, notes, accepts offers, the owner's VIP choice (automatic / always VIP / never VIP), and the reward waiting;
-   - a sale keeps whether it counted as a purchase and any reward it used;
+   - the last 3 purchases;
+   - a one-tap gender choice when the customer has none yet.
+
+   On iPad the card is in two columns: the customer on one side, points and reward on the other. The card is worked out once per customer, not on every key press, and is timed in the speed test on the five-year test shop.
+
+3. **The customer page** shows the same, plus the full history (amounts for the owner only). The owner sees the exact total and can set VIP by hand (automatic / always VIP / never VIP; logged).
+4. **The customer list** shows the VIP badge, and for employees the spending range, on one line.
+5. **New permissions:** set VIP by hand (owner), see the exact total spent (owner; grantable to an employee, like the phones), merge duplicate customers (owner, used in G3). Seeing permissions go after `costs.view` in the list, since the ones before it are the writes. The permission tests are updated.
+6. **Database 10:**
+   - customers get: birthday (month and day), how they heard, ring size, metal, favourite colours, accepts offers, and the owner's VIP choice;
+   - sales get the reward taken off (`reward_off`) and whether the sale is an exchange's;
+   - receipts get the reward line and the text printed under the total at the time of the sale (the points balance and "one purchase left"), so a receipt printed again later never changes;
+   - a new table of wanted pieces for G3 (customer, what they want, the date, done or not), included in backups, so G3 needs no database change;
    - upgrade tests from 9 to 10; a backup made before database 10 restores with the new fields empty.
 
 **G2, ships with G1: visit reward, VIP and choosing the points.**
 
-1. **Settings → "مكافآت الزبائن"** (owner), off until turned on. To start: purchases from 500 د.ل, every 3 purchases, then 10% off at most 250 د.ل on a purchase of 250 د.ل or more; VIP from 5,000 د.ل in 12 months with double points; the spending ranges employees see. Every change is logged.
-2. **At checkout,** on the reward purchase (250 د.ل or more), a banner and the button "تطبيق خصم 10%".
-   - The owner set it up in advance, so it needs no approval and isn't limited by the employee's discount limit; it is logged.
+1. **"الولاء والمكافآت"** (owner), the visit reward off until turned on. To start: purchases from 500 د.ل, every 3 purchases, then 10% off at most 250 د.ل on a purchase of 250 د.ل or more; VIP from 5,000 د.ل in 12 months with double points; the spending ranges employees see. Every change is logged.
+2. **The purchase count is worked out from the sales and returns,** from the day rewards were turned on and after the last reward used; it is not kept as a number. So a return, a deleted sale or an exchange corrects it by itself.
+3. **At checkout,** on the reward purchase (250 د.ل or more), the progress dots show on the customer card and the button "تطبيق مكافأة 10%" shows in the totals, next to the quick discount buttons (which it turns off).
+   - The 10% is taken off the pieces' prices in whole dinars, the way the quick discount is, and marked as the reward. So returns, profit, the shift's cash count and the day summary stay right without anything else.
+   - The owner set it up in advance, so it needs no approval and isn't counted in the employee's discount limit (a typed discount on top still is); it is logged.
    - On the receipt it is its own line: "مكافأة الزيارة الرابعة".
    - If the seller doesn't apply it, checkout asks "لم يستخدم الزبون المكافأة؟" and keeps it for the next purchase.
-3. **Choosing the points:** "الدفع بالنقاط" becomes a field showing the most that can be used ("حتى 120 د.ل (50%)"), with quick buttons (20%, 30%, the most) or a typed amount. More than 50% of what is left after the reward, or more than the balance, is refused with a clear message.
-4. **VIP double points:** a VIP earns twice the points on what they pay in money. Points earned before becoming VIP aren't changed.
-5. **On the receipt:** "بقيت لك عملية شراء واحدة للحصول على خصم 10%" and "رصيد نقاطك: 1,240 نقطة".
-6. **The end-of-day summary and the activity log** show rewards given and what they cost.
+4. **Choosing the points:** the "الدفع بالنقاط" button becomes a field in the totals showing the most that can be used ("حتى 120 د.ل (50%)"), with quick buttons (20%, 30%, the most) or a typed amount. More than 50% of what is left after the reward, or more than the balance, is refused with a clear message.
+5. **VIP double points:** a VIP earns twice the points on what they pay in money, on cash and card sales and on debt payments. Points earned before becoming VIP aren't changed; a return already takes back its share of what was earned.
+6. **On the receipt:** "بقيت لك عملية شراء واحدة للحصول على خصم 10%" and "رصيد نقاطك: 1,240 نقطة", saved with the receipt.
+7. **The end-of-day summary and the activity log** show the rewards given and what they cost, apart from the other discounts.
 
 **Rules that keep rewards fair (G2):**
 
-- several sales by the same customer on the same day count as one purchase;
-- a sale fully returned is taken off the count and the spending;
-- a return on a sale that used the reward takes back its share of the discount, the same way points are taken back;
-- a deleted sale takes its count and its reward with it (an unused reward goes back to waiting);
-- a purchase counts only for a registered customer (with a phone).
+- several sales by the same customer on the same day are added together and count as one purchase;
+- a sale fully returned is taken off the count and the spending; a return on the reward purchase refunds the price paid after the 10%, and a full return gives the reward back;
+- a deleted sale takes its count with it; if it used the reward, the reward goes back to waiting;
+- an exchange is not a new purchase and can't use the reward;
+- a purchase counts only for a registered customer with a phone.
 
 **G3, instant update after G1 and G2 (no database change).**
 
-1. **Birthdays:** an optional birthday gift or discount in the birthday week (set in "مكافآت الزبائن"); a list on the home screen, "أعياد ميلاد هذا الأسبوع"; a WhatsApp button for customers who accept offers (it opens WhatsApp with a ready message; the app stays offline).
+1. **Birthdays:** an optional birthday gift or discount in the birthday week (set in "الولاء والمكافآت"); a list on the home screen, "أعياد ميلاد هذا الأسبوع"; a WhatsApp button for customers who accept offers.
 2. **"Haven't come back":** customers with no purchase in 90 days, each with a WhatsApp button (only those who accept offers).
-3. **Wanted pieces (jewelry):** note a piece a customer asked for ("تريد سوار ذهب عيار 21"); when a matching product is added, the app reminds the owner who wanted it.
-4. **Owner reports:** where customers come from (Facebook, Instagram, TikTok, friend, other) with what each brought in; the top customers this month and this year; the share of returning customers; rewards and points given and what they cost.
-5. **Duplicate customers:** a warning when the same name appears with two phones, with a merge that joins their purchases, points, rewards and notes (logged; owner only).
+3. **WhatsApp:** a `wa.me` link with the number in international form and a ready message, so it needs no native change; the app itself stays offline. The buttons are the owner's (and an employee given the phones).
+4. **Wanted pieces (jewelry):** note a piece a customer asked for ("تريد سوار ذهب عيار 21"); when a matching product is added, the app reminds the owner who wanted it.
+5. **Owner reports:** where customers come from (Facebook, Instagram, TikTok, friend, other) with what each brought in; the top customers this month and this year; the share of returning customers; rewards and points given and what they cost.
+6. **Duplicate customers:** a warning when the same name appears with two phones, with a merge (owner; logged) that moves the purchases, payments, credit paid back, points, receipts, wanted pieces and notes to the customer kept.
 
 ### Phase 10: switching over
 
