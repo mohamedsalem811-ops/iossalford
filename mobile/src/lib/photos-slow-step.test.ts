@@ -1,4 +1,4 @@
-import { SLOW_STEP_MS, slowStepLogged } from './photos';
+import { SLOW_STEP_MS, slowStepLogged, withinTime } from './photos';
 
 jest.mock('expo-image-picker', () => ({}));
 jest.mock('expo-image-manipulator', () => ({ ImageManipulator: {}, SaveFormat: {} }));
@@ -28,5 +28,24 @@ describe('slowStepLogged', () => {
       expect.stringMatching(/^\[photo\] save ended after \d+s$/),
     );
     error.mockRestore();
+  });
+});
+
+describe('withinTime', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  it('gives the value when the promise settles in time', async () => {
+    await expect(withinTime(Promise.resolve('done'), 1000)).resolves.toBe('done');
+  });
+
+  it('gives null when the promise takes longer', async () => {
+    const result = withinTime(new Promise(() => {}), 1000);
+    jest.advanceTimersByTime(1000);
+    await expect(result).resolves.toBeNull();
+  });
+
+  it('passes an error on', async () => {
+    await expect(withinTime(Promise.reject(new Error('bad')), 1000)).rejects.toThrow('bad');
   });
 });

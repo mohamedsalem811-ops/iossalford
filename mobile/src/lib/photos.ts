@@ -55,18 +55,48 @@ export async function pickPhoto(
   if (result.canceled || !result.assets?.length) return { status: 'canceled' };
   const uri = result.assets[0].uri;
 
+  const target = new File(photoFolder(system), name);
+
   // Decoded at the reduced size, so a large camera photo is never fully loaded into memory.
-  const image = await slowStepLogged('resize', () =>
-    ImageManipulator.manipulate(uri, {
-      maxWidth: PHOTO_MAX_SIDE,
-      maxHeight: PHOTO_MAX_SIDE,
-    }).renderAsync(),
+  const resized = await withinTime(
+    slowStepLogged('resize', async () => {
+      const image = await ImageManipulator.manipulate(uri, {
+        maxWidth: PHOTO_MAX_SIDE,
+        maxHeight: PHOTO_MAX_SIDE,
+      }).renderAsync();
+      return image.saveAsync({ format: SaveFormat.JPEG, compress: JPEG_QUALITY });
+    }),
+    RESIZE_LIMIT_MS,
   );
-  const saved = await slowStepLogged('save', () =>
-    image.saveAsync({ format: SaveFormat.JPEG, compress: JPEG_QUALITY }),
-  );
-  await slowStepLogged('move', () => new File(saved.uri).move(new File(photoFolder(system), name)));
+  if (resized) {
+    new File(resized.uri).move(target);
+  } else {
+    // Run 58 on the simulator: resizing never ended in any pick, on iPhone and iPad. Rather than
+    // wait forever, the photo is kept as picked (larger on disk, shown the same).
+    console.error(`[photo] resizing took over ${RESIZE_LIMIT_MS / 1000}s; kept as picked`);
+    new File(uri).copy(target);
+  }
   return { status: 'picked', file: name };
+}
+
+/** How long resizing a picked photo may take before the photo is kept as picked. */
+export const RESIZE_LIMIT_MS = 15_000;
+
+/** The promise's value, or null if it hasn't settled within `ms` (it keeps running). */
+export function withinTime<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise<T | null>((resolve, reject) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error: unknown) => {
+        clearTimeout(timer);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      },
+    );
+  });
 }
 
 /** How long a step after the picker may take before it is written to the device log. */
