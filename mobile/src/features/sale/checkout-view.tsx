@@ -265,6 +265,15 @@ export function CheckoutView({
       Alert.alert('لم يتم البيع', problem);
       return;
     }
+    // A reward ready and not used: ask, and keep it for the next purchase if not (G2).
+    if (canReward && !rewardOn) {
+      haptic.medium();
+      Alert.alert('لم يستخدم الزبون المكافأة؟', 'تبقى المكافأة محفوظة للشراء القادم.', [
+        { text: 'استخدامها الآن', onPress: () => setUseReward(true) },
+        { text: 'إبقاؤها للمرة القادمة', onPress: () => sell() },
+      ]);
+      return;
+    }
     return sell();
   };
 

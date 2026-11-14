@@ -3,7 +3,7 @@
  * `maxOff`), on a sale of at least `minRewardSale`. Worked out from the sales and returns every
  * time, never stored as a number, so a return, a deleted sale or an exchange corrects it:
  *
- * - only purchases from the day the owner turned rewards on count;
+ * - only a customer with a phone collects visits, from the day the owner turned rewards on;
  * - a day's sales by the customer are one purchase, counted when they reach `minPurchase`;
  * - an exchange's sale and a sale returned whole don't count;
  * - counting starts again after the last reward used (a reward sale returned whole gives the
@@ -35,6 +35,11 @@ export function rewardStatus(
   rules: RewardRules = getRewards(ctx),
 ): RewardStatus | null {
   if (!rules.enabled || !customerId || !rules.startedAt) return null;
+  // Only a registered customer with a phone collects visits.
+  const phone = ctx.db.get<{ k: string | null }>('SELECT phone_key k FROM customers WHERE id = ?', [
+    customerId,
+  ]);
+  if (!phone?.k) return null;
   const sales = customerSales(ctx, customerId).filter(
     (s) => s.createdAt >= rules.startedAt! && !s.exchange && !s.fullyReturned,
   );

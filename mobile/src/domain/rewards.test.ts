@@ -154,6 +154,35 @@ describe('counting purchases', () => {
     expect(status()?.count).toBe(0);
   });
 
+  it('is only for a customer with a phone', () => {
+    checkout(ctx, { cart: cart(600_000), paymentMethod: 'cash', customer: { name: 'منى' } });
+    const mona = listCustomers(ctx).find((c) => c.name === 'منى')!.id;
+    expect(rewardStatus(ctx, mona)).toBeNull();
+  });
+
+  it('an exchange never uses the reward', () => {
+    threeVisits();
+    const { saleId } = sell(1_000_000, { reward: true });
+    returnAll(saleId);
+    day(5);
+    const old = sell(600_000).saleId;
+    const r = exchange(ctx, {
+      ret: {
+        saleLineId: getSale(ctx, old)!.lines[0].id,
+        quantity: 1,
+        photo: 'p',
+        answers: answers(),
+      },
+      sale: {
+        cart: cart(1_000_000),
+        paymentMethod: 'cash',
+        customer: { phone: '0912345678' },
+        reward: true,
+      },
+    });
+    expect(getSale(ctx, r.saleId)?.rewardOff).toBe(0);
+  });
+
   it('counts a credit sale when it is made', () => {
     sell(600_000, { method: 'credit' });
     expect(status()?.count).toBe(1);
