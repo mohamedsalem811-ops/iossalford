@@ -20,6 +20,8 @@ export type ReceiptDoc = {
   showPrices: boolean;
   /** The items' specs printed under each (feature 16); left out: shown. */
   showSpecs?: boolean;
+  /** Paid with loyalty points (F3), in dirhams: printed under the total with what is left. */
+  pointsPaid?: number;
   receiptNo: string | null;
   date: string;
   time: string;
@@ -53,6 +55,19 @@ export const PAGE = PAPERS.a4;
 /** "11.5u" → a CSS length that is 11.5 / units of the paper's width. */
 export function toCss(css: string): string {
   return css.replace(/(?<![\w.#])(-?(?:\d+(?:\.\d+)?|\.\d+))u\b/g, 'calc($1 * var(--u))');
+}
+
+/**
+ * Under the total, on a receipt with prices: what loyalty points paid ("مدفوع بالنقاط") and what
+ * was paid in money.
+ */
+export function pointsLines(doc: Pick<ReceiptDoc, 'items' | 'showPrices' | 'pointsPaid'>): string {
+  const points = doc.pointsPaid ?? 0;
+  if (!doc.showPrices || points <= 0) return '';
+  const total = doc.items.reduce((s, i) => s + i.price * i.quantity, 0);
+  return `
+    <div class="points"><span>Paid with points / مدفوع بالنقاط</span><span>${receiptMoney(points)} LYD</span></div>
+    <div class="points"><span>Paid / المدفوع</span><span>${receiptMoney(Math.max(0, total - points))} LYD</span></div>`;
 }
 
 /** "Pandora — Ring (Gold)": brand, name and colour, as on the current receipts. */
@@ -234,6 +249,7 @@ export function receiptHtml(
   td.qty { text-align: center; }
   .end { break-inside: avoid; page-break-inside: avoid; margin: ${v(14)}u ${paper.side}u 0; }
   .total { display: flex; justify-content: space-between; border-top: 1.2u solid #000; padding: 8u 8u 0; font-weight: 700; font-size: 12u; }
+  .points { display: flex; justify-content: space-between; padding: 4u 8u 0; font-size: 11u; }
   .customer { margin: ${v(30)}u -${paper.outdent}u 0; font-weight: 700; unicode-bidi: plaintext; }
   .note { margin: ${v(14)}u -${paper.outdent}u 0; color: #777; font-size: 10u; line-height: 1.5; }
   .thanks { text-align: center; margin-top: ${v(34)}u; }
@@ -257,7 +273,7 @@ export function receiptHtml(
     ${rows}
   </table>
   <div class="end">
-    <div class="total"><span>Total</span><span>${receiptTotal(doc)}</span></div>
+    <div class="total"><span>Total</span><span>${receiptTotal(doc)}</span></div>${pointsLines(doc)}
     <div class="customer" dir="auto">Customer: ${e(doc.customer)}</div>
     <div class="note">This is a gift receipt. Original receipt is required for returns or exchanges.<br>Returns are subject to store policy.</div>
     <div class="thanks">${look.thanks}</div>

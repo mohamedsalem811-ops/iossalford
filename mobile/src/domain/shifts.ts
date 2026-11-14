@@ -188,7 +188,8 @@ export function shiftTotals(ctx: Ctx, shift: Pick<Shift, 'id' | 'openingCash'>):
   const id = shift.id;
   const byMethod: Record<PaymentMethod, number> = { cash: 0, card: 0, transfer: 0, credit: 0 };
   for (const r of ctx.db.all<{ m: PaymentMethod; t: number }>(
-    'SELECT payment_method m, sum(total) t FROM sales WHERE shift_id = ? GROUP BY payment_method',
+    // Money only: the part paid with loyalty points (F3) never came into the drawer.
+    'SELECT payment_method m, sum(total - points_paid) t FROM sales WHERE shift_id = ? GROUP BY payment_method',
     [id],
   ))
     byMethod[r.m] = r.t;

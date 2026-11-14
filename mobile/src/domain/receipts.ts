@@ -60,6 +60,8 @@ export type Receipt = {
   showPrices: boolean;
   /** The items' specs printed under them (feature 16). */
   showSpecs: boolean;
+  /** Part of the sale paid with loyalty points (F3), printed as its own line. */
+  pointsPaid: number;
   saleId: number | null;
   items: ReceiptItem[];
   total: number;
@@ -136,6 +138,7 @@ export type IssueInput = {
   showPrices?: boolean;
   showSpecs?: boolean;
   saleId?: number | null;
+  pointsPaid?: number;
 };
 
 /** Saves a new receipt with the next number. Used by checkout and for receipts made by hand. */
@@ -148,8 +151,9 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
   return ctx.db.transaction(() => {
     const { date, time } = receiptDateTime(ctx.now());
     const id = ctx.db.run(
-      `INSERT INTO receipts (receipt_no, date, time, customer, template, show_prices, show_specs, sale_id, created_at, issued_by, issued_by_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO receipts (receipt_no, date, time, customer, template, show_prices, show_specs, sale_id, points_paid,
+         created_at, issued_by, issued_by_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         takeReceiptNo(ctx),
         date,
@@ -159,6 +163,7 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
         input.showPrices ?? true,
         input.showSpecs ?? true,
         input.saleId ?? null,
+        input.pointsPaid ?? 0,
         nowStamp(ctx),
         actorKey(by),
         actorName(by),
@@ -211,6 +216,7 @@ type ReceiptRow = {
   template: TemplateId;
   show_prices: number;
   show_specs: number;
+  points_paid?: number | null;
   sale_id: number | null;
   created_at: string;
   updated_at: string | null;
@@ -252,6 +258,7 @@ function toReceipt(r: ReceiptRow, items: ReceiptItem[]): Receipt {
     template: r.template,
     showPrices: r.show_prices === 1,
     showSpecs: r.show_specs !== 0,
+    pointsPaid: r.points_paid ?? 0,
     saleId: r.sale_id,
     items,
     total: items.reduce((t, i) => t + i.price * i.quantity, 0),
