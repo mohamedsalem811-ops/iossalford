@@ -47,6 +47,7 @@ export const PERMISSIONS = {
   'log.view': 'سجل النشاط',
   'shifts.view': 'تقارير الورديات',
   'counts.view': 'نتائج الجرد',
+  'customers.phones': 'رؤية أرقام الزبائن',
 } as const;
 
 export type Permission = keyof typeof PERMISSIONS;
@@ -94,7 +95,21 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'log.view': false,
   'shifts.view': false,
   'counts.view': false,
+  // Shown as 091•••4567; the owner can give it to a trusted employee (feature 26).
+  'customers.phones': false,
 };
+
+/**
+ * What the owner may give to one employee on the staff screen, on top of EMPLOYEE_MAY. Each
+ * employee's grants are kept with them in the staff list (staff/model.ts).
+ */
+export const GRANTABLE: Partial<Record<Permission, true>> = { 'customers.phones': true };
+
+let grantsOf: (employeeId: string) => readonly string[] = () => [];
+/** The staff store tells this file who was given what (kept apart so this file stays pure). */
+export function setGrantsLookup(lookup: (employeeId: string) => readonly string[]) {
+  grantsOf = lookup;
+}
 
 /** The permissions that change data: the clock guard applies to these, never to reading. */
 export const WRITES: Partial<Record<Permission, true>> = Object.fromEntries(
@@ -109,7 +124,11 @@ export const ALL_PERMISSIONS = Object.keys(PERMISSIONS) as Permission[];
 export function can(actor: Actor | null | undefined, permission: Permission): boolean {
   if (!actor || !(permission in PERMISSIONS)) return false;
   if (actor.kind === 'owner') return true;
-  if (actor.kind === 'employee') return EMPLOYEE_MAY[permission] === true;
+  if (actor.kind === 'employee')
+    return (
+      EMPLOYEE_MAY[permission] === true ||
+      (GRANTABLE[permission] === true && grantsOf(actor.id).includes(permission))
+    );
   return false;
 }
 

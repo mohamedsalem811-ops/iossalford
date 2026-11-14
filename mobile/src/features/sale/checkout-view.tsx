@@ -24,14 +24,27 @@ import {
   PAYMENT_METHODS,
   type PaymentMethod,
 } from '@/domain/checkout';
-import { cartDiscount, needsApproval, updatePrices } from '@/domain/cart';
+import {
+  cartDiscount,
+  hasPercentOff,
+  listPrices,
+  needsApproval,
+  percentOff,
+  updatePrices,
+} from '@/domain/cart';
 import { getSet, setForCart } from '@/domain/sets';
 import { getPolicies } from '@/domain/policies';
 import { getProduct } from '@/domain/products';
 import { askOwner, chooseReason } from '@/staff/approvals';
-import { useActor } from '@/staff/use-can';
+import { useActor, useCan } from '@/staff/use-can';
 import { RuleError, type Ctx } from '@/domain/context';
-import { customerByPhone, customerSuggestions, type Customer } from '@/domain/customers';
+import {
+  customerByPhone,
+  customerSuggestions,
+  shownName,
+  shownPhone,
+  type Customer,
+} from '@/domain/customers';
 import { balance } from '@/domain/debts';
 import { getRate } from '@/domain/settings';
 import { formatLyd, formatRate, formatUsd } from '@/lib/money';
@@ -72,16 +85,36 @@ export function CheckoutView({
   const rate = getRate(ctx);
   const totals = cartTotals(cart, rate);
   const isOwner = useActor()?.kind === 'owner';
-  const discount = cartDiscount(cart, (id) => getProduct(ctx, id)?.price, getPolicies(ctx));
+  const policies = getPolicies(ctx);
+  const priceOf = (id: number) => getProduct(ctx, id)?.price;
+  const discount = cartDiscount(cart, priceOf, policies);
+  /** The owner's quick discount buttons (feature 10), each with what it takes off this sale. */
+  const quick = policies.quickDiscounts
+    .map((percent) => ({ percent, ...percentOff(cart, priceOf, percent) }))
+    .filter((q) => q.total > 0);
+  const toggleQuick = (q: (typeof quick)[number]) => {
+    haptic.tap();
+    putCart(
+      ctx.system,
+      hasPercentOff(cart, priceOf, q.percent) ? listPrices(cart, priceOf) : q.cart,
+    );
+  };
   const set = <K extends keyof CheckoutForm>(k: K, v: CheckoutForm[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
   const [picked, setPicked] = useState<Customer | null>(null);
   const known = form.phone ? customerByPhone(ctx, form.phone) : undefined;
-  const suggestions = form.name && !known ? customerSuggestions(ctx, form.name) : [];
+  const fullPhone = useCan('customers.phones');
+  const suggestions = form.name && !known ? customerSuggestions(ctx, form.name, 4, fullPhone) : [];
+  /** Someone who may not see the numbers picks a customer without the phone filling in. */
   const pick = (c: Customer) => {
     setPicked(c);
-    setForm((f) => ({ ...f, name: c.name, phone: c.phone ?? f.phone, area: c.area ?? f.area }));
+    setForm((f) => ({
+      ...f,
+      name: c.name,
+      phone: fullPhone ? (c.phone ?? f.phone) : f.phone,
+      area: c.area ?? f.area,
+    }));
   };
   /** The registered customer this sale goes to: by phone, or the one picked by name. */
   const customer = known ?? (picked && picked.name === form.name ? picked : undefined);
@@ -109,7 +142,7 @@ export function CheckoutView({
         paymentMethod: form.method,
         customer: {
           name: form.name || customer?.name,
-          phone: form.phone,
+          phone: form.phone || (customer?.phone ?? undefined),
           area: form.area,
         },
         note: form.note,
@@ -163,7 +196,6 @@ export function CheckoutView({
 
   const askForDiscount = async (e: ApprovalNeeded) => {
     haptic.medium();
-    const policies = getPolicies(ctx);
     const reason = await chooseReason(
       `سبب الخصم (${formatLyd(e.discount.total)})`,
       policies.discountReasons,
@@ -230,7 +262,7 @@ export function CheckoutView({
           />
           {known ? (
             <Text variant="caption" tone="accent" testID="checkout-known">
-              {`زبون مسجل: ${known.name}${known.area ? ` • ${known.area}` : ''}`}
+              {`زبون مسجل: ${shownName(known.name, fullPhone)}${known.area ? ` • ${known.area}` : ''}`}
             </Text>
           ) : null}
           {use ? (
@@ -268,7 +300,11 @@ export function CheckoutView({
               {suggestions.map((c) => (
                 <FilterChip
                   key={c.id}
-                  label={c.phone ? `${c.name} • ${c.phone}` : c.name}
+                  label={
+                    c.phone
+                      ? `${shownName(c.name, fullPhone)} • ${shownPhone(c.phone, fullPhone)}`
+                      : shownName(c.name, fullPhone)
+                  }
                   selected={false}
                   onPress={() => pick(c)}
                 />
@@ -306,6 +342,21 @@ export function CheckoutView({
               {`${formatUsd(totals.usd)} (${formatRate(rate)})`}
             </Text>
           </View>
+          {quick.length > 0 ? (
+            <View
+              style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}
+              testID="checkout-quick">
+              {quick.map((q) => (
+                <FilterChip
+                  key={q.percent}
+                  label={`خصم ${q.percent}% • ${formatLyd(q.total)}`}
+                  selected={hasPercentOff(cart, priceOf, q.percent)}
+                  onPress={() => toggleQuick(q)}
+                  testID={`checkout-quick-${q.percent}`}
+                />
+              ))}
+            </View>
+          ) : null}
           {discount.total > 0 ? (
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text variant="subhead" tone="secondary">

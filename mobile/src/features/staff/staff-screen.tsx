@@ -17,6 +17,8 @@ export type StaffActions = {
   onResetPin: (e: Employee) => void;
   onRename: (e: Employee) => void;
   onToggleActive: (e: Employee) => void;
+  /** Seeing customers' phone numbers in full (feature 26). */
+  onTogglePhones?: (e: Employee) => void;
   onLock: (lock: LockSettings) => void;
   onEmergencyCode: () => void;
   onSendList: () => void;
@@ -24,6 +26,8 @@ export type StaffActions = {
   /** The employee's account: charges for returns and repayments (phase S4). */
   onAccount?: (e: Employee) => void;
 };
+
+const seesPhones = (e: Employee) => (e.grants ?? []).includes('customers.phones');
 
 const minutes = (n: number) => (n === 1 ? 'دقيقة' : n === 2 ? 'دقيقتان' : `${n} دقائق`);
 
@@ -61,6 +65,14 @@ export function StaffScreen({
           : []),
         { label: 'رمز مؤقت جديد', value: () => actions.onResetPin(e) },
         { label: 'تغيير الاسم', value: () => actions.onRename(e) },
+        ...(actions.onTogglePhones
+          ? [
+              {
+                label: seesPhones(e) ? 'إخفاء أرقام الزبائن عنه' : 'السماح برؤية أرقام الزبائن',
+                value: () => actions.onTogglePhones!(e),
+              },
+            ]
+          : []),
         {
           label: e.active ? 'إيقاف الموظف' : 'تفعيل الموظف',
           value: () => actions.onToggleActive(e),
@@ -86,7 +98,11 @@ export function StaffScreen({
               key={e.id}
               icon={e.active ? 'person.fill' : 'person.slash'}
               title={e.name}
-              subtitle={[e.active ? 'نشط' : 'موقوف', e.mustChangePin ? 'لم يختر رمزه بعد' : null]
+              subtitle={[
+                e.active ? 'نشط' : 'موقوف',
+                e.mustChangePin ? 'لم يختر رمزه بعد' : null,
+                seesPhones(e) ? 'يرى أرقام الزبائن' : null,
+              ]
                 .filter(Boolean)
                 .join(' • ')}
               value={

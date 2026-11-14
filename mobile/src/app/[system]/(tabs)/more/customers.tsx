@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 
 import { EmptyState, Text } from '@/components';
 import { listCustomers } from '@/domain/customers';
+import { useCan } from '@/staff/use-can';
 import { allBalances } from '@/domain/debts';
 import { CustomerRow } from '@/features/customers/customer-row';
 import { useOnDataChanged } from '@/state/data-events';
@@ -23,13 +24,14 @@ export default function CustomersRoute() {
     router.push({ pathname: '/[system]/customer-form/[id]', params: { system, id: 'new' } });
   useShortcut('new', add);
   const [search, setSearch] = useState('');
+  const fullPhones = useCan('customers.phones');
   const read = useCallback(() => {
     const balances = allBalances(ctx);
-    return listCustomers(ctx, search).map((c) => ({
+    return listCustomers(ctx, search, fullPhones).map((c) => ({
       customer: c,
       balance: balances.get(c.id) ?? 0,
     }));
-  }, [ctx, search]);
+  }, [ctx, search, fullPhones]);
   const [rows, setRows] = useState(read);
   const refresh = useCallback(() => setRows(read()), [read]);
   useFocusEffect(refresh);
@@ -40,7 +42,7 @@ export default function CustomersRoute() {
       <Stack.Title>الزبائن</Stack.Title>
       <Stack.SearchBar
         ref={searchRef}
-        placeholder="الاسم أو الهاتف أو المنطقة"
+        placeholder={fullPhones ? 'الاسم أو الهاتف أو المنطقة' : 'الاسم أو الرقم كاملاً أو المنطقة'}
         cancelButtonText="إلغاء"
         hideWhenScrolling={false}
         onChangeText={(e) => setSearch(e.nativeEvent.text)}

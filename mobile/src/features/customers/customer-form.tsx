@@ -8,11 +8,13 @@ import {
   FormHeader,
   KEYBOARD_GAP,
   NumberField,
+  Text,
   TextField,
   useSheetBottomSpace,
 } from '@/components';
 import type { Ctx } from '@/domain/context';
-import { getCustomer, saveCustomer } from '@/domain/customers';
+import { getCustomer, maskPhone, saveCustomer } from '@/domain/customers';
+import { useCan } from '@/staff/use-can';
 import { showError } from '@/features/products/actions';
 import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
@@ -38,6 +40,9 @@ export function CustomerFormView({
   const [form, setForm] = useState<CustomerForm>(() =>
     customerFormFrom(customerId ? getCustomer(ctx, customerId) : undefined),
   );
+  const fullPhone = useCan('customers.phones');
+  /** An employee who may not see this customer's number keeps it as it is (feature 26). */
+  const [hiddenPhone] = useState(() => (!fullPhone && form.phone ? maskPhone(form.phone) : null));
   const set = (k: keyof CustomerForm, v: string) => setForm((f) => ({ ...f, [k]: v }));
   const save = () => {
     if (!form.name.trim()) {
@@ -76,14 +81,20 @@ export function CustomerFormView({
             onChangeText={(t) => set('name', t)}
             testID="customer-name"
           />
-          <NumberField
-            label="رقم الهاتف"
-            kind="phone"
-            value={form.phone}
-            onChangeText={(t) => set('phone', t)}
-            placeholder="09XXXXXXXX"
-            testID="customer-phone"
-          />
+          {hiddenPhone ? (
+            <Text variant="subhead" tone="secondary" testID="customer-phone-masked">
+              {`رقم الهاتف: ${hiddenPhone} (يغيّره المالك)`}
+            </Text>
+          ) : (
+            <NumberField
+              label="رقم الهاتف"
+              kind="phone"
+              value={form.phone}
+              onChangeText={(t) => set('phone', t)}
+              placeholder="09XXXXXXXX"
+              testID="customer-phone"
+            />
+          )}
           <TextField
             label="المنطقة"
             value={form.area}

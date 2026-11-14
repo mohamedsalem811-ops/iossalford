@@ -615,6 +615,19 @@ The owner asked for an overall review after the audit fixes and approved six mor
 
 Fixes 3 and 4 change the database, so they need a new `.ipa` (database 8, which includes database 7).
 
+### Features F1 to F3 (after R4: features 10, 16, 26, 30 and 34)
+
+The owner chose five features from the list of additions and approved their plan (2026-11-14). Each phase is its own pull request, stacked on the one before and merged once its checks pass and the one before is merged. The simulator flows are written in each phase and run once at the end, on both devices, for all three; the owner installs one `.ipa` after that run passes.
+
+**F1, instant update, no database change.**
+
+1. **Quick discount (feature 10).** Buttons at checkout, "خصم 3% • 10 د.ل", one per percentage the owner sets in Management → قواعد البيع والمرتجعات (starting at 3; up to four, whole numbers from 1 to 50; empty hides them). The percentage is of the pieces' list prices, rounded down to a whole dinar, and taken off in whole dinars per piece so each piece and the receipt keep a round price (when the dinars can't be split evenly over the pieces of one line, the sale gets slightly less, never more). Sets keep their own price. Tapping the chosen button again puts the list prices back. It is a discount like a typed one: the employee limits, the owner's approval with a reason, and the log all apply.
+2. **Customers' phones hidden from employees (feature 26).** A new permission "رؤية أرقام الزبائن": the owner's; an employee sees `091•••5678` in the customer list, the debts list, the customer page (no call button), the customer form (the number stays as it is) and the checkout suggestions, and a name holding a number ("زبون 0912345678") is masked the same way. The owner can give it to one trusted employee from الموظفون (tap the person; logged). For an employee, searching the customer list or the checkout suggestions by phone needs the whole number, so part of one lists nobody. Typing the full number at checkout still finds the customer; picking a suggestion doesn't fill in the phone, and the sale still goes to that customer. Printed receipts keep the phone in full.
+
+**F2, database 9 (a new `.ipa`).** Products get `specs` ("المواصفات والخامة", optional free text up to 300 characters, searchable, shown on the product page, the iPad card and under the item on the receipt, with an on/off in the receipt studio). Customers get `gender` (أنثى / ذكر) and `image_file` (an optional real photo), with elegant portraits drawn in the system's colours when there is no photo: a woman (without hijab), a man and a neutral one, in the customer list, the customer page and the checkout customer card. A new `loyalty_moves` table is the points ledger for F3 (earn, redeem, reverse, adjust). Upgrade tests from 8 to 9.
+
+**F3, instant update after F2: loyalty points, built switched off.** The owner sets the rules later in Settings → "نقاط الولاء": on/off, dinars per point, a point's value, the minimum to redeem and the largest share of a sale paid in points. Points paid are their own line, "مدفوع بالنقاط", not a discount. On a credit sale, points are earned only once the debt is paid. A return takes back its share of the points. Shown on the customer page, the receipt and the day summary; the owner can adjust a balance, and the change is logged.
+
 ### Phase 10: switching over
 
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):

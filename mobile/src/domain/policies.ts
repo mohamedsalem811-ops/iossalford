@@ -21,6 +21,8 @@ export type Policies = {
   returnConditions: string[];
   /** Ready-made reasons for a discount the owner approves. */
   discountReasons: string[];
+  /** The quick discount buttons at checkout, in percent of the sale (feature 10). */
+  quickDiscounts: number[];
   /** Alerts (phase S6). An alert when one person gives this many discounted sales in a day (0: off). */
   alertDiscounts: number;
   /** …asks for this many owner approvals in a day (0: off). */
@@ -50,6 +52,7 @@ export function defaultPolicies(system: SystemId): Policies {
     returnHours: 24,
     returnConditions: DEFAULT_CONDITIONS[system],
     discountReasons: DEFAULT_REASONS,
+    quickDiscounts: [3],
     alertDiscounts: 3,
     alertApprovals: 3,
     alertReturnMinutes: 30,
@@ -102,6 +105,10 @@ export function setPolicies(ctx: Ctx, changes: Partial<Policies>): Policies {
   }
   if (next.alertDays < 1 || next.alertDays > 60)
     throw new RuleError('مدة التنبيهات بين يوم و60 يوماً');
+  next.quickDiscounts = [...new Set(next.quickDiscounts)].sort((a, b) => a - b);
+  if (next.quickDiscounts.some((p) => !Number.isInteger(p) || p < 1 || p > 50))
+    throw new RuleError('نسبة الخصم السريع رقم صحيح من 1 إلى 50');
+  if (next.quickDiscounts.length > 4) throw new RuleError('أربع نسب للخصم السريع على الأكثر');
   next.returnConditions = cleanList(next.returnConditions);
   next.discountReasons = cleanList(next.discountReasons);
   if (next.returnConditions.length === 0)
@@ -111,6 +118,12 @@ export function setPolicies(ctx: Ctx, changes: Partial<Policies>): Policies {
     said.push(`حد خصم القطعة ${formatLyd(next.discountPerPiece)}`);
   if (next.discountPerSale !== old.discountPerSale)
     said.push(`حد خصم البيعة ${formatLyd(next.discountPerSale)}`);
+  if (next.quickDiscounts.join('|') !== old.quickDiscounts.join('|'))
+    said.push(
+      next.quickDiscounts.length
+        ? `الخصم السريع: ${next.quickDiscounts.map((p) => `${p}%`).join('، ')}`
+        : 'الخصم السريع متوقف',
+    );
   if (next.returnHours !== old.returnHours) said.push(`مدة الإرجاع ${next.returnHours} ساعة`);
   if (next.returnConditions.join('|') !== old.returnConditions.join('|'))
     said.push(`شروط الإرجاع: ${next.returnConditions.join('، ')}`);
