@@ -13,3 +13,29 @@ appId: com.salford.pos
     id: 'pin-key-5'
 - tapOn:
     id: 'pin-key-8'
+# Run 61: the CI simulator dropped one of six taps (the dots showed 5 of 6) although Maestro
+# reported every tap done. As with the owner's PIN (pin-retry.yaml), if a tap was lost the pad
+# is cleared and the PIN typed again. A real person sees the missing dot.
+- runFlow:
+    when:
+      visible: 'تم إدخال [1-5] من 6'
+    commands:
+      - repeat:
+          while:
+            notVisible: 'تم إدخال 0 من 6'
+          times: 6
+          commands:
+            - tapOn:
+                id: 'pin-key-del'
+      - tapOn:
+          id: 'pin-key-9'
+      - tapOn:
+          id: 'pin-key-6'
+      - tapOn:
+          id: 'pin-key-3'
+      - tapOn:
+          id: 'pin-key-2'
+      - tapOn:
+          id: 'pin-key-5'
+      - tapOn:
+          id: 'pin-key-8'

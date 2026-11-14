@@ -26,18 +26,7 @@ appId: com.salford.pos
 - takeScreenshot: ${DEVICE}-sign-in-people
 - tapOn:
     id: 'person-سارة'
-- tapOn:
-    id: 'pin-key-1'
-- tapOn:
-    id: 'pin-key-4'
-- tapOn:
-    id: 'pin-key-7'
-- tapOn:
-    id: 'pin-key-0'
-- tapOn:
-    id: 'pin-key-3'
-- tapOn:
-    id: 'pin-key-6'
+- runFlow: subflows/pin-sara-temp.yaml
 - assertVisible: 'سارة: اختر رمزك'
 - runFlow: subflows/pin-sara.yaml
 - runFlow: subflows/pin-sara.yaml
