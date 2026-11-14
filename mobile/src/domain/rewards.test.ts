@@ -4,6 +4,7 @@
  * purchase gets 10% off at most 250 د.ل on a sale of 250 د.ل or more; it waits, comes back on a
  * full return, never mixes with the quick discounts, and comes off before the points.
  */
+import { OWNER } from '@/staff/model';
 import { receiptDoc } from '@/features/receipts/model';
 import { receiptHtml } from '@/receipts/templates/html';
 
@@ -94,7 +95,7 @@ describe('the owner’s rules', () => {
     expect(setRewards(ctx, { percent: 15 }).startedAt).toBe('2026-11-01T08:00:00');
     ctx.setActor(EMPLOYEE);
     expect(() => setRewards(ctx, { percent: 10 })).toThrow(PermissionError);
-    ctx.setActor(null);
+    ctx.setActor(OWNER);
   });
 
   it('counts only purchases from the day they were turned on', () => {
@@ -269,7 +270,7 @@ describe('using the reward', () => {
       reward: true,
     });
     expect(getSale(ctx, r.saleId)).toMatchObject({ rewardOff: 250_000, approvedBy: null });
-    ctx.setActor(null);
+    ctx.setActor(OWNER);
   });
 
   it('can be used on a credit sale', () => {

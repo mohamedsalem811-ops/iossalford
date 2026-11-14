@@ -121,7 +121,7 @@ export function CustomerCard({
       ) : null}
       {birthday ? (
         <Text variant="caption" tone="accent" testID={`${testID}-birthday`}>
-          {birthday}
+          {rules.birthdayGift ? `${birthday} • الهدية: ${rules.birthdayGift}` : birthday}
         </Text>
       ) : null}
       {note ? (

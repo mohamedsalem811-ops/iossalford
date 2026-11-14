@@ -60,6 +60,14 @@ export default function CustomersRoute() {
         onCancelButtonPress={() => setSearch('')}
       />
       <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button
+          icon="gift"
+          accessibilityLabel="متابعة الزبائن"
+          onPress={() =>
+            router.push({ pathname: '/[system]/more/customer-care', params: { system } })
+          }>
+          متابعة الزبائن
+        </Stack.Toolbar.Button>
         <Stack.Toolbar.Button icon="plus" accessibilityLabel="زبون جديد" onPress={add}>
           زبون جديد
         </Stack.Toolbar.Button>
