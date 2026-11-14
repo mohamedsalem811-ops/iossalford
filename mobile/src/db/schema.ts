@@ -689,6 +689,53 @@ CREATE TRIGGER loyalty_moves_new_uid AFTER INSERT ON loyalty_moves WHEN NEW.uid 
 END;
 `,
   },
+  {
+    version: 10,
+    name: 'customer details, rewards and wanted pieces',
+    sql: `
+-- Optional details a customer gives (G1): the birthday as day and month only (never the year),
+-- how they heard about the shop, their ring size, metal and favourite colours, and whether they
+-- accept offer messages. The area and notes columns already exist.
+ALTER TABLE customers ADD COLUMN birth_month INTEGER CHECK (birth_month BETWEEN 1 AND 12);
+ALTER TABLE customers ADD COLUMN birth_day INTEGER CHECK (birth_day BETWEEN 1 AND 31);
+ALTER TABLE customers ADD COLUMN heard TEXT
+  CHECK (heard IN ('facebook', 'instagram', 'tiktok', 'friend', 'other'));
+ALTER TABLE customers ADD COLUMN ring_size TEXT;
+ALTER TABLE customers ADD COLUMN metal TEXT;
+ALTER TABLE customers ADD COLUMN colours TEXT;
+ALTER TABLE customers ADD COLUMN offers INTEGER NOT NULL DEFAULT 0 CHECK (offers IN (0, 1));
+-- The owner's choice: always VIP or never VIP. Empty: worked out from what they spent (G2).
+ALTER TABLE customers ADD COLUMN vip TEXT CHECK (vip IN ('always', 'never'));
+-- What the visit reward took off this sale (G2), in dirhams: already in the pieces' prices, kept
+-- apart so the day summary and the log can show it. The receipt keeps its own copy, and the text
+-- printed under its total at the time of the sale (the points balance, purchases left).
+ALTER TABLE sales ADD COLUMN reward_off INTEGER NOT NULL DEFAULT 0 CHECK (reward_off >= 0);
+ALTER TABLE receipts ADD COLUMN reward_off INTEGER NOT NULL DEFAULT 0 CHECK (reward_off >= 0);
+ALTER TABLE receipts ADD COLUMN footer TEXT;
+-- A piece a customer asked for (G3), to remind the owner when a matching one comes in.
+CREATE TABLE wanted_pieces (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  text        TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  month       TEXT NOT NULL,
+  done_at     TEXT,
+  by          TEXT,
+  by_name     TEXT,
+  uid         TEXT,
+  device      TEXT
+);
+CREATE INDEX wanted_customer ON wanted_pieces(customer_id);
+CREATE UNIQUE INDEX wanted_uid ON wanted_pieces(uid);
+CREATE TRIGGER wanted_pieces_new_uid AFTER INSERT ON wanted_pieces WHEN NEW.uid IS NULL BEGIN
+  UPDATE wanted_pieces SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+-- A customer's sales by date, for the visit count, VIP and the last purchases.
+CREATE INDEX sales_customer_created ON sales(customer_id, created_at);
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

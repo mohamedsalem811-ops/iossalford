@@ -59,6 +59,7 @@ describe('migrations', () => {
       'stock_count_lines',
       'stock_counts',
       'stock_moves',
+      'wanted_pieces',
     ]);
   });
 

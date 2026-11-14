@@ -7,7 +7,7 @@
 import { checkout } from '@/domain/checkout';
 import { closeQuarter, deleteClosing } from '@/domain/closing';
 import { PermissionError, type Ctx } from '@/domain/context';
-import { saveCustomer } from '@/domain/customers';
+import { saveCustomer, setVip } from '@/domain/customers';
 import {
   deleteCustomer,
   deletePayment,
@@ -295,6 +295,10 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     adjustPoints: {
       permission: 'loyalty.adjust',
       run: (ctx, s) => adjustPoints(ctx, s.customer, 5, 'هدية'),
+    },
+    setVip: {
+      permission: 'customers.vip',
+      run: (ctx, s) => setVip(ctx, s.customer, 'always'),
     },
     setPolicies: {
       permission: 'settings.edit',

@@ -21,6 +21,7 @@ import { useCan } from '@/staff/use-can';
 import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
+import { DetailsFields } from './details-fields';
 import { customerFormFrom, customerFormToInput, type CustomerForm } from './model';
 import { haptic } from '@/lib/haptics';
 import { useSaveOnce } from '@/hooks/use-save-once';
@@ -140,6 +141,17 @@ export function CustomerFormView({
             value={form.notes}
             onChangeText={(t) => set('notes', t)}
             placeholder="اختياري"
+          />
+        </Card>
+        <Card>
+          <Text variant="subhead" tone="secondary">
+            تفاصيل إضافية (اختياري)
+          </Text>
+          <DetailsFields
+            system={ctx.system}
+            value={form.details}
+            onChange={(d) => set('details', d)}
+            testID="customer-details"
           />
           <Button
             title="حفظ"

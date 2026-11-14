@@ -19,6 +19,7 @@ export type StaffActions = {
   onToggleActive: (e: Employee) => void;
   /** Seeing customers' phone numbers in full (feature 26). */
   onTogglePhones?: (e: Employee) => void;
+  onToggleSpend?: (e: Employee) => void;
   onLock: (lock: LockSettings) => void;
   onEmergencyCode: () => void;
   onSendList: () => void;
@@ -28,6 +29,7 @@ export type StaffActions = {
 };
 
 const seesPhones = (e: Employee) => (e.grants ?? []).includes('customers.phones');
+const seesSpend = (e: Employee) => (e.grants ?? []).includes('customers.spend');
 
 const minutes = (n: number) => (n === 1 ? 'دقيقة' : n === 2 ? 'دقيقتان' : `${n} دقائق`);
 
@@ -73,6 +75,16 @@ export function StaffScreen({
               },
             ]
           : []),
+        ...(actions.onToggleSpend
+          ? [
+              {
+                label: seesSpend(e)
+                  ? 'إخفاء مجموع مشتريات الزبائن عنه'
+                  : 'السماح برؤية مجموع مشتريات الزبائن',
+                value: () => actions.onToggleSpend!(e),
+              },
+            ]
+          : []),
         {
           label: e.active ? 'إيقاف الموظف' : 'تفعيل الموظف',
           value: () => actions.onToggleActive(e),
@@ -102,6 +114,7 @@ export function StaffScreen({
                 e.active ? 'نشط' : 'موقوف',
                 e.mustChangePin ? 'لم يختر رمزه بعد' : null,
                 seesPhones(e) ? 'يرى أرقام الزبائن' : null,
+                seesSpend(e) ? 'يرى مجموع المشتريات' : null,
               ]
                 .filter(Boolean)
                 .join(' • ')}

@@ -691,6 +691,14 @@ The owner chose these on 2026-11-14 and, after the plan was checked against the 
    - a new table of wanted pieces for G3 (customer, what they want, the date, done or not), included in backups, so G3 needs no database change;
    - upgrade tests from 9 to 10; a backup made before database 10 restores with the new fields empty.
 
+**G1 as built (2026-11-14):** everything above, with these notes:
+
+- the extra details open in place on the checkout ("تفاصيل إضافية (اختياري)") instead of a half-sheet, so the keyboard and the scroll stay as they are on the rest of the checkout;
+- whether a sale is an exchange's is read from the return that points to it (`returns.exchange_sale_id`, from S4), so no new column was needed on sales;
+- the card's reward dots and the points line come with G2, which owns the reward and the new points field; the debt warning ("عليه دين") and the existing "له رصيد" are on the card now;
+- the card's numbers are worked out once per customer and timed in the speed test (customer card, and the customer list with VIP and spending);
+- new simulator flow `e2e/customer-card.yaml`, run only in the final simulator run.
+
 **G2, ships with G1: visit reward, VIP and choosing the points.**
 
 1. **"الولاء والمكافآت"** (owner), the visit reward off until turned on. To start: purchases from 500 د.ل, every 3 purchases, then 10% off at most 250 د.ل on a purchase of 250 د.ل or more; VIP from 5,000 د.ل in 12 months with double points; the spending ranges employees see. Every change is logged.

@@ -12,7 +12,7 @@ import {
 import { getPolicies, type Policies } from './policies';
 import { shiftFor } from './shifts';
 import { allow, clean, nowMonth, nowStamp, ownerSays, RuleError, type Ctx } from './context';
-import { ensureCustomer, hasIdentity } from './customers';
+import { ensureCustomer, hasIdentity, type SaleCustomerDetails } from './customers';
 import { earnOnSale, redeemOnSale } from './loyalty';
 import { displayName, getProduct, moveStock } from './products';
 import { issueReceipt, type Receipt, type TemplateId } from './receipts';
@@ -64,7 +64,7 @@ export function discountMessage(d: CartDiscount, p: Policies): string {
 export type CheckoutInput = {
   cart: CartLine[];
   paymentMethod: PaymentMethod;
-  customer?: { name?: string; phone?: string; area?: string };
+  customer?: { name?: string; phone?: string; area?: string; details?: SaleCustomerDetails };
   note?: string;
   template?: TemplateId;
   showPrices?: boolean;
@@ -119,7 +119,7 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       approvedBy = 'owner';
     }
 
-    const customerId = ensureCustomer(ctx, c.name, c.phone, c.area);
+    const customerId = ensureCustomer(ctx, c.name, c.phone, c.area, c.details);
     const customerName = clean(c.name);
     const stamp = nowStamp(ctx);
     const lines = input.cart.map((l) => {

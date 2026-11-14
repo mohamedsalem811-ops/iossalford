@@ -32,7 +32,7 @@ describe('the upgrade from database 8', () => {
       "INSERT INTO customers (name, name_key, phone, phone_key, created_at) VALUES ('هدى', 'هدى', '0912222222', '912222222', '2026-11-01')",
     );
     const products = db.all('SELECT * FROM products');
-    migrate(db);
+    migrate(db, migrations.slice(0, 9));
     expect(schemaVersion(db)).toBe(9);
     expect(db.all('SELECT * FROM products')).toEqual(
       products.map((p) => ({ ...(p as object), specs: null })),

@@ -21,6 +21,7 @@ import { addToCart, type CartLine } from '@/domain/cart';
 import { checkout } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
 import { ensureCustomer, listCustomers } from '@/domain/customers';
+import { customerStats, spendingByCustomer } from '@/domain/customer-stats';
 import { allBalances, creditBalances, debtors } from '@/domain/debts';
 import { displayName, getProduct, listProducts } from '@/domain/products';
 import { countReceipts, listReceipts, receiptMonths } from '@/domain/receipts';
@@ -220,6 +221,11 @@ function measure(sales: number) {
     const b = allBalances(ctx);
     return listCustomers(ctx).map((c) => b.get(c.id) ?? 0);
   });
+  check('Customers: list with VIP and spending (G1)', () => {
+    const spent = spendingByCustomer(ctx);
+    return listCustomers(ctx).map((c) => spent.get(c.id));
+  });
+  check('Checkout: the customer card (G1)', () => customerStats(ctx, 4));
   check('Debts: who owes, who is owed', () => {
     debtors(ctx);
     creditBalances(ctx);
