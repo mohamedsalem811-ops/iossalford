@@ -3,6 +3,7 @@
  * months can be chosen, ranked rows with bars, the daily chart's bars, cash against credit.
  */
 import { birthdaysThisWeek } from '@/domain/customer-care';
+import { setupCount } from '@/domain/setup';
 import { copyOverdueDays, copyReminder } from '@/backup/model';
 import { PAYMENT_LABELS, type PaymentMethod } from '@/domain/checkout';
 import { ownerAlerts, type OwnerAlert } from '@/domain/alerts';
@@ -94,6 +95,8 @@ export type DashboardData = {
     alerts: OwnerAlert[];
     /** Customers whose birthday is in the next 7 days (G3): names, today first. */
     birthdays: string[];
+    /** The owner's settings still to do (H2); 0 for anyone else. */
+    setup?: number;
   };
   byCategory: RankedRow[];
   byBrand: RankedRow[];
@@ -141,6 +144,7 @@ export function readDashboard(
       dataProblem: healthProblem(ctx.db) !== null,
       alerts: ownerAlerts(ctx),
       birthdays: birthdaysThisWeek(ctx).map((b) => b.customer.name),
+      setup: setupCount(ctx),
     },
     byCategory: ranked(breakdown(ctx, [month], 'category')),
     byBrand: ranked(breakdown(ctx, [month], 'brand')),

@@ -31,6 +31,9 @@ import { addCashMove, chargeShortage, closeShift, openShift } from '@/domain/shi
 import { setPolicies } from '@/domain/policies';
 import { adjustPoints, setLoyalty } from '@/domain/loyalty';
 import { setRewards } from '@/domain/rewards';
+import { setBirthday } from '@/domain/birthday';
+import { setContact } from '@/domain/contact';
+import { dismissSetup, restoreSetup } from '@/domain/setup';
 import { addWanted, deleteWanted, mergeCustomers, setWantedDone } from '@/domain/customer-care';
 import { acknowledgeAlert } from '@/domain/alerts';
 import { applyCount, cancelCount, countPiece, startCount, submitCount } from '@/domain/stock-count';
@@ -309,6 +312,25 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     setRewards: {
       permission: 'settings.edit',
       run: (ctx) => setRewards(ctx, { enabled: true }),
+    },
+    setBirthday: {
+      permission: 'settings.edit',
+      run: (ctx) => setBirthday(ctx, { enabled: true, maxOff: 200_000 }),
+    },
+    setContact: {
+      permission: 'settings.edit',
+      run: (ctx) => setContact(ctx, { whatsapp: '0912345678' }),
+    },
+    dismissSetup: {
+      permission: 'settings.edit',
+      run: (ctx) => dismissSetup(ctx, 'social'),
+    },
+    restoreSetup: {
+      permission: 'settings.edit',
+      run: (ctx) => {
+        dismissSetup(ctx, 'social');
+        restoreSetup(ctx);
+      },
     },
     addWanted: {
       permission: 'customers.edit',

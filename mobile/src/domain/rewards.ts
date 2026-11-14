@@ -3,6 +3,7 @@
  * Kept as one JSON setting, set by the owner in Settings → الولاء والمكافآت. The visit reward is
  * off until the owner turns it on; VIP and the ranges always apply.
  */
+import { countText, MONTHS, PURCHASES } from '@/lib/arabic-count';
 import { formatLyd } from '@/lib/money';
 
 import { logAction } from './activity';
@@ -31,11 +32,6 @@ export type RewardRules = {
   vipPointsTimes: number;
   /** The spending ranges an employee sees, in dirhams, smallest first. */
   ranges: number[];
-  /**
-   * The birthday gift (G3), shown on the customer card in their birthday week and in the
-   * birthday message ("هدية مجانية", "خصم 5%"); empty: none.
-   */
-  birthdayGift: string;
 };
 
 export const DEFAULT_REWARDS: RewardRules = {
@@ -50,17 +46,35 @@ export const DEFAULT_REWARDS: RewardRules = {
   vipMonths: 12,
   vipPointsTimes: 2,
   ranges: [500_000, 1_000_000, 2_000_000, 5_000_000, 10_000_000],
-  birthdayGift: '',
 };
 
 export const REWARDS_KEY = 'rewards';
 
 export function getRewards(ctx: Ctx): RewardRules {
   try {
-    const saved = JSON.parse(getSetting(ctx, REWARDS_KEY) ?? '{}') as Partial<RewardRules>;
+    // The birthday gift text of G3 is now the birthday discount (H1, its own setting).
+    const { birthdayGift: _gift, ...saved } = JSON.parse(
+      getSetting(ctx, REWARDS_KEY) ?? '{}',
+    ) as Partial<RewardRules> & { birthdayGift?: unknown };
     return { ...DEFAULT_REWARDS, ...saved };
   } catch {
     return DEFAULT_REWARDS;
+  }
+}
+
+/**
+ * The birthday gift typed in before (G3, "هدية مجانية"): no longer shown to customers, as the
+ * birthday discount took its place (H1). The owner is told about it until that discount is on;
+ * empty if there was none.
+ */
+export function oldBirthdayGift(ctx: Ctx): string {
+  try {
+    const { birthdayGift } = JSON.parse(getSetting(ctx, REWARDS_KEY) ?? '{}') as {
+      birthdayGift?: unknown;
+    };
+    return typeof birthdayGift === 'string' ? birthdayGift.trim() : '';
+  } catch {
+    return '';
   }
 }
 
@@ -79,9 +93,9 @@ export function spendRange(amount: number, ranges: readonly number[]): string {
 const describe = (r: RewardRules) =>
   [
     r.enabled
-      ? `مكافأة الزيارة: بعد ${r.every} مشتريات من ${formatLyd(r.minPurchase)}، خصم ${r.percent}% حتى ${formatLyd(r.maxOff)} على بيعة من ${formatLyd(r.minRewardSale)}`
+      ? `مكافأة الزيارة: بعد ${countText(r.every, PURCHASES)} من ${formatLyd(r.minPurchase)}، خصم ${r.percent}% حتى ${formatLyd(r.maxOff)} على بيعة من ${formatLyd(r.minRewardSale)}`
       : 'مكافأة الزيارة متوقفة',
-    `VIP: أكثر من ${formatLyd(r.vipSpend)} في ${r.vipMonths} شهراً، النقاط ×${r.vipPointsTimes}`,
+    `VIP: أكثر من ${formatLyd(r.vipSpend)} خلال ${countText(r.vipMonths, MONTHS)}، النقاط ×${r.vipPointsTimes}`,
   ].join('، ');
 
 /**
@@ -108,8 +122,6 @@ export function setRewards(ctx: Ctx, changes: Partial<RewardRules>): RewardRules
   if (!ranges.length || ranges.some((r) => !whole(r, 1000)) || ranges.length > 8)
     throw new RuleError('اكتب من 1 إلى 8 حدود للمشتريات بالدينار');
   next.ranges = ranges;
-  next.birthdayGift = (next.birthdayGift ?? '').trim();
-  if (next.birthdayGift.length > 60) throw new RuleError('نص هدية عيد الميلاد أطول من 60 حرفاً');
   if (next.enabled && !old.enabled) next.startedAt = nowStamp(ctx);
   if (JSON.stringify(next) === JSON.stringify(old)) return old;
   ctx.db.transaction(() => {

@@ -17,6 +17,7 @@ import { can, type Permission } from '@/staff/permissions';
 import { useStaff } from '@/staff/store';
 import { useActor } from '@/staff/use-can';
 import { useCtx } from '@/state/system-db';
+import { useSetup } from '@/features/setup/use-setup';
 import type { SystemId } from '@/theme';
 
 /**
@@ -142,6 +143,7 @@ export function ManagementMenu({
       ],
     );
   const updateReady = useUpdates().isUpdatePending;
+  const setup = useSetup().count;
   return (
     <ManagementScreen
       reminder={can(actor, 'backup.manage') ? reminder : null}
@@ -152,6 +154,13 @@ export function ManagementMenu({
       clockBehind={clock}
       onAcceptClock={can(actor, 'settings.edit') ? acceptClock : undefined}
       logBroken={logBroken && can(actor, 'log.view')}
+      setup={{
+        count: setup,
+        onOpen: () =>
+          router.push({ pathname: '/[system]/more/loyalty', params: { system } } as Href),
+      }}
+      badges={setup ? { settings: 'يحتاج إعداد' } : undefined}
+      warn={setup ? ['settings'] : []}
       person={staff.employees.length && actor ? actorName(actor) : undefined}
       onSwitch={() => {
         backupNow();

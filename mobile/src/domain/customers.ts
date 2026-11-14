@@ -18,6 +18,11 @@ export type Customer = {
   createdAt: string;
   /** The owner's choice (G1): always VIP or never VIP; null: worked out from what they spent. */
   vip: VipChoice | null;
+  /**
+   * When the birthday was last saved or changed (H1); null: before database 11, or no birthday.
+   * The birthday discount needs it saved 30 days ahead, or the owner's approval.
+   */
+  birthdaySetAt: string | null;
 } & CustomerDetails;
 
 /** The optional details a customer gives (G1). Never the year of birth. */
@@ -87,6 +92,7 @@ type Row = {
   colours?: string | null;
   offers?: number | null;
   vip?: string | null;
+  birthday_set_at?: string | null;
 };
 const toCustomer = (r: Row): Customer => ({
   id: r.id,
@@ -105,6 +111,7 @@ const toCustomer = (r: Row): Customer => ({
   colours: r.colours ?? null,
   offers: r.offers === 1,
   vip: r.vip === 'always' || r.vip === 'never' ? r.vip : null,
+  birthdaySetAt: r.birthday_set_at ?? null,
 });
 
 /** Tidies the optional details; refuses a day that doesn't exist. Left out stays undefined. */
@@ -315,10 +322,24 @@ export function saveCustomer(ctx: Ctx, input: CustomerInput): number {
   });
 }
 
-/** Writes the details given; the ones left out stay as they are. */
+/**
+ * Writes the details given; the ones left out stay as they are. A new or changed birthday notes
+ * when (H1), so one typed in just before it needs the owner for the birthday discount.
+ */
 function writeDetails(ctx: Ctx, id: number, d: Partial<CustomerDetails>) {
   const keys = (Object.keys(d) as (keyof CustomerDetails)[]).filter((k) => d[k] !== undefined);
   if (!keys.length) return;
+  if (d.birthMonth !== undefined) {
+    const old = ctx.db.get<{ m: number | null; d: number | null }>(
+      'SELECT birth_month m, birth_day d FROM customers WHERE id = ?',
+      [id],
+    );
+    if (old && (old.m !== d.birthMonth || old.d !== d.birthDay))
+      ctx.db.run('UPDATE customers SET birthday_set_at = ? WHERE id = ?', [
+        d.birthMonth ? nowStamp(ctx) : null,
+        id,
+      ]);
+  }
   ctx.db.run(
     `UPDATE customers SET ${keys.map((k) => `${DETAIL_COLUMNS[k]} = ?`).join(', ')} WHERE id = ?`,
     [...keys.map((k) => sqlValue(d[k])), id],

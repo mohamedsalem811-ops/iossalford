@@ -14,11 +14,20 @@ appId: com.salford.pos
     id: 'settings-loyalty'
 - extendedWaitUntil:
     visible:
-      id: 'loyalty-enabled'
+      id: 'setup-card'
     timeout: 30000
 - assertVisible: '.*متوقفة.*'
+# H2: the "يحتاج إعداد" card and the card's button sit above the points.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'loyalty-enabled'
 - tapOn:
     id: 'loyalty-enabled'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'loyalty-min'
 - tapOn:
     id: 'loyalty-min'
 - eraseText

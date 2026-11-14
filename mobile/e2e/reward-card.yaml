@@ -1,0 +1,129 @@
+# Phase H2/H3. A new shop: Management shows "إعدادات تحتاج إكمالاً (2)" (the birthday discount and
+# the shop's WhatsApp). The rewards card first says nothing is on and there is no number. After
+# the owner fills both in, the card shows its preview; saving it to Files clears "راجع بطاقة
+# المكافآت" and the Management notice.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/management-menu.yaml
+- assertVisible:
+    id: 'manage-setup'
+    text: '.*إعدادات تحتاج إكمالاً \(2\).*'
+- takeScreenshot: ${DEVICE}-manage-setup
+- tapOn:
+    id: 'manage-setup'
+- extendedWaitUntil:
+    visible:
+      id: 'setup-card'
+    timeout: 30000
+- assertVisible:
+    id: 'setup-birthday'
+- assertVisible:
+    id: 'setup-whatsapp'
+- takeScreenshot: ${DEVICE}-setup-card
+# The card before anything is set.
+- tapOn:
+    id: 'loyalty-card'
+- extendedWaitUntil:
+    visible:
+      id: 'card-empty'
+    timeout: 30000
+- assertVisible:
+    id: 'card-no-whatsapp'
+- takeScreenshot: ${DEVICE}-reward-card-empty
+- tapOn:
+    id: 'card-empty-settings'
+# The birthday discount, the WhatsApp number and Instagram.
+- extendedWaitUntil:
+    visible:
+      id: 'setup-card'
+    timeout: 30000
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'birthday-enabled'
+- tapOn:
+    id: 'birthday-enabled'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'birthday-max-off'
+- tapOn:
+    id: 'birthday-max-off'
+- inputText: '200'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'contact-whatsapp'
+- tapOn:
+    id: 'contact-whatsapp'
+- inputText: '0912345678'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'contact-instagram'
+- tapOn:
+    id: 'contact-instagram'
+- inputText: 'salford.ly'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'loyalty-save'
+- tapOn:
+    id: 'loyalty-save'
+- assertVisible: 'تم الحفظ'
+- tapOn: 'OK'
+# Only "راجع بطاقة المكافآت" and the optional ones are left.
+- scrollUntilVisible:
+    element:
+      id: 'setup-card-review'
+    direction: UP
+    timeout: 60000
+- assertNotVisible:
+    id: 'setup-birthday'
+- assertNotVisible:
+    id: 'setup-whatsapp'
+- tapOn:
+    id: 'loyalty-card'
+- extendedWaitUntil:
+    visible:
+      id: 'card-share'
+    timeout: 30000
+- assertNotVisible:
+    id: 'card-empty'
+- assertNotVisible:
+    id: 'card-no-whatsapp'
+- takeScreenshot: ${DEVICE}-reward-card
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'card-save'
+- tapOn:
+    id: 'card-save'
+- extendedWaitUntil:
+    visible: 'حُفظ في الملفات'
+    timeout: 60000
+- tapOn: 'OK'
+# Done: no notice in Management, and the card is no longer to review.
+- runFlow: subflows/management-menu.yaml
+- assertNotVisible:
+    id: 'manage-setup'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-settings'
+- tapOn:
+    id: 'settings-loyalty'
+- extendedWaitUntil:
+    visible:
+      id: 'setup-visit-off'
+    timeout: 30000
+- assertNotVisible:
+    id: 'setup-card-review'
+- takeScreenshot: ${DEVICE}-setup-done

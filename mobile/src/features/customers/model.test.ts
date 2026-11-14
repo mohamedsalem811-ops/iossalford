@@ -28,6 +28,7 @@ describe('customers model', () => {
         imageFile: null,
         createdAt: '',
         vip: null,
+        birthdaySetAt: null,
         birthMonth: null,
         birthDay: null,
         heard: null,

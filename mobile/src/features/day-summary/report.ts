@@ -59,6 +59,10 @@ export function daySections(d: DaySummary): Section[] {
             label: 'مكافآت الزيارة',
             value: `${d.rewards.count} • ${formatLyd(d.rewards.off)}`,
           },
+          d.birthdays.count > 0 && {
+            label: 'خصومات عيد الميلاد',
+            value: `${d.birthdays.count} • ${formatLyd(d.birthdays.off)}`,
+          },
           d.approvals > 0 && { label: 'موافقات المالك', value: String(d.approvals) },
         ]),
       ],

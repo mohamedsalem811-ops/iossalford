@@ -17,6 +17,7 @@ import {
 } from '@/components';
 import {
   ApprovalNeeded,
+  BirthdayApprovalNeeded,
   checkout,
   CheckoutError,
   discountMessage,
@@ -52,6 +53,7 @@ import { balance } from '@/domain/debts';
 import { getLoyalty, redeemable } from '@/domain/loyalty';
 import { getRewards } from '@/domain/rewards';
 import { rewardCart, rewardStatus } from '@/domain/visit-reward';
+import { birthdayStatus, getBirthday, windowEnd } from '@/domain/birthday';
 import { getRate } from '@/domain/settings';
 import { formatLyd, formatRate, formatUsd } from '@/lib/money';
 import { putCart, useCart } from '@/state/cart';
@@ -112,8 +114,9 @@ export function CheckoutView({
     .filter((q) => q.total > 0);
   const toggleQuick = (q: (typeof quick)[number]) => {
     haptic.tap();
-    // A quick discount and the visit reward are never used together.
+    // A quick discount and the rewards are never used together.
     setUseReward(false);
+    setUseBirthday(false);
     putCart(
       ctx.system,
       hasPercentOff(cart, priceOf, q.percent) ? listPrices(cart, priceOf) : q.cart,
@@ -125,6 +128,7 @@ export function CheckoutView({
   const [picked, setPicked] = useState<Customer | null>(null);
   const [pointsText, setPointsText] = useState('');
   const [useReward, setUseReward] = useState(false);
+  const [useBirthday, setUseBirthday] = useState(false);
   const [gender, setGender] = useState<Gender | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [details, setDetails] = useState<DetailsForm>(emptyDetailsForm);
@@ -151,6 +155,12 @@ export function CheckoutView({
     () => (customerId ? rewardStatus(ctx, customerId, rewards) : null),
     [ctx, customerId, rewards],
   );
+  const giftRules = useMemo(() => getBirthday(ctx), [ctx]);
+  /** The birthday discount (H1): in the customer's birthday week. */
+  const gift = useMemo(
+    () => (customerId ? birthdayStatus(ctx, customerId, giftRules) : null),
+    [ctx, customerId, giftRules],
+  );
   /** What the shop owes this customer (له رصيد), which a sale on credit uses up. */
   const customerCredit = customer ? Math.max(0, -balance(ctx, customer.id)) : 0;
 
@@ -167,7 +177,9 @@ export function CheckoutView({
   }
 
   /** Sells; on a discount over the limits, asks the owner on the spot and sells again. */
-  const sell = (extra: { discountReason?: string; approval?: string } = {}) => {
+  const sell = (
+    extra: { discountReason?: string; approval?: string; birthdayApproval?: string } = {},
+  ) => {
     const checked = detailsFromForm(details);
     if (!checked.ok) {
       haptic.error();
@@ -194,6 +206,7 @@ export function CheckoutView({
         note: form.note,
         points: pointsUsed,
         reward: rewardOn,
+        birthday: birthdayOn,
         ...extra,
       });
       putCart(ctx.system, []);
@@ -203,6 +216,18 @@ export function CheckoutView({
       return true;
     } catch (error) {
       setBusy(false);
+      if (error instanceof BirthdayApprovalNeeded && !asking.current) {
+        asking.current = true;
+        haptic.medium();
+        askOwner(ctx.system, 'birthday', error.message)
+          .then((token) => {
+            if (token) sell({ ...extra, birthdayApproval: token });
+          })
+          .finally(() => {
+            asking.current = false;
+          });
+        return;
+      }
       if (error instanceof ApprovalNeeded && !asking.current) {
         asking.current = true;
         askForDiscount(error).finally(() => {
@@ -265,13 +290,32 @@ export function CheckoutView({
       Alert.alert('لم يتم البيع', problem);
       return;
     }
-    // A reward ready and not used: ask, and keep it for the next purchase if not (G2).
-    if (canReward && !rewardOn) {
+    // A reward ready and not used: ask once (G2, H1). Not using the visit reward keeps it for the
+    // next purchase; the birthday discount stays until the end of the birthday week.
+    if (!rewardOn && !birthdayOn && (canReward || canBirthday)) {
       haptic.medium();
-      Alert.alert('لم يستخدم الزبون المكافأة؟', 'تبقى المكافأة محفوظة للشراء القادم.', [
-        { text: 'استخدامها الآن', onPress: () => setUseReward(true) },
-        { text: 'إبقاؤها للمرة القادمة', onPress: () => sell() },
-      ]);
+      Alert.alert(
+        canReward && canBirthday
+          ? 'لم يستخدم الزبون مكافأته؟'
+          : canBirthday
+            ? 'لم يستخدم الزبون خصم عيد الميلاد؟'
+            : 'لم يستخدم الزبون المكافأة؟',
+        [
+          canReward ? 'تبقى مكافأة الزيارة محفوظة للشراء القادم.' : null,
+          canBirthday && gift ? `يبقى خصم عيد الميلاد متاحاً حتى ${windowEnd(gift)}.` : null,
+        ]
+          .filter(Boolean)
+          .join('\n'),
+        [
+          ...(canBirthday
+            ? [{ text: `استخدام خصم عيد الميلاد ${giftRules.percent}%`, onPress: turnOnBirthday }]
+            : []),
+          ...(canReward
+            ? [{ text: `استخدام مكافأة الزيارة ${rewards.percent}%`, onPress: turnOnReward }]
+            : []),
+          { text: 'البيع بدونها', onPress: () => sell() },
+        ],
+      );
       return;
     }
     return sell();
@@ -282,18 +326,65 @@ export function CheckoutView({
   /** Loyalty points (F3): what this customer may pay with on this sale (cash or card only). */
   // The visit reward (G2) comes off first; points then pay at most their share of what is left.
   const canReward = !!reward?.ready && totals.total >= rewards.minRewardSale;
-  const rewardOn = useReward && canReward;
+  // A price changed after a reward was chosen (a discount) switches it off: never together.
+  const rewardOn = useReward && canReward && discount.total === 0;
   const rewardOff = rewardOn ? rewardCart(cart, rewards).off : 0;
-  const afterReward = totals.total - rewardOff;
+  const canBirthday = !!gift && !gift.used && totals.total >= giftRules.minSale;
+  const birthdayOn = useBirthday && canBirthday && !rewardOn && discount.total === 0;
+  const birthdayOff = birthdayOn ? rewardCart(cart, giftRules).off : 0;
+  const afterReward = totals.total - rewardOff - birthdayOff;
   const points = !credit && customer ? redeemable(ctx, customer.id, afterReward, loyalty) : null;
   const pointsUsed = points ? typedPoints(pointsText, points.points) : 0;
   const pointsPaid = pointsUsed * loyalty.pointValue;
   const toPay = afterReward - pointsPaid;
+  /**
+   * Rewards are never used with another discount (the owner's rule, H1): turning one on when a
+   * price is below the list price asks to put the list prices back first.
+   */
+  function withListPrices(what: string, turnOn: () => void) {
+    if (discount.total <= 0) return turnOn();
+    const quickOnly = policies.quickDiscounts.some((p) => hasPercentOff(cart, priceOf, p));
+    if (quickOnly) {
+      putCart(ctx.system, listPrices(cart, priceOf));
+      return turnOn();
+    }
+    haptic.medium();
+    Alert.alert(
+      `${what} لا يُجمع مع خصم آخر`,
+      `في السلة خصم ${formatLyd(discount.total)} (سعر أقل من سعر القطعة). أرجع الأسعار الأصلية لاستخدامه؟`,
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        {
+          text: 'رجوع للسعر الأصلي واستخدامه',
+          onPress: () => {
+            putCart(ctx.system, listPrices(cart, priceOf));
+            turnOn();
+          },
+        },
+      ],
+    );
+  }
+  function turnOnReward() {
+    withListPrices('مكافأة الزيارة', () => {
+      setUseBirthday(false);
+      setUseReward(true);
+    });
+  }
+  function turnOnBirthday() {
+    withListPrices('خصم عيد الميلاد', () => {
+      setUseReward(false);
+      setUseBirthday(true);
+    });
+  }
   const toggleReward = () => {
     haptic.tap();
-    if (!useReward && policies.quickDiscounts.some((p) => hasPercentOff(cart, priceOf, p)))
-      putCart(ctx.system, listPrices(cart, priceOf));
-    setUseReward((u) => !u);
+    if (rewardOn) return setUseReward(false);
+    turnOnReward();
+  };
+  const toggleBirthday = () => {
+    haptic.tap();
+    if (birthdayOn) return setUseBirthday(false);
+    turnOnBirthday();
   };
   const setShare = (percent: number | 'max') => {
     if (!points) return;
@@ -516,6 +607,32 @@ export function CheckoutView({
             <Text variant="caption" tone="secondary" testID="checkout-reward-waits">
               {`مكافأة ${rewards.percent}% جاهزة لبيعة من ${formatLyd(rewards.minRewardSale)} أو أكثر.`}
             </Text>
+          ) : null}
+          {canBirthday ? (
+            <FilterChip
+              label={`${birthdayOn ? '✓ ' : ''}🎂 خصم عيد الميلاد ${giftRules.percent}% • ${formatLyd(rewardCart(cart, giftRules).off)}${gift?.needsOwner && !isOwner ? ' • يحتاج موافقة المالك' : ''}`}
+              selected={birthdayOn}
+              onPress={toggleBirthday}
+              testID="checkout-birthday"
+            />
+          ) : gift && !gift.used ? (
+            <Text variant="caption" tone="secondary" testID="checkout-birthday-waits">
+              {`خصم عيد الميلاد لشراء من ${formatLyd(giftRules.minSale)} أو أكثر، حتى ${windowEnd(gift)}.`}
+            </Text>
+          ) : gift?.used ? (
+            <Text variant="caption" tone="secondary" testID="checkout-birthday-used">
+              استُخدم خصم عيد الميلاد لهذا الزبون هذه السنة.
+            </Text>
+          ) : null}
+          {birthdayOff > 0 ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text variant="subhead" tone="accent">
+                خصم عيد الميلاد
+              </Text>
+              <Text variant="subhead" tone="accent" testID="checkout-birthday-off">
+                {`− ${formatLyd(birthdayOff)}`}
+              </Text>
+            </View>
           ) : null}
           {rewardOff > 0 ? (
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

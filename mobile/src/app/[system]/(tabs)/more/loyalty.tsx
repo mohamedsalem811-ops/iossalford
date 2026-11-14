@@ -1,12 +1,20 @@
-import { Stack } from 'expo-router';
-import { useState } from 'react';
-import { Alert } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
+import { router, Stack } from 'expo-router';
+import { useRef, useState } from 'react';
+import { Alert, View } from 'react-native';
+import {
+  KeyboardAwareScrollView,
+  type KeyboardAwareScrollViewRef,
+} from 'react-native-keyboard-controller';
 
 import { Button, Card, FilterChip, KEYBOARD_GAP, NumberField, Text, TextField } from '@/components';
 import { errorBoundary } from '@/components/error-screen';
 import { getLoyalty, setLoyalty, type LoyaltyRules } from '@/domain/loyalty';
-import { getRewards, setRewards, type RewardRules } from '@/domain/rewards';
+import { getRewards, oldBirthdayGift, setRewards, type RewardRules } from '@/domain/rewards';
+import { birthdayOn, getBirthday, setBirthday, type BirthdayRules } from '@/domain/birthday';
+import { getContact, setContact, SOCIAL_LABELS, SOCIALS, type Social } from '@/domain/contact';
+import { dismissedSetup, dismissSetup, restoreSetup, type SetupItem } from '@/domain/setup';
+import { SetupCard } from '@/features/setup/setup-card';
+import { useSetup } from '@/features/setup/use-setup';
 import { showError } from '@/features/products/actions';
 import { useReadable } from '@/hooks/use-readable';
 import { useSaveOnce } from '@/hooks/use-save-once';
@@ -48,7 +56,56 @@ function LoyaltyScreen() {
   const [vipSpend, setVipSpend] = useState(editableDinars(rewards.vipSpend));
   const [vipMonths, setVipMonths] = useState(String(rewards.vipMonths));
   const [vipTimes, setVipTimes] = useState(String(rewards.vipPointsTimes));
-  const [gift, setGift] = useState(rewards.birthdayGift);
+  const [birthday, setBirthdaySaved] = useState<BirthdayRules>(() => getBirthday(ctx));
+  const [oldGift] = useState(() => oldBirthdayGift(ctx));
+  const [giftOn, setGiftOn] = useState(birthday.enabled);
+  const [giftPercent, setGiftPercent] = useState(String(birthday.percent));
+  const [giftMax, setGiftMax] = useState(birthday.maxOff ? editableDinars(birthday.maxOff) : '');
+  const [giftMin, setGiftMin] = useState(birthday.minSale ? editableDinars(birthday.minSale) : '');
+  const [contact, setContactForm] = useState(() => {
+    const c = getContact(ctx);
+    return {
+      whatsapp: c.whatsapp ?? '',
+      instagram: c.instagram ?? '',
+      facebook: c.facebook ?? '',
+      tiktok: c.tiktok ?? '',
+    };
+  });
+  const setup = useSetup();
+  const scroll = useRef<KeyboardAwareScrollViewRef>(null);
+  /** Where each section starts, to scroll to it from "يحتاج إعداد". */
+  // A plain object kept for the screen's life: written by onLayout, read on a tap.
+  const [at] = useState<Partial<Record<SetupItem['goes'], number>>>(() => ({}));
+  const mark = (k: SetupItem['goes']) => ({
+    onLayout: (e: { nativeEvent: { layout: { y: number } } }) => {
+      at[k] = e.nativeEvent.layout.y;
+    },
+  });
+  const openCard = () =>
+    router.push({ pathname: '/[system]/more/reward-card', params: { system: ctx.system } });
+  const go = (item: SetupItem) => {
+    if (item.goes === 'card') return openCard();
+    scroll.current?.scrollTo({ y: Math.max(0, (at[item.goes] ?? 0) - spacing.md) });
+  };
+  const putAside = (item: SetupItem) => {
+    try {
+      dismissSetup(ctx, item.id);
+    } catch (error) {
+      showError(error);
+      return;
+    }
+    haptic.tap();
+    notifyDataChanged();
+  };
+  const showAll = () => {
+    try {
+      restoreSetup(ctx);
+    } catch (error) {
+      showError(error);
+      return;
+    }
+    notifyDataChanged();
+  };
   const [ranges, setRanges] = useState(rewards.ranges.map(editableDinars).join('، '));
 
   const save = () => {
@@ -57,6 +114,8 @@ function LoyaltyScreen() {
     const minRedeem = int(min);
     const maxShare = int(share);
     const money = [minPurchase, maxOff, minRewardSale, vipSpend].map(parseThousandths);
+    // Empty: not set (the cap) or any purchase (the minimum).
+    const giftMoney = [giftMax, giftMin].map((t) => (t.trim() ? parseThousandths(t) : 0));
     const rangeList = ranges
       .split(/[,،\s]+/)
       .filter(Boolean)
@@ -65,6 +124,7 @@ function LoyaltyScreen() {
       spendPerPoint === null ||
       pointValue === null ||
       money.some((m) => m === null) ||
+      giftMoney.some((m) => m === null) ||
       rangeList.some((m) => m === null)
     ) {
       haptic.error();
@@ -86,7 +146,21 @@ function LoyaltyScreen() {
             vipMonths: int(vipMonths),
             vipPointsTimes: int(vipTimes),
             ranges: rangeList as number[],
-            birthdayGift: gift,
+          }),
+        );
+        const saved = setContact(ctx, contact);
+        setContactForm({
+          whatsapp: saved.whatsapp ?? '',
+          instagram: saved.instagram ?? '',
+          facebook: saved.facebook ?? '',
+          tiktok: saved.tiktok ?? '',
+        });
+        setBirthdaySaved(
+          setBirthday(ctx, {
+            enabled: giftOn,
+            percent: int(giftPercent),
+            maxOff: giftMoney[0]!,
+            minSale: giftMoney[1]!,
           }),
         );
       });
@@ -101,6 +175,7 @@ function LoyaltyScreen() {
       [
         enabled ? 'تعمل نقاط الولاء من الآن.' : 'نقاط الولاء متوقفة.',
         rewardOn && !rewards.enabled ? 'تبدأ مكافأة الزيارة بالعدّ من اليوم.' : null,
+        giftOn && !birthday.enabled ? 'يعمل خصم عيد الميلاد من اليوم.' : null,
       ]
         .filter(Boolean)
         .join('\n'),
@@ -114,6 +189,7 @@ function LoyaltyScreen() {
     <>
       <Stack.Title>الولاء والمكافآت</Stack.Title>
       <KeyboardAwareScrollView
+        ref={scroll}
         bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
         onLayout={readable.onLayout}
@@ -124,6 +200,27 @@ function LoyaltyScreen() {
         }}
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled">
+        <SetupCard
+          items={setup.items}
+          onGo={go}
+          onDismiss={putAside}
+          onRestore={dismissedSetup(ctx).length ? showAll : undefined}
+        />
+        <Button
+          title="بطاقة المكافآت للزبائن"
+          icon="rectangle.portrait.on.rectangle.portrait"
+          variant="secondary"
+          fullWidth
+          onPress={openCard}
+          testID="loyalty-card"
+        />
+        <Text
+          variant="subhead"
+          tone="secondary"
+          style={{ paddingHorizontal: spacing.xs }}
+          {...mark('points')}>
+          نقاط الولاء
+        </Text>
         <Card>
           <FilterChip
             label={enabled ? '✓ نقاط الولاء تعمل' : 'نقاط الولاء متوقفة: اضغط للتشغيل'}
@@ -173,7 +270,11 @@ function LoyaltyScreen() {
             testID="loyalty-share"
           />
         </Card>
-        <Text variant="subhead" tone="secondary" style={{ paddingHorizontal: spacing.xs }}>
+        <Text
+          variant="subhead"
+          tone="secondary"
+          style={{ paddingHorizontal: spacing.xs }}
+          {...mark('rewards')}>
           مكافأة الزيارة
         </Text>
         <Card>
@@ -239,10 +340,9 @@ function LoyaltyScreen() {
             testID="rewards-vip-spend"
           />
           <NumberField
-            label="خلال آخر"
+            label="خلال آخر (عدد الأشهر)"
             value={vipMonths}
             onChangeText={setVipMonths}
-            suffix="شهراً"
             kind="integer"
             testID="rewards-vip-months"
           />
@@ -257,20 +357,81 @@ function LoyaltyScreen() {
             يمكنك أيضاً جعل زبون VIP دائماً أو ليس VIP من صفحته.
           </Text>
         </Card>
-        <Text variant="subhead" tone="secondary" style={{ paddingHorizontal: spacing.xs }}>
-          عيد الميلاد
+        <Text
+          variant="subhead"
+          tone="secondary"
+          style={{ paddingHorizontal: spacing.xs }}
+          {...mark('birthday')}>
+          خصم عيد الميلاد
         </Text>
         <Card>
-          <TextField
-            label="هدية أسبوع عيد الميلاد (اختياري)"
-            value={gift}
-            onChangeText={setGift}
-            placeholder="مثلاً: هدية مجانية أو خصم 5%"
-            maxLength={60}
-            testID="rewards-birthday-gift"
+          <FilterChip
+            label={giftOn ? '✓ خصم عيد الميلاد يعمل' : 'خصم عيد الميلاد متوقف: اضغط للتشغيل'}
+            selected={giftOn}
+            onPress={() => setGiftOn((e) => !e)}
+            testID="birthday-enabled"
           />
+          {oldGift && !birthdayOn(birthday) ? (
+            <Text variant="caption" tone="warning" testID="birthday-old-gift">
+              {`كانت هديتك لعيد الميلاد «${oldGift}» تظهر في صفحة الزبون ورسالة واتساب، ولم تعد تظهر: خصم عيد الميلاد يحل محلها. شغّله ليظهر للزبائن.`}
+            </Text>
+          ) : null}
           <Text variant="caption" tone="secondary">
-            تظهر على بطاقة الزبون في أسبوع عيد ميلاده وفي رسالة التهنئة، ويطبّقها البائع.
+            خصم على شراء الزبون من 3 أيام قبل عيد ميلاده إلى 3 أيام بعده، مرة واحدة في السنة، لزبون
+            مسجل برقم هاتف. لا يُجمع مع مكافأة الزيارة أو أي خصم آخر. تاريخ ميلاد سُجّل قبل أقل من
+            30 يوماً من عيد الميلاد يحتاج موافقتك.
+          </Text>
+          <NumberField
+            label="نسبة الخصم"
+            value={giftPercent}
+            onChangeText={setGiftPercent}
+            suffix="%"
+            kind="integer"
+            testID="birthday-percent"
+          />
+          <NumberField
+            label="أكبر مبلغ للخصم"
+            value={giftMax}
+            onChangeText={setGiftMax}
+            suffix="د.ل"
+            placeholder="مطلوب قبل التشغيل"
+            testID="birthday-max-off"
+          />
+          <NumberField
+            label="أقل مبلغ للشراء (اختياري)"
+            value={giftMin}
+            onChangeText={setGiftMin}
+            suffix="د.ل"
+            testID="birthday-min-sale"
+          />
+        </Card>
+        <View {...mark('contact')}>
+          <Text variant="subhead" tone="secondary" style={{ paddingHorizontal: spacing.xs }}>
+            بيانات التواصل على البطاقة
+          </Text>
+        </View>
+        <Card>
+          <NumberField
+            label="رقم واتساب المحل"
+            value={contact.whatsapp}
+            onChangeText={(t) => setContactForm((c) => ({ ...c, whatsapp: t }))}
+            kind="phone"
+            placeholder="0912345678"
+            testID="contact-whatsapp"
+          />
+          {SOCIALS.map((k: Social) => (
+            <TextField
+              key={k}
+              label={`${SOCIAL_LABELS[k]} (اختياري)`}
+              value={contact[k]}
+              onChangeText={(t) => setContactForm((c) => ({ ...c, [k]: t }))}
+              placeholder="اسم الحساب أو الرابط"
+              autoCapitalize="none"
+              testID={`contact-${k}`}
+            />
+          ))}
+          <Text variant="caption" tone="secondary">
+            تُطبع على بطاقة المكافآت، مع رمز QR يفتح محادثة واتساب. لكل محل بياناته.
           </Text>
         </Card>
         <Text variant="subhead" tone="secondary" style={{ paddingHorizontal: spacing.xs }}>

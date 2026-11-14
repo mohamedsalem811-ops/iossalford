@@ -56,6 +56,9 @@ describe('the upgrade from database 7', () => {
       ALTER TABLE sales ADD COLUMN reward_off INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE receipts ADD COLUMN reward_off INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE receipts ADD COLUMN footer TEXT;
+      ALTER TABLE sales ADD COLUMN birthday_off INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE receipts ADD COLUMN birthday_off INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE customers ADD COLUMN birthday_set_at TEXT;
       CREATE TABLE loyalty_moves (id INTEGER PRIMARY KEY, customer_id INTEGER, kind TEXT, points INTEGER,
         sale_id INTEGER, return_id INTEGER, payment_id INTEGER, value INTEGER, note TEXT,
         created_at TEXT, month TEXT, by TEXT, by_name TEXT);`);

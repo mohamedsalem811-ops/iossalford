@@ -20,6 +20,7 @@ import { useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { errorBoundary } from '@/components/error-screen';
 import { useCan } from '@/staff/use-can';
+import { useSetup } from '@/features/setup/use-setup';
 
 /** "1.0.0 (1)", or "… — Expo Go" while testing there. */
 function versionText() {
@@ -33,6 +34,7 @@ export default function SettingsRoute() {
   const ctx = useCtx();
   const mayEditRate = useCan('settings.edit');
   const [rate, setRate] = useState(() => getRate(ctx));
+  const setup = useSetup().count;
   const [loyaltyOn, setLoyaltyOn] = useState(
     () => getLoyalty(ctx).enabled || getRewards(ctx).enabled,
   );
@@ -104,6 +106,7 @@ export default function SettingsRoute() {
           mayEditRate
             ? {
                 on: loyaltyOn,
+                setup,
                 onOpen: () =>
                   router.push({
                     pathname: '/[system]/more/loyalty',

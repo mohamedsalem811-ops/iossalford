@@ -16,6 +16,7 @@ const quiet: DaySummary = {
   bySeller: [{ name: 'المالك', sales: 1, total: 350_000 }],
   discounts: 0,
   rewards: { count: 0, off: 0 },
+  birthdays: { count: 0, off: 0 },
   approvals: 0,
   returns: 0,
   refunded: 0,

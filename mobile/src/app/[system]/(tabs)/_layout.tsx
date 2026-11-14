@@ -4,6 +4,7 @@ import { I18nManager } from 'react-native';
 
 import { cartPieces, cartTotal } from '@/domain/cart';
 import { CartAccessory } from '@/features/sale/cart-accessory';
+import { useSetup } from '@/features/setup/use-setup';
 import { useLayout } from '@/hooks/use-layout';
 import { useCart } from '@/state/cart';
 import { useCtx } from '@/state/system-db';
@@ -21,6 +22,8 @@ export default function TabsLayout() {
   const { cart } = useCart(system);
   const { cartBeside } = useLayout();
   const pieces = cartPieces(cart);
+  // The owner's settings still to do (H2): a number on الإدارة.
+  const setup = useSetup().count;
   return (
     <NativeTabs
       tintColor={colors.accent}
@@ -57,6 +60,7 @@ export default function TabsLayout() {
       <NativeTabs.Trigger name="more">
         <NativeTabs.Trigger.Label>الإدارة</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf={{ default: 'gearshape', selected: 'gearshape.fill' }} />
+        {setup > 0 ? <NativeTabs.Trigger.Badge>{String(setup)}</NativeTabs.Trigger.Badge> : null}
       </NativeTabs.Trigger>
     </NativeTabs>
   );

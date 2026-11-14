@@ -20,6 +20,8 @@ export type CustomerSale = {
   net: number;
   /** What the visit reward took off this sale (G2). */
   rewardOff: number;
+  /** What the birthday discount took off this sale (H1). */
+  birthdayOff: number;
   /** Every piece of it was returned. */
   fullyReturned: boolean;
   /** An exchange's new sale (S4): money spent, but not a new visit. */
@@ -31,6 +33,7 @@ type SaleRow = {
   created_at: string;
   total: number;
   reward_off: number;
+  birthday_off: number | null;
   returned: number;
   pieces: number;
   returned_pieces: number;
@@ -44,7 +47,7 @@ const RETURNED_VALUE = `coalesce((SELECT sum(r.quantity * sl.line_total * 1.0 / 
 export function customerSales(ctx: Ctx, customerId: number): CustomerSale[] {
   return ctx.db
     .all<SaleRow>(
-      `SELECT s.id, s.created_at, s.total, s.reward_off,
+      `SELECT s.id, s.created_at, s.total, s.reward_off, s.birthday_off,
          ${RETURNED_VALUE} AS returned,
          coalesce((SELECT sum(quantity) FROM sale_lines WHERE sale_id = s.id), 0) AS pieces,
          coalesce((SELECT sum(r.quantity) FROM returns r JOIN sale_lines sl ON sl.id = r.sale_line_id
@@ -60,6 +63,7 @@ export function customerSales(ctx: Ctx, customerId: number): CustomerSale[] {
       total: r.total,
       net: Math.max(0, r.total - Math.round(r.returned)),
       rewardOff: r.reward_off,
+      birthdayOff: r.birthday_off ?? 0,
       fullyReturned: r.pieces > 0 && r.returned_pieces >= r.pieces,
       exchange: r.exchange === 1,
     }));
@@ -192,11 +196,20 @@ export function daysToBirthday(
   return Math.round((next.getTime() - today.getTime()) / 86_400_000);
 }
 
-/** "عيد ميلادها اليوم 🎂", "عيد ميلاده بعد 3 أيام", or null when not within the week. */
+/**
+ * "عيد ميلادها اليوم 🎂", "عيد ميلاده بعد 3 أيام", "كان عيد ميلادها أمس 🎂" (up to 3 days after,
+ * while the birthday discount is on), or null otherwise.
+ */
 export function birthdayNote(c: Customer, now: Date): string | null {
   const days = daysToBirthday(c, now);
-  if (days === null || days > 6) return null;
+  if (days === null) return null;
   const whose = c.gender === 'female' ? 'عيد ميلادها' : 'عيد ميلاده';
+  for (const ago of [1, 2, 3]) {
+    const then = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ago);
+    if (daysToBirthday(c, then) === 0)
+      return `كان ${whose} ${ago === 1 ? 'أمس' : ago === 2 ? 'قبل يومين' : 'قبل 3 أيام'} 🎂`;
+  }
+  if (days > 6) return null;
   if (days === 0) return `${whose} اليوم 🎂`;
   if (days === 1) return `${whose} غداً 🎂`;
   return `${whose} بعد ${days === 2 ? 'يومين' : `${days} أيام`} 🎂`;

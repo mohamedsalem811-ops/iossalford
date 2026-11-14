@@ -28,6 +28,8 @@ export type DashboardActions = {
   onOpenProducts: () => void;
   /** The birthdays this week (G3). */
   onOpenBirthdays?: () => void;
+  /** The owner's settings still to do (H2). */
+  onOpenSetup?: () => void;
   /** Today's card: the end-of-day summary. */
   onOpenDay?: () => void;
   /** An alert (phase S6): what happened, open it, or mark it seen. */
@@ -121,6 +123,7 @@ export function AttentionCard({
     !a.backupReminder &&
     !a.dataProblem &&
     !a.birthdays?.length &&
+    !a.setup &&
     alerts.length === 0;
   return (
     <Card style={{ flex: 1 }} testID="attention">
@@ -204,6 +207,16 @@ export function AttentionCard({
               tone="warning"
               onPress={actions.onOpenDebts}
               testID="attention-debts"
+            />
+          ) : null}
+          {a.setup ? (
+            <ListRow
+              icon="gearshape"
+              tone="warning"
+              title={`إعدادات تحتاج إكمالاً (${a.setup})`}
+              subtitle="الولاء والمكافآت"
+              onPress={actions.onOpenSetup}
+              testID="attention-setup"
             />
           ) : null}
         </ListGroup>

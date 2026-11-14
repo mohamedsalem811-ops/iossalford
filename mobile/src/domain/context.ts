@@ -29,7 +29,7 @@ export type Ctx = {
   approvals?: { take(token: string, purpose: ApprovalPurpose): boolean };
 };
 
-export type ApprovalPurpose = 'discount' | 'return';
+export type ApprovalPurpose = 'discount' | 'return' | 'birthday';
 
 /**
  * Who allows going past an employee rule: 'owner' when the owner is signed in, 'approved' when

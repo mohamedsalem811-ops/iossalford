@@ -26,6 +26,7 @@ const receipt: Receipt = {
   showSpecs: true,
   pointsPaid: 0,
   rewardOff: 0,
+  birthdayOff: 0,
   footer: null,
   saleId: null,
   items: [

@@ -18,6 +18,8 @@ import { ensureCustomer, hasIdentity, type SaleCustomerDetails } from './custome
 import { earnOnSale, getLoyalty, pointsBalance, redeemOnSale } from './loyalty';
 import { getRewards, type RewardRules } from './rewards';
 import { rewardCart, rewardStatus } from './visit-reward';
+import { birthdayStatus, getBirthday } from './birthday';
+import { countText, PURCHASES_LEFT } from '@/lib/arabic-count';
 import { displayName, getProduct, moveStock } from './products';
 import { issueReceipt, type Receipt, type TemplateId } from './receipts';
 import { getSet, setForCart } from './sets';
@@ -56,6 +58,17 @@ export class ApprovalNeeded extends RuleError {
   }
 }
 
+/**
+ * The birthday was saved less than 30 days before it (H1): the owner approves the birthday
+ * discount on the spot, then the screen checks out again with the approval.
+ */
+export class BirthdayApprovalNeeded extends RuleError {
+  constructor(message: string) {
+    super(message);
+    this.name = 'BirthdayApprovalNeeded';
+  }
+}
+
 export function discountMessage(d: CartDiscount, p: Policies): string {
   const parts: string[] = [];
   if (d.overPiece.length)
@@ -80,6 +93,10 @@ export type CheckoutInput = {
   points?: number;
   /** Use the customer's visit reward on this sale (G2). */
   reward?: boolean;
+  /** Use the customer's birthday discount on this sale (H1). */
+  birthday?: boolean;
+  /** The owner's one-time approval for a birthday saved less than 30 days before it. */
+  birthdayApproval?: string;
 };
 
 export type CheckoutResult = { saleId: number; receipt: Receipt; total: number };
@@ -116,6 +133,17 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
     const policies = getPolicies(ctx);
     const discount = cartDiscount(input.cart, (id) => getProduct(ctx, id)?.price, policies);
     const reason = clean(input.discountReason);
+    // One reward a purchase, and never with another discount (the owner's rule, H1): an agreed
+    // price under the list price is a discount too. Sets keep their own price and are allowed.
+    if (input.reward && input.birthday)
+      throw new RuleError('مكافأة واحدة في كل شراء: مكافأة الزيارة أو خصم عيد الميلاد');
+    if (input.reward || input.birthday) {
+      const priceOf = (id: number) => getProduct(ctx, id)?.price;
+      if (policies.quickDiscounts.some((p) => hasPercentOff(input.cart, priceOf, p)))
+        throw new RuleError('لا تُجمع المكافأة مع أزرار الخصم السريع');
+      if (discount.total > 0)
+        throw new RuleError('لا تُجمع المكافآت مع أي خصم آخر: أرجع الأسعار الأصلية أولاً');
+    }
     let approvedBy: string | null = null;
     if (seller.kind !== 'owner' && needsApproval(discount)) {
       if (!reason) throw new ApprovalNeeded(discount, 'اختر سبب الخصم أو اكتبه.');
@@ -136,9 +164,6 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       const rules = getRewards(ctx);
       if (!rewardStatus(ctx, customerId, rules)?.ready)
         throw new RuleError('لا توجد مكافأة جاهزة لهذا الزبون');
-      const priceOf = (id: number) => getProduct(ctx, id)?.price;
-      if (policies.quickDiscounts.some((p) => hasPercentOff(cart, priceOf, p)))
-        throw new RuleError('لا تُجمع المكافأة مع أزرار الخصم السريع');
       if (cartTotal(cart) < rules.minRewardSale)
         throw new RuleError(
           `تُستخدم المكافأة في بيعة من ${formatLyd(rules.minRewardSale)} أو أكثر`,
@@ -146,6 +171,34 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       const r = rewardCart(cart, rules);
       cart = r.cart;
       rewardOff = r.off;
+    }
+    // The birthday discount (H1): the owner's own rules, so no approval and not in the employee's
+    // limit, unless the birthday was saved less than 30 days before it.
+    let birthdayOff = 0;
+    let birthdayBy: 'owner' | 'approved' | null = null;
+    if (input.birthday) {
+      const rules = getBirthday(ctx);
+      const status = birthdayStatus(ctx, customerId, rules);
+      if (!status) throw new RuleError('لا يوجد خصم عيد ميلاد لهذا الزبون اليوم');
+      if (status.used) throw new RuleError('استُخدم خصم عيد الميلاد لهذا الزبون هذه السنة');
+      if (cartTotal(cart) < rules.minSale)
+        throw new RuleError(
+          `يُستخدم خصم عيد الميلاد في شراء من ${formatLyd(rules.minSale)} أو أكثر`,
+        );
+      if (status.needsOwner) {
+        // Checked last: an approval is used up only by a sale that is otherwise ready.
+        birthdayBy = ownerSays(ctx, 'birthday', input.birthdayApproval);
+        if (!birthdayBy)
+          throw new BirthdayApprovalNeeded(
+            'تاريخ الميلاد سُجّل قبل أقل من 30 يوماً: خصم عيد الميلاد يحتاج موافقة المالك.',
+          );
+      }
+      const r = rewardCart(cart, rules);
+      cart = r.cart;
+      birthdayOff = r.off;
+      // Counted with the owner's other approvals (day summary, shift, alerts). Never with a
+      // discount on the same sale, so the sale's one approval is this one.
+      if (birthdayBy === 'approved') approvedBy = 'owner';
     }
     const lines = cart.map((l) => {
       const p = getProduct(ctx, l.productId)!;
@@ -188,6 +241,8 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       ctx.db.run('UPDATE sales SET points_paid = ? WHERE id = ?', [pointsPaid, saleId]);
     if (rewardOff > 0)
       ctx.db.run('UPDATE sales SET reward_off = ? WHERE id = ?', [rewardOff, saleId]);
+    if (birthdayOff > 0)
+      ctx.db.run('UPDATE sales SET birthday_off = ? WHERE id = ?', [birthdayOff, saleId]);
     earnOnSale(ctx, {
       id: saleId,
       customerId,
@@ -235,6 +290,7 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       showPrices: input.showPrices,
       pointsPaid,
       rewardOff,
+      birthdayOff,
       footer: receiptFooter(ctx, customerId),
       items: lines.map(({ l, p }) => ({
         name: displayName(ctx, p),
@@ -256,14 +312,17 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
           ? `، خصم ${formatLyd(discount.total)}${approvedBy ? ' بموافقة المالك' : ''}`
           : ''
       }${rewardOff ? `، مكافأة الزيارة ${formatLyd(rewardOff)}` : ''}${
-        pointsPaid ? `، مدفوع بالنقاط ${formatLyd(pointsPaid)}` : ''
-      }`,
+        birthdayOff
+          ? `، خصم عيد الميلاد ${formatLyd(birthdayOff)}${birthdayBy === 'approved' ? ' بموافقة المالك' : ''}`
+          : ''
+      }${pointsPaid ? `، مدفوع بالنقاط ${formatLyd(pointsPaid)}` : ''}`,
       {
         saleId,
         total,
         pieces,
         ...(pointsPaid ? { pointsPaid } : {}),
         ...(rewardOff ? { rewardOff } : {}),
+        ...(birthdayOff ? { birthdayOff, birthdayBy } : {}),
         payment: input.paymentMethod,
         receipt: receipt.receiptNo,
         ...(discount.total ? { discount: discount.total, reason, approvedBy } : {}),
@@ -292,9 +351,7 @@ export function receiptFooter(
     lines.push(
       left <= 0
         ? `مكافأة ${rules.percent}% جاهزة في زيارتك القادمة 🎁`
-        : left === 1
-          ? `بقي شراء واحد على مكافأة ${rules.percent}%`
-          : `بقي ${left} مشتريات على مكافأة ${rules.percent}%`,
+        : `بقي ${countText(left, PURCHASES_LEFT)} على مكافأة ${rules.percent}%`,
     );
   }
   return lines.length ? lines.join('\n') : null;

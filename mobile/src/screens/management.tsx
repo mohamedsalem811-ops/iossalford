@@ -95,6 +95,8 @@ export function ManagementScreen({
   clockBehind,
   onAcceptClock,
   logBroken = false,
+  setup,
+  warn = [],
 }: {
   onOpen: (target: ManageTarget) => void;
   onSwitch: () => void;
@@ -117,6 +119,10 @@ export function ManagementScreen({
   onAcceptClock?: () => void;
   /** The activity log was changed outside the app: a banner that opens it. */
   logBroken?: boolean;
+  /** The owner's settings still to do (H2): a banner that opens them. */
+  setup?: { count: number; onOpen: () => void };
+  /** Rows whose value draws attention (الإعدادات while something needs setting up). */
+  warn?: ManageTarget[];
 }) {
   return (
     <Screen tabBar contentStyle={{ gap: spacing.lg }}>
@@ -169,6 +175,18 @@ export function ManagementScreen({
           </Card>
         </Pressable>
       ) : null}
+      {setup && setup.count > 0 ? (
+        <Pressable onPress={setup.onOpen} accessibilityRole="button" testID="manage-setup">
+          <Card>
+            <Text variant="bodyStrong" tone="warning">
+              {`إعدادات تحتاج إكمالاً (${setup.count})`}
+            </Text>
+            <Text variant="caption" tone="accent">
+              فتح الولاء والمكافآت
+            </Text>
+          </Card>
+        </Pressable>
+      ) : null}
       {updateReady ? (
         <Pressable
           onPress={() => onOpen('settings')}
@@ -193,6 +211,7 @@ export function ManagementScreen({
                 icon={r.icon}
                 title={r.title}
                 value={badges[r.target]}
+                tone={warn.includes(r.target) ? 'warning' : undefined}
                 selected={selected === r.target}
                 onPress={() => onOpen(r.target)}
                 testID={`manage-${r.target}`}
