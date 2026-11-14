@@ -636,7 +636,7 @@ The owner chose these on 2026-11-14 (answers recorded below). Each phase is its 
 
 **Owner's answers (2026-11-14):**
 
-- Visit reward: a sale counts as a purchase only from **500 د.ل**. After 3 counted purchases, the **4th gets 10% off, at most 250 د.ل**. The 4th must also be 500 د.ل or more (my suggestion, still to be confirmed by the owner). An unused reward **waits for the next purchase** and never expires.
+- Visit reward: a sale counts as a purchase only from **500 د.ل**. After 3 counted purchases, the **4th gets 10% off, at most 250 د.ل**. The 4th purchase itself must be **250 د.ل or more** to use the reward; a smaller sale leaves it waiting. An unused reward **waits for the next purchase** and never expires.
 - The reward comes off first; then points can pay **up to 50%** of what is left.
 - **VIP:** more than **5,000 د.ل spent in the last 12 months**, worked out automatically; the owner can also mark a customer VIP by hand. VIP customers **earn double points**.
 - **Points at checkout:** up to 50% of the invoice; the employee types how much the customer wants to use (for example 20%), or taps a quick button.
@@ -677,8 +677,8 @@ The owner chose these on 2026-11-14 (answers recorded below). Each phase is its 
 
 **G2, ships with G1: visit reward, VIP and choosing the points.**
 
-1. **Settings → "مكافآت الزبائن"** (owner), off until turned on. To start: from 500 د.ل, every 3 purchases, 10% off at most 250 د.ل; VIP from 5,000 د.ل in 12 months with double points; the spending ranges employees see. Every change is logged.
-2. **At checkout,** on the reward purchase, a banner and the button "تطبيق خصم 10%".
+1. **Settings → "مكافآت الزبائن"** (owner), off until turned on. To start: purchases from 500 د.ل, every 3 purchases, then 10% off at most 250 د.ل on a purchase of 250 د.ل or more; VIP from 5,000 د.ل in 12 months with double points; the spending ranges employees see. Every change is logged.
+2. **At checkout,** on the reward purchase (250 د.ل or more), a banner and the button "تطبيق خصم 10%".
    - The owner set it up in advance, so it needs no approval and isn't limited by the employee's discount limit; it is logged.
    - On the receipt it is its own line: "مكافأة الزيارة الرابعة".
    - If the seller doesn't apply it, checkout asks "لم يستخدم الزبون المكافأة؟" and keeps it for the next purchase.
