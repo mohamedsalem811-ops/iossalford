@@ -1,6 +1,6 @@
 # SALFORD POS: Expo rebuild execution plan (version 3)
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S6 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns, the employee's account, shifts and the cash count, alerts, the stock count, device protection) are merged. The fixes from the full audit after S6 are merged (database 7). The review fixes and the end-of-day summary (R4, database 8) are in review; then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S6 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns, the employee's account, shifts and the cash count, alerts, the stock count, device protection) are merged. The fixes from the full audit after S6 (database 7), the review fixes and the end-of-day summary (R4, database 8), and the owner's phases F, G and H (loyalty, customers, rewards, birthdays; databases 9 to 11) are merged. Phase I (deposit orders, card B, marketing; database 12) and the fixes from its full check (2026-11-15) are in review; then Phase 10, switching over.
 
 Every feature of the current app is kept. Items marked **NEW** don't exist in the current app. Unmarked items are the same as the current app, rebuilt with a new design.
 
@@ -873,7 +873,7 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
   - **المناسبات:** Valentine's (14/2) and Mother's Day (21/3) are fixed; Ramadan, Eid al-Fitr and Eid al-Adha wait for this year's date (asked for before anything is sent). A tap on an occasion lists the customers who accept offers and have a phone, all ticked; the owner unticks who shouldn't get it, then «إرسال». **VIP: أول من يرى** is the same, for VIP customers only.
   - **نفتقدك:** the offer (percent, the most it takes off, how many days it lasts) and who is suggested (bought on at least N days, not for N days, no offer running). The owner ticks customers and taps «إعطاء العرض وإرسال». Each gets a real one-time offer, shown at checkout as «عرض «نفتقدك»», like the birthday discount.
   - **صديقة:** bring a friend on or off (needs points), the friend's percent and the sender's points (times what the purchase earns).
-  - **الرسائل:** the five templates, each with the fill-ins it may use ({الاسم}, {المناسبة}, {التاريخ}, {الخصم}, {الحد}, {حتى}, {لمن}).
+  - **رسائل:** the templates, each with the fill-ins it may use ({الاسم}, {المناسبة}, {التاريخ}, {الخصم}, {الحد}, {حتى}, {لمن}); the birthday and order messages were added in the fixes below.
   - **التقرير:** offers given, how many came back and used one, what they spent and what came off; an open offer can be cancelled.
 - **The step-by-step sender:** one customer at a time ("2 من 7"), the message ready to change, «فتح واتساب» (remembered, then WhatsApp opens, then the next) or «تخطي». It warns when the same message was opened for that customer before. SALFORD never sends anything itself.
 - **Checkout:**
@@ -897,6 +897,21 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
   - a moving date typed.
 
   Simulator flow written, not run: `e2e/marketing.yaml`.
+
+**Fixes after the full check of phase I (2026-11-15, owner approved all 27):**
+
+- **Wording:** a cap reads «بحد أقصى 250 د.ل للخصم» everywhere (the rewards card, the rules lines, «نفتقدك», the birthday message, the customer's page); a saved «نفتقدك» message the owner never changed follows the new wording.
+- **Every message is the owner's to word:** «رسائل» now also has the birthday wishes ({عزيزتنا}, {الهدية}) and the three deposit-order messages: the expected date ({القطعة}, {رقم}, {الموعد}), ready to collect and the reminder ({طلبك}, {الباقي}). A customer typed by phone only is greeted «أهلاً،» without the made-up name «زبون 09…».
+- **WhatsApp keeps your place:** when SALFORD itself opens WhatsApp (the sender, a reminder, a thank-you, an order message), coming back within 2 minutes finds the same screen; leaving any other way still locks at once.
+- **Bring a friend:** the sender's points come with the friend's first purchase of any kind (a deposit order collected counts); on credit they wait until the friend has paid her debt (the customer's page says so); an exchange keeps them (the new piece becomes the purchase); «من أرسلك؟» is asked only for a typed phone that matches nobody (a name alone may be an existing customer).
+- **Checkout:** the «unused reward» question now includes the friend's gift and «نفتقدك», and is not asked once any reward is on.
+- **«نفتقدك»:** only customers who accept offers are suggested; the ticks clear after the offers are given; counts in correct Arabic («لـ5 زبائن», «3 زيارات»); dates as «1 ديسمبر 2026»; a cancelled offer shows «أُلغي». Customer care's old «لم يعودوا» tab opens Marketing → «نفتقدك».
+- **Gifts:** reminders work across the new year (a gift on 3 January is reminded in late December), once per date; deleting a sale deletes its gift.
+- **Reports:** the end-of-day summary (page and PDF) and the customer report show the friends' gifts and the «نفتقدك» offers used.
+- **Scarves:** the size picker leaves out pieces held by a deposit; the design card shows «محجوز».
+- **Smaller:** shorter marketing tab names; spacing around «من أرسلها؟» on the customer's page; the sender and the customer's page scroll a typed field clear of the keyboard; the photo and camera texts name every use (products, brands, customers, orders, returns); `expo-device` removed (`expo-glass-effect` stays: Expo Router uses it).
+- **Speed:** the VIP list now reads everyone's spending in one query (it took 369 ms with 30,000 sales, now well under the 333 ms target); new speed lines for open orders, held pieces, gift reminders, VIP, occasion lists, «نفتقدك» and the offers report.
+- **Tests:** a screen test for each screen that had none (loyalty, rewards card, customer care, policies, settings, backup, archived, an employee's account, an order payment, a return's details, sets, the PIN change, a photo); the rules for the year-end gift, credit then payment, the exchange, a deleted sale's gift, the deposit order, the reports, the templates and the 2-minute grace. Simulator flows updated: `e2e/marketing.yaml` (the new messages), `e2e/customer-care.yaml` (to «نفتقدك»).
 
 ### Phase 10: switching over
 
@@ -988,4 +1003,4 @@ Instant updates (L6) were already moved to Phase 8 (8.0a).
 
 - Phase 8 (built, owner to test): instant updates need one new `.ipa` (build 2) before they reach the devices; after installing it, it is recorded with `npm run update:record`. Backups are now copies of the database file (`.db`); `.json` backups from before still restore. A restore keeps sale and receipt numbers from ever repeating, also from an older backup (found while testing 8.0g). The speed test is `npm run speed`: with 2,000 products and 30,000 sales every screen reads in under 25 ms on a computer (Customers and Debts were changed to one query for all balances). The dashboard's daily chart has a temporary switch to Apple's charts so the owner can choose; the other one is removed afterwards. Errors are kept in a log on the device (Settings → سجل الأخطاء).
 
-Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S6 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns, the employee's account, shifts and the cash count, alerts, the stock count, device protection) are merged. The fixes from the full audit after S6 are merged (database 7). The review fixes and the end-of-day summary (R4, database 8) are in review; then Phase 10, switching over.
+Status: Phases 0 to 9 are merged, with the full review and the new home screen. Staff phases S1 to S6 (accounts, permissions, the activity log and the clock guard, discounts, approvals, returns, the employee's account, shifts and the cash count, alerts, the stock count, device protection) are merged. The fixes from the full audit after S6 (database 7), the review fixes and the end-of-day summary (R4, database 8), and the owner's phases F, G and H (loyalty, customers, rewards, birthdays; databases 9 to 11) are merged. Phase I (deposit orders, card B, marketing; database 12) and the fixes from its full check (2026-11-15) are in review; then Phase 10, switching over.

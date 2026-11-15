@@ -377,6 +377,8 @@ export function deleteSale(ctx: Ctx, saleId: number, opts: { deleteReceipt?: boo
     // Marketing (I4): her "we miss you" offer comes back; the friend's points go back off.
     freeOffer(ctx, saleId);
     reverseReferral(ctx, saleId, 'deleted');
+    // A gift remembered with this sale goes with it (the owner's choice).
+    ctx.db.run('DELETE FROM gifts WHERE sale_id = ?', [saleId]);
     ctx.db.run('DELETE FROM sales WHERE id = ?', [saleId]);
     logAction(
       ctx,
@@ -544,7 +546,12 @@ export type ReturnInput = {
  * from the sale so profit stays exact; pieces go back into stock. A return of a credit sale lowers
  * what the customer owes (see debts.ts).
  */
-export function addReturn(ctx: Ctx, input: ReturnInput): number {
+export function addReturn(
+  ctx: Ctx,
+  input: ReturnInput,
+  /** Inside an exchange: the friend's referral moves to the new sale instead (I4). */
+  opts: { exchange?: boolean } = {},
+): number {
   const actor = allow(ctx, 'returns.create');
   return ctx.db.transaction(() => {
     const line = getSaleLine(ctx, input.saleLineId);
@@ -623,7 +630,7 @@ export function addReturn(ctx: Ctx, input: ReturnInput): number {
          FROM sale_lines l WHERE l.sale_id = ?`,
       [line.saleId, line.saleId],
     );
-    if ((left?.n ?? 0) <= 0) reverseReferral(ctx, line.saleId, 'returned');
+    if ((left?.n ?? 0) <= 0 && !opts.exchange) reverseReferral(ctx, line.saleId, 'returned');
     logAction(
       ctx,
       'return.create',

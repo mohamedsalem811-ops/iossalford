@@ -90,6 +90,8 @@ jest.mock('@/hooks/use-layout', () => ({
   useLayout: () => ({ split: false, cartBeside: false }),
 }));
 jest.mock('@/state/lock', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories cannot use imports
+  openOutside: (url: string) => require('react-native').Linking.openURL(url),
   LockProvider: ({ children }: { children: React.ReactNode }) => children,
   useLock: () => ({ unlocked: 'jewelry', unlock: () => {}, lock: () => {}, active: true }),
 }));
@@ -164,8 +166,10 @@ it('gives a new friend her gift, remembers her gift, and sends the thank-you', a
   cartOf(ring);
   await renderRouter(routes, { initialUrl: '/jewelry/checkout' });
   await fireEvent.changeText(await screen.findByTestId('checkout-name'), 'منى');
+  // A name alone may be a customer already: not asked yet.
+  expect(screen.queryByTestId('checkout-referrer-search')).toBeNull();
   await fireEvent.changeText(screen.getByTestId('checkout-phone'), '0922222222');
-  // A new customer: who sent her?
+  // A new customer (her phone matches nobody): who sent her?
   await fireEvent.changeText(screen.getByTestId('checkout-referrer-search'), 'سارة');
   await fireEvent.press(await screen.findByTestId(`checkout-referrer-${sara}`));
   expect(screen.getByTestId('checkout-referrer')).toHaveTextContent(/سارة/);

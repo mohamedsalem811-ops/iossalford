@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Linking } from 'react-native';
 
 import { Button, Text } from '@/components';
 import type { Ctx } from '@/domain/context';
@@ -10,6 +9,7 @@ import { lastMessage, recordMessage } from '@/domain/messages';
 import { showError } from '@/features/products/actions';
 import { haptic } from '@/lib/haptics';
 import { notifyDataChanged } from '@/state/data-events';
+import { openOutside } from '@/state/lock';
 import { useCan } from '@/staff/use-can';
 
 /**
@@ -48,7 +48,7 @@ export function ThanksButton({
     haptic.tap();
     notifyDataChanged();
     setSentAt(lastMessage(ctx, customer.id, 'thanks', saleId));
-    Linking.openURL(link).catch(() => {});
+    openOutside(link);
   };
   return (
     <>

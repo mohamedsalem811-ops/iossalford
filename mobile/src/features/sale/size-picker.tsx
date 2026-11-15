@@ -5,6 +5,7 @@ import { Pressable, ScrollView, View } from 'react-native';
 import { Badge, Card, EmptyState, Text } from '@/components';
 import type { Ctx } from '@/domain/context';
 import type { Product } from '@/domain/products';
+import { forSale } from '@/domain/reserved';
 import { ProductPhoto } from '@/features/products/product-photo';
 import { findDesign } from '@/features/scarves/actions';
 import { formatLyd } from '@/lib/money';
@@ -33,6 +34,8 @@ export function SizePicker({
   const { colors } = useTheme();
   const { cart } = useCart(ctx.system);
   const [design] = useState(() => findDesign(ctx, designId));
+  // Pieces held for customers by a deposit are not free to sell (I2).
+  const [sizes] = useState(() => design?.sizes.map((p) => forSale(ctx, p)) ?? []);
   if (!design) return <EmptyState icon="wind" title="التصميم غير موجود" />;
   const first = design.sizes[0];
 
@@ -56,7 +59,7 @@ export function SizePicker({
           </View>
         </View>
         <Card padded={false} style={{ gap: 0 }}>
-          {design.sizes.map((p, i) => {
+          {sizes.map((p, i) => {
             const free = freeStock(p.stock, cart, p.id);
             const held = cart
               .filter((l) => l.productId === p.id)

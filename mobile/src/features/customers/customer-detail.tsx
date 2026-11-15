@@ -133,7 +133,7 @@ export function CustomerDetail({
     ]);
 
   return (
-    <Page>
+    <Page keyboard>
       <Card>
         <MemberCard
           system={ctx.system}

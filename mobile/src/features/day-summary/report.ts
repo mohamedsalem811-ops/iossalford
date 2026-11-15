@@ -63,6 +63,14 @@ export function daySections(d: DaySummary): Section[] {
             label: 'خصومات عيد الميلاد',
             value: `${d.birthdays.count} • ${formatLyd(d.birthdays.off)}`,
           },
+          d.friends.count > 0 && {
+            label: 'هدايا «أرسلي صديقة»',
+            value: `${d.friends.count} • ${formatLyd(d.friends.off)}`,
+          },
+          d.offers.count > 0 && {
+            label: 'عروض «نفتقدك»',
+            value: `${d.offers.count} • ${formatLyd(d.offers.off)}`,
+          },
           d.approvals > 0 && { label: 'موافقات المالك', value: String(d.approvals) },
         ]),
       ],

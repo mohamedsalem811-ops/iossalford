@@ -93,7 +93,7 @@ export function spendRange(amount: number, ranges: readonly number[]): string {
 const describe = (r: RewardRules) =>
   [
     r.enabled
-      ? `مكافأة الزيارة: بعد ${countText(r.every, PURCHASES)} من ${formatLyd(r.minPurchase)}، خصم ${r.percent}% حتى ${formatLyd(r.maxOff)} على بيعة من ${formatLyd(r.minRewardSale)}`
+      ? `مكافأة الزيارة: بعد ${countText(r.every, PURCHASES)} من ${formatLyd(r.minPurchase)}، خصم ${r.percent}% بحد أقصى ${formatLyd(r.maxOff)} للخصم على بيعة من ${formatLyd(r.minRewardSale)}`
       : 'مكافأة الزيارة متوقفة',
     `VIP: أكثر من ${formatLyd(r.vipSpend)} خلال ${countText(r.vipMonths, MONTHS)}، النقاط ×${r.vipPointsTimes}`,
   ].join('، ');

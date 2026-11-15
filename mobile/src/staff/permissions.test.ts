@@ -638,6 +638,9 @@ describe('every action has a check', () => {
    * that has one (checkout, returns, restore…), never from a screen: see the import test below.
    */
   const INTERNAL_STEPS = [
+    // Inside a payment and an exchange: the friend's sender gets her points, or keeps them (I4).
+    'payReferral',
+    'moveReferral',
     'moveStock',
     'ensureCustomer',
     'ensureBrand',

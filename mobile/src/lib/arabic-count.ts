@@ -33,3 +33,17 @@ export const PURCHASES: CountWords = {
 export const PURCHASES_LEFT: CountWords = { ...PURCHASES, two: 'شراءان' };
 /** "بعد 3 أيام". */
 export const DAYS: CountWords = { one: 'يوم', two: 'يومين', few: 'أيام', many: 'يوماً' };
+/** "لـ5 زبائن" (after a preposition). */
+export const CUSTOMERS: CountWords = {
+  one: 'زبون واحد',
+  two: 'زبونين',
+  few: 'زبائن',
+  many: 'زبوناً',
+};
+/** "3 زيارات". */
+export const VISITS: CountWords = {
+  one: 'زيارة واحدة',
+  two: 'زيارتين',
+  few: 'زيارات',
+  many: 'زيارة',
+};

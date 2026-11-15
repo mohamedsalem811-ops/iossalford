@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Alert } from 'react-native';
+import { Alert, View } from 'react-native';
 
 import { ListGroup, ListRow } from '@/components';
 import type { Ctx } from '@/domain/context';
@@ -16,9 +16,11 @@ import {
 import { ReferrerPicker } from '@/features/sale/checkout-extras';
 import { showError } from '@/features/products/actions';
 import { haptic } from '@/lib/haptics';
+import { formatDayKey } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
 import { useCan } from '@/staff/use-can';
 import { notifyDataChanged } from '@/state/data-events';
+import { spacing } from '@/theme';
 
 /**
  * A customer's marketing facts (I4): her «نفتقدك» offer, who sent her (or «من أرسلها؟» before
@@ -50,8 +52,8 @@ export function MarketingCard({ ctx, customerId }: { ctx: Ctx; customerId: numbe
       {offer ? (
         <ListRow
           icon="gift.fill"
-          title={`عرض «نفتقدك» ${offer.percent}% حتى ${formatLyd(offer.cap)}`}
-          subtitle={`صالح حتى ${offer.expiresAt} • يُختار عند البيع`}
+          title={`عرض «نفتقدك» ${offer.percent}% بحد أقصى ${formatLyd(offer.cap)} للخصم`}
+          subtitle={`صالح حتى ${formatDayKey(offer.expiresAt)} • يُختار عند البيع`}
           testID="customer-offer"
         />
       ) : null}
@@ -64,17 +66,19 @@ export function MarketingCard({ ctx, customerId }: { ctx: Ctx; customerId: numbe
         />
       ) : mayAsk ? (
         asking ? (
-          <ReferrerPicker
-            ctx={ctx}
-            exclude={customerId}
-            value={null}
-            onChange={(c) => {
-              if (!c) return;
-              run(() => setReferrer(ctx, customerId, c.id));
-              setAsking(false);
-            }}
-            fullNames={fullNames}
-          />
+          <View style={{ padding: spacing.md }}>
+            <ReferrerPicker
+              ctx={ctx}
+              exclude={customerId}
+              value={null}
+              onChange={(c) => {
+                if (!c) return;
+                run(() => setReferrer(ctx, customerId, c.id));
+                setAsking(false);
+              }}
+              fullNames={fullNames}
+            />
+          </View>
         ) : (
           <ListRow
             icon="heart"
@@ -91,6 +95,7 @@ export function MarketingCard({ ctx, customerId }: { ctx: Ctx; customerId: numbe
           icon="person.2"
           title={`أرسلت: ${f.name}`}
           value={f.points ? `${f.points} نقطة` : undefined}
+          subtitle={f.waiting ? 'تُضاف النقاط بعد أن تسدد دينها' : undefined}
           testID={`customer-friend-${f.id}`}
         />
       ))}

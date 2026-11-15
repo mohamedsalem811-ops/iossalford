@@ -64,7 +64,7 @@ export const birthdayOn = (r: BirthdayRules) => r.enabled && r.maxOff > 0 && r.p
 
 const describe = (r: BirthdayRules) =>
   r.enabled
-    ? `خصم عيد الميلاد: ${r.percent}% حتى ${formatLyd(r.maxOff)}${r.minSale ? `، على شراء من ${formatLyd(r.minSale)}` : ''}`
+    ? `خصم عيد الميلاد: ${r.percent}% بحد أقصى ${formatLyd(r.maxOff)} للخصم${r.minSale ? `، على شراء من ${formatLyd(r.minSale)}` : ''}`
     : 'خصم عيد الميلاد متوقف';
 
 /** The owner sets the birthday discount; each change is logged. */

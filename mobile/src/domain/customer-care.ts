@@ -4,6 +4,7 @@
  * asked for, duplicate customers and their merge, and the owner's customer report.
  */
 import { monthKey } from '@/lib/dates';
+import { formatLyd } from '@/lib/money';
 
 import { logAction } from './activity';
 import { allow, allowView, clean, nowMonth, nowStamp, RuleError, type Ctx, who } from './context';
@@ -17,6 +18,7 @@ import {
 } from './customers';
 import { nextWindow, type BirthdayWindow } from './birthday';
 import { customerSales, spendingByCustomer } from './customer-stats';
+import { DEFAULT_TEMPLATES, fill } from './templates';
 
 // ---------------------------------------------------------------- WhatsApp
 
@@ -31,14 +33,16 @@ export function waLink(phone: string | null | undefined, text: string): string |
 /** The birthday message, with the birthday discount and its dates when it is on (H1). */
 export const birthdayMessage = (
   c: Pick<Customer, 'name' | 'gender'>,
-  gift: { percent: number; when: string } | null,
+  gift: { percent: number; maxOff: number; when: string } | null,
+  template = DEFAULT_TEMPLATES.birthday,
 ) =>
-  `${c.gender === 'male' ? 'عزيزنا' : 'عزيزتنا'} ${c.name}، كل عام وأنت بخير بمناسبة عيد ميلادك 🎂${
-    gift ? `\nهديتك عندنا: خصم ${gift.percent}% على مشترياتك ${gift.when}.` : ''
-  }\nSALFORD`;
-
-export const missYouMessage = (c: Pick<Customer, 'name' | 'gender'>) =>
-  `${c.gender === 'male' ? 'عزيزنا' : 'عزيزتنا'} ${c.name}، اشتقنا لزيارتك! وصلتنا قطع جديدة قد تعجبك.\nSALFORD`;
+  fill(template, {
+    الاسم: c.name,
+    عزيزتنا: c.gender === 'male' ? 'عزيزنا' : 'عزيزتنا',
+    الهدية: gift
+      ? `\nهديتك عندنا: خصم ${gift.percent}% (بحد أقصى ${formatLyd(gift.maxOff)} للخصم) على مشترياتك ${gift.when}.`
+      : '',
+  });
 
 // ---------------------------------------------------------------- birthdays and visits
 
@@ -303,6 +307,9 @@ export type CustomerReport = {
   rewards: { count: number; off: number };
   /** Birthday discounts this year (H1). */
   birthdays: { count: number; off: number };
+  /** Bring a friend gifts and «نفتقدك» offers this year (I4). */
+  friends: { count: number; off: number };
+  offers: { count: number; off: number };
   /** Points this year: earned, and what the points paid. */
   points: { earned: number; paid: number };
 };
@@ -344,9 +351,20 @@ export function customerReport(ctx: Ctx): CustomerReport {
           .map((s) => s.day),
       ).size >= 2,
   ).length;
-  const rewards = ctx.db.get<{ n: number; t: number; bn: number; bt: number }>(
+  const rewards = ctx.db.get<{
+    n: number;
+    t: number;
+    bn: number;
+    bt: number;
+    fn: number;
+    ft: number;
+    on_: number;
+    ot: number;
+  }>(
     `SELECT count(nullif(reward_off, 0)) n, coalesce(sum(reward_off), 0) t,
-            count(nullif(birthday_off, 0)) bn, coalesce(sum(birthday_off), 0) bt
+            count(nullif(birthday_off, 0)) bn, coalesce(sum(birthday_off), 0) bt,
+            count(nullif(friend_off, 0)) fn, coalesce(sum(friend_off), 0) ft,
+            count(nullif(offer_off, 0)) on_, coalesce(sum(offer_off), 0) ot
        FROM sales WHERE created_at >= ?`,
     [yearStart],
   )!;
@@ -363,6 +381,8 @@ export function customerReport(ctx: Ctx): CustomerReport {
     returning,
     rewards: { count: rewards.n, off: rewards.t },
     birthdays: { count: rewards.bn, off: rewards.bt },
+    friends: { count: rewards.fn, off: rewards.ft },
+    offers: { count: rewards.on_, off: rewards.ot },
     points: { earned: points.e, paid: points.p },
   };
 }

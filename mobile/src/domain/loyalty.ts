@@ -47,7 +47,7 @@ export function getLoyalty(ctx: Ctx): LoyaltyRules {
 
 const describe = (r: LoyaltyRules) =>
   r.enabled
-    ? `نقاط الولاء: نقطة لكل ${formatLyd(r.spendPerPoint)}، النقطة بـ ${formatLyd(r.pointValue)}، من ${r.minRedeem} نقطة، حتى ${r.maxShare}% من البيعة`
+    ? `نقاط الولاء: نقطة لكل ${formatLyd(r.spendPerPoint)}، النقطة بـ ${formatLyd(r.pointValue)}، من ${r.minRedeem} نقطة، بحد أقصى ${r.maxShare}% من البيعة`
     : 'نقاط الولاء متوقفة';
 
 /** The owner sets the rules; each change is logged. */

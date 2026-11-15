@@ -1,4 +1,4 @@
-import { router, Stack, useFocusEffect } from 'expo-router';
+import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Alert, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -25,6 +25,7 @@ import {
   cancelOffer,
   FILL_INS,
   fill,
+  CANCELLED,
   getMarketing,
   giveOffers,
   missYouCandidates,
@@ -35,16 +36,17 @@ import {
   offersReport,
   setMarketing,
   setOccasionDate,
+  TEMPLATE_KINDS,
   TEMPLATE_LABELS,
   type MarketingRules,
   type Occasion,
-  type TemplateKind,
 } from '@/domain/marketing';
 import { Recipients } from '@/features/marketing/recipients';
 import { setQueue, type QueuedMessage } from '@/features/marketing/send-queue';
 import { showError } from '@/features/products/actions';
 import { useReadable } from '@/hooks/use-readable';
-import { dayKey } from '@/lib/dates';
+import { countText, CUSTOMERS, DAYS, VISITS } from '@/lib/arabic-count';
+import { dayKey, formatDayKey } from '@/lib/dates';
 import { latinDigits, parseThousandths } from '@/lib/digits';
 import { haptic } from '@/lib/haptics';
 import { editableDinars, formatLyd } from '@/lib/money';
@@ -55,11 +57,11 @@ import { spacing, useTheme } from '@/theme';
 
 type Tab = 'occasions' | 'missYou' | 'friend' | 'templates' | 'report';
 const TABS: { value: Tab; label: string }[] = [
-  { value: 'occasions', label: 'المناسبات' },
+  { value: 'occasions', label: 'مناسبات' },
   { value: 'missYou', label: 'نفتقدك' },
   { value: 'friend', label: 'صديقة' },
-  { value: 'templates', label: 'الرسائل' },
-  { value: 'report', label: 'التقرير' },
+  { value: 'templates', label: 'رسائل' },
+  { value: 'report', label: 'تقرير' },
 ];
 
 /** A whole number typed in a field (Arabic digits read too), or NaN. */
@@ -88,7 +90,10 @@ function MarketingScreen() {
   const system = ctx.system;
   const readable = useReadable();
   const { colors } = useTheme();
-  const [tab, setTab] = useState<Tab>('occasions');
+  const params = useLocalSearchParams<{ tab?: Tab }>();
+  const [tab, setTab] = useState<Tab>(
+    TABS.some((t) => t.value === params.tab) ? params.tab! : 'occasions',
+  );
   const [rules, setRules] = useState<MarketingRules>(() => getMarketing(ctx));
   const [picking, setPicking] = useState<Picking | null>(null);
   const [chosen, setChosen] = useState<Set<number>>(new Set());
@@ -496,7 +501,7 @@ function MissYou({
             subtitle={(c) => {
               const f = facts.get(c.id);
               return f
-                ? `${f.visits} زيارات • آخر شراء ${sinceText(f.last, ctx.now())}`
+                ? `${countText(f.visits, VISITS)} • آخر شراء ${sinceText(f.last, ctx.now())}`
                 : undefined;
             }}
             testID="marketing-miss"
@@ -513,11 +518,17 @@ function MissYou({
                 return;
               }
               Alert.alert(
-                `إعطاء العرض لـ${chosen.size} زبون؟`,
-                `خصم ${rules.offerPercent}% بحد أقصى ${formatLyd(rules.offerCap)} لمرة واحدة، صالح ${rules.offerDays} يوماً. يظهر عند البيع لكل منهم.`,
+                `إعطاء العرض لـ${countText(chosen.size, CUSTOMERS)}؟`,
+                `خصم ${rules.offerPercent}% بحد أقصى ${formatLyd(rules.offerCap)} للخصم، لمرة واحدة، صالح ${countText(rules.offerDays, DAYS)}. يظهر عند البيع لكل منهم.`,
                 [
                   { text: 'إلغاء', style: 'cancel' },
-                  { text: 'إعطاء وإرسال', onPress: () => onGive([...chosen]) },
+                  {
+                    text: 'إعطاء وإرسال',
+                    onPress: () => {
+                      onGive([...chosen]);
+                      setChosen(new Set());
+                    },
+                  },
                 ],
               );
             }}
@@ -591,8 +602,6 @@ function Friend({
   );
 }
 
-const KINDS: TemplateKind[] = ['thanks', 'occasion', 'vip', 'missYou', 'gift'];
-
 /** The message templates, each with the fill-ins it may use. */
 function Templates({
   rules,
@@ -604,7 +613,7 @@ function Templates({
   const [texts, setTexts] = useState(rules.templates);
   return (
     <>
-      {KINDS.map((k) => (
+      {TEMPLATE_KINDS.map((k) => (
         <Card key={k}>
           <Text variant="headline">{TEMPLATE_LABELS[k]}</Text>
           <TextField
@@ -667,12 +676,14 @@ function Report({
                 key={o.id}
                 icon={o.usedAt ? 'checkmark.circle.fill' : open ? 'clock' : 'xmark.circle'}
                 title={o.customerName}
-                subtitle={`${o.percent}% حتى ${formatLyd(o.cap)} • ${
+                subtitle={`${o.percent}% بحد أقصى ${formatLyd(o.cap)} • ${
                   o.usedAt
-                    ? `عاد ${o.usedAt.slice(0, 10)}`
-                    : open
-                      ? `صالح حتى ${o.expiresAt}`
-                      : 'انتهى'
+                    ? `عاد ${formatDayKey(o.usedAt.slice(0, 10))}`
+                    : o.expiresAt === CANCELLED
+                      ? 'أُلغي'
+                      : open
+                        ? `صالح حتى ${formatDayKey(o.expiresAt)}`
+                        : 'انتهى'
                 }`}
                 onPress={
                   open

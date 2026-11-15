@@ -11,51 +11,36 @@
  * - we miss you: the owner gives chosen customers a one-time discount (percent, cap, days), used
  *   at checkout like the birthday discount; the report shows who came back.
  */
-import { dayKey } from '@/lib/dates';
+import { countText, CUSTOMERS } from '@/lib/arabic-count';
+import { dayKey, formatDayKey } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
 
 import { logAction } from './activity';
 import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx, who } from './context';
 import { getCustomer, type Customer } from './customers';
-import { customerStats } from './customer-stats';
+import { isVip, spendingByCustomer } from './customer-stats';
+import { getRewards } from './rewards';
 import { addReferralMove, getLoyalty, pointsBalance, pointsFor } from './loyalty';
 import { getSetting, setSetting } from './settings';
+import {
+  DEFAULT_TEMPLATES,
+  fill,
+  OLD_DEFAULTS,
+  TEMPLATE_LABELS,
+  type TemplateKind,
+} from './templates';
 
 // ---------------------------------------------------------------- templates
 
-export type TemplateKind = 'thanks' | 'occasion' | 'vip' | 'missYou' | 'gift';
-
-export const TEMPLATE_LABELS: Record<TemplateKind, string> = {
-  thanks: 'شكراً بعد الشراء',
-  occasion: 'المناسبات',
-  vip: 'VIP: أول من يرى',
-  missYou: 'نفتقدك',
-  gift: 'تذكير الهدية',
-};
-
-/** The fill-ins each message may use, as the owner types them. */
-export const FILL_INS: Record<TemplateKind, string[]> = {
-  thanks: ['{الاسم}'],
-  occasion: ['{الاسم}', '{المناسبة}', '{التاريخ}'],
-  vip: ['{الاسم}'],
-  missYou: ['{الاسم}', '{الخصم}', '{الحد}', '{حتى}'],
-  gift: ['{الاسم}', '{لمن}', '{المناسبة}', '{التاريخ}'],
-};
-
-export const DEFAULT_TEMPLATES: Record<TemplateKind, string> = {
-  thanks: 'أهلاً {الاسم}، شكراً لزيارتك اليوم 🤍 نتمنى أن تسعدك قطعتك.\nSALFORD',
-  occasion:
-    'أهلاً {الاسم}، بمناسبة {المناسبة} ({التاريخ}) وصلتنا قطع مميزة تليق بالهدية 🎁\nSALFORD',
-  vip: 'أهلاً {الاسم}، لأنك من زبائننا المميزين: وصلتنا قطع جديدة، وأنت أول من يراها قبل الجميع ✨\nSALFORD',
-  missYou:
-    'أهلاً {الاسم}، اشتقنا لزيارتك! هديتك عندنا: خصم {الخصم} (حتى {الحد}) على مشترياتك حتى {حتى}.\nSALFORD',
-  gift: 'أهلاً {الاسم}، اقتربت {المناسبة} لـ{لمن} ({التاريخ}). عندنا قطع جديدة تناسب الهدية 🎁\nSALFORD',
-};
-
-/** The template with its fill-ins replaced; one left unknown stays as typed. */
-export function fill(template: string, values: Record<string, string>): string {
-  return template.replace(/\{([^{}]+)\}/g, (all, key: string) => values[key] ?? all);
-}
+export {
+  DEFAULT_TEMPLATES,
+  FILL_INS,
+  fill,
+  isAutoName,
+  TEMPLATE_KINDS,
+  TEMPLATE_LABELS,
+  type TemplateKind,
+} from './templates';
 
 // ---------------------------------------------------------------- occasions
 
@@ -120,6 +105,16 @@ export const DEFAULT_MARKETING: MarketingRules = {
 };
 export const MARKETING_KEY = 'marketing';
 
+/** The saved templates over the defaults; an old default the owner never changed follows the new one. */
+function savedTemplates(saved: Partial<Record<TemplateKind, string>> = {}) {
+  const out = { ...DEFAULT_TEMPLATES };
+  for (const k of Object.keys(DEFAULT_TEMPLATES) as TemplateKind[]) {
+    const t = saved[k];
+    if (typeof t === 'string' && t.trim() && !OLD_DEFAULTS[k]?.includes(t)) out[k] = t;
+  }
+  return out;
+}
+
 export function getMarketing(ctx: Ctx): MarketingRules {
   try {
     const saved = JSON.parse(getSetting(ctx, MARKETING_KEY) ?? '{}') as Partial<MarketingRules>;
@@ -131,7 +126,7 @@ export function getMarketing(ctx: Ctx): MarketingRules {
     return {
       ...DEFAULT_MARKETING,
       ...saved,
-      templates: { ...DEFAULT_TEMPLATES, ...saved.templates },
+      templates: savedTemplates(saved.templates),
       occasions,
     };
   } catch {
@@ -176,7 +171,7 @@ export function setMarketing(ctx: Ctx, changes: Partial<MarketingRules>): Market
     setSetting(ctx, MARKETING_KEY, JSON.stringify(next));
     logAction(ctx, 'marketing.rules', 'تعديل إعدادات التسويق', {
       friend: next.friendEnabled ? `${next.friendPercent}% ×${next.friendTimes}` : 'متوقف',
-      offer: `${next.offerPercent}% حتى ${formatLyd(next.offerCap)} لمدة ${next.offerDays} يوماً`,
+      offer: `${next.offerPercent}% بحد أقصى ${formatLyd(next.offerCap)} لمدة ${next.offerDays} يوماً`,
     });
   });
   return next;
@@ -199,13 +194,17 @@ const withPhone = (c: Customer | undefined): c is Customer => !!c?.phone;
 
 /** Customers who accept offers and have a phone: the ones an occasion or VIP message may go to. */
 export function offerCustomers(ctx: Ctx, onlyVip = false): Customer[] {
-  return ctx.db
+  const list = ctx.db
     .all<{ id: number }>(
       "SELECT id FROM customers WHERE offers = 1 AND phone IS NOT NULL AND phone <> '' ORDER BY name",
     )
     .map((r) => getCustomer(ctx, r.id))
-    .filter(withPhone)
-    .filter((c) => !onlyVip || customerStats(ctx, c.id, undefined, c).vip);
+    .filter(withPhone);
+  if (!onlyVip) return list;
+  // Everyone's spending in one query, as the customers list shows VIP (G1).
+  const rules = getRewards(ctx);
+  const spent = spendingByCustomer(ctx, rules);
+  return list.filter((c) => isVip(c.vip, spent.get(c.id)?.inWindow ?? 0, rules));
 }
 
 /** Suggested for "we miss you": bought on many days, not lately, with a phone, no offer running. */
@@ -223,7 +222,10 @@ export function missYouCandidates(
       [dayKey(cutoff), rules.missVisits],
     )
     .map((r) => ({ customer: getCustomer(ctx, r.id), last: r.last, visits: r.visits }))
-    .filter((x): x is { customer: Customer; last: string; visits: number } => withPhone(x.customer))
+    .filter(
+      (x): x is { customer: Customer; last: string; visits: number } =>
+        withPhone(x.customer) && x.customer.offers,
+    )
     .filter((x) => !activeOffer(ctx, x.customer.id));
 }
 
@@ -317,35 +319,61 @@ export const listGifts = (ctx: Ctx, customerId: number): Gift[] =>
 /** Days from today to the gift's date this year (negative once passed). */
 export function daysTo(month: number, day: number, now: Date): number {
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const at = new Date(now.getFullYear(), month - 1, day);
-  return Math.round((at.getTime() - today.getTime()) / 86_400_000);
+  return Math.round(
+    (onDay(now.getFullYear(), month, day).getTime() - today.getTime()) / 86_400_000,
+  );
 }
 
+/** The date in a year: 29 February is the 28th in other years. */
+function onDay(year: number, month: number, day: number): Date {
+  const leap = new Date(year, 1, 29).getMonth() === 1;
+  return new Date(year, month - 1, month === 2 && day === 29 && !leap ? 28 : day);
+}
+
+/** The gift's next date from today (today included): this year's, or next year's once passed. */
+export function nextGiftDate(month: number, day: number, now: Date): { date: Date; days: number } {
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let date = onDay(today.getFullYear(), month, day);
+  if (date < today) date = onDay(today.getFullYear() + 1, month, day);
+  return { date, days: Math.round((date.getTime() - today.getTime()) / 86_400_000) };
+}
+
+/** A date this close after the purchase is the occasion she bought the gift for, not next year's. */
+const SAME_OCCASION_DAYS = 300;
+
 /**
- * The home row a week before (I4): gifts saved in an earlier year whose date is in the next 7
- * days (today included) and not handled this year; the nearest first.
+ * The home row a week before (I4): gifts whose next date is in the next 7 days (today included),
+ * a year on from the purchase (a gift bought on 30 December for 3 January is not reminded that
+ * January), and not handled for that date yet; the nearest first.
  */
 export function giftReminders(ctx: Ctx): (Gift & { days: number })[] {
   const now = ctx.now();
-  const year = now.getFullYear();
   return ctx.db
-    .all<GiftRow>(
-      `${GIFT_SELECT} WHERE substr(g.created_at, 1, 4) < ? AND (g.done_year IS NULL OR g.done_year < ?)`,
-      [String(year), year],
-    )
+    .all<GiftRow>(GIFT_SELECT)
     .map(toGift)
-    .map((g) => ({ ...g, days: daysTo(g.month, g.day, now) }))
-    .filter((g) => g.days >= 0 && g.days <= 7)
+    .map((g) => {
+      const next = nextGiftDate(g.month, g.day, now);
+      const bought = new Date(`${g.createdAt.slice(0, 10)}T00:00:00`);
+      const after = Math.round((next.date.getTime() - bought.getTime()) / 86_400_000);
+      const due =
+        next.days <= 7 &&
+        after > SAME_OCCASION_DAYS &&
+        (g.doneYear === null || g.doneYear < next.date.getFullYear());
+      return { ...g, days: next.days, due };
+    })
+    .filter((g) => g.due)
+    .map(({ due: _due, ...g }) => g)
     .sort((a, b) => a.days - b.days || a.id - b.id);
 }
 
-/** The gift's reminder is handled for this year (the message opened, or not wanted); logged. */
+/** The gift's reminder is handled for its coming date (the message opened, or not wanted); logged. */
 export function markGiftDone(ctx: Ctx, giftId: number) {
   allow(ctx, 'customers.edit');
-  const year = ctx.now().getFullYear();
   ctx.db.transaction(() => {
     const g = ctx.db.get<GiftRow>(`${GIFT_SELECT} WHERE g.id = ?`, [giftId]);
     if (!g) throw new RuleError('الهدية غير موجودة');
+    // The year of the date it is for: done on 28 December for 2 January counts for January's year.
+    const year = nextGiftDate(g.occ_month, g.occ_day, ctx.now()).date.getFullYear();
     ctx.db.run('UPDATE gifts SET done_year = ? WHERE id = ?', [year, giftId]);
     logAction(ctx, 'gift.done', `تذكير هدية «${g.name}» لـ${g.for_whom}: تم لهذه السنة`, {
       giftId,
@@ -448,10 +476,17 @@ export function linkReferrer(ctx: Ctx, friendId: number, referrerId: number) {
 
 /**
  * After the friend's first purchase is saved (inside checkout): the sender's points, the points
- * that purchase earns times the owner's multiple, whatever the payment (a credit sale counts as
- * the purchase). Returns the points given.
+ * that purchase earns times the owner's multiple. Only her first purchase counts, whatever kind it
+ * is (a deposit delivery too). On credit the points wait until her debt is paid, like her own
+ * points (payReferral). Returns the points given now.
  */
-export function rewardReferrer(ctx: Ctx, friendId: number, saleId: number, paid: number): number {
+export function rewardReferrer(
+  ctx: Ctx,
+  friendId: number,
+  saleId: number,
+  paid: number,
+  opts: { credit?: boolean } = {},
+): number {
   const rules = getMarketing(ctx);
   const loyalty = getLoyalty(ctx);
   const r = ctx.db.get<{ id: number; referrer_id: number }>(
@@ -459,18 +494,58 @@ export function rewardReferrer(ctx: Ctx, friendId: number, saleId: number, paid:
     [friendId],
   );
   if (!r) return 0;
+  // Her first purchase only: one bought before (the referral named later) never counts.
+  const earlier = ctx.db.get('SELECT 1 FROM sales WHERE customer_id = ? AND id <> ? LIMIT 1', [
+    friendId,
+    saleId,
+  ]);
+  if (earlier) return 0;
   const points = pointsFor(paid, loyalty) * rules.friendTimes;
   const friend = getCustomer(ctx, friendId);
-  const moveId = points
-    ? addReferralMove(ctx, r.referrer_id, points, `أرسلت صديقة: ${friend?.name ?? ''}`)
-    : null;
+  const moveId =
+    points && !opts.credit
+      ? addReferralMove(ctx, r.referrer_id, points, `أرسلت صديقة: ${friend?.name ?? ''}`)
+      : null;
   ctx.db.run('UPDATE referrals SET sale_id = ?, points = ?, move_id = ? WHERE id = ?', [
     saleId,
     points,
     moveId,
     r.id,
   ]);
-  return points;
+  return moveId ? points : 0;
+}
+
+/**
+ * A debt payment from a friend whose first purchase was on credit (debts.ts): once she owes
+ * nothing, her sender gets the points that waited. Returns the points given.
+ */
+export function payReferral(ctx: Ctx, friendId: number, settled: boolean): number {
+  if (!settled) return 0;
+  const r = ctx.db.get<{ id: number; referrer_id: number; points: number; name: string }>(
+    `SELECT f.id, f.referrer_id, f.points, c.name FROM referrals f JOIN customers c ON c.id = f.friend_id
+      WHERE f.friend_id = ? AND f.sale_id IS NOT NULL AND f.move_id IS NULL AND f.points > 0
+        AND f.reversed_at IS NULL`,
+    [friendId],
+  );
+  if (!r) return 0;
+  const moveId = addReferralMove(ctx, r.referrer_id, r.points, `أرسلت صديقة: ${r.name}`);
+  ctx.db.run('UPDATE referrals SET move_id = ? WHERE id = ?', [moveId, r.id]);
+  return r.points;
+}
+
+/** An exchange of the friend's whole first purchase: the referral follows the new sale. */
+export function moveReferral(ctx: Ctx, fromSaleId: number, toSaleId: number) {
+  const left = ctx.db.get<{ n: number }>(
+    `SELECT coalesce(sum(l.quantity), 0) - coalesce((SELECT sum(r.quantity) FROM returns r
+        JOIN sale_lines x ON x.id = r.sale_line_id WHERE x.sale_id = ?1), 0) n
+       FROM sale_lines l WHERE l.sale_id = ?1`,
+    [fromSaleId],
+  );
+  if ((left?.n ?? 0) > 0) return;
+  ctx.db.run('UPDATE referrals SET sale_id = ? WHERE sale_id = ? AND reversed_at IS NULL', [
+    toSaleId,
+    fromSaleId,
+  ]);
 }
 
 /**
@@ -482,15 +557,17 @@ export function reverseReferral(ctx: Ctx, saleId: number, how: 'returned' | 'del
     id: number;
     referrer_id: number;
     points: number;
+    move_id: number | null;
     reversed_at: string | null;
     name: string;
   }>(
-    `SELECT f.id, f.referrer_id, f.points, f.reversed_at, c.name FROM referrals f
+    `SELECT f.id, f.referrer_id, f.points, f.move_id, f.reversed_at, c.name FROM referrals f
        JOIN customers c ON c.id = f.friend_id WHERE f.sale_id = ?`,
     [saleId],
   );
   if (!r) return;
-  if (!r.reversed_at && r.points > 0) {
+  // Points still waiting for her payment were never given: nothing to take back.
+  if (!r.reversed_at && r.points > 0 && r.move_id !== null) {
     const take = Math.min(r.points, Math.max(0, pointsBalance(ctx, r.referrer_id)));
     if (take > 0) addReferralMove(ctx, r.referrer_id, -take, `أُعيدت مشتريات الصديقة: ${r.name}`);
   }
@@ -506,12 +583,15 @@ export function reverseReferral(ctx: Ctx, saleId: number, how: 'returned' | 'del
 export function friendsOf(
   ctx: Ctx,
   customerId: number,
-): { id: number; name: string; points: number }[] {
-  return ctx.db.all(
-    `SELECT c.id, c.name, CASE WHEN f.reversed_at IS NULL THEN f.points ELSE 0 END points
+): { id: number; name: string; points: number; waiting: boolean }[] {
+  return ctx.db
+    .all<{ id: number; name: string; points: number; waiting: number }>(
+      `SELECT c.id, c.name, CASE WHEN f.reversed_at IS NULL THEN f.points ELSE 0 END points,
+              (f.sale_id IS NOT NULL AND f.move_id IS NULL AND f.points > 0 AND f.reversed_at IS NULL) waiting
        FROM referrals f JOIN customers c ON c.id = f.friend_id WHERE f.referrer_id = ? ORDER BY f.id`,
-    [customerId],
-  );
+      [customerId],
+    )
+    .map((r) => ({ ...r, waiting: !!r.waiting }));
 }
 
 // ---------------------------------------------------------------- we miss you
@@ -597,12 +677,15 @@ export function giveOffers(ctx: Ctx, customerIds: number[]): Offer[] {
       logAction(
         ctx,
         'offer.give',
-        `عرض «نفتقدك» ${rules.offerPercent}% حتى ${formatLyd(rules.offerCap)} لـ ${given.length} زبون، حتى ${expires}`,
+        `عرض «نفتقدك» ${rules.offerPercent}% بحد أقصى ${formatLyd(rules.offerCap)} لـ${countText(given.length, CUSTOMERS)}، حتى ${formatDayKey(expires)}`,
         { offers: given.map((o) => o.id), expires },
       );
     return given;
   });
 }
+
+/** The end day of an offer the owner cancelled. */
+export const CANCELLED = '0000-00-00';
 
 /** Ends an offer before its day (given by mistake); logged. */
 export function cancelOffer(ctx: Ctx, offerId: number) {
@@ -611,7 +694,7 @@ export function cancelOffer(ctx: Ctx, offerId: number) {
     const o = ctx.db.get<OfferRow>(`${OFFER_SELECT} WHERE o.id = ?`, [offerId]);
     if (!o) throw new RuleError('العرض غير موجود');
     if (o.used_at) throw new RuleError('استُخدم العرض في بيعة: لا يُلغى');
-    ctx.db.run('UPDATE offers SET expires_at = ? WHERE id = ?', ['0000-00-00', offerId]);
+    ctx.db.run('UPDATE offers SET expires_at = ? WHERE id = ?', [CANCELLED, offerId]);
     logAction(ctx, 'offer.cancel', `إلغاء عرض «نفتقدك» لـ «${o.name}»`, { offerId });
   });
 }

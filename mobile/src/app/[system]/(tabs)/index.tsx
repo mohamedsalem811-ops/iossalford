@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActionSheetIOS, Alert, Linking } from 'react-native';
+import { ActionSheetIOS, Alert } from 'react-native';
 
 import { firstBackup, lastCopied, saveBackup } from '@/backup/store';
 import { errorBoundary } from '@/components/error-screen';
@@ -27,7 +27,7 @@ import { monthKey, type MonthKey } from '@/lib/dates';
 import { logError } from '@/lib/error-log';
 import { DashboardScreen } from '@/screens/dashboard';
 import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
-import { useLock } from '@/state/lock';
+import { openOutside, useLock } from '@/state/lock';
 import { useCtx } from '@/state/system-db';
 import { readMySales } from '@/features/dashboard/my-sales';
 import { EmployeeHomeScreen } from '@/screens/employee-home';
@@ -156,7 +156,7 @@ function useGiftReminders(): GiftRemindersProps | undefined {
       showError(error);
       return;
     }
-    if (done(g)) Linking.openURL(link).catch(() => {});
+    if (done(g)) openOutside(link);
   };
   return {
     gifts,

@@ -1,6 +1,6 @@
 import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, Linking } from 'react-native';
+import { Alert } from 'react-native';
 
 import { Card, EmptyState, ListGroup, ListRow, Page, Segmented, Stat, Text } from '@/components';
 import { errorBoundary } from '@/components/error-screen';
@@ -10,11 +10,8 @@ import {
   customerReport,
   duplicateCustomers,
   mergeCustomers,
-  missYouMessage,
-  notBack,
   waLink,
 } from '@/domain/customer-care';
-import { sinceText } from '@/domain/customer-stats';
 import {
   birthdayText,
   HEARD_LABELS,
@@ -22,6 +19,7 @@ import {
   shownPhone,
   type Customer,
 } from '@/domain/customers';
+import { getMarketing } from '@/domain/marketing';
 import { birthdayOn, birthdayUsed, getBirthday, windowEnd, windowText } from '@/domain/birthday';
 import { showError } from '@/features/products/actions';
 import { haptic } from '@/lib/haptics';
@@ -29,13 +27,14 @@ import { formatLyd } from '@/lib/money';
 import { useCan } from '@/staff/use-can';
 import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import { openOutside } from '@/state/lock';
 import { spacing } from '@/theme';
 
 type Tab = 'birthdays' | 'away' | 'duplicates' | 'report';
+/** The old «لم يعودوا» tab: now Marketing → «نفتقدك», with a real offer. */
 
 /**
- * Management → Customers → متابعة الزبائن (G3): birthdays this week, customers who haven't come
- * back in 90 days, each with a WhatsApp message for those who accept offers (the owner, or an
+ * Management → Customers → متابعة الزبائن (G3): birthdays this week («نفتقدك» moved to Marketing), each with a WhatsApp message for those who accept offers (the owner, or an
  * employee who sees the phones), duplicate customers with their merge (owner), and the owner's
  * customer report.
  */
@@ -47,13 +46,14 @@ export default function CustomerCareRoute() {
   const phones = useCan('customers.phones');
   const mayMerge = useCan('customers.merge');
   const mayReport = useCan('reports.view');
+  const mayMarket = useCan('marketing.manage');
   const read = useCallback(
     () => ({
       birthdays: birthdaysThisWeek(ctx),
-      away: notBack(ctx, 90),
       duplicates: mayMerge ? duplicateCustomers(ctx) : [],
       report: mayReport ? customerReport(ctx) : null,
       gift: getBirthday(ctx),
+      template: getMarketing(ctx).templates.birthday,
     }),
     [ctx, mayMerge, mayReport],
   );
@@ -69,7 +69,7 @@ export default function CustomerCareRoute() {
     const link = phones && c.offers ? waLink(c.phone, message) : null;
     if (!link) return open(c);
     Alert.alert(shownName(c.name, phones), undefined, [
-      { text: 'رسالة واتساب', onPress: () => Linking.openURL(link).catch(() => {}) },
+      { text: 'رسالة واتساب', onPress: () => openOutside(link) },
       { text: 'صفحة الزبون', onPress: () => open(c) },
       { text: 'إلغاء', style: 'cancel' },
     ]);
@@ -99,7 +99,7 @@ export default function CustomerCareRoute() {
 
   const tabs: { value: Tab; label: string }[] = [
     { value: 'birthdays', label: 'أعياد الميلاد' },
-    { value: 'away', label: 'لم يعودوا' },
+    ...(mayMarket ? [{ value: 'away' as const, label: 'نفتقدك ←' }] : []),
     ...(mayMerge ? [{ value: 'duplicates' as const, label: 'المكررون' }] : []),
     ...(mayReport ? [{ value: 'report' as const, label: 'التقرير' }] : []),
   ];
@@ -110,7 +110,19 @@ export default function CustomerCareRoute() {
     <>
       <Stack.Title>متابعة الزبائن</Stack.Title>
       <Page>
-        <Segmented<Tab> options={tabs} value={tab} onChange={setTab} testID="care-tab" />
+        <Segmented<Tab>
+          options={tabs}
+          value={tab}
+          onChange={(t) => {
+            if (t !== 'away') return setTab(t);
+            haptic.tap();
+            router.push({
+              pathname: '/[system]/more/marketing',
+              params: { system, tab: 'missYou' },
+            });
+          }}
+          testID="care-tab"
+        />
         {tab === 'birthdays' ? (
           data.birthdays.length ? (
             <ListGroup header="أعياد ميلاد هذا الأسبوع" footer={offersHint}>
@@ -145,8 +157,13 @@ export default function CustomerCareRoute() {
                       birthdayMessage(
                         c,
                         birthdayOn(data.gift) && !birthdayUsed(ctx, c.id)
-                          ? { percent: data.gift.percent, when: windowText(window) }
+                          ? {
+                              percent: data.gift.percent,
+                              maxOff: data.gift.maxOff,
+                              when: windowText(window),
+                            }
                           : null,
+                        data.template,
                       ),
                     )
                   }
@@ -156,29 +173,6 @@ export default function CustomerCareRoute() {
             </ListGroup>
           ) : (
             <EmptyState icon="gift" title="لا أعياد ميلاد هذا الأسبوع" />
-          )
-        ) : null}
-        {tab === 'away' ? (
-          data.away.length ? (
-            <ListGroup header={`لم يشتروا منذ 90 يوماً (${data.away.length})`} footer={offersHint}>
-              {data.away.map(({ customer: c, last }) => (
-                <ListRow
-                  key={c.id}
-                  icon="clock"
-                  title={shownName(c.name, phones)}
-                  subtitle={[
-                    `آخر شراء ${sinceText(last, ctx.now())}`,
-                    c.offers ? 'يقبل العروض' : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' • ')}
-                  onPress={() => choose(c, missYouMessage(c))}
-                  testID={`care-away-${c.id}`}
-                />
-              ))}
-            </ListGroup>
-          ) : (
-            <EmptyState icon="checkmark.circle" title="كل الزبائن زاروا المحل في آخر 90 يوماً" />
           )
         ) : null}
         {tab === 'duplicates' ? (
@@ -233,7 +227,7 @@ export default function CustomerCareRoute() {
                 }
               />
               <Text variant="caption" tone="secondary">
-                {`مكافآت الزيارة: ${data.report.rewards.count} • ${formatLyd(data.report.rewards.off)} — خصومات عيد الميلاد: ${data.report.birthdays.count} • ${formatLyd(data.report.birthdays.off)} — النقاط المكتسبة: ${data.report.points.earned} • مدفوع بالنقاط ${formatLyd(data.report.points.paid)}`}
+                {`مكافآت الزيارة: ${data.report.rewards.count} • ${formatLyd(data.report.rewards.off)} — خصومات عيد الميلاد: ${data.report.birthdays.count} • ${formatLyd(data.report.birthdays.off)} — هدايا الصديقات: ${data.report.friends.count} • ${formatLyd(data.report.friends.off)} — عروض «نفتقدك»: ${data.report.offers.count} • ${formatLyd(data.report.offers.off)} — النقاط المكتسبة: ${data.report.points.earned} • مدفوع بالنقاط ${formatLyd(data.report.points.paid)}`}
               </Text>
             </Card>
             <ListGroup header="من أين يأتي الزبائن">

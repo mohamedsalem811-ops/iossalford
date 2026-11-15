@@ -1,5 +1,5 @@
 # Phase G3. A customer with a birthday today and a wanted piece: the home screen lists the
-# birthday; Customers → متابعة الزبائن shows it, with "لم يعودوا", "المكررون" and the owner's
+# birthday; Customers → متابعة الزبائن shows it, with "المكررون" and the owner's
 # report; adding a matching piece reminds who wanted it.
 appId: com.salford.pos
 ---
@@ -55,3 +55,9 @@ appId: com.salford.pos
 - tapOn: 'التقرير'
 - assertVisible: 'الزبائن العائدون'
 - takeScreenshot: ${DEVICE}-care-report
+# «لم يعودوا» moved to Marketing → «نفتقدك», with a real offer.
+- tapOn: 'نفتقدك ←'
+- extendedWaitUntil:
+    visible:
+      id: 'marketing-offer-percent'
+    timeout: 10000

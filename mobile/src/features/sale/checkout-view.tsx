@@ -47,6 +47,7 @@ import {
   shownName,
   shownPhone,
   getCustomer,
+  phoneKey,
   type Customer,
   type Gender,
   type SaleCustomerDetails,
@@ -71,6 +72,7 @@ import {
   type GiftForm,
 } from './checkout-extras';
 import { getRate } from '@/domain/settings';
+import { formatDayKey } from '@/lib/dates';
 import { formatLyd, formatRate, formatUsd } from '@/lib/money';
 import { putCart, useCart } from '@/state/cart';
 import { notifyDataChanged } from '@/state/data-events';
@@ -211,9 +213,16 @@ export function CheckoutView({
     () => (customerId ? friendStatus(ctx, customerId, marketing) : null),
     [ctx, customerId, marketing],
   );
-  /** A new customer may name who sent her (no purchase yet, nobody named before). */
+  /**
+   * A new customer may name who sent her (no purchase yet, nobody named before): a registered one
+   * with no purchase, or a typed phone that matches nobody. A name alone may be an existing
+   * customer, so it is not asked.
+   */
   const asksReferrer =
-    friends && !order && !friend && (!customerId || firstPurchase(ctx, customerId));
+    friends &&
+    !order &&
+    !friend &&
+    (customerId ? firstPurchase(ctx, customerId) : !!phoneKey(form.phone) && !known);
   const offer = useMemo(
     () => (customerId ? activeOffer(ctx, customerId) : undefined),
     [ctx, customerId],
@@ -362,19 +371,29 @@ export function CheckoutView({
       Alert.alert('لم يتم البيع', problem);
       return;
     }
-    // A reward ready and not used: ask once (G2, H1). Not using the visit reward keeps it for the
-    // next purchase; the birthday discount stays until the end of the birthday week.
-    if (!rewardOn && !birthdayOn && (canReward || canBirthday)) {
+    // A reward ready and not used: ask once (G2, H1, I4). Not using the visit reward keeps it for
+    // the next purchase; the birthday discount stays until the end of the birthday week; the
+    // friend's gift and «نفتقدك» stay for another purchase. None is asked once one is on.
+    const anyOn = rewardOn || birthdayOn || friendOnNow || offerOnNow;
+    const canOffer = !!offerRules;
+    const ready = [canReward, canBirthday, canFriend, canOffer].filter(Boolean).length;
+    if (!anyOn && ready) {
       haptic.medium();
       Alert.alert(
-        canReward && canBirthday
-          ? 'لم يستخدم الزبون مكافأته؟'
+        ready > 1
+          ? 'لم يستخدم الزبون مكافآته؟'
           : canBirthday
             ? 'لم يستخدم الزبون خصم عيد الميلاد؟'
-            : 'لم يستخدم الزبون المكافأة؟',
+            : canFriend
+              ? 'لم تُستخدم هدية الصديقة؟'
+              : canOffer
+                ? 'لم يُستخدم عرض «نفتقدك»؟'
+                : 'لم يستخدم الزبون المكافأة؟',
         [
           canReward ? 'تبقى مكافأة الزيارة محفوظة للشراء القادم.' : null,
           canBirthday && gift ? `يبقى خصم عيد الميلاد متاحاً حتى ${windowEnd(gift)}.` : null,
+          canFriend ? 'تبقى هدية الصديقة لشرائها القادم.' : null,
+          canOffer && offer ? `يبقى عرض «نفتقدك» حتى ${formatDayKey(offer.expiresAt)}.` : null,
         ]
           .filter(Boolean)
           .join('\n'),
@@ -384,6 +403,22 @@ export function CheckoutView({
             : []),
           ...(canReward
             ? [{ text: `استخدام مكافأة الزيارة ${rewards.percent}%`, onPress: turnOnReward }]
+            : []),
+          ...(canFriend
+            ? [
+                {
+                  text: `استخدام هدية الصديقة ${marketing.friendPercent}%`,
+                  onPress: () => withListPrices('هدية الصديقة', () => only('friend')),
+                },
+              ]
+            : []),
+          ...(canOffer && offer
+            ? [
+                {
+                  text: `استخدام عرض «نفتقدك» ${offer.percent}%`,
+                  onPress: () => withListPrices('عرض «نفتقدك»', () => only('offer')),
+                },
+              ]
             : []),
           { text: 'البيع بدونها', onPress: () => sell() },
         ],

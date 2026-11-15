@@ -131,3 +131,10 @@ export function formatDate(date: Date): string {
 export function formatTime(date: Date): string {
   return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
+
+/** "2026-12-01" as people read it: "1 ديسمبر 2026"; a bad day stays as written. */
+export function formatDayKey(key: string): string {
+  const [y, m, d] = key.split('-').map(Number);
+  if (!y || !m || !d) return key;
+  return formatDate(new Date(y, m - 1, d));
+}

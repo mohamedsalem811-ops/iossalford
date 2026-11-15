@@ -192,6 +192,7 @@ function ScarvesProducts({ ctx }: { ctx: Ctx }) {
           onAdjust={(id) => adjustSheet(system, id)}
           onAdd={add}
           grid={split}
+          reserved={data.reserved}
         />
       </BelowHeader>
     </>

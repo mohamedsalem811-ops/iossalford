@@ -320,9 +320,12 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
     if (offerOff > 0) ctx.db.run('UPDATE sales SET offer_off = ? WHERE id = ?', [offerOff, saleId]);
     if (offer) spendOffer(ctx, offer.id, saleId);
     // The friend's first purchase: points for who sent her (taken back if fully returned).
+    // Her first purchase of any kind (a deposit delivery too); on credit they wait for payment.
     const friendPoints =
-      customerId && friendStatus(ctx, customerId) && !input.orderId
-        ? rewardReferrer(ctx, customerId, saleId, total - pointsPaid)
+      customerId && friendStatus(ctx, customerId)
+        ? rewardReferrer(ctx, customerId, saleId, total - pointsPaid, {
+            credit: input.paymentMethod === 'credit',
+          })
         : 0;
     if (input.gift && customerId) saveGift(ctx, customerId, saleId, input.gift);
     earnOnSale(ctx, {

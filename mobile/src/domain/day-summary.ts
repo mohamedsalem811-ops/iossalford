@@ -27,6 +27,9 @@ export type DaySummary = {
   rewards: { count: number; off: number };
   /** Birthday discounts used that day (H1). */
   birthdays: { count: number; off: number };
+  /** Bring a friend gifts and «نفتقدك» offers used that day (I4). */
+  friends: { count: number; off: number };
+  offers: { count: number; off: number };
   approvals: number;
   returns: number;
   refunded: number;
@@ -95,9 +98,11 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
     `SELECT count(*) n, coalesce(sum(total), 0) t, coalesce(sum(discount), 0) d, count(approved_by) a,
             count(nullif(reward_off, 0)) rn, coalesce(sum(reward_off), 0) ro,
             count(nullif(birthday_off, 0)) bn, coalesce(sum(birthday_off), 0) bo,
+            count(nullif(friend_off, 0)) fn, coalesce(sum(friend_off), 0) fo,
+            count(nullif(offer_off, 0)) on_, coalesce(sum(offer_off), 0) oo,
             coalesce(sum(deposit_used), 0) du
        FROM sales WHERE created_at >= ? AND created_at < ?`,
-    { n: 0, t: 0, d: 0, a: 0, rn: 0, ro: 0, bn: 0, bo: 0, du: 0 },
+    { n: 0, t: 0, d: 0, a: 0, rn: 0, ro: 0, bn: 0, bo: 0, fn: 0, fo: 0, on_: 0, oo: 0, du: 0 },
   );
   const pieces = one(
     `SELECT coalesce(sum(l.quantity), 0) q FROM sale_lines l JOIN sales s ON s.id = l.sale_id
@@ -179,6 +184,8 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
     discounts: sales.d,
     rewards: { count: sales.rn, off: sales.ro },
     birthdays: { count: sales.bn, off: sales.bo },
+    friends: { count: sales.fn, off: sales.fo },
+    offers: { count: sales.on_, off: sales.oo },
     approvals: sales.a + ret.a + orders.a,
     returns: ret.n,
     refunded: ret.t,

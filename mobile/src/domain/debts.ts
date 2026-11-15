@@ -3,6 +3,7 @@ import { formatDinars, formatLyd } from '@/lib/money';
 import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx, who } from './context';
 import { getCustomer, type Customer } from './customers';
 import { logAction } from './activity';
+import { payReferral } from './marketing';
 import { earnOnPayment, pointsBalance } from './loyalty';
 import { shiftFor } from './shifts';
 
@@ -120,6 +121,8 @@ export function recordPayment(
     );
     // A credit sale earns its points as it is paid (F3).
     earnOnPayment(ctx, { id, customerId: input.customerId, amount: input.amount });
+    // A friend's first purchase on credit: her sender's points wait until she owes nothing (I4).
+    payReferral(ctx, input.customerId, balance(ctx, input.customerId) <= 0);
     return id;
   });
 }

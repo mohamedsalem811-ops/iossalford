@@ -67,6 +67,8 @@ jest.mock('@/hooks/use-layout', () => ({
   useLayout: () => ({ split: true, cartBeside: true }),
 }));
 jest.mock('@/state/lock', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories cannot use imports
+  openOutside: (url: string) => require('react-native').Linking.openURL(url),
   LockProvider: ({ children }: { children: React.ReactNode }) => children,
   useLock: () => ({ unlocked: 'jewelry', unlock: () => {}, lock: () => {}, active: true }),
 }));

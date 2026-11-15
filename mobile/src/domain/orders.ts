@@ -43,6 +43,7 @@ import { addToCart, type CartLine } from './cart';
 import { CATEGORIES, displayName, getProduct, insertProduct, type Product } from './products';
 import { issueReceipt, type Receipt, type TemplateId } from './receipts';
 import { reservedOf } from './reserved';
+import { DEFAULT_TEMPLATES, fill } from './templates';
 import { getRate, getSetting, setSetting } from './settings';
 import { shiftFor } from './shifts';
 import { can, PERMISSIONS } from '@/staff/permissions';
@@ -895,16 +896,30 @@ export const etaText = (eta: string) => {
   return `${d}/${m}/${y}`;
 };
 
-const dear = (name: string) => `أهلاً ${name}،`;
-
 /** The WhatsApp message with the expected date (sent after the owner bought the piece). */
-export const etaMessage = (o: Pick<Order, 'customerName' | 'description' | 'eta' | 'id'>) =>
-  `${dear(o.customerName)}\nطلبك «${o.description}» (رقم ${o.id}) تم طلبه من المورد، والوصول المتوقع ${o.eta ? etaText(o.eta) : 'قريباً'}. سنخبرك فور وصوله.\nSALFORD`;
+export const etaMessage = (
+  o: Pick<Order, 'customerName' | 'description' | 'eta' | 'id'>,
+  template = DEFAULT_TEMPLATES.orderEta,
+) =>
+  fill(template, {
+    الاسم: o.customerName,
+    القطعة: o.description,
+    رقم: String(o.id),
+    الموعد: o.eta ? etaText(o.eta) : 'قريباً',
+  });
 
-/** The WhatsApp message when the piece is ready to collect, with what is left to pay. */
+/**
+ * The WhatsApp message when the piece is ready to collect, with what is left to pay; the same
+ * fill-ins for the reminder of a piece still waiting.
+ */
 export const arrivedMessage = (
   o: Pick<Order, 'customerName' | 'description' | 'kind' | 'id' | 'remaining'>,
+  template = DEFAULT_TEMPLATES.orderArrived,
 ) =>
-  `${dear(o.customerName)}\n${o.kind === 'hold' ? 'قطعتك المحجوزة' : 'طلبك'} «${o.description}» (رقم ${o.id}) جاهز للاستلام 🎁${
-    o.remaining > 0 ? `\nالباقي: ${formatLyd(o.remaining)}.` : ''
-  }\nبانتظارك في SALFORD`;
+  fill(template, {
+    الاسم: o.customerName,
+    طلبك: o.kind === 'hold' ? 'قطعتك المحجوزة' : 'طلبك',
+    القطعة: o.description,
+    رقم: String(o.id),
+    الباقي: o.remaining > 0 ? `\nالباقي: ${formatLyd(o.remaining)}.` : '',
+  });

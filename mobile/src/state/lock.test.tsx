@@ -1,7 +1,7 @@
 import { act, render, screen } from '@testing-library/react-native';
-import { AppState, Text, type AppStateStatus } from 'react-native';
+import { AppState, Linking, Text, type AppStateStatus } from 'react-native';
 
-import { isShown, LockProvider, shouldLock, useLock } from './lock';
+import { isShown, LockProvider, openOutside, OUTSIDE_GRACE_MS, shouldLock, useLock } from './lock';
 
 describe('when the app hides or locks', () => {
   it('hides the screen when inactive or in the background', () => {
@@ -70,6 +70,39 @@ describe('LockProvider', () => {
     } finally {
       appState.currentState = original;
     }
+  });
+
+  it('keeps its place when SALFORD itself opened WhatsApp and the person is back in 2 minutes', async () => {
+    jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    let now = 1_000_000;
+    jest.spyOn(Date, 'now').mockImplementation(() => now);
+    await render(
+      <LockProvider>
+        <Probe />
+      </LockProvider>,
+    );
+    await act(async () => api.unlock('jewelry'));
+    await act(async () => {
+      await openOutside('https://wa.me/218912345678');
+    });
+    await act(async () => emit('background'));
+    now += 60_000;
+    await act(async () => emit('active'));
+    expect(screen.getByTestId('state')).toHaveTextContent('jewelry shown');
+
+    // Back after the grace: locked.
+    await act(async () => {
+      await openOutside('https://wa.me/218912345678');
+    });
+    await act(async () => emit('background'));
+    now += OUTSIDE_GRACE_MS + 1;
+    await act(async () => emit('active'));
+    expect(screen.getByTestId('state')).toHaveTextContent('locked shown');
+
+    // Leaving any other way still locks at once.
+    await act(async () => api.unlock('jewelry'));
+    await act(async () => emit('background'));
+    expect(screen.getByTestId('state')).toHaveTextContent('locked hidden');
   });
 
   it('locks on request', async () => {

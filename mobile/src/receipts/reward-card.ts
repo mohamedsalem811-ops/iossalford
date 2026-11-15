@@ -117,7 +117,7 @@ export function cardSections(
       short: 'مكافأة الزيارة',
       title: 'مكافأة الزيارة',
       lines: [
-        `بعد ${countText(r.every, PURCHASES)}، خصم ${r.percent}% على شرائك التالي، حتى ${formatLyd(r.maxOff)}.`,
+        `بعد ${countText(r.every, PURCHASES)}، خصم ${r.percent}% على شرائك التالي، بحد أقصى ${formatLyd(r.maxOff)} للخصم.`,
         // The dots only while they fit on one line.
         ...(r.every <= 8 ? ['●'.repeat(r.every) + '○'] : []),
       ],
@@ -140,7 +140,7 @@ export function cardSections(
           ? `كل 100 د.ل ${g('تشتري', 'تشترين')} بها تمنحك ${formatLyd(per100)} رصيداً.`
           : `نقطة لكل ${formatLyd(p.spendPerPoint)} ${g('تشتري', 'تشترين')} بها.`,
       ],
-      note: `${g('ادفع', 'ادفعي')} بنقاطك حتى ${p.maxShare}% من قيمة الشراء، من ${p.minRedeem} نقطة.`,
+      note: `${g('ادفع', 'ادفعي')} بنقاطك بحد أقصى ${p.maxShare}% من قيمة الشراء، من ${p.minRedeem} نقطة.`,
     });
     // VIP gives more points: without the points it would promise nothing.
     if (r.vipPointsTimes > 1)
@@ -177,7 +177,9 @@ export function cardSections(
     sections.push({
       short: 'عيد الميلاد',
       title: 'خصم عيد الميلاد',
-      lines: [`خصم ${b.percent}% على شرائك في أسبوع ميلادك، حتى ${formatLyd(b.maxOff)}.`],
+      lines: [
+        `خصم ${b.percent}% على شرائك في أسبوع ميلادك، بحد أقصى ${formatLyd(b.maxOff)} للخصم.`,
+      ],
       note: [
         `من ${WINDOW_DAYS} أيام قبل يوم ميلادك إلى ${WINDOW_DAYS} أيام بعده، مرة في السنة`,
         b.minSale > 0 ? `على شراء من ${formatLyd(b.minSale)}` : null,

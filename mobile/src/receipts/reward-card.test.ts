@@ -99,7 +99,7 @@ describe('what the card says', () => {
       ...all,
       rewards: { ...all.rewards, every: 2, vipMonths: 6 },
     });
-    expect(visit.lines[0]).toBe('بعد شراءين، خصم 10% على شرائك التالي، حتى 250 د.ل.');
+    expect(visit.lines[0]).toBe('بعد شراءين، خصم 10% على شرائك التالي، بحد أقصى 250 د.ل للخصم.');
     expect(vip.lines[0]).toContain('خلال 6 أشهر');
     expect(cardSections(all)[2].lines[0]).toContain('خلال 12 شهراً');
   });
@@ -113,7 +113,7 @@ describe('what the card says', () => {
 
   it('says the birthday rules as the app applies them', () => {
     const b = cardSections(all)[3];
-    expect(b.lines[0]).toBe('خصم 10% على شرائك في أسبوع ميلادك، حتى 200 د.ل.');
+    expect(b.lines[0]).toBe('خصم 10% على شرائك في أسبوع ميلادك، بحد أقصى 200 د.ل للخصم.');
     expect(b.note).toContain('من 3 أيام قبل يوم ميلادك إلى 3 أيام بعده، مرة في السنة');
     expect(b.note).toContain('قبل 30 يوماً');
   });

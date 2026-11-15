@@ -54,11 +54,19 @@ describe('WhatsApp', () => {
   it('writes the birthday message with the gift', () => {
     const huda = birthdayMessage(
       { name: 'هدى', gender: 'female' },
-      { percent: 10, when: 'من 11 إلى 17 نوفمبر' },
+      { percent: 10, maxOff: 50_000, when: 'من 11 إلى 17 نوفمبر' },
     );
     expect(huda).toContain('عزيزتنا هدى');
-    expect(huda).toContain('خصم 10% على مشترياتك من 11 إلى 17 نوفمبر');
+    expect(huda).toContain('خصم 10% (بحد أقصى 50 د.ل للخصم) على مشترياتك من 11 إلى 17 نوفمبر');
     expect(birthdayMessage({ name: 'علي', gender: 'male' }, null)).not.toContain('هديتك');
+    // A customer typed by phone only is greeted without the made-up name.
+    expect(birthdayMessage({ name: 'زبون 0912345678', gender: 'female' }, null)).toMatch(
+      /^عزيزتنا، كل عام/,
+    );
+    // The owner's own wording.
+    expect(
+      birthdayMessage({ name: 'هدى', gender: 'female' }, null, 'سنة سعيدة يا {الاسم}{الهدية}'),
+    ).toBe('سنة سعيدة يا هدى');
   });
 });
 

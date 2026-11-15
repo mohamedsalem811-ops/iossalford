@@ -1,9 +1,10 @@
-import { Alert, Linking, View } from 'react-native';
+import { Alert, View } from 'react-native';
 
 import { Badge, Button, Card, EmptyState, ListGroup, ListRow, Page, Text } from '@/components';
 import { RuleError, type Ctx } from '@/domain/context';
 import { waLink } from '@/domain/customer-care';
 import { getCustomer, shownName } from '@/domain/customers';
+import { getMarketing } from '@/domain/marketing';
 import { lastMessage, recordMessage, type MessageKind } from '@/domain/messages';
 import {
   arrivedMessage,
@@ -27,6 +28,7 @@ import { formatLyd } from '@/lib/money';
 import { askOwner } from '@/staff/approvals';
 import { useActor, useCan } from '@/staff/use-can';
 import { notifyDataChanged } from '@/state/data-events';
+import { openOutside } from '@/state/lock';
 import { radius, spacing } from '@/theme';
 
 import { moneyLine, needsAttention, statusLine } from './model';
@@ -74,15 +76,23 @@ export function OrderDetail({
   const early = refundable(order);
   const customer = getCustomer(ctx, order.customerId);
   const what = order.kind === 'hold' ? 'الحجز' : 'الطلب';
+  const { templates } = getMarketing(ctx);
 
   /** The WhatsApp message for this stage, for someone who may see the number. */
   const message: { kind: MessageKind; text: string; title: string } | null =
     order.status === 'purchased'
-      ? { kind: 'order-eta', text: etaMessage(order), title: 'إرسال موعد الوصول للزبون' }
+      ? {
+          kind: 'order-eta',
+          text: etaMessage(order, templates.orderEta),
+          title: 'إرسال موعد الوصول للزبون',
+        }
       : order.status === 'arrived' || order.status === 'held'
         ? {
             kind: order.status === 'arrived' ? 'order-arrived' : 'order-waiting',
-            text: arrivedMessage(order),
+            text: arrivedMessage(
+              order,
+              order.status === 'arrived' ? templates.orderArrived : templates.orderWaiting,
+            ),
             title: 'رسالة: القطعة جاهزة للاستلام',
           }
         : null;
@@ -97,7 +107,7 @@ export function OrderDetail({
       if (!(error instanceof RuleError)) throw error;
     }
     notifyDataChanged();
-    Linking.openURL(link).catch(() => {});
+    openOutside(link);
   };
 
   const arrive = () =>

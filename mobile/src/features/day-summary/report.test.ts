@@ -17,6 +17,8 @@ const quiet: DaySummary = {
   discounts: 0,
   rewards: { count: 0, off: 0 },
   birthdays: { count: 0, off: 0 },
+  friends: { count: 0, off: 0 },
+  offers: { count: 0, off: 0 },
   approvals: 0,
   returns: 0,
   refunded: 0,

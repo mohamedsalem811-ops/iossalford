@@ -1,6 +1,6 @@
 # Phase I4. Marketing: the owner opens التسويق and looks through its tabs (the occasions with
 # Ramadan and the Eids waiting for this year's date, نفتقدك with its rules, bring a friend, the
-# message templates, the report). Then a sale to a new customer with a gift to remember next year
+# message templates with the birthday and deposit-order messages, the report). Then a sale to a new customer with a gift to remember next year
 # ("هدية لمن؟"), and the sold screen with «رسالة شكر». iPhone and iPad (screens: occasions, miss
 # you, friend, templates, checkout gift, sold with thanks).
 appId: com.salford.pos
@@ -33,11 +33,19 @@ appId: com.salford.pos
 - assertVisible:
     id: 'marketing-friend-needs'
 - takeScreenshot: ${DEVICE}-marketing-friend
-- tapOn: 'الرسائل'
+- tapOn: 'رسائل'
 - assertVisible:
     id: 'marketing-template-thanks'
 - takeScreenshot: ${DEVICE}-marketing-templates
-- tapOn: 'التقرير'
+# The birthday wishes and the deposit-order messages are the owner's to word too.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'marketing-template-orderArrived'
+- assertVisible:
+    id: 'marketing-template-orderArrived'
+- takeScreenshot: ${DEVICE}-marketing-templates-orders
+- tapOn: 'تقرير'
 - assertVisible:
     id: 'marketing-report'
 # A sale to a new customer, with a gift to remember.

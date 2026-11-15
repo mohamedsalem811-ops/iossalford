@@ -1,6 +1,6 @@
 import { router, Stack } from 'expo-router';
 import { useState } from 'react';
-import { Linking, View } from 'react-native';
+import { View } from 'react-native';
 
 import { Button, Card, EmptyState, Page, Text, TextField } from '@/components';
 import { errorBoundary } from '@/components/error-screen';
@@ -11,6 +11,7 @@ import { showError } from '@/features/products/actions';
 import { haptic } from '@/lib/haptics';
 import { notifyDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
+import { openOutside } from '@/state/lock';
 import { Allowed } from '@/staff/allowed';
 import { spacing } from '@/theme';
 
@@ -45,7 +46,7 @@ function SendScreen() {
     haptic.tap();
     notifyDataChanged();
     setSent((s) => s + 1);
-    Linking.openURL(link).catch(() => {});
+    openOutside(link);
     next();
   };
   const close = () => {
@@ -59,7 +60,7 @@ function SendScreen() {
       <Stack.Toolbar placement="left">
         <Stack.Toolbar.Button onPress={close}>إغلاق</Stack.Toolbar.Button>
       </Stack.Toolbar>
-      <Page>
+      <Page keyboard>
         {!messages.length ? (
           <EmptyState icon="message" title="لا رسائل للإرسال" />
         ) : current ? (

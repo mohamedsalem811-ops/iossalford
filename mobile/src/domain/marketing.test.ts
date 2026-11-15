@@ -3,6 +3,7 @@
  * reminder a year later, bring a friend (her first-purchase gift and the sender's points, taken
  * back when it is fully returned), and "we miss you" offers used at checkout.
  */
+import { dayKey } from '@/lib/dates';
 import { OWNER } from '@/staff/model';
 
 import { listActivity } from './activity';
@@ -10,6 +11,9 @@ import { addToCart, type CartLine } from './cart';
 import { checkout, type CheckoutInput } from './checkout';
 import { PermissionError, RuleError } from './context';
 import { getCustomer, saveCustomer } from './customers';
+import { customerReport } from './customer-care';
+import { daySummary } from './day-summary';
+import { recordPayment } from './debts';
 import { exchange } from './exchange';
 import { setLoyalty, pointsBalance } from './loyalty';
 import {
@@ -32,6 +36,7 @@ import {
   setOccasionDate,
   setReferrer,
 } from './marketing';
+import { markArrived, markPurchased, takeOrder, getOrder, type TakeOrderInput } from './orders';
 import { getPolicies } from './policies';
 import { getProduct, saveProduct } from './products';
 import { addReturn, deleteSale, getSale } from './sales';
@@ -132,6 +137,30 @@ describe('gift memory', () => {
     expect(giftReminders(ctx)).toHaveLength(1);
   });
 
+  it('reminds across the new year, and once a year only', () => {
+    ctx.setNow(new Date(2026, 0, 2, 10));
+    const { saleId } = sell(MONA, { gift: { forWhom: 'أختها', month: 1, day: 3 } });
+    const [g] = listGifts(ctx, getSale(ctx, saleId)!.customerId!);
+    // Late December: the 3rd of January is 6 days away, in the next year.
+    ctx.setNow(new Date(2026, 11, 28));
+    expect(giftReminders(ctx)).toMatchObject([{ id: g.id, days: 6 }]);
+    markGiftDone(ctx, g.id);
+    // Done for that date: not again on the 1st of January.
+    ctx.setNow(new Date(2027, 0, 1));
+    expect(giftReminders(ctx)).toEqual([]);
+    // Back the next December.
+    ctx.setNow(new Date(2027, 11, 29));
+    expect(giftReminders(ctx)).toHaveLength(1);
+  });
+
+  it('goes with its sale when the sale is deleted', () => {
+    const { saleId } = sell(MONA, { gift: { forWhom: 'أمها', month: 11, day: 14 } });
+    const customerId = getSale(ctx, saleId)!.customerId!;
+    expect(listGifts(ctx, customerId)).toHaveLength(1);
+    deleteSale(ctx, saleId);
+    expect(listGifts(ctx, customerId)).toEqual([]);
+  });
+
   it('needs a known customer and a real date; nothing is sold otherwise', () => {
     expect(() =>
       checkout(ctx, {
@@ -158,7 +187,7 @@ describe('bring a friend', () => {
     expect(sale.total).toBe(490_000);
     // 490 دينار earns 49 points; Mona gets twice that.
     expect(pointsBalance(ctx, mona) - before).toBe(98);
-    expect(friendsOf(ctx, mona)).toEqual([{ id: 2, name: 'هدى', points: 98 }]);
+    expect(friendsOf(ctx, mona)).toEqual([{ id: 2, name: 'هدى', points: 98, waiting: false }]);
     expect(friendStatus(ctx, 2)).toMatchObject({ referrerName: 'منى', ready: false });
     // Only once.
     expect(() => sell(HUDA, { friend: true })).toThrow('لأول شراء فقط');
@@ -207,6 +236,65 @@ describe('bring a friend', () => {
     expect(getProduct(ctx, ring)!.stock).toBe(19);
   });
 
+  it('on credit, the sender’s points wait until the friend has paid', () => {
+    friendsOn();
+    sell(MONA);
+    const before = pointsBalance(ctx, 1);
+    const { saleId } = sell(HUDA, { referrerId: 1, friend: true, paymentMethod: 'credit' });
+    const total = getSale(ctx, saleId)!.total;
+    expect(pointsBalance(ctx, 1)).toBe(before);
+    expect(friendsOf(ctx, 1)).toEqual([{ id: 2, name: 'هدى', points: 98, waiting: true }]);
+    // Half paid: still waiting.
+    recordPayment(ctx, { customerId: 2, amount: total / 2, method: 'cash' });
+    expect(pointsBalance(ctx, 1)).toBe(before);
+    recordPayment(ctx, { customerId: 2, amount: total / 2, method: 'cash' });
+    expect(pointsBalance(ctx, 1) - before).toBe(98);
+    expect(friendsOf(ctx, 1)[0].waiting).toBe(false);
+  });
+
+  it('keeps the sender’s points when the friend exchanges her piece', () => {
+    friendsOn();
+    sell(MONA);
+    const { saleId } = sell(HUDA, { referrerId: 1, friend: true });
+    const after = pointsBalance(ctx, 1);
+    const [line] = getSale(ctx, saleId)!.lines;
+    const r = exchange(ctx, {
+      ret: { saleLineId: line.id, quantity: 1, photo: 'p.jpg', answers: answers() },
+      sale: { cart: cart(), paymentMethod: 'cash', customer: HUDA },
+    });
+    expect(pointsBalance(ctx, 1)).toBe(after);
+    // The new piece is now the purchase she came for: returning it takes the points back.
+    const [newLine] = getSale(ctx, r.saleId)!.lines;
+    addReturn(ctx, { saleLineId: newLine.id, quantity: 1, photo: 'p.jpg', answers: answers() });
+    expect(pointsBalance(ctx, 1)).toBeLessThan(after);
+  });
+
+  it('counts a deposit order collected as her first purchase', () => {
+    friendsOn();
+    sell(MONA);
+    const before = pointsBalance(ctx, 1);
+    const { orderId } = takeOrder(ctx, {
+      kind: 'order',
+      customer: HUDA,
+      description: 'سوار',
+      unitPrice: 1_000_000,
+      deposit: { amount: 500_000, method: 'cash' },
+    } as TakeOrderInput);
+    setReferrer(ctx, getOrder(ctx, orderId)!.customerId, 1);
+    markPurchased(ctx, orderId, { cost: 400_000, eta: '2026-12-01' });
+    const productId = markArrived(ctx, orderId);
+    const o = getOrder(ctx, orderId)!;
+    const p = getProduct(ctx, productId)!;
+    checkout(ctx, {
+      cart: (addToCart([], { ...p, price: o.price, stock: 1 }, p.name, 1) as { cart: CartLine[] })
+        .cart,
+      paymentMethod: 'cash',
+      customer: HUDA,
+      orderId,
+    });
+    expect(pointsBalance(ctx, 1)).toBeGreaterThan(before);
+  });
+
   it('is off without the owner’s rule; the sender can’t be herself', () => {
     setLoyalty(ctx, { enabled: true });
     sell(MONA);
@@ -218,10 +306,13 @@ describe('bring a friend', () => {
 });
 
 describe('we miss you', () => {
-  it('suggests frequent buyers who haven’t come back', () => {
+  it('suggests frequent buyers who haven’t come back, only those who accept offers', () => {
+    saveCustomer(ctx, { ...MONA, offers: true });
+    const SAMIA = { name: 'سامية', phone: '0915555555' };
     for (const d of [1, 2, 3]) {
       ctx.setNow(new Date(2026, 1, d, 10));
       sell(MONA);
+      sell(SAMIA);
     }
     ctx.setNow(new Date(2026, 1, 1, 10));
     sell(HUDA);
@@ -270,5 +361,21 @@ describe('we miss you', () => {
     });
     expect(getSale(ctx, r.saleId)!.total).toBe(500_000);
     expect(activeOffer(ctx, 1)).toBeDefined();
+  });
+});
+
+describe('the reports', () => {
+  it('count the friend’s gifts and the «نفتقدك» offers used', () => {
+    friendsOn();
+    sell(MONA);
+    giveOffers(ctx, [1]);
+    sell(MONA, { offer: true });
+    sell(HUDA, { referrerId: 1, friend: true });
+    const day = daySummary(ctx, dayKey(ctx.now()));
+    expect(day.friends).toEqual({ count: 1, off: 10_000 });
+    expect(day.offers).toEqual({ count: 1, off: 50_000 });
+    const year = customerReport(ctx);
+    expect(year.friends.count).toBe(1);
+    expect(year.offers.count).toBe(1);
   });
 });
