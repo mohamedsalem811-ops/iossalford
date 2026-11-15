@@ -7,6 +7,7 @@ import type { Receipt } from '@/domain/receipts';
 import { deleteSale, saleDeleteCheck, type Sale } from '@/domain/sales';
 import { showError } from '@/features/products/actions';
 import { formatDate, formatTime } from '@/lib/dates';
+import { ThanksButton } from '@/features/marketing/thanks-button';
 import { formatLyd, formatRate } from '@/lib/money';
 import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
@@ -126,6 +127,16 @@ export function SaleDetail({
             {`خصم عيد الميلاد ${formatLyd(sale.birthdayOff)}${sale.approvedBy ? ' • بموافقة المالك' : ''}`}
           </Text>
         ) : null}
+        {sale.friendOff > 0 ? (
+          <Text variant="subhead" testID="sale-friend-off">
+            {`هدية الصديقة ${formatLyd(sale.friendOff)}`}
+          </Text>
+        ) : null}
+        {sale.offerOff > 0 ? (
+          <Text variant="subhead" testID="sale-offer-off">
+            {`عرض «نفتقدك» ${formatLyd(sale.offerOff)}`}
+          </Text>
+        ) : null}
         {sale.pointsPaid > 0 ? (
           <Text variant="subhead" testID="sale-points-paid">
             {`مدفوع بالنقاط ${formatLyd(sale.pointsPaid)}${sale.depositUsed > 0 ? '' : ` • المدفوع ${formatLyd(sale.total - sale.pointsPaid)}`}`}
@@ -222,6 +233,7 @@ export function SaleDetail({
         </Card>
       ) : null}
 
+      <ThanksButton ctx={ctx} saleId={sale.id} customerId={sale.customerId} testID="sale-thanks" />
       {receipt ? (
         <Button
           title={`الإيصال ${receipt.receiptNo}`}

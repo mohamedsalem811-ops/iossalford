@@ -50,6 +50,24 @@ describe('what the card says', () => {
     expect(titles({ birthday: { ...all.birthday, maxOff: 0 } })).not.toContain('خصم عيد الميلاد');
   });
 
+  it('adds bring a friend (I4) when it is on, and only with the points', () => {
+    const friend = { percent: 2, times: 2 };
+    expect(titles({ friend })).toEqual([
+      'مكافأة الزيارة',
+      'نقاط الولاء',
+      'VIP',
+      'أرسلي صديقة',
+      'خصم عيد الميلاد',
+    ]);
+    const s = cardSections({ ...all, friend }).find((x) => x.title === 'أرسلي صديقة')!;
+    expect(s.lines[0]).toBe('صديقتك الجديدة تأخذ خصم 2% على أول شراء لها.');
+    expect(s.note).toBe('وتكسبين نقاطاً مضاعفة عن شرائها.');
+    expect(titles({ friend, loyalty: { ...all.loyalty, enabled: false } })).not.toContain(
+      'أرسلي صديقة',
+    );
+    expect(titles({ friend: null })).not.toContain('أرسلي صديقة');
+  });
+
   it('writes the numbers in correct Arabic', () => {
     const [visit, , vip] = cardSections({
       ...all,

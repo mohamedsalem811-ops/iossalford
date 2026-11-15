@@ -16,6 +16,7 @@ import { haptic } from '@/lib/haptics';
 import { logError } from '@/lib/error-log';
 import { printCard, saveCardToFiles, shareCard } from '@/receipts/card-output';
 import { cardFontCss } from '@/receipts/fonts';
+import { friendOn, getMarketing } from '@/domain/marketing';
 import { cardSections, rewardCardHtml, type CardInput } from '@/receipts/reward-card';
 import { Allowed } from '@/staff/allowed';
 import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
@@ -38,6 +39,10 @@ function RewardCardScreen() {
       rewards: getRewards(ctx),
       birthday: getBirthday(ctx),
       contact: getContact(ctx),
+      friend: (() => {
+        const m = getMarketing(ctx);
+        return friendOn(ctx, m) ? { percent: m.friendPercent, times: m.friendTimes } : null;
+      })(),
     }),
     [ctx],
   );

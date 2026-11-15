@@ -25,6 +25,7 @@ import { getLoyalty, pointsBalance } from '@/domain/loyalty';
 import { rewardStatus } from '@/domain/visit-reward';
 import { CustomerFacts } from './customer-facts';
 import { PointsCard } from './points-card';
+import { MarketingCard } from './marketing-card';
 import { WantedCard } from './wanted-card';
 import { CustomerOrders } from '@/features/orders/customer-orders';
 import { balanceText, paymentWayLabel } from './model';
@@ -178,6 +179,8 @@ export function CustomerDetail({
       <PointsCard ctx={ctx} customerId={c.id} />
 
       <WantedCard ctx={ctx} customerId={c.id} />
+
+      <MarketingCard ctx={ctx} customerId={c.id} />
 
       <CustomerOrders ctx={ctx} customerId={c.id} />
 

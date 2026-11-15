@@ -56,6 +56,20 @@ import { getLoyalty, redeemable } from '@/domain/loyalty';
 import { getRewards } from '@/domain/rewards';
 import { rewardCart, rewardStatus } from '@/domain/visit-reward';
 import { birthdayStatus, getBirthday, windowEnd } from '@/domain/birthday';
+import {
+  activeOffer,
+  firstPurchase,
+  friendOn,
+  friendStatus,
+  getMarketing,
+} from '@/domain/marketing';
+import {
+  emptyGiftForm,
+  GiftMemory,
+  giftFromForm,
+  ReferrerPicker,
+  type GiftForm,
+} from './checkout-extras';
 import { getRate } from '@/domain/settings';
 import { formatLyd, formatRate, formatUsd } from '@/lib/money';
 import { putCart, useCart } from '@/state/cart';
@@ -141,6 +155,8 @@ export function CheckoutView({
     // A quick discount and the rewards are never used together.
     setUseReward(false);
     setUseBirthday(false);
+    setFriendChosen(false);
+    setOfferChosen(false);
     setLines(hasPercentOff(cart, priceOf, q.percent) ? listPrices(cart, priceOf) : q.cart);
   };
   const set = <K extends keyof CheckoutForm>(k: K, v: CheckoutForm[K]) =>
@@ -152,6 +168,11 @@ export function CheckoutView({
   const [pointsText, setPointsText] = useState('');
   const [useReward, setUseReward] = useState(false);
   const [useBirthday, setUseBirthday] = useState(false);
+  // Marketing (I4): the friend's first-purchase gift, a "we miss you" offer, gift memory.
+  const [friendChosen, setFriendChosen] = useState(false);
+  const [offerChosen, setOfferChosen] = useState(false);
+  const [referrer, setReferrer] = useState<Customer | null>(null);
+  const [giftForm, setGiftForm] = useState<GiftForm>(emptyGiftForm);
   const [gender, setGender] = useState<Gender | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [details, setDetails] = useState<DetailsForm>(emptyDetailsForm);
@@ -183,6 +204,19 @@ export function CheckoutView({
   const gift = useMemo(
     () => (customerId ? birthdayStatus(ctx, customerId, giftRules) : null),
     [ctx, customerId, giftRules],
+  );
+  const marketing = useMemo(() => getMarketing(ctx), [ctx]);
+  const friends = useMemo(() => friendOn(ctx, marketing), [ctx, marketing]);
+  const friend = useMemo(
+    () => (customerId ? friendStatus(ctx, customerId, marketing) : null),
+    [ctx, customerId, marketing],
+  );
+  /** A new customer may name who sent her (no purchase yet, nobody named before). */
+  const asksReferrer =
+    friends && !order && !friend && (!customerId || firstPurchase(ctx, customerId));
+  const offer = useMemo(
+    () => (customerId ? activeOffer(ctx, customerId) : undefined),
+    [ctx, customerId],
   );
   /** What the shop owes this customer (له رصيد), which a sale on credit uses up. */
   const customerCredit = customer ? Math.max(0, -balance(ctx, customer.id)) : 0;
@@ -242,6 +276,10 @@ export function CheckoutView({
         points: pointsUsed,
         reward: rewardOn,
         birthday: birthdayOn,
+        friend: friendOnNow,
+        offer: offerOnNow,
+        referrerId: asksReferrer ? referrer?.id : undefined,
+        gift: giftFromForm(giftForm) ?? undefined,
         ...extra,
       });
       if (!order) putCart(ctx.system, []);
@@ -366,7 +404,17 @@ export function CheckoutView({
   const canBirthday = !!gift && !gift.used && totals.total >= giftRules.minSale;
   const birthdayOn = useBirthday && canBirthday && !rewardOn && discount.total === 0;
   const birthdayOff = birthdayOn ? rewardCart(cart, giftRules).off : 0;
-  const afterReward = totals.total - rewardOff - birthdayOff;
+  // Bring a friend (I4): her first purchase, once someone is named as who sent her.
+  const friendRules = { percent: marketing.friendPercent, maxOff: Number.MAX_SAFE_INTEGER };
+  const canFriend = !order && (!!friend?.ready || (asksReferrer && !!referrer));
+  const friendOnNow = friendChosen && canFriend && !rewardOn && !birthdayOn && discount.total === 0;
+  const friendOff = friendOnNow ? rewardCart(cart, friendRules).off : 0;
+  // We miss you (I4): the owner's offer, with its cap.
+  const offerRules = offer ? { percent: offer.percent, maxOff: offer.cap } : null;
+  const offerOnNow =
+    offerChosen && !!offerRules && !rewardOn && !birthdayOn && !friendOnNow && discount.total === 0;
+  const offerOff = offerOnNow && offerRules ? rewardCart(cart, offerRules).off : 0;
+  const afterReward = totals.total - rewardOff - birthdayOff - friendOff - offerOff;
   // Points pay only what is left after the deposit.
   const points =
     !credit && customer ? redeemable(ctx, customer.id, afterReward - deposit, loyalty) : null;
@@ -400,18 +448,29 @@ export function CheckoutView({
       ],
     );
   }
+  /** One reward a purchase: turning one on turns the others off. */
+  function only(which: 'reward' | 'birthday' | 'friend' | 'offer') {
+    setUseReward(which === 'reward');
+    setUseBirthday(which === 'birthday');
+    setFriendChosen(which === 'friend');
+    setOfferChosen(which === 'offer');
+  }
   function turnOnReward() {
-    withListPrices('مكافأة الزيارة', () => {
-      setUseBirthday(false);
-      setUseReward(true);
-    });
+    withListPrices('مكافأة الزيارة', () => only('reward'));
   }
   function turnOnBirthday() {
-    withListPrices('خصم عيد الميلاد', () => {
-      setUseReward(false);
-      setUseBirthday(true);
-    });
+    withListPrices('خصم عيد الميلاد', () => only('birthday'));
   }
+  const toggleFriend = () => {
+    haptic.tap();
+    if (friendOnNow) return setFriendChosen(false);
+    withListPrices('هدية الصديقة', () => only('friend'));
+  };
+  const toggleOffer = () => {
+    haptic.tap();
+    if (offerOnNow) return setOfferChosen(false);
+    withListPrices('عرض «نفتقدك»', () => only('offer'));
+  };
   const toggleReward = () => {
     haptic.tap();
     if (rewardOn) return setUseReward(false);
@@ -606,6 +665,19 @@ export function CheckoutView({
                 ) : null}
               </View>
             ) : null}
+            {asksReferrer ? (
+              <ReferrerPicker
+                ctx={ctx}
+                exclude={customerId}
+                value={referrer}
+                onChange={(c) => {
+                  setReferrer(c);
+                  if (!c) setFriendChosen(false);
+                }}
+                fullNames={fullPhone}
+              />
+            ) : null}
+            <GiftMemory value={giftForm} onChange={setGiftForm} />
             <Text variant="caption" tone="secondary">
               يُبحث عن الزبون برقم الهاتف أولاً ثم بالاسم، ويُضاف تلقائياً إن كان جديداً.
             </Text>
@@ -686,6 +758,42 @@ export function CheckoutView({
             <Text variant="caption" tone="secondary" testID="checkout-birthday-used">
               استُخدم خصم عيد الميلاد لهذا الزبون هذه السنة.
             </Text>
+          ) : null}
+          {canFriend ? (
+            <FilterChip
+              label={`${friendOnNow ? '✓ ' : ''}🤍 هدية الصديقة ${marketing.friendPercent}% • ${formatLyd(rewardCart(cart, friendRules).off)}`}
+              selected={friendOnNow}
+              onPress={toggleFriend}
+              testID="checkout-friend"
+            />
+          ) : null}
+          {offerRules ? (
+            <FilterChip
+              label={`${offerOnNow ? '✓ ' : ''}عرض «نفتقدك» ${offerRules.percent}% • ${formatLyd(rewardCart(cart, offerRules).off)}`}
+              selected={offerOnNow}
+              onPress={toggleOffer}
+              testID="checkout-offer"
+            />
+          ) : null}
+          {friendOff > 0 ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text variant="subhead" tone="accent">
+                هدية الصديقة
+              </Text>
+              <Text variant="subhead" tone="accent" testID="checkout-friend-off">
+                {`− ${formatLyd(friendOff)}`}
+              </Text>
+            </View>
+          ) : null}
+          {offerOff > 0 ? (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text variant="subhead" tone="accent">
+                عرض «نفتقدك»
+              </Text>
+              <Text variant="subhead" tone="accent" testID="checkout-offer-off">
+                {`− ${formatLyd(offerOff)}`}
+              </Text>
+            </View>
           ) : null}
           {birthdayOff > 0 ? (
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

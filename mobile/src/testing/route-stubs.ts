@@ -41,6 +41,8 @@ const NAMES = [
   'order-form',
   'order-pay/[id]',
   'order-buy/[id]',
+  'send',
+  '(tabs)/more/marketing',
 ];
 
 const Empty = () => null;

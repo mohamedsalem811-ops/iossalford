@@ -6,6 +6,7 @@ import { Grid } from '@/features/dashboard/layout';
 import type { MySales } from '@/features/dashboard/my-sales';
 import { QuickActions } from '@/features/dashboard/quick-actions';
 import { ShiftBar } from '@/features/dashboard/shift-bar';
+import { GiftRemindersCard, type GiftRemindersProps } from '@/features/marketing/gift-reminders';
 import { OrderRemindersCard, type OrderRemindersProps } from '@/features/orders/reminders-card';
 import { useLayout } from '@/hooks/use-layout';
 import { formatLyd } from '@/lib/money';
@@ -23,12 +24,15 @@ export function EmployeeHomeScreen({
   data,
   actions,
   orders,
+  gifts,
 }: {
   system: SystemId;
   name: string;
   data: MySales;
   /** The deposit reminders (I2). */
   orders?: OrderRemindersProps;
+  /** The gift reminders a week before (I4). */
+  gifts?: GiftRemindersProps;
   actions: {
     onSystemMenu: () => void;
     onOpenSale: (id: number) => void;
@@ -61,6 +65,7 @@ export function EmployeeHomeScreen({
         onCustomer={actions.onCustomer}
       />
       {orders ? <OrderRemindersCard {...orders} /> : null}
+      {gifts ? <GiftRemindersCard {...gifts} /> : null}
       <Grid columns={Math.min(dashboardColumns, 2)}>
         <HeroCard style={{ flex: 1 }}>
           <Text variant="subhead" tone="onAccent">

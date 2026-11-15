@@ -867,6 +867,37 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 - **Shortcuts:** "بيعة جديدة" across the top; then طلب بعربون, مرتجع (finding the sale), دفعة دين (the debts list) and زبون (the customers list), each only for someone who may; for the owner a second row with إيصال جديد and قطعة جديدة (تصميم جديد for scarves). Employees no longer have the receipt shortcut on their home; they make receipts from the Receipts tab.
 - **Tests:** the card colours, the reminder hour (rules and the bar), the sale lock, and the employee flow (closed bar, her shortcuts, the locked sale tab, then the open bar and the sale tab back). Simulator flow written, not run: `e2e/shift-bar-shortcuts.yaml`.
 
+**I4 as built (2026-11-15):**
+
+- **Management → التسويق** (the owner, new permission `marketing.manage`), in the Customers group, with five tabs:
+  - **المناسبات:** Valentine's (14/2) and Mother's Day (21/3) are fixed; Ramadan, Eid al-Fitr and Eid al-Adha wait for this year's date (asked for before anything is sent). A tap on an occasion lists the customers who accept offers and have a phone, all ticked; the owner unticks who shouldn't get it, then «إرسال». **VIP: أول من يرى** is the same, for VIP customers only.
+  - **نفتقدك:** the offer (percent, the most it takes off, how many days it lasts) and who is suggested (bought on at least N days, not for N days, no offer running). The owner ticks customers and taps «إعطاء العرض وإرسال». Each gets a real one-time offer, shown at checkout as «عرض «نفتقدك»», like the birthday discount.
+  - **صديقة:** bring a friend on or off (needs points), the friend's percent and the sender's points (times what the purchase earns).
+  - **الرسائل:** the five templates, each with the fill-ins it may use ({الاسم}, {المناسبة}, {التاريخ}, {الخصم}, {الحد}, {حتى}, {لمن}).
+  - **التقرير:** offers given, how many came back and used one, what they spent and what came off; an open offer can be cancelled.
+- **The step-by-step sender:** one customer at a time ("2 من 7"), the message ready to change, «فتح واتساب» (remembered, then WhatsApp opens, then the next) or «تخطي». It warns when the same message was opened for that customer before. SALFORD never sends anything itself.
+- **Checkout:**
+  - «من أرسلك؟» for a new customer (no purchase yet) when bring a friend is on. The chip «🤍 هدية الصديقة 2%» takes the gift off; never with another reward or discount.
+  - «عرض «نفتقدك»» when she has one.
+  - «هدية؟ نذكّرك السنة القادمة»: for whom, the occasion, the day and month.
+- **The thank-you:** «رسالة شكر (واتساب)» on the sold screen and the sale page, for every customer with a phone (it is not an offer), remembered per sale. The sale page also shows the friend's gift and the offer.
+- **Home:** «تذكير الهدايا» a week before a gift's date (saved in an earlier year). A tap offers the WhatsApp reminder (then it is done for the year), «تم», or the customer's page. Shown on both homes, to whoever may edit customers.
+- **The customer's page:**
+  - her offer;
+  - who sent her, or «من أرسلها؟» before her first purchase;
+  - the friends she sent, with the points each brought;
+  - her gifts (a tap deletes one).
+- **The rewards card:** an «أرسلي صديقة» part when it is on (only with the points), between VIP and the birthday. The back still fits with all five parts.
+- **Tests:** the rules (15), the card part, and a screen flow:
+  - a friend's gift and a gift saved at checkout;
+  - the thank-you;
+  - both customers' pages;
+  - «نفتقدك» given, sent and used at checkout, and the report;
+  - an occasion sent only to customers who accept offers;
+  - a moving date typed.
+
+  Simulator flow written, not run: `e2e/marketing.yaml`.
+
 ### Phase 10: switching over
 
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):

@@ -17,6 +17,7 @@ export type ManageTarget =
   | 'policies'
   | 'customers'
   | 'debts'
+  | 'marketing'
   | 'expenses'
   | 'closing'
   | 'comparison'
@@ -49,6 +50,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
     rows: [
       { target: 'customers', icon: 'person.2', title: 'الزبائن' },
       { target: 'debts', icon: 'creditcard', title: 'الديون' },
+      { target: 'marketing', icon: 'megaphone', title: 'التسويق' },
     ],
   },
   {

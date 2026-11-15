@@ -1,13 +1,23 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { ActionSheetIOS, Alert } from 'react-native';
+import { ActionSheetIOS, Alert, Linking } from 'react-native';
 
 import { firstBackup, lastCopied, saveBackup } from '@/backup/store';
 import { errorBoundary } from '@/components/error-screen';
 import { acknowledgeAlert, type OwnerAlert } from '@/domain/alerts';
 import type { Ctx } from '@/domain/context';
 import { readDashboard } from '@/features/dashboard/model';
+import { waLink } from '@/domain/customer-care';
+import {
+  getMarketing,
+  giftMessage,
+  giftReminders,
+  markGiftDone,
+  type Gift,
+} from '@/domain/marketing';
+import { recordMessage } from '@/domain/messages';
 import { orderReminders } from '@/domain/orders';
+import type { GiftRemindersProps } from '@/features/marketing/gift-reminders';
 import type { OrderRemindersProps } from '@/features/orders/reminders-card';
 import { showError } from '@/features/products/actions';
 import { haptic } from '@/lib/haptics';
@@ -110,6 +120,70 @@ function useOrderReminders(): OrderRemindersProps | undefined {
   };
 }
 
+/** The gift reminders a week before (I4), for someone who may edit customers. */
+function useGiftReminders(): GiftRemindersProps | undefined {
+  const ctx = useCtx();
+  const system = ctx.system;
+  const may = useCan('customers.edit');
+  const phones = useCan('customers.phones');
+  const read = useCallback(() => (may ? giftReminders(ctx) : undefined), [ctx, may]);
+  const [gifts, setGifts] = useState(read);
+  const refresh = useCallback(() => setGifts(read()), [read]);
+  useFocusEffect(refresh);
+  useOnDataChanged(refresh);
+  if (!gifts) return undefined;
+  const done = (g: Gift) => {
+    try {
+      markGiftDone(ctx, g.id);
+    } catch (error) {
+      showError(error);
+      return false;
+    }
+    haptic.success();
+    notifyDataChanged();
+    return true;
+  };
+  const message = (g: Gift) => {
+    const link = waLink(g.customerPhone, giftMessage(getMarketing(ctx).templates.gift, g));
+    if (!link) return;
+    try {
+      recordMessage(ctx, {
+        customerId: g.customerId,
+        kind: 'gift',
+        ref: `${g.id}-${ctx.now().getFullYear()}`,
+      });
+    } catch (error) {
+      showError(error);
+      return;
+    }
+    if (done(g)) Linking.openURL(link).catch(() => {});
+  };
+  return {
+    gifts,
+    phones,
+    onGift: (g) =>
+      Alert.alert(
+        `هدية لـ${g.forWhom}`,
+        `${g.customerName}${g.occasion ? ` • ${g.occasion}` : ''}`,
+        [
+          ...(phones && g.customerPhone
+            ? [{ text: 'رسالة واتساب', onPress: () => message(g) }]
+            : []),
+          { text: 'تم', onPress: () => done(g) },
+          {
+            text: 'صفحة الزبون',
+            onPress: () =>
+              router.push({
+                pathname: '/[system]/more/customer/[id]',
+                params: { system, id: String(g.customerId) },
+              }),
+          },
+          { text: 'إلغاء', style: 'cancel' },
+        ],
+      ),
+  };
+}
+
 /** Where an alert leads (phase S6): the shift's report, the return, or the activity log. */
 function openAlertTarget(system: string, alert: OwnerAlert) {
   const t = alert.target;
@@ -157,6 +231,7 @@ function EmployeeHome() {
   useOnDataChanged(refresh);
   const systemMenu = useSystemMenu();
   const orders = useOrderReminders();
+  const gifts = useGiftReminders();
   const shortcuts = useShortcuts();
   return (
     <EmployeeHomeScreen
@@ -164,6 +239,7 @@ function EmployeeHome() {
       name={actor ? actorName(actor) : ''}
       data={data}
       orders={orders}
+      gifts={gifts}
       actions={{
         onSystemMenu: systemMenu,
         onOpenSale: (id) => openSale(system, id),
@@ -202,6 +278,7 @@ function Dashboard() {
 
   const systemMenu = useSystemMenu();
   const orders = useOrderReminders();
+  const gifts = useGiftReminders();
   const shortcuts = useShortcuts();
 
   return (
@@ -209,6 +286,7 @@ function Dashboard() {
       system={system}
       data={data}
       orders={orders}
+      gifts={gifts}
       actions={{
         onSystemMenu: systemMenu,
         onEditRate: () => promptRate(ctx, refresh),

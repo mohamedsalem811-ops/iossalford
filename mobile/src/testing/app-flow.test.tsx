@@ -111,6 +111,11 @@ jest.mock('@/domain/orders', () => ({
   ...jest.requireActual('@/domain/orders'),
   orderReminders: () => ({ noDate: [], late: [], waiting: [] }),
 }));
+// The home screen's gift reminders (I4): none.
+jest.mock('@/domain/marketing', () => ({
+  ...jest.requireActual('@/domain/marketing'),
+  giftReminders: () => [],
+}));
 jest.mock('@expo/ui/swift-ui', () => ({ Host: () => null, Chart: () => null }));
 jest.mock('@/domain/settings', () => ({ getRate: () => 7_000 }));
 

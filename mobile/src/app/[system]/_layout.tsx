@@ -191,6 +191,7 @@ function SystemStack() {
       <Stack.Screen name="return/[id]" options={sheet} />
       <Stack.Screen name="return-detail/[id]" options={sheet} />
       <Stack.Screen name="change-pin" options={sheet} />
+      <Stack.Screen name="send" options={sheet} />
       <Stack.Screen name="set/[id]" options={sheet} />
       <Stack.Screen name="sets" options={sheet} />
       <Stack.Screen name="cart" options={sheet} />

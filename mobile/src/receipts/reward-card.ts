@@ -39,6 +39,8 @@ export type CardInput = {
   rewards: RewardRules;
   birthday: BirthdayRules;
   contact: ShopContact;
+  /** Bring a friend (I4), when it is on: the friend's first-purchase discount, the sender's points. */
+  friend?: { percent: number; times: number } | null;
 };
 
 export type CardMode = 'screen' | 'a6' | 'press';
@@ -97,9 +99,9 @@ export type CardSection = {
 
 /** The parts of the back, from the rules that are on. Empty: nothing to give yet. */
 export function cardSections(
-  input: Pick<CardInput, 'loyalty' | 'rewards' | 'birthday'>,
+  input: Pick<CardInput, 'loyalty' | 'rewards' | 'birthday' | 'friend'>,
 ): CardSection[] {
-  const { loyalty: p, rewards: r, birthday: b } = input;
+  const { loyalty: p, rewards: r, birthday: b, friend: f } = input;
   const sections: CardSection[] = [];
   if (r.enabled) {
     sections.push({
@@ -144,6 +146,18 @@ export function cardSections(
             ? 'وتكسب نقاطاً مضاعفة.'
             : `وتكسب النقاط ${r.vipPointsTimes} أضعاف.`,
       });
+  }
+  // Bring a friend pays the sender in points: only with the points on.
+  if (p.enabled && f) {
+    sections.push({
+      short: 'أرسلي صديقة',
+      title: 'أرسلي صديقة',
+      lines: [`صديقتك الجديدة تأخذ خصم ${f.percent}% على أول شراء لها.`],
+      note:
+        f.times === 2
+          ? 'وتكسبين نقاطاً مضاعفة عن شرائها.'
+          : `وتكسبين نقاط شرائها ${f.times} أضعاف.`,
+    });
   }
   if (birthdayOn(b)) {
     sections.push({

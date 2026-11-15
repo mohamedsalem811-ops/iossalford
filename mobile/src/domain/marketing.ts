@@ -382,6 +382,9 @@ export type FriendStatus = {
 const hasSales = (ctx: Ctx, customerId: number) =>
   !!ctx.db.get('SELECT 1 FROM sales WHERE customer_id = ? LIMIT 1', [customerId]);
 
+/** No purchase yet: "من أرسلك؟" is asked only then. */
+export const firstPurchase = (ctx: Ctx, customerId: number) => !hasSales(ctx, customerId);
+
 /** Bring a friend is on: the owner's rule and loyalty points both. */
 export const friendOn = (ctx: Ctx, rules: MarketingRules = getMarketing(ctx)) =>
   rules.friendEnabled && getLoyalty(ctx).enabled;
