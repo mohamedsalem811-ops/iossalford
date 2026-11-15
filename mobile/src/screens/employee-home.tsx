@@ -5,6 +5,7 @@ import { LatestCard } from '@/features/dashboard/cards';
 import { Grid } from '@/features/dashboard/layout';
 import type { MySales } from '@/features/dashboard/my-sales';
 import { QuickActions } from '@/features/dashboard/quick-actions';
+import { OrderRemindersCard, type OrderRemindersProps } from '@/features/orders/reminders-card';
 import { useLayout } from '@/hooks/use-layout';
 import { formatLyd } from '@/lib/money';
 import { spacing, type SystemId } from '@/theme';
@@ -20,15 +21,19 @@ export function EmployeeHomeScreen({
   name,
   data,
   actions,
+  orders,
 }: {
   system: SystemId;
   name: string;
   data: MySales;
+  /** The deposit reminders (I2). */
+  orders?: OrderRemindersProps;
   actions: {
     onSystemMenu: () => void;
     onOpenSale: (id: number) => void;
     onNewSale: () => void;
     onNewReceipt: () => void;
+    onNewOrder?: () => void;
     onOpenAccount: () => void;
     onOpenShift: () => void;
   };
@@ -59,7 +64,9 @@ export function EmployeeHomeScreen({
         system={system}
         onNewSale={actions.onNewSale}
         onNewReceipt={actions.onNewReceipt}
+        onNewOrder={actions.onNewOrder}
       />
+      {orders ? <OrderRemindersCard {...orders} /> : null}
       <Grid columns={Math.min(dashboardColumns, 2)}>
         <HeroCard style={{ flex: 1 }}>
           <Text variant="subhead" tone="onAccent">

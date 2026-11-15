@@ -5,6 +5,7 @@ import { Appear, Button, Card, EmptyState, Icon, Stepper, Text } from '@/compone
 import { lineTotal, removeLine, setQuantity, setUnitPrice, type CartLine } from '@/domain/cart';
 import type { Ctx } from '@/domain/context';
 import { getProduct } from '@/domain/products';
+import { forSale } from '@/domain/reserved';
 import { getRate } from '@/domain/settings';
 import { parseThousandths } from '@/lib/digits';
 import { editableDinars, formatLyd, formatRate, formatUsd } from '@/lib/money';
@@ -40,10 +41,15 @@ export function CartView({
   useOnDataChanged(recheck);
   const rate = getRate(ctx);
   const totals = cartTotals(cart, rate);
-  const warnings = stockWarnings(cart, (id) => getProduct(ctx, id));
+  // Pieces held for customers by a deposit are not free to sell (I2).
+  const free = (id: number) => {
+    const p = getProduct(ctx, id);
+    return p ? forSale(ctx, p) : undefined;
+  };
+  const warnings = stockWarnings(cart, free);
 
   const changeQuantity = (line: CartLine, quantity: number) => {
-    const stock = getProduct(ctx, line.productId)?.stock ?? 0;
+    const stock = free(line.productId)?.stock ?? 0;
     const r = setQuantity(cart, line.key, quantity, stock);
     if ('problem' in r) showCartProblem(r.problem);
     else setCart(r.cart);

@@ -18,6 +18,7 @@ import {
 import { Grid, Split } from '@/features/dashboard/layout';
 import { MonthSummary } from '@/features/dashboard/month-summary';
 import { QuickActions } from '@/features/dashboard/quick-actions';
+import { OrderRemindersCard, type OrderRemindersProps } from '@/features/orders/reminders-card';
 
 export type { DashboardActions };
 
@@ -31,10 +32,13 @@ export function DashboardScreen({
   system,
   data,
   actions,
+  orders,
 }: {
   system: SystemId;
   data: DashboardData;
   actions: DashboardActions;
+  /** The deposit reminders (I2). */
+  orders?: OrderRemindersProps;
 }) {
   const { dashboardColumns: columns } = useLayout();
   const wide = columns > 1;
@@ -54,8 +58,10 @@ export function DashboardScreen({
         system={system}
         onNewSale={actions.onNewSale}
         onNewReceipt={actions.onNewReceipt}
+        onNewOrder={actions.onNewOrder}
         onNewProduct={actions.onNewProduct}
       />
+      {orders ? <OrderRemindersCard {...orders} /> : null}
       <Grid columns={Math.min(columns, 2)}>
         <TodayCard data={data} piece={piece} onOpenDay={actions.onOpenDay} />
         <AttentionCard data={data} actions={actions} />

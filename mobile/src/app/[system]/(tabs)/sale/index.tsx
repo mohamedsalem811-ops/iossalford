@@ -1,8 +1,9 @@
 import { router, Stack } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { SplitView } from '@/components';
 import { BelowHeader } from '@/components/below-header';
+import { listForSale } from '@/domain/reserved';
 import { firstOfEachDesign, useProducts } from '@/features/products/use-products';
 import { addPiece } from '@/features/sale/actions';
 import { CartView } from '@/features/sale/cart-view';
@@ -26,6 +27,11 @@ export default function SaleRoute() {
   const searchRef = useSearchShortcut();
   const [query, setQuery] = useState<SaleQuery>(DEFAULT_SALE_QUERY);
   const data = useProducts(ctx, setQuery, system === 'scarves' ? firstOfEachDesign : undefined);
+  // Pieces held for customers by a deposit are not free to sell (I2).
+  const forSaleList = useMemo(
+    () => listForSale(data.reserved, data.products),
+    [data.reserved, data.products],
+  );
   const { cart } = useCart(system);
   const { cartBeside } = useLayout();
 
@@ -47,7 +53,7 @@ export default function SaleRoute() {
   const grid = (
     <SaleGrid
       system={system}
-      products={data.products}
+      products={forSaleList}
       brandImages={data.brandImages}
       query={query}
       onQuery={setQuery}

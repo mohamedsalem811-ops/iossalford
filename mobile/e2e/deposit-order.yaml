@@ -1,0 +1,125 @@
+# Phase I2. From the home shortcut "طلب بعربون": a bracelet ordered from the supplier for Mona
+# (1000 د.ل, 500 deposit in cash). Its deposit receipt opens. In Management → الطلبات بعربون the
+# owner buys it ($100 at today's rate, the date a week ahead), marks it arrived, and delivers it
+# at checkout: the deposit comes off and the sale shows it.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- tapOn:
+    id: 'quick-order'
+- extendedWaitUntil:
+    visible:
+      id: 'order-name'
+    timeout: 30000
+- tapOn:
+    id: 'order-name'
+- inputText: 'Mona'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'order-phone'
+- inputText: '0912345678'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'order-description'
+- tapOn:
+    id: 'order-description'
+- inputText: 'Tiffany bracelet'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'order-price'
+- tapOn:
+    id: 'order-price'
+- inputText: '1000'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'order-deposit'
+- tapOn:
+    id: 'order-deposit'
+- inputText: '500'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- assertVisible:
+    id: 'order-hint'
+- takeScreenshot: ${DEVICE}-deposit-form
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'order-save'
+- tapOn:
+    id: 'order-save'
+# The deposit receipt.
+- extendedWaitUntil:
+    visible: 'إغلاق'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-deposit-receipt
+- tapOn: 'إغلاق'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-orders'
+- extendedWaitUntil:
+    visible:
+      id: 'orders-held'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-orders-list
+- tapOn: 'Tiffany bracelet'
+- extendedWaitUntil:
+    visible:
+      id: 'order-buy'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-order-waiting
+- tapOn:
+    id: 'order-buy'
+- tapOn:
+    id: 'order-buy-cost'
+- inputText: '100'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'order-buy-save'
+- extendedWaitUntil:
+    visible:
+      id: 'order-arrived'
+    timeout: 30000
+- tapOn:
+    id: 'order-arrived'
+- tapOn: 'وصلت'
+- extendedWaitUntil:
+    visible:
+      id: 'order-deliver'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-order-arrived
+- tapOn:
+    id: 'order-deliver'
+- extendedWaitUntil:
+    visible:
+      id: 'checkout-order'
+    timeout: 30000
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-deposit'
+- assertVisible:
+    id: 'checkout-deposit'
+- takeScreenshot: ${DEVICE}-order-delivery
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
+- tapOn:
+    id: 'checkout-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'sold-title'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-order-delivered

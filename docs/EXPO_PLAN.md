@@ -844,6 +844,20 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
   3. an employee needs the owner's approval for every cancel, a hold included;
   4. an order can be for more than one of the same piece (the price typed is for one).
 
+**Owner's answer (2026-11-15):** all four choices above are fine.
+
+**I2 as built (2026-11-15):**
+
+- **Management → الطلبات بعربون** (anyone who may take deposits): the open orders (by expected date) or the delivered and cancelled ones, search by customer or piece, pages as you scroll, and the deposits held. The + menu: "طلب قطعة من المورد" or "حجز قطعة موجودة".
+- **New deposit** (sheet): the customer's name with suggestions and the phone (someone who can't see numbers picks a known customer without typing it); a hold picks a piece in stock (only what is not held already); an order has an optional photo, the piece, brand, category, size and colour and the price of one piece; how many, the total, the deposit with the minimum under it, how it was paid, a note and the policy line. Under the minimum an employee asks the owner on the spot. The deposit receipt opens when it is saved.
+- **The order page:** the photo, the stage, the customer, paid and left, the cost and date (the owner), and the buttons for each stage: تم الشراء (owner: cost in dollars or dinars, the date a week ahead to start with), change the date (owner), وصلت, deliver, add a payment, cancel (before purchase: her balance or a refund; after: kept by the shop or her balance as an exception; an employee asks the owner), and the WhatsApp message (the date, or ready to collect with what is left) for people who see numbers, with when it was last opened. The payments and their receipts, and the sale it became.
+- **Delivery** opens checkout with the order alone (the shop's cart is not touched): her customer card, the piece at the agreed price, the deposit taken off ("تأكيد التسليم").
+- **Home:** the shortcut "طلب بعربون" (owner and employees who may take deposits) and a card of reminders: not bought yet (owner only), late, ready and not collected. One order opens it; more open the list.
+- **Elsewhere:** the customer page lists her orders with a button for a new one; Products shows "محجوز n" on a held piece; the sale screen and the cart count only stock not held; a sale's page shows the deposit paid before and links to its order; Management → قواعد البيع والمرتجعات has the deposit rules (minimum %, reminder days, the policy line).
+- **Messages:** each WhatsApp message opened is remembered (`message_log`) and logged; only someone who may see numbers can open one (`customers.phones`).
+- **Tests:** `domain/orders-screens.test.ts`, `features/orders/model.test.ts`, `testing/orders-flow.test.tsx` (take, buy, arrive, deliver on the real screens), the permission matrix (`recordMessage`). Simulator flows written, not run yet: `e2e/deposit-order.yaml`, `e2e/deposit-hold.yaml`.
+- **Left for later:** scarf designs don't show the held badge yet (Products for jewellery does); I3 adds the remaining home shortcuts.
+
 ### Phase 10: switching over
 
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):

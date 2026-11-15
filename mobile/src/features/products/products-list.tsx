@@ -23,6 +23,7 @@ export function ProductsList({
   system,
   products,
   brandImages,
+  reserved,
   query,
   onQuery,
   editHref,
@@ -34,6 +35,8 @@ export function ProductsList({
   /** All of the system's (not archived) products. */
   products: Product[];
   brandImages: Map<number, string | null>;
+  /** Pieces held for customers by a deposit (I2), by product. */
+  reserved?: Map<number, number>;
   query: ListQuery;
   onQuery: (q: ListQuery) => void;
   editHref: (p: Product) => Href;
@@ -129,6 +132,7 @@ export function ProductsList({
               editHref={editHref(item)}
               brandImage={item.brandId !== null ? (brandImages.get(item.brandId) ?? null) : null}
               actions={actions}
+              reserved={reserved?.get(item.id) ?? 0}
               card={card}
             />
           );

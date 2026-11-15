@@ -131,6 +131,7 @@ function JewelryProducts({ ctx }: { ctx: Ctx }) {
           system={system}
           products={data.products}
           brandImages={data.brandImages}
+          reserved={data.reserved}
           query={query}
           onQuery={setQuery}
           editHref={editHref}

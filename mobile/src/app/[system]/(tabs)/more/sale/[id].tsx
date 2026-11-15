@@ -2,6 +2,7 @@ import { router, Stack, useFocusEffect, useLocalSearchParams } from 'expo-router
 import { useCallback, useState } from 'react';
 
 import { receiptForSale } from '@/domain/receipts';
+import { orderOfSale } from '@/domain/orders';
 import { getSale } from '@/domain/sales';
 import { SaleDetail } from '@/features/sales/sale-detail';
 import { useOnDataChanged } from '@/state/data-events';
@@ -14,7 +15,11 @@ export default function SaleRoute() {
   const system = ctx.system;
   const { id } = useLocalSearchParams<{ id: string }>();
   const read = useCallback(
-    () => ({ sale: getSale(ctx, Number(id)), receipt: receiptForSale(ctx, Number(id)) }),
+    () => ({
+      sale: getSale(ctx, Number(id)),
+      receipt: receiptForSale(ctx, Number(id)),
+      orderId: orderOfSale(ctx, Number(id)),
+    }),
     [ctx, id],
   );
   const [data, setData] = useState(read);
@@ -28,6 +33,13 @@ export default function SaleRoute() {
         ctx={ctx}
         sale={data.sale}
         receipt={data.receipt}
+        orderId={data.orderId}
+        onOrder={(orderId) =>
+          router.push({
+            pathname: '/[system]/more/order/[id]',
+            params: { system, id: String(orderId) },
+          })
+        }
         onReturn={(lineId) =>
           router.push({ pathname: '/[system]/return/[id]', params: { system, id: String(lineId) } })
         }

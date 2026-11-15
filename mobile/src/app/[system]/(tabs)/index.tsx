@@ -7,6 +7,8 @@ import { errorBoundary } from '@/components/error-screen';
 import { acknowledgeAlert, type OwnerAlert } from '@/domain/alerts';
 import type { Ctx } from '@/domain/context';
 import { readDashboard } from '@/features/dashboard/model';
+import { orderReminders } from '@/domain/orders';
+import type { OrderRemindersProps } from '@/features/orders/reminders-card';
 import { showError } from '@/features/products/actions';
 import { haptic } from '@/lib/haptics';
 import { sectionHref } from '@/features/management/management-menu';
@@ -67,6 +69,32 @@ const newSale = (system: string) => router.push({ pathname: '/[system]/sale', pa
 const newReceipt = (system: string) =>
   router.push({ pathname: '/[system]/receipt/[id]', params: { system, id: 'new' } });
 
+const newOrder = (system: string) =>
+  router.push({ pathname: '/[system]/order-form', params: { system } });
+
+/** The deposit reminders for the home screen (I2), fresh on focus and after each change. */
+function useOrderReminders(): OrderRemindersProps | undefined {
+  const ctx = useCtx();
+  const system = ctx.system;
+  const may = useCan('orders.take');
+  const owner = useCan('orders.purchase');
+  const phones = useCan('customers.phones');
+  const read = useCallback(() => (may ? orderReminders(ctx) : undefined), [ctx, may]);
+  const [reminders, setReminders] = useState(read);
+  const refresh = useCallback(() => setReminders(read()), [read]);
+  useFocusEffect(refresh);
+  useOnDataChanged(refresh);
+  if (!reminders) return undefined;
+  return {
+    reminders,
+    owner,
+    phones,
+    onOpenOrder: (id) =>
+      router.push({ pathname: '/[system]/more/order/[id]', params: { system, id: String(id) } }),
+    onOpenOrders: () => router.push(sectionHref('orders', system)),
+  };
+}
+
 /** Where an alert leads (phase S6): the shift's report, the return, or the activity log. */
 function openAlertTarget(system: string, alert: OwnerAlert) {
   const t = alert.target;
@@ -113,16 +141,20 @@ function EmployeeHome() {
   useFocusEffect(refresh);
   useOnDataChanged(refresh);
   const systemMenu = useSystemMenu();
+  const orders = useOrderReminders();
+  const mayOrder = useCan('orders.take');
   return (
     <EmployeeHomeScreen
       system={system}
       name={actor ? actorName(actor) : ''}
       data={data}
+      orders={orders}
       actions={{
         onSystemMenu: systemMenu,
         onOpenSale: (id) => openSale(system, id),
         onNewSale: () => newSale(system),
         onNewReceipt: () => newReceipt(system),
+        onNewOrder: mayOrder ? () => newOrder(system) : undefined,
         onOpenAccount: () =>
           actor?.kind === 'employee' &&
           router.push({
@@ -155,11 +187,13 @@ function Dashboard() {
   useOnDataChanged(refresh);
 
   const systemMenu = useSystemMenu();
+  const orders = useOrderReminders();
 
   return (
     <DashboardScreen
       system={system}
       data={data}
+      orders={orders}
       actions={{
         onSystemMenu: systemMenu,
         onEditRate: () => promptRate(ctx, refresh),
@@ -175,6 +209,7 @@ function Dashboard() {
         onOpenAlert: (alert) => showAlert(ctx, alert, refresh),
         onNewSale: () => newSale(system),
         onNewReceipt: () => newReceipt(system),
+        onNewOrder: () => newOrder(system),
         onNewProduct: () =>
           router.push(
             system === 'scarves'

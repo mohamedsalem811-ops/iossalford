@@ -39,7 +39,8 @@ import {
   who,
 } from './context';
 import { ensureCustomer, getCustomer, phoneKey } from './customers';
-import { CATEGORIES, getProduct, insertProduct, type Product } from './products';
+import { addToCart, type CartLine } from './cart';
+import { CATEGORIES, displayName, getProduct, insertProduct, type Product } from './products';
 import { issueReceipt, type Receipt, type TemplateId } from './receipts';
 import { reservedOf } from './reserved';
 import { getRate, getSetting, setSetting } from './settings';
@@ -841,6 +842,10 @@ export function deliveredBy(ctx: Ctx, orderId: number, saleId: number) {
   );
 }
 
+/** The order a sale delivered, if any (its id), for the sale's page (I2). */
+export const orderOfSale = (ctx: Ctx, saleId: number): number | undefined =>
+  ctx.db.get<{ id: number }>('SELECT id FROM orders WHERE sale_id = ?', [saleId])?.id;
+
 /** The deposit receipts of an order, for the delivery receipt ("GR-2026-0012، GR-2026-0015"). */
 export function depositReceiptNos(ctx: Ctx, orderId: number): string[] {
   return ctx.db
@@ -864,3 +869,42 @@ export function undeliver(ctx: Ctx, saleId: number) {
 /** The customer of an order, for screens (name and phone). */
 export const orderCustomer = (ctx: Ctx, order: Pick<Order, 'customerId'>) =>
   getCustomer(ctx, order.customerId);
+
+// ---------------------------------------------------------------- for the screens
+
+/**
+ * The order's piece as a cart line for its delivery: at the agreed price (its list price here),
+ * with the quantity ordered. Undefined when its piece is gone.
+ */
+export function orderCart(ctx: Ctx, order: Order): CartLine[] | undefined {
+  if (!order.productId) return undefined;
+  const p = getProduct(ctx, order.productId);
+  if (!p) return undefined;
+  const r = addToCart(
+    [],
+    { ...p, price: order.price / order.quantity, stock: order.quantity },
+    displayName(ctx, p),
+    order.quantity,
+  );
+  return 'cart' in r ? r.cart : undefined;
+}
+
+/** "2026-12-01" as people read it: "1/12/2026". */
+export const etaText = (eta: string) => {
+  const [y, m, d] = eta.split('-').map(Number);
+  return `${d}/${m}/${y}`;
+};
+
+const dear = (name: string) => `أهلاً ${name}،`;
+
+/** The WhatsApp message with the expected date (sent after the owner bought the piece). */
+export const etaMessage = (o: Pick<Order, 'customerName' | 'description' | 'eta' | 'id'>) =>
+  `${dear(o.customerName)}\nطلبك «${o.description}» (رقم ${o.id}) تم طلبه من المورد، والوصول المتوقع ${o.eta ? etaText(o.eta) : 'قريباً'}. سنخبرك فور وصوله.\nSALFORD`;
+
+/** The WhatsApp message when the piece is ready to collect, with what is left to pay. */
+export const arrivedMessage = (
+  o: Pick<Order, 'customerName' | 'description' | 'kind' | 'id' | 'remaining'>,
+) =>
+  `${dear(o.customerName)}\n${o.kind === 'hold' ? 'قطعتك المحجوزة' : 'طلبك'} «${o.description}» (رقم ${o.id}) جاهز للاستلام 🎁${
+    o.remaining > 0 ? `\nالباقي: ${formatLyd(o.remaining)}.` : ''
+  }\nبانتظارك في SALFORD`;

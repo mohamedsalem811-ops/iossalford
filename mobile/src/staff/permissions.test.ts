@@ -47,6 +47,7 @@ import {
   setEta,
   takeOrder,
 } from '@/domain/orders';
+import { recordMessage } from '@/domain/messages';
 import { addReturn, addReturnWithoutSale, deleteReturn, deleteSale, getSale } from '@/domain/sales';
 import { deleteScarfDesign, saveScarfDesign } from '@/domain/scarves';
 import { deleteSet, saveSet } from '@/domain/sets';
@@ -475,6 +476,11 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
           how: 'balance',
           approval: 'ok',
         }),
+    },
+    recordMessage: {
+      permission: 'customers.phones',
+      run: (ctx, s) =>
+        recordMessage(ctx, { customerId: s.customer, kind: 'order-eta', ref: s.purchasedOrder }),
     },
     setDepositRules: {
       permission: 'settings.edit',

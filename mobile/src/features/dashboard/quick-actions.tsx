@@ -1,18 +1,25 @@
+import type { SymbolViewProps } from 'expo-symbols';
 import { Pressable, View } from 'react-native';
 
 import { Icon, Text } from '@/components';
 import { radius, spacing, useTheme, type SystemId } from '@/theme';
 
-/** The home screen's shortcuts: a new sale (the main one), a new receipt, a new piece or design. */
+/**
+ * The home screen's shortcuts: a new sale (the main one), a new receipt, a deposit order (I2) and a
+ * new piece or design.
+ */
 export function QuickActions({
   system,
   onNewSale,
   onNewReceipt,
+  onNewOrder,
   onNewProduct,
 }: {
   system: SystemId;
   onNewSale: () => void;
   onNewReceipt: () => void;
+  /** Absent for someone who may not take deposits. */
+  onNewOrder?: () => void;
   /** Absent for someone who may not add pieces. */
   onNewProduct?: () => void;
 }) {
@@ -31,6 +38,14 @@ export function QuickActions({
         onPress={onNewReceipt}
         testID="quick-receipt"
       />
+      {onNewOrder ? (
+        <Shortcut
+          title="طلب بعربون"
+          icon="shippingbox.fill"
+          onPress={onNewOrder}
+          testID="quick-order"
+        />
+      ) : null}
       {onNewProduct ? (
         <Shortcut
           title={system === 'scarves' ? 'تصميم جديد' : 'قطعة جديدة'}
@@ -51,7 +66,7 @@ function Shortcut({
   testID,
 }: {
   title: string;
-  icon: 'cart.badge.plus' | 'doc.text.fill' | 'plus.square.fill';
+  icon: SymbolViewProps['name'];
   main?: boolean;
   onPress: () => void;
   testID: string;

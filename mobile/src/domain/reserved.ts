@@ -65,3 +65,21 @@ export function refuseUnderReserved(ctx: Ctx, productId: number, newStock: numbe
       `${held === 1 ? 'قطعة محجوزة' : `${held} قطع محجوزة`} لزبائن بعربون: لا يقل المخزون عن ${held}.`,
     );
 }
+
+/** A product as the sale screen sees it: its stock less what is held for customers (I2). */
+export function forSale<P extends { id: number; stock: number }>(ctx: Ctx, product: P): P {
+  const held = reservedOf(ctx, product.id);
+  return held ? { ...product, stock: Math.max(0, product.stock - held) } : product;
+}
+
+/** The same for a whole list, with one query. */
+export function listForSale<P extends { id: number; stock: number }>(
+  held: Map<number, number>,
+  products: P[],
+): P[] {
+  if (held.size === 0) return products;
+  return products.map((p) => {
+    const n = held.get(p.id);
+    return n ? { ...p, stock: Math.max(0, p.stock - n) } : p;
+  });
+}
