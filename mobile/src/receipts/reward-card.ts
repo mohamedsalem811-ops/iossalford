@@ -41,7 +41,15 @@ export type CardInput = {
   contact: ShopContact;
   /** Bring a friend (I4), when it is on: the friend's first-purchase discount, the sender's points. */
   friend?: { percent: number; times: number } | null;
+  /** Who the card speaks to: the same card worded for men or for women (default men). */
+  audience?: Audience;
 };
+
+export type Audience = 'men' | 'women';
+export const AUDIENCE_LABELS: Record<Audience, string> = { men: 'للرجال', women: 'للنساء' };
+/** The word for the card's reader: the men's form or the women's. */
+const say = (a: Audience | undefined) => (men: string, women: string) =>
+  a === 'women' ? women : men;
 
 export type CardMode = 'screen' | 'a6' | 'press';
 
@@ -99,9 +107,10 @@ export type CardSection = {
 
 /** The parts of the back, from the rules that are on. Empty: nothing to give yet. */
 export function cardSections(
-  input: Pick<CardInput, 'loyalty' | 'rewards' | 'birthday' | 'friend'>,
+  input: Pick<CardInput, 'loyalty' | 'rewards' | 'birthday' | 'friend' | 'audience'>,
 ): CardSection[] {
   const { loyalty: p, rewards: r, birthday: b, friend: f } = input;
+  const g = say(input.audience);
   const sections: CardSection[] = [];
   if (r.enabled) {
     sections.push({
@@ -128,10 +137,10 @@ export function cardSections(
       title: 'نقاط الولاء',
       lines: [
         per100 > 0
-          ? `كل 100 د.ل تشتري بها تمنحك ${formatLyd(per100)} رصيداً.`
-          : `نقطة لكل ${formatLyd(p.spendPerPoint)} تشتري بها.`,
+          ? `كل 100 د.ل ${g('تشتري', 'تشترين')} بها تمنحك ${formatLyd(per100)} رصيداً.`
+          : `نقطة لكل ${formatLyd(p.spendPerPoint)} ${g('تشتري', 'تشترين')} بها.`,
       ],
-      note: `ادفع بنقاطك حتى ${p.maxShare}% من قيمة الشراء، من ${p.minRedeem} نقطة.`,
+      note: `${g('ادفع', 'ادفعي')} بنقاطك حتى ${p.maxShare}% من قيمة الشراء، من ${p.minRedeem} نقطة.`,
     });
     // VIP gives more points: without the points it would promise nothing.
     if (r.vipPointsTimes > 1)
@@ -139,24 +148,29 @@ export function cardSections(
         short: 'VIP',
         title: 'VIP',
         lines: [
-          `اشترِ بأكثر من ${formatLyd(r.vipSpend)} خلال ${countText(r.vipMonths, MONTHS)} لتصبح VIP.`,
+          `${g('اشترِ', 'اشتري')} بأكثر من ${formatLyd(r.vipSpend)} خلال ${countText(r.vipMonths, MONTHS)} ${g('لتصبح', 'لتصبحي')} VIP.`,
         ],
         note:
           r.vipPointsTimes === 2
-            ? 'وتكسب نقاطاً مضاعفة.'
-            : `وتكسب النقاط ${r.vipPointsTimes} أضعاف.`,
+            ? `${g('وتكسب', 'وتكسبين')} نقاطاً مضاعفة.`
+            : `${g('وتكسب', 'وتكسبين')} النقاط ${r.vipPointsTimes} أضعاف.`,
       });
   }
   // Bring a friend pays the sender in points: only with the points on.
   if (p.enabled && f) {
     sections.push({
-      short: 'أرسلي صديقة',
-      title: 'أرسلي صديقة',
-      lines: [`صديقتك الجديدة تأخذ خصم ${f.percent}% على أول شراء لها.`],
+      short: g('أرسل صديقاً', 'أرسلي صديقة'),
+      title: g('أرسل صديقاً', 'أرسلي صديقة'),
+      lines: [
+        g(
+          `صديقك الجديد يأخذ خصم ${f.percent}% على أول شراء له.`,
+          `صديقتك الجديدة تأخذ خصم ${f.percent}% على أول شراء لها.`,
+        ),
+      ],
       note:
         f.times === 2
-          ? 'وتكسبين نقاطاً مضاعفة عن شرائها.'
-          : `وتكسبين نقاط شرائها ${f.times} أضعاف.`,
+          ? g('وتكسب نقاطاً مضاعفة عن شرائه.', 'وتكسبين نقاطاً مضاعفة عن شرائها.')
+          : g(`وتكسب نقاط شرائه ${f.times} أضعاف.`, `وتكسبين نقاط شرائها ${f.times} أضعاف.`),
     });
   }
   if (birthdayOn(b)) {
@@ -167,7 +181,7 @@ export function cardSections(
       note: [
         `من ${WINDOW_DAYS} أيام قبل يوم ميلادك إلى ${WINDOW_DAYS} أيام بعده، مرة في السنة`,
         b.minSale > 0 ? `على شراء من ${formatLyd(b.minSale)}` : null,
-        `سجّل تاريخ ميلادك عندنا قبل ${NOTICE_DAYS} يوماً على الأقل.`,
+        `${g('سجّل', 'سجّلي')} تاريخ ميلادك عندنا قبل ${NOTICE_DAYS} يوماً على الأقل.`,
       ]
         .filter(Boolean)
         .join('، '),
@@ -198,6 +212,7 @@ export function rewardCardHtml(
 ): string {
   const mode = opts.mode ?? 'screen';
   const l = LOOKS[input.system];
+  const g = say(input.audience);
   // Text that is not the design's own (the fonts, the owner's names and numbers) is kept out of
   // the "u" conversion below, so "shop-5u" or a font's data is never changed.
   const kept: string[] = [];
@@ -242,7 +257,7 @@ export function rewardCardHtml(
       ? `<div class="reach">
     ${c.whatsapp ? `<div class="qr">${keep(qrSvg(`https://wa.me/${whatsappDigits(c.whatsapp)}`, 'calc(76 * var(--u))', l.ink))}</div>` : ''}
     <div class="reach-text">
-      ${c.whatsapp ? `<div class="r1">امسح الرمز لمراسلتنا على واتساب</div><div class="r2" dir="ltr">${e(whatsappText(c.whatsapp))}</div>` : '<div class="r1">تابعنا</div>'}
+      ${c.whatsapp ? `<div class="r1">${g('امسح', 'امسحي')} الرمز لمراسلتنا على واتساب</div><div class="r2" dir="ltr">${e(whatsappText(c.whatsapp))}</div>` : `<div class="r1">${g('تابعنا', 'تابعينا')}</div>`}
       ${socials.length ? `<div class="soc" dir="ltr">${socials.map((k) => `<span>${glyph(k, l.accent)}${e(c[k]!)}</span>`).join('')}</div>` : ''}
     </div>
   </div>`
@@ -268,7 +283,7 @@ export function rewardCardHtml(
   <div class="divider"><span style="background:${l.line}"></span>${STAR(9, l.accent)}<span style="background:${l.line}"></span></div>
   <div class="secs">${sections || '<div class="empty">لا مكافآت مفعّلة الآن.</div>'}</div>
   <div class="foot">
-    <div class="how">سجّل برقم هاتفك عند كل شراء لتُحسب مكافآتك.</div>
+    <div class="how">${g('سجّل', 'سجّلي')} برقم هاتفك عند كل شراء لتُحسب مكافآتك.</div>
     <div class="fine">${[
       'لا تُجمع المكافآت مع أي خصم آخر، ومكافأة واحدة في كل شراء.',
       input.rewards.enabled ? 'الاستبدال لا يُحسب زيارة جديدة.' : null,

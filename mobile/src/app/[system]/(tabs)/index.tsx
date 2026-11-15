@@ -166,7 +166,7 @@ function useGiftReminders(): GiftRemindersProps | undefined {
         `هدية لـ${g.forWhom}`,
         `${g.customerName}${g.occasion ? ` • ${g.occasion}` : ''}`,
         [
-          ...(phones && g.customerPhone
+          ...(phones && g.customerPhone && g.customerOffers
             ? [{ text: 'رسالة واتساب', onPress: () => message(g) }]
             : []),
           { text: 'تم', onPress: () => done(g) },

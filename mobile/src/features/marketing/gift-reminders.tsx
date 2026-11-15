@@ -14,7 +14,8 @@ const when = (days: number) =>
 
 /**
  * The home row a week before a gift's date (I4): what a customer bought last year for someone,
- * and when; a tap offers the WhatsApp reminder, «تم», or her page.
+ * and when; a tap offers the WhatsApp reminder (only if she still accepts messages), «تم», or
+ * her page.
  */
 export function GiftRemindersCard({ gifts, phones, onGift }: GiftRemindersProps) {
   if (!gifts.length) return null;
@@ -28,7 +29,14 @@ export function GiftRemindersCard({ gifts, phones, onGift }: GiftRemindersProps)
             icon="gift"
             tone="warning"
             title={`${shownName(g.customerName, phones)}: هدية لـ${g.forWhom}`}
-            subtitle={[g.occasion, `${g.day}/${g.month}`, when(g.days)].filter(Boolean).join(' • ')}
+            subtitle={[
+              g.occasion,
+              `${g.day}/${g.month}`,
+              when(g.days),
+              g.customerOffers ? null : 'لا تريد رسائل',
+            ]
+              .filter(Boolean)
+              .join(' • ')}
             onPress={() => onGift(g)}
             testID={`gift-reminder-${g.id}`}
           />

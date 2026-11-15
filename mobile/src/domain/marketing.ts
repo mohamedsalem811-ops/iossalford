@@ -236,6 +236,8 @@ export type Gift = {
   customerId: number;
   customerName: string;
   customerPhone: string | null;
+  /** She accepts messages (يقبل العروض): off, the reminder is shown without WhatsApp. */
+  customerOffers: boolean;
   saleId: number | null;
   forWhom: string;
   occasion: string | null;
@@ -250,6 +252,7 @@ type GiftRow = {
   customer_id: number;
   name: string;
   phone: string | null;
+  offers: number | null;
   sale_id: number | null;
   for_whom: string;
   occasion: string | null;
@@ -263,6 +266,7 @@ const toGift = (r: GiftRow): Gift => ({
   customerId: r.customer_id,
   customerName: r.name,
   customerPhone: r.phone,
+  customerOffers: !!r.offers,
   saleId: r.sale_id,
   forWhom: r.for_whom,
   occasion: r.occasion,
@@ -271,7 +275,7 @@ const toGift = (r: GiftRow): Gift => ({
   doneYear: r.done_year,
   createdAt: r.created_at,
 });
-const GIFT_SELECT = `SELECT g.*, c.name, c.phone FROM gifts g JOIN customers c ON c.id = g.customer_id`;
+const GIFT_SELECT = `SELECT g.*, c.name, c.phone, c.offers FROM gifts g JOIN customers c ON c.id = g.customer_id`;
 
 /** Checks what was typed at checkout ("هدية لمن؟"), before the sale is saved. */
 export function checkGift(g: GiftInput): GiftInput {

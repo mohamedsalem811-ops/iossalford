@@ -120,6 +120,11 @@ describe('gift memory', () => {
     expect(giftReminders(ctx)).toEqual([]);
     ctx.setNow(new Date(2027, 10, 8));
     expect(giftReminders(ctx)).toMatchObject([{ id: g.id, days: 6 }]);
+    // Whether she still accepts messages decides the WhatsApp button (the row shows either way).
+    ctx.db.run('UPDATE customers SET offers = 0 WHERE id = ?', [g.customerId]);
+    expect(giftReminders(ctx)[0].customerOffers).toBe(false);
+    ctx.db.run('UPDATE customers SET offers = 1 WHERE id = ?', [g.customerId]);
+    expect(giftReminders(ctx)[0].customerOffers).toBe(true);
     markGiftDone(ctx, g.id);
     expect(giftReminders(ctx)).toEqual([]);
     // And again the year after.

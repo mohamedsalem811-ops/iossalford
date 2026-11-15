@@ -881,13 +881,13 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
   - «عرض «نفتقدك»» when she has one.
   - «هدية؟ نذكّرك السنة القادمة»: for whom, the occasion, the day and month.
 - **The thank-you:** «رسالة شكر (واتساب)» on the sold screen and the sale page, for every customer with a phone (it is not an offer), remembered per sale. The sale page also shows the friend's gift and the offer.
-- **Home:** «تذكير الهدايا» a week before a gift's date (saved in an earlier year). A tap offers the WhatsApp reminder (then it is done for the year), «تم», or the customer's page. Shown on both homes, to whoever may edit customers.
+- **Home:** «تذكير الهدايا» a week before a gift's date (saved in an earlier year). A tap offers the WhatsApp reminder (then it is done for the year), «تم», or the customer's page. Shown on both homes, to whoever may edit customers. If she no longer accepts messages (يقبل العروض off), the row still shows, marked «لا تريد رسائل», without the WhatsApp button.
 - **The customer's page:**
   - her offer;
   - who sent her, or «من أرسلها؟» before her first purchase;
   - the friends she sent, with the points each brought;
   - her gifts (a tap deletes one).
-- **The rewards card:** an «أرسلي صديقة» part when it is on (only with the points), between VIP and the birthday. The back still fits with all five parts.
+- **The rewards card, for men and for women** (owner's choice, 2026-11-15): the card screen has «للنساء / للرجال». Each version speaks to its reader throughout (اشتري / اشترِ، وتكسبين / وتكسب، سجّلي / سجّل، امسحي / امسح، تابعينا / تابعنا), and each is shared, saved or printed on its own, with "women" or "men" in the file name. Bring a friend adds «أرسلي صديقة» or «أرسل صديقاً» when it is on (only with the points), between VIP and the birthday. Both backs still fit with all five parts.
 - **Tests:** the rules (15), the card part, and a screen flow:
   - a friend's gift and a gift saved at checkout;
   - the thank-you;
