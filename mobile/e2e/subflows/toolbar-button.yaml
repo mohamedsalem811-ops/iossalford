@@ -1,0 +1,16 @@
+# Taps the button ${LABEL} of the screen's toolbar. In a narrow pane (the iPad mini's section pane,
+# 444 points beside the Management menu, with the tab bar across the middle of the top) iOS folds
+# the toolbar into «More» (•••) and the button is in its menu (run 66: «زبون جديد» and
+# «متابعة الزبائن» were not on screen, only Search and More).
+appId: com.salford.pos
+---
+- extendedWaitUntil:
+    visible: '${LABEL}|More'
+    timeout: 15000
+- runFlow:
+    when:
+      notVisible: ${LABEL}
+    commands:
+      - tapOn:
+          id: 'OverflowBarButtonItem'
+- tapOn: ${LABEL}

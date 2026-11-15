@@ -85,8 +85,10 @@ appId: com.salford.pos
 - inputText: '100'
 - tapOn:
     id: 'keyboard.toolbar.done'
-- tapOn:
-    id: 'order-buy-save'
+# The sheet's own «حفظ» (the same save as the «تم الشراء» button). Run 66 (iPad): the sheet opens
+# at 70% height, centred, and the button was laid out below its edge (y 865-913 of 1133, the
+# sheet ends near 876); the tap landed on the dimmed screen behind it and closed the sheet unsaved.
+- tapOn: 'حفظ'
 - extendedWaitUntil:
     visible:
       id: 'order-arrived'

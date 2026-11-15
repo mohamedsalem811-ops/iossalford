@@ -10,10 +10,10 @@ appId: com.salford.pos
     file: subflows/open-section.yaml
     env:
       ID: 'manage-customers'
-- extendedWaitUntil:
-    visible: 'زبون جديد'
-    timeout: 15000
-- tapOn: 'زبون جديد'
+- runFlow:
+    file: subflows/toolbar-button.yaml
+    env:
+      LABEL: 'زبون جديد'
 - tapOn:
     id: 'customer-name'
 - inputText: 'Noor'
@@ -57,8 +57,13 @@ appId: com.salford.pos
     visible: '.*سوار ذهب.*'
     timeout: 10000
 - takeScreenshot: ${DEVICE}-customer-wanted
-- tapOn: 'الزبائن'
-- tapOn: 'متابعة الزبائن'
+# Back to the list by the back button's id: in the iPad's narrow pane its title may be left out.
+- tapOn:
+    id: 'BackButton'
+- runFlow:
+    file: subflows/toolbar-button.yaml
+    env:
+      LABEL: 'متابعة الزبائن'
 - assertVisible: 'أعياد ميلاد هذا الأسبوع'
 - takeScreenshot: ${DEVICE}-care-birthdays
 - tapOn: 'التقرير'

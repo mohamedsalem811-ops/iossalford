@@ -59,7 +59,10 @@ appId: com.salford.pos
     file: subflows/open-section.yaml
     env:
       ID: 'manage-customers'
-- tapOn: 'زبون جديد'
+- runFlow:
+    file: subflows/toolbar-button.yaml
+    env:
+      LABEL: 'زبون جديد'
 - extendedWaitUntil:
     visible:
       id: 'customer-name'
@@ -83,7 +86,10 @@ appId: com.salford.pos
     timeout: 30000
 - assertVisible:
     id: 'avatar-female'
-- tapOn: 'زبون جديد'
+- runFlow:
+    file: subflows/toolbar-button.yaml
+    env:
+      LABEL: 'زبون جديد'
 - extendedWaitUntil:
     visible:
       id: 'customer-name'

@@ -47,7 +47,10 @@ appId: com.salford.pos
     file: subflows/open-section.yaml
     env:
       ID: 'manage-customers'
-- tapOn: 'زبون جديد'
+- runFlow:
+    file: subflows/toolbar-button.yaml
+    env:
+      LABEL: 'زبون جديد'
 - tapOn:
     id: 'customer-name'
 - inputText: 'Huda'

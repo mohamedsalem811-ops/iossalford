@@ -6,11 +6,12 @@
  *   node scripts/driver-killed-flows.mjs failed <run folder>   flows that failed on their own
  *
  * Maestro drives the app through one XCTest case on the simulator. If that case stops (run 65 on
- * iPad: XCTest could not read the system keyboard's window after 30 minutes), XCTest relaunches the
- * runner with no test to run, nothing answers Maestro any more, and every flow after it "fails" in
- * seconds with a command left running and no failed command. Those flows were never tested, so the
- * workflow runs them again once. A flow with a failed command failed by itself and still fails the
- * job. Without XCTest's restart message in the runner log, nothing is listed as cut off.
+ * iPad: XCTest could not read the system keyboard's window after 30 minutes; run 66: it could not
+ * resolve the status bar's element after 3 hours), nothing answers Maestro any more: the flow it was
+ * in stops with a command left running, and every flow after it "fails" in seconds the same way.
+ * Those flows were never tested, so the workflow runs them again once. A flow with a failed command
+ * failed by itself and still fails the job. Unless the runner log shows the case ended, nothing is
+ * listed as cut off.
  *
  * Prints the flows as e2e/<name>.yaml, separated by spaces (nothing when there are none).
  */
@@ -23,12 +24,20 @@ if (!['killed', 'failed'].includes(mode) || !runDir) {
   process.exit(2);
 }
 
+// Maestro's driver is one XCTest case that runs for the whole run, so it never ends by itself.
+// Run 65 (iPad): it failed after 30 minutes and XCTest restarted the runner. Run 66 (iPad): it
+// failed after 3 hours 15 minutes (XCTest could not resolve the status bar's element), without the
+// restart message. Both logs have the case's end.
+const STOPPED = [
+  /Test Case '[^']*testHttpServer\]' (failed|passed)/,
+  /Restarting after unexpected exit/,
+];
 const entries = readdirSync(runDir, { withFileTypes: true });
 const driverStopped = entries.some(
   (e) =>
     e.isFile() &&
     e.name.startsWith('xctest_runner') &&
-    readFileSync(join(runDir, e.name), 'utf8').includes('Restarting after unexpected exit'),
+    STOPPED.some((re) => re.test(readFileSync(join(runDir, e.name), 'utf8'))),
 );
 
 const statuses = (flow) => {
