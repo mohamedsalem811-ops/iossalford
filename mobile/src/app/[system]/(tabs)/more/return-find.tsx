@@ -19,7 +19,7 @@ import { findSaleForReturn, hoursSince, type ReturnableSale } from '@/domain/sal
 import { useReadable } from '@/hooks/use-readable';
 import { formatDate, formatTime } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
-import { useOnDataChanged } from '@/state/data-events';
+import { useOnDataChanged, useRead } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { Allowed } from '@/staff/allowed';
 import { spacing, useTheme } from '@/theme';
@@ -34,7 +34,8 @@ function ReturnFindScreen() {
   const { colors } = useTheme();
   const [text, setText] = useState('');
   const [found, setFound] = useState<ReturnableSale | null | undefined>();
-  const hours = getPolicies(ctx).returnHours;
+  // Read again after each change (useRead): the hours follow a change made on the policies page.
+  const hours = useRead(() => getPolicies(ctx).returnHours);
 
   const [query, setQuery] = useState('');
   const look = useCallback(

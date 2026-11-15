@@ -56,6 +56,13 @@ appId: com.salford.pos
 - assertVisible: 'تم الحفظ'
 - tapOn: 'OK'
 - takeScreenshot: ${DEVICE}-loyalty-rules
+# Run 65: the page stays scrolled to its save button, and iOS keeps the tab bar minimised to the
+# current tab (minimizeBehavior onScrollDown): بيع was not on screen. Scrolling back up brings
+# the whole tab bar back.
+- scrollUntilVisible:
+    element: 'بيع'
+    direction: UP
+    timeout: 30000
 # First sale: earns 35 points.
 - tapOn: 'بيع'
 - tapOn:

@@ -26,7 +26,8 @@ appId: com.salford.pos
 # Her home: the closed shift at the top, her shortcuts without the owner's second row.
 - assertVisible:
     id: 'open-shift'
-- assertVisible: 'الوردية مغلقة: افتحها للبيع'
+# The bar is one button, read with its second line («…، عدّ النقد في الدرج وافتح الوردية»).
+- assertVisible: '.*الوردية مغلقة: افتحها للبيع.*'
 - assertNotVisible:
     id: 'quick-product'
 - assertNotVisible:

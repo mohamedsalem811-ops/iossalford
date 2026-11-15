@@ -86,9 +86,20 @@ appId: com.salford.pos
 - tapOn:
     id: 'checkout-gift-for'
 - inputText: 'Mama'
+# Run 65: the day and month fields were under the keyboard, so their taps typed «i» and «e» into
+# «لمن الهدية؟» («Mamai21e3») and the sale stopped at «تاريخ المناسبة غير صحيح». The keyboard is
+# closed and the day brought into view first.
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-gift-day'
 - tapOn:
     id: 'checkout-gift-day'
 - inputText: '21'
+- tapOn:
+    id: 'keyboard.toolbar.done'
 - tapOn:
     id: 'checkout-gift-month'
 - inputText: '3'

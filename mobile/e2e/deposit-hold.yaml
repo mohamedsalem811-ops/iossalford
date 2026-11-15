@@ -70,7 +70,10 @@ appId: com.salford.pos
     file: subflows/open-section.yaml
     env:
       ID: 'manage-customers'
-- tapOn: 'Huda'
+# Run 65: a customer row is read as one element («صورة زبون, Huda, 0927777777, لا مشتريات»), so
+# the bare name never matched it; the row's id does.
+- tapOn:
+    id: 'customer-Huda'
 - runFlow:
     file: subflows/scroll-form.yaml
     env:

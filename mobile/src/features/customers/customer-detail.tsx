@@ -16,7 +16,7 @@ import { showError } from '@/features/products/actions';
 import { saleSummary } from '@/features/sales/model';
 import { formatDate } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
-import { notifyDataChanged } from '@/state/data-events';
+import { notifyDataChanged, useRead } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
 import { MemberCard } from './member-card';
@@ -75,6 +75,18 @@ export function CustomerDetail({
   const fullPhone = useCan('customers.phones');
   /** An employee without the grant sees the purchases without their amounts (G1). */
   const exact = useCan('customers.spend');
+  const id = c?.id;
+  // Her card's badge, points and visit dots, read again after each change (useRead): a sale or a
+  // reward shows on her card as soon as her page is back.
+  const member = useRead(() =>
+    id === undefined
+      ? null
+      : {
+          badge: customerStats(ctx, id).badge,
+          points: getLoyalty(ctx).enabled ? pointsBalance(ctx, id) : null,
+          dots: rewardStatus(ctx, id)?.dots ?? null,
+        },
+  );
   if (!c) return <EmptyState icon="person" title="الزبون غير موجود" />;
   const owed = balanceText(balance);
 
@@ -140,9 +152,9 @@ export function CustomerDetail({
           name={shownName(c.name, fullPhone)}
           gender={c.gender}
           imageFile={c.imageFile}
-          badge={customerStats(ctx, c.id).badge}
-          points={getLoyalty(ctx).enabled ? pointsBalance(ctx, c.id) : null}
-          dots={rewardStatus(ctx, c.id)?.dots ?? null}
+          badge={member?.badge ?? 'new'}
+          points={member?.points ?? null}
+          dots={member?.dots ?? null}
           avatarSize={72}
           avatarTestID="customer-avatar"
           testID="customer-member"

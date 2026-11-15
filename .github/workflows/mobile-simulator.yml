@@ -167,6 +167,33 @@ jobs:
                 xcrun simctl install "$UDID" "$APP"
                 continue
               fi
+              # The driver can also stop in the middle of the run (run 65, iPad: XCTest could not
+              # read the keyboard's window and ended its only test). Every flow after that "fails"
+              # in seconds without being tested. Those flows run once more on a restarted
+              # simulator; a flow that failed by itself still fails the job.
+              RUN_DIR=$(ls -d "maestro-output/$KIND"/*/ 2>/dev/null | tail -1)
+              CUT_OFF=''
+              [ -n "$RUN_DIR" ] && CUT_OFF=$(node scripts/driver-killed-flows.mjs killed "$RUN_DIR")
+              if [ -n "$CUT_OFF" ]; then
+                FAILED=$(node scripts/driver-killed-flows.mjs failed "$RUN_DIR")
+                echo "== The Maestro driver stopped on $KIND; running again the flows it cut off: $CUT_OFF"
+                pkill -f xcodebuild || true
+                xcrun simctl shutdown "$UDID" || true
+                xcrun simctl erase "$UDID"
+                xcrun simctl boot "$UDID"
+                xcrun simctl bootstatus "$UDID" -b
+                xcrun simctl install "$UDID" "$APP"
+                set +e
+                # shellcheck disable=SC2086 # one flow file per word
+                maestro --device "$UDID" test -e DEVICE="$KIND" --test-output-dir "maestro-output/$KIND-again" $CUT_OFF 2>&1 | tee "maestro-$KIND-again.log"
+                STATUS=${PIPESTATUS[0]}
+                set -e
+                if [ -n "$FAILED" ]; then
+                  echo "== Failed before the driver stopped: $FAILED"
+                  exit 1
+                fi
+                [ "$STATUS" -eq 0 ] && break
+              fi
               exit "$STATUS"
             done
             xcrun simctl shutdown "$UDID"

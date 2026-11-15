@@ -70,6 +70,11 @@ appId: com.salford.pos
 - inputText: 'Mona'
 - tapOn:
     id: 'keyboard.toolbar.done'
+# Run 65: the save button was below the screen; it is brought into view first.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'customer-save'
 - tapOn:
     id: 'customer-save'
 - extendedWaitUntil:
@@ -88,6 +93,11 @@ appId: com.salford.pos
 - inputText: 'Nour'
 - tapOn:
     id: 'keyboard.toolbar.done'
+# Run 65: the save button was below the screen; it is brought into view first.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'customer-save'
 - tapOn:
     id: 'customer-save'
 - extendedWaitUntil:

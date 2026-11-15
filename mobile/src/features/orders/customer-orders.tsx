@@ -5,6 +5,7 @@ import type { Ctx } from '@/domain/context';
 import { listOrders, STATUS_LABELS } from '@/domain/orders';
 import { dayKey } from '@/lib/dates';
 import { useCan } from '@/staff/use-can';
+import { useRead } from '@/state/data-events';
 
 import { moneyLine, needsAttention, statusLine } from './model';
 
@@ -14,11 +15,18 @@ import { moneyLine, needsAttention, statusLine } from './model';
  */
 export function CustomerOrders({ ctx, customerId }: { ctx: Ctx; customerId: number }) {
   const mayTake = useCan('orders.take');
+  // Read again after each change (useRead): a deposit taken for her shows when her page is back.
+  const { open, done } = useRead(() =>
+    mayTake
+      ? {
+          open: listOrders(ctx, { customerId, show: 'open' }),
+          done: listOrders(ctx, { customerId, show: 'done' }, { limit: 5, offset: 0 }),
+        }
+      : { open: [], done: [] },
+  );
   if (!mayTake) return null;
   const system = ctx.system;
   const today = dayKey(ctx.now());
-  const open = listOrders(ctx, { customerId, show: 'open' });
-  const done = listOrders(ctx, { customerId, show: 'done' }, { limit: 5, offset: 0 });
   const isOpen = (status: string) => status !== 'delivered' && status !== 'cancelled';
   return (
     <ListGroup header={`الطلبات بعربون (${open.length})`}>

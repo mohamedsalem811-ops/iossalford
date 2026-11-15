@@ -1,4 +1,3 @@
-import { useReducer } from 'react';
 import { Alert, Pressable, ScrollView, View } from 'react-native';
 
 import { Appear, Button, Card, EmptyState, Icon, Stepper, Text } from '@/components';
@@ -13,7 +12,7 @@ import { getRate } from '@/domain/settings';
 import { parseThousandths } from '@/lib/digits';
 import { editableDinars, formatLyd, formatRate, formatUsd } from '@/lib/money';
 import { useCart } from '@/state/cart';
-import { useOnDataChanged } from '@/state/data-events';
+import { useRead } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
 import { showCartProblem } from './actions';
@@ -41,17 +40,18 @@ export function CartView({
   const { cart, setCart } = useCart(ctx.system);
   // An employee sells only with a shift open (S5, I3).
   const locked = useSellLock(ctx);
-  // Stock or prices changed elsewhere (a delivery, an edit): check the lines again.
-  const [, recheck] = useReducer((n: number) => n + 1, 0);
-  useOnDataChanged(recheck);
-  const rate = getRate(ctx);
-  const totals = cartTotals(cart, rate);
   // Pieces held for customers by a deposit are not free to sell (I2).
   const free = (id: number) => {
     const p = getProduct(ctx, id);
     return p ? forSale(ctx, p) : undefined;
   };
-  const warnings = stockWarnings(cart, free);
+  // Stock or prices changed elsewhere (a delivery, an edit): check the lines again (useRead reads
+  // after each change and when the cart changes).
+  const { rate, warnings } = useRead(() => ({
+    rate: getRate(ctx),
+    warnings: stockWarnings(cart, free),
+  }));
+  const totals = cartTotals(cart, rate);
 
   const changeQuantity = (line: CartLine, quantity: number) => {
     const stock = free(line.productId)?.stock ?? 0;

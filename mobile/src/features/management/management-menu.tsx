@@ -9,7 +9,7 @@ import { logError } from '@/lib/error-log';
 import { haptic } from '@/lib/haptics';
 import { showError } from '@/features/products/actions';
 import { clockMessage } from '@/staff/clock';
-import { acceptDeviceTime, clockGuard, useClockChanges, useLogAlerts } from '@/staff/guards';
+import { acceptDeviceTime, useClockBehind, useLogAlerts } from '@/staff/guards';
 import { ManagementScreen, type ManageTarget } from '@/screens/management';
 import { useLock } from '@/state/lock';
 import { actorName, type Actor } from '@/staff/model';
@@ -121,9 +121,8 @@ export function ManagementMenu({
       logError('نسخة عند القفل أو التبديل', error);
     }
   };
-  useClockChanges();
-  const latest = clockGuard.latest();
-  const clock = latest && clockGuard.behind(ctx.now()) ? clockMessage(latest) : null;
+  const behindSince = useClockBehind(ctx.now);
+  const clock = behindSince ? clockMessage(behindSince) : null;
   useFocusEffect(useCallback(() => setReminder(read()), [read]));
   const logBroken = useLogAlerts((s) => (s.broken[system]?.length ?? 0) > 0);
   const acceptClock = () =>

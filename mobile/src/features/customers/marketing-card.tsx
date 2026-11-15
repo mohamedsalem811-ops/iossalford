@@ -19,7 +19,7 @@ import { haptic } from '@/lib/haptics';
 import { formatDayKey } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
 import { useCan } from '@/staff/use-can';
-import { notifyDataChanged } from '@/state/data-events';
+import { notifyDataChanged, useRead } from '@/state/data-events';
 import { spacing } from '@/theme';
 
 /**
@@ -31,11 +31,16 @@ export function MarketingCard({ ctx, customerId }: { ctx: Ctx; customerId: numbe
   const mayEdit = useCan('customers.edit');
   const fullNames = useCan('customers.phones');
   const [asking, setAsking] = useState(false);
-  const offer = activeOffer(ctx, customerId);
-  const status = friendStatus(ctx, customerId);
-  const friends = friendOn(ctx) ? friendsOf(ctx, customerId) : [];
-  const gifts = listGifts(ctx, customerId);
-  const mayAsk = mayEdit && !status && friendOn(ctx) && firstPurchase(ctx, customerId);
+  // Read again after each change (useRead): a gift deleted here, or an offer given elsewhere,
+  // shows at once.
+  const { offer, status, friends, gifts, first } = useRead(() => ({
+    offer: activeOffer(ctx, customerId),
+    status: friendStatus(ctx, customerId),
+    friends: friendOn(ctx) ? friendsOf(ctx, customerId) : [],
+    gifts: listGifts(ctx, customerId),
+    first: friendOn(ctx) && firstPurchase(ctx, customerId),
+  }));
+  const mayAsk = mayEdit && !status && first;
   const run = (f: () => void) => {
     try {
       f();
