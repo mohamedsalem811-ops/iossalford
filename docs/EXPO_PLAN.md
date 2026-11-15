@@ -770,6 +770,64 @@ The owner chose these on 2026-11-14 and, after the plan was checked against the 
 - the card page (Settings → الولاء والمكافآت → بطاقة المكافآت): preview, the print-shop PDF (127 × 170 mm: A6 with 3 mm bleed and the crop-mark margin; front, then back), a test print on A6 and save to Files; the review reminder clears when the card is printed, saved, or sent and confirmed (iOS can't tell a sent file from a closed share sheet);
 - new simulator flows `e2e/birthday-discount.yaml` and `e2e/reward-card.yaml`, run only in the final simulator run; `e2e/loyalty-points.yaml` scrolls past the setup list.
 
+### Customers I1 to I4: deposit orders, the membership card, the shift bar, marketing (after H1 to H3)
+
+The owner chose these on 2026-11-15, from the plan page and the seven card designs. Nothing is built until the owner says go. Database 12, so one new `.ipa`; the work starts once PR #34 (database 11) is merged. Each part is its own pull request, with Jest tests, `npm run check` and the speed test; simulator flows are written but run only when the owner asks.
+
+**Owner's answers (2026-11-15):**
+
+- **Deposits (عربون):** for a piece ordered for a customer (Swarovski, Tiffany, Pandora…) and for holding a piece in stock (حجز), in both shops:
+  - at least **50%** of the agreed price; less only with the owner's approval;
+  - the price is **fixed** once the deposit is taken;
+  - stages: بانتظار الشراء → **تم الشراء من المورد** → وصلت → سُلّمت, or ملغاة;
+  - "تم الشراء" is the owner's: he enters the cost and types the expected arrival date; only the owner types or changes the date, staff see it (and the customer is offered a WhatsApp message with the date);
+  - cancelled **before** "تم الشراء": the customer chooses her balance (له رصيد) or a refund the way she paid (cash, card or transfer); staff need the owner's approval;
+  - cancelled **after** "تم الشراء": not refunded, the deposit stays with the shop (owner only); the owner may move it to her balance as an exception;
+  - a **hold** is refundable at any time (balance, or the way she paid);
+  - staff may take deposits, add payments, mark arrived and deliver;
+  - reminders on the home screen: orders without a date, late orders, pieces arrived but not collected after 14 days (with a WhatsApp message), holds not collected after 14 days;
+  - the deposit receipt prints the owner's policy line, default "العربون يُسترد قبل طلب القطعة من المورد، ولا يُسترد بعد طلبها. عربون حجز قطعة موجودة يُسترد.".
+- **Customer card:** design B, the membership card: black and gold for VIP, the shop colour for returning customers, ivory for new ones; her name, points and visit dots on the card, the things to act on in rows under it.
+- **Shift bar** at the top of an employee's home; selling locked until the shift is open; the close-shift reminder at 9 pm, in the app.
+- **Shortcuts:** طلب بعربون, مرتجع, دفعة دين, زبون; for the owner a second row with إيصال جديد and قطعة جديدة.
+- **Marketing,** every message typed by the owner, with fill-ins (name, occasion, date):
+  - gift memory: at checkout, who the gift is for and the occasion date, and "نذكّرك السنة القادمة؟"; a week before next year, a home-screen row;
+  - occasion calendar: Valentine's Day and Mother's Day set, Ramadan and the Eids typed each year; the owner picks who gets each (only customers who accept offers);
+  - thank-you after a purchase: to every customer with a phone (not an offer), one message;
+  - bring a friend: a new customer picks who sent her; she gets 2% off her first purchase (no minimum; a reward, so never with another discount); the customer who sent her gets double the points that purchase earns, taken back if it is fully returned; printed on the rewards card; needs points on;
+  - VIP first look: the message only;
+  - we miss you: the owner picks frequent buyers who haven't come back; each gets a real one-time discount (the owner's percent, cap and days), used at checkout like the birthday discount, and the report shows who came back.
+- **Not possible here:** phone notifications while the app is closed (native code; also a risk for a Sideloadly install) and sending WhatsApp messages automatically (a paid online service). Reminders show in the app; each message opens WhatsApp ready, and the person sends it; the app remembers who it was opened for.
+
+**Code check before building (2026-11-15).** Reading the code for each part found what the plan must also cover:
+
+1. **Money paid before the sale:** the delivery sale keeps `deposit_used`, like `points_paid`; every sum of money taken uses `total − points_paid − deposit_used` (shift expected cash, the day summary by method, the shift and day reports), and a credit sale's debt is `total − deposit_used` (today `debts.balance` counts the whole total).
+2. **The agreed price at delivery** is the line's list price, so it is not a discount: no approval, and rewards still work.
+3. **Reserved stock:** available = stock − reserved; a reserved piece can't be sold to anyone else, on the sale screen or at checkout; a special-order piece shows "محجوز لـ …" in Products and can't be edited, archived or deleted until it is delivered or the order cancelled.
+4. **Cost:** staff can't see costs (`costs.view`), so the owner enters the cost at "تم الشراء" (USD or LYD, as in the product form); "وصلت" then needs none.
+5. **Deposit to her balance:** a payment with method `order` (not cash): it shows on her statement as credit, checkout can use it (R4.2), and the drawer is not touched.
+6. **Receipts:** a deposit receipt can't be edited or deleted while its order exists (`deleteReceipt` has no such check today); the 5 designs print the deposit lines, and the delivery receipt prints the deposit paid and its receipt number.
+7. **Customers:** the merge also moves orders, gifts, offers, referrals and the message log; deleting a customer with orders is refused.
+8. **Backups and photos:** the new tables join `TABLES` in order; order photos join the backup's photo list (`photoNames`) and `photoInUse`, or a photo cleanup could delete them.
+9. **Points:** `loyalty_moves` kinds are fixed by a CHECK, and `reverseOnReturn` only sees the sale's own customer, so the referral bonus is its own record (`referrals`) with an `adjust` move, taken back separately when the friend's first sale is fully returned.
+10. **Shift lock:** the sale tab sells too, so the cart's checkout button is locked with the same message, not only the home shortcut. The `open-shift` id stays (5 simulator flows use it).
+11. **Customer card:** the ids the simulator flows use stay (`checkout-known`, `-facts`, `-birthday`, `-more`, `customer-card`); the customer's photo (F2) goes on the card; points show only when points are on and visit dots only when the visit reward is on; the same card heads the customer page.
+12. **Reports:** a deposit kept by the shop is income: `reports.summary` and the quarterly closing gain a line (`closings.other_income`); deposits held show on the reports page.
+13. **Exchanges** pass the new rewards as off, like the birthday discount.
+14. **Approvals:** new purposes for a deposit under 50% and for cancelling an order.
+15. **Permissions:** `orders.take`, `orders.deliver` (employees yes), `orders.purchase`, `orders.cancel` (owner), each in the permission test with its log entry.
+
+**Database 12:** tables `orders`, `order_payments`, `gifts`, `referrals`, `offers`, `message_log` (each with unique ids and the device); `sales.deposit_used`, `sales.friend_off`, `sales.offer_off`; `receipts.kind`, `receipts.order_id`, `receipts.deposit`, `receipts.friend_off`, `receipts.offer_off`; `customers.referred_by`; `closings.other_income`. Settings, with no schema change: the deposit policy line, message templates, occasions, the shift reminder time, the referral and offer rules.
+
+**Parts:**
+
+- **I1 – deposit rules:** database 12, orders and payments, checkout delivery, money in every report, receipts, backups, merge, tests (including the upgrade to 12 from 10 and 11).
+- **I2 – deposit screens:** new order and hold, the orders list, the order page (تم الشراء, وصلت, deliver, cancel), the home shortcut, WhatsApp messages, dashboard rows, the customer page section.
+- **I3 – the look:** customer card B, the shift bar and the sale lock, the shortcuts.
+- **I4 – marketing:** gift memory, occasions, thank-you, bring a friend (with the rewards card), VIP first look, we miss you, the message templates and the step-by-step sender.
+
+**Open question for the owner:** can a special-order piece be returned under the normal return rules, or not at all?
+
 ### Phase 10: switching over
 
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):
