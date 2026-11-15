@@ -1,7 +1,10 @@
 # Adds "Ring Zircon" (Pandora, 350 د.ل, cost 200, 3 in stock) from the Products tab.
 appId: com.salford.pos
 ---
-- tapOn: 'المنتجات'
+- runFlow:
+    file: open-tab.yaml
+    env:
+      TAB: 'المنتجات'
 - tapOn: 'إضافة قطعة'
 - extendedWaitUntil:
     visible:

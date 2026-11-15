@@ -57,14 +57,13 @@ appId: com.salford.pos
 - tapOn: 'OK'
 - takeScreenshot: ${DEVICE}-loyalty-rules
 # Run 65: the page stays scrolled to its save button, and iOS keeps the tab bar minimised to the
-# current tab (minimizeBehavior onScrollDown): بيع was not on screen. Scrolling back up brings
-# the whole tab bar back.
-- scrollUntilVisible:
-    element: 'بيع'
-    direction: UP
-    timeout: 30000
+# current tab (minimizeBehavior onScrollDown): بيع was not on screen. Run 66: scrolling back up
+# did not bring the bar back; open-tab taps the minimised bar.
 # First sale: earns 35 points.
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:

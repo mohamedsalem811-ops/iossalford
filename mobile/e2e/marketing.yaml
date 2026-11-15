@@ -52,8 +52,12 @@ appId: com.salford.pos
 - tapOn: 'تقرير'
 - assertVisible:
     id: 'marketing-report'
-# A sale to a new customer, with a gift to remember.
-- tapOn: 'بيع'
+# A sale to a new customer, with a gift to remember. Run 66: the tab bar was still minimised from
+# the scrolled templates (only الإدارة on screen).
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:

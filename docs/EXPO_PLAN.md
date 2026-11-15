@@ -920,6 +920,9 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
   - The test iPad is an iPad mini: the section pane beside the Management menu is 444 points wide with the tab bar across the top, and iOS folds the customers toolbar («زبون جديد», «متابعة الزبائن») into «More» (•••). The flows use `e2e/subflows/toolbar-button.yaml`, which opens «More» when needed.
   - The purchase sheet of a deposit order opens at 70% height, centred on iPad, and its «تم الشراء» button was laid out below the sheet's edge: the tap closed the sheet unsaved (the device log has no save). The flow uses the sheet's «حفظ».
   - Maestro's driver stopped again after 3 hours (XCTest could not read the status bar) without run 65's restart message, so its 3 cut-off flows were not run again; the workflow now also recognises the driver's test case ending.
+- **Simulator run 66, iPhone:** 33 of 36 passed, with every run 65 fix that ran there (customer-care with the wanted piece shown at once, deposit-hold, specs-portraits, customer-card, the gift dates in marketing). The three left are the tab bar:
+  - Once a page is scrolled down, iOS shrinks the tab bar to the current tab alone, and scrolling back up did not bring it back (loyalty-points, and marketing even on a page that was not scrolled). `e2e/subflows/open-tab.yaml` taps the shrunken bar first; a screenshot is kept to show it opens.
+  - A tap on المنتجات reached the app (touch down and up in the device log) but the tab did not change (shift-bar-shortcuts); the cause is not known. open-tab checks the tab is selected and otherwise keeps a screenshot and taps once more.
 
 ### Phase 10: switching over
 
