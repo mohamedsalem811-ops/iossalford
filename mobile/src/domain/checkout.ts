@@ -19,6 +19,16 @@ import { earnOnSale, getLoyalty, pointsBalance, redeemOnSale } from './loyalty';
 import { getRewards, type RewardRules } from './rewards';
 import { rewardCart, rewardStatus } from './visit-reward';
 import { birthdayStatus, getBirthday } from './birthday';
+import {
+  activeOffer,
+  checkGift,
+  friendStatus,
+  linkReferrer,
+  rewardReferrer,
+  saveGift,
+  spendOffer,
+  type GiftInput,
+} from './marketing';
 import { countText, PURCHASES_LEFT } from '@/lib/arabic-count';
 import { displayName, getProduct, moveStock, type Product } from './products';
 import { deliveredBy, depositReceiptNos, orderForDelivery, type Order } from './orders';
@@ -104,6 +114,13 @@ export type CheckoutInput = {
    * price here), the customer is the order's, and the deposit paid comes off what is paid now.
    */
   orderId?: number;
+  /** Gift memory (I4): who the gift is for and the occasion date, to remind her next year. */
+  gift?: GiftInput;
+  /** Bring a friend (I4): who sent this new customer, and her first-purchase gift. */
+  referrerId?: number;
+  friend?: boolean;
+  /** Use the customer's "we miss you" offer (I4). */
+  offer?: boolean;
 };
 
 export type CheckoutResult = { saleId: number; receipt: Receipt; total: number };
@@ -148,9 +165,13 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
     const reason = clean(input.discountReason);
     // One reward a purchase, and never with another discount (the owner's rule, H1): an agreed
     // price under the list price is a discount too. Sets keep their own price and are allowed.
-    if (input.reward && input.birthday)
-      throw new RuleError('مكافأة واحدة في كل شراء: مكافأة الزيارة أو خصم عيد الميلاد');
-    if (input.reward || input.birthday) {
+    const rewards = [input.reward, input.birthday, input.friend, input.offer].filter(Boolean);
+    if (rewards.length > 1)
+      throw new RuleError(
+        'مكافأة واحدة في كل شراء: مكافأة الزيارة أو خصم عيد الميلاد أو هدية الصديقة أو عرض «نفتقدك»',
+      );
+    if (input.gift) checkGift(input.gift);
+    if (rewards.length) {
       if (policies.quickDiscounts.some((p) => hasPercentOff(input.cart, priceOf, p)))
         throw new RuleError('لا تُجمع المكافأة مع أزرار الخصم السريع');
       if (discount.total > 0)
@@ -166,6 +187,14 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
     }
 
     const customerId = ensureCustomer(ctx, c.name, c.phone, c.area, c.details);
+    if (input.gift && !customerId)
+      throw new RuleError('تذكير الهدية لزبون مسجل: اكتب اسمه أو رقمه');
+    // Who sent a new customer (I4), named at her first purchase.
+    if (input.referrerId) {
+      if (!customerId) throw new RuleError('«من أرسلك؟» لزبونة مسجلة: اكتب اسمها ورقمها');
+      if (friendStatus(ctx, customerId)?.referrerId !== input.referrerId)
+        linkReferrer(ctx, customerId, input.referrerId);
+    }
     if (order && customerId !== order.customerId)
       throw new RuleError(`الطلب رقم ${order.id} باسم «${order.customerName}»: اختر الزبون نفسه`);
     const customerName = clean(c.name);
@@ -213,6 +242,24 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       // Counted with the owner's other approvals (day summary, shift, alerts). Never with a
       // discount on the same sale, so the sale's one approval is this one.
       if (birthdayBy === 'approved') approvedBy = 'owner';
+    }
+    // Bring a friend (I4): her first purchase, the owner's percent, no minimum and no cap.
+    let friendOff = 0;
+    if (input.friend) {
+      const f = friendStatus(ctx, customerId);
+      if (!f?.ready) throw new RuleError('لا توجد هدية صديقة لهذا الزبون: هي لأول شراء فقط');
+      const r = rewardCart(cart, { percent: f.percent, maxOff: Number.MAX_SAFE_INTEGER });
+      cart = r.cart;
+      friendOff = r.off;
+    }
+    // We miss you (I4): the owner's offer, given in advance, used once.
+    let offerOff = 0;
+    const offer = input.offer ? activeOffer(ctx, customerId) : undefined;
+    if (input.offer) {
+      if (!offer) throw new RuleError('لا يوجد عرض «نفتقدك» لهذا الزبون، أو انتهى');
+      const r = rewardCart(cart, { percent: offer.percent, maxOff: offer.cap });
+      cart = r.cart;
+      offerOff = r.off;
     }
     const lines = cart.map((l) => {
       const p = productOf(l.productId)!;
@@ -268,6 +315,16 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       ctx.db.run('UPDATE sales SET reward_off = ? WHERE id = ?', [rewardOff, saleId]);
     if (birthdayOff > 0)
       ctx.db.run('UPDATE sales SET birthday_off = ? WHERE id = ?', [birthdayOff, saleId]);
+    if (friendOff > 0)
+      ctx.db.run('UPDATE sales SET friend_off = ? WHERE id = ?', [friendOff, saleId]);
+    if (offerOff > 0) ctx.db.run('UPDATE sales SET offer_off = ? WHERE id = ?', [offerOff, saleId]);
+    if (offer) spendOffer(ctx, offer.id, saleId);
+    // The friend's first purchase: points for who sent her (taken back if fully returned).
+    const friendPoints =
+      customerId && friendStatus(ctx, customerId) && !input.orderId
+        ? rewardReferrer(ctx, customerId, saleId, total - pointsPaid)
+        : 0;
+    if (input.gift && customerId) saveGift(ctx, customerId, saleId, input.gift);
     earnOnSale(ctx, {
       id: saleId,
       customerId,
@@ -321,6 +378,8 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       pointsPaid,
       rewardOff,
       birthdayOff,
+      friendOff,
+      offerOff,
       deposit: depositUsed,
       orderId: order?.id ?? null,
       footer: [
@@ -354,6 +413,8 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
         birthdayOff
           ? `، خصم عيد الميلاد ${formatLyd(birthdayOff)}${birthdayBy === 'approved' ? ' بموافقة المالك' : ''}`
           : ''
+      }${friendOff ? `، هدية الصديقة ${formatLyd(friendOff)}` : ''}${
+        offerOff ? `، عرض «نفتقدك» ${formatLyd(offerOff)}` : ''
       }${pointsPaid ? `، مدفوع بالنقاط ${formatLyd(pointsPaid)}` : ''}${
         order ? `، تسليم الطلب رقم ${order.id} بعربون ${formatLyd(depositUsed)}` : ''
       }`,
@@ -365,6 +426,11 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
         ...(pointsPaid ? { pointsPaid } : {}),
         ...(rewardOff ? { rewardOff } : {}),
         ...(birthdayOff ? { birthdayOff, birthdayBy } : {}),
+        ...(friendOff ? { friendOff } : {}),
+        ...(offerOff ? { offerOff, offerId: offer?.id } : {}),
+        ...(input.referrerId ? { referrerId: input.referrerId } : {}),
+        ...(friendPoints ? { friendPoints } : {}),
+        ...(input.gift ? { gift: input.gift.forWhom } : {}),
         payment: input.paymentMethod,
         receipt: receipt.receiptNo,
         ...(discount.total ? { discount: discount.total, reason, approvedBy } : {}),

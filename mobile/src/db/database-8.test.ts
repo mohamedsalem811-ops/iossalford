@@ -69,6 +69,12 @@ describe('the upgrade from database 7', () => {
       ALTER TABLE receipts ADD COLUMN offer_off INTEGER NOT NULL DEFAULT 0;
       CREATE TABLE orders (id INTEGER PRIMARY KEY, kind TEXT, status TEXT, customer_id INTEGER,
         product_id INTEGER, quantity INTEGER);
+      CREATE TABLE referrals (id INTEGER PRIMARY KEY, friend_id INTEGER UNIQUE, referrer_id INTEGER,
+        sale_id INTEGER, points INTEGER NOT NULL DEFAULT 0, move_id INTEGER, reversed_at TEXT,
+        created_at TEXT, by TEXT, by_name TEXT);
+      CREATE TABLE offers (id INTEGER PRIMARY KEY, customer_id INTEGER, percent INTEGER, cap INTEGER,
+        expires_at TEXT, sale_id INTEGER, used_at TEXT, created_at TEXT, month TEXT, by TEXT,
+        by_name TEXT);
       CREATE TABLE loyalty_moves (id INTEGER PRIMARY KEY, customer_id INTEGER, kind TEXT, points INTEGER,
         sale_id INTEGER, return_id INTEGER, payment_id INTEGER, value INTEGER, note TEXT,
         created_at TEXT, month TEXT, by TEXT, by_name TEXT);`);

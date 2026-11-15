@@ -21,6 +21,7 @@ import { getProduct, moveStock } from './products';
 import { undeliver } from './orders';
 import { logAction } from './activity';
 import { reverseOnReturn } from './loyalty';
+import { freeOffer, reverseReferral } from './marketing';
 import { getPolicies, type Policies } from './policies';
 import { shiftFor } from './shifts';
 
@@ -373,6 +374,9 @@ export function deleteSale(ctx: Ctx, saleId: number, opts: { deleteReceipt?: boo
     for (const r of receipts) ctx.db.run('DELETE FROM receipts WHERE id = ?', [r.id]);
     // A sale that delivered a deposit order: the order waits for her again, with its deposit.
     undeliver(ctx, saleId);
+    // Marketing (I4): her "we miss you" offer comes back; the friend's points go back off.
+    freeOffer(ctx, saleId);
+    reverseReferral(ctx, saleId, 'deleted');
     ctx.db.run('DELETE FROM sales WHERE id = ?', [saleId]);
     logAction(
       ctx,
@@ -612,6 +616,14 @@ export function addReturn(ctx: Ctx, input: ReturnInput): number {
       saleId: line.saleId,
       lineTotal: divRound(line.lineTotal * input.quantity, line.quantity),
     });
+    // A friend's first purchase fully returned: who sent her loses its points (I4).
+    const left = ctx.db.get<{ n: number }>(
+      `SELECT coalesce(sum(l.quantity), 0) - coalesce((SELECT sum(r.quantity) FROM returns r
+          JOIN sale_lines x ON x.id = r.sale_line_id WHERE x.sale_id = ?), 0) n
+         FROM sale_lines l WHERE l.sale_id = ?`,
+      [line.saleId, line.saleId],
+    );
+    if ((left?.n ?? 0) <= 0) reverseReferral(ctx, line.saleId, 'returned');
     logAction(
       ctx,
       'return.create',

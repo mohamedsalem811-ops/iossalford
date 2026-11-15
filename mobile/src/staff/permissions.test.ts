@@ -48,6 +48,15 @@ import {
   takeOrder,
 } from '@/domain/orders';
 import { recordMessage } from '@/domain/messages';
+import {
+  cancelOffer,
+  deleteGift,
+  giveOffers,
+  markGiftDone,
+  saveGift,
+  setMarketing,
+  setReferrer,
+} from '@/domain/marketing';
 import { addReturn, addReturnWithoutSale, deleteReturn, deleteSale, getSale } from '@/domain/sales';
 import { deleteScarfDesign, saveScarfDesign } from '@/domain/scarves';
 import { deleteSet, saveSet } from '@/domain/sets';
@@ -61,6 +70,10 @@ import { screenFilesCalling } from './testing/screen-calls';
 
 /** What the owner made before each action: one of everything an action can work on. */
 type Seed = {
+  /** Marketing (I4): two gift reminders and a "we miss you" offer. */
+  giftDone: number;
+  giftGone: number;
+  offerId: number;
   /** A count in progress, with one piece counted. */
   openCount: number;
   /** A count sent to the owner. */
@@ -181,10 +194,19 @@ function seed(ctx: TestCtx): Seed {
       unitPrice: 200_000,
       deposit: { amount: 100_000, method: 'cash' },
     }).orderId;
+  const giftDone = saveGift(ctx, customer, null, { forWhom: 'أمها', month: 3, day: 21 });
+  const giftGone = saveGift(ctx, customer, null, { forWhom: 'أختها', month: 5, day: 2 });
+  const [offer] = giveOffers(ctx, [customer]);
+  // Bring a friend (I4) needs the owner's rule, and loyalty points on.
+  setLoyalty(ctx, { enabled: true });
+  setMarketing(ctx, { friendEnabled: true });
   const waitingOrder = order('سوار تيفاني');
   const purchasedOrder = order('قلادة باندورا');
   markPurchased(ctx, purchasedOrder, { cost: 90_000, eta: '2026-12-01' });
   return {
+    giftDone,
+    giftGone,
+    offerId: offer.id,
     waitingOrder,
     purchasedOrder,
     twin,
@@ -482,6 +504,30 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
       run: (ctx, s) =>
         recordMessage(ctx, { customerId: s.customer, kind: 'order-eta', ref: s.purchasedOrder }),
     },
+    setMarketing: {
+      permission: 'marketing.manage',
+      run: (ctx) => setMarketing(ctx, { offerDays: 10 }),
+    },
+    giveOffers: {
+      permission: 'marketing.manage',
+      run: (ctx, s) => giveOffers(ctx, [s.twin]),
+    },
+    cancelOffer: {
+      permission: 'marketing.manage',
+      run: (ctx, s) => cancelOffer(ctx, s.offerId),
+    },
+    markGiftDone: {
+      permission: 'customers.edit',
+      run: (ctx, s) => markGiftDone(ctx, s.giftDone),
+    },
+    deleteGift: {
+      permission: 'customers.edit',
+      run: (ctx, s) => deleteGift(ctx, s.giftGone),
+    },
+    setReferrer: {
+      permission: 'customers.edit',
+      run: (ctx, s) => setReferrer(ctx, s.twin, s.customer),
+    },
     setDepositRules: {
       permission: 'settings.edit',
       run: (ctx) => setDepositRules(ctx, { minPercent: 30 }),
@@ -598,6 +644,14 @@ describe('every action has a check', () => {
     'takeReceiptNo',
     'setSetting',
     'keepUsedNumbers',
+    // Marketing (I4), inside checkout, a return or deleting a sale.
+    'addReferralMove',
+    'saveGift',
+    'linkReferrer',
+    'rewardReferrer',
+    'reverseReferral',
+    'spendOffer',
+    'freeOffer',
     // Files and the copy made for a backup, called by the checked backup actions and the
     // automatic backup (which runs whoever is signed in).
     'copyDatabase',

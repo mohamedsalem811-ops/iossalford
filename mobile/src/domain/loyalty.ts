@@ -300,6 +300,16 @@ export function reverseOnReturn(ctx: Ctx, ret: { id: number; saleId: number; lin
     });
 }
 
+/**
+ * Bring a friend (I4): the points of the customer who sent a friend, given or taken back with
+ * her first purchase. An adjust move with its reason; returns its id.
+ */
+export function addReferralMove(ctx: Ctx, customerId: number, points: number, note: string) {
+  if (points === 0) return null;
+  addMove(ctx, { customerId, kind: 'adjust', points, note });
+  return ctx.db.get<{ id: number }>('SELECT last_insert_rowid() id')?.id ?? null;
+}
+
 /** The owner adds or takes points by hand, with a reason; logged. */
 export function adjustPoints(ctx: Ctx, customerId: number, delta: number, reason: string) {
   allow(ctx, 'loyalty.adjust');

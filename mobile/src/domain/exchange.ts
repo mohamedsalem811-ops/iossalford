@@ -38,6 +38,10 @@ export function exchange(
       // An exchange is not a new purchase: it never uses the visit reward (G2).
       reward: false,
       birthday: false,
+      // Nor the I4 gifts: the friend's first-purchase gift or a "we miss you" offer.
+      friend: false,
+      offer: false,
+      gift: undefined,
       // Nor the delivery of a deposit order (that is its own sale, I1).
       orderId: undefined,
       note: clean(input.sale.note) ?? `استبدال (مرتجع رقم ${returnId})`,

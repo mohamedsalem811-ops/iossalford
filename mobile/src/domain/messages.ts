@@ -7,13 +7,26 @@ import { logAction } from './activity';
 import { allow, nowStamp, type Ctx, who } from './context';
 import { getCustomer } from './customers';
 
-/** What a message was for: an order's expected date or arrival (I2); the I4 kinds join later. */
-export type MessageKind = 'order-eta' | 'order-arrived' | 'order-waiting';
+/** What a message was for: an order's expected date or arrival (I2), and marketing (I4). */
+export type MessageKind =
+  | 'order-eta'
+  | 'order-arrived'
+  | 'order-waiting'
+  | 'thanks'
+  | 'occasion'
+  | 'vip'
+  | 'miss-you'
+  | 'gift';
 
 export const MESSAGE_LABELS: Record<MessageKind, string> = {
   'order-eta': 'موعد وصول الطلب',
   'order-arrived': 'وصول الطلب',
   'order-waiting': 'تذكير باستلام الطلب',
+  thanks: 'شكراً بعد الشراء',
+  occasion: 'مناسبة',
+  vip: 'VIP: أول من يرى',
+  'miss-you': 'نفتقدك',
+  gift: 'تذكير هدية',
 };
 
 /** Remembers that a message was opened in WhatsApp for this customer. */

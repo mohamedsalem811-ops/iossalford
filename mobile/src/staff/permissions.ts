@@ -44,6 +44,7 @@ export const PERMISSIONS = {
   'orders.deliver': 'استلام وتسليم الطلبات',
   'orders.cancel': 'إلغاء طلب بعربون',
   'orders.purchase': 'شراء الطلب من المورد وموعد وصوله',
+  'marketing.manage': 'التسويق: الرسائل والمناسبات وعروض «نفتقدك»',
   // Seeing (checked by the screens).
   'costs.view': 'التكلفة والربح',
   'reports.view': 'ملخص الشهر والتقارير',
@@ -104,6 +105,8 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'orders.deliver': true,
   'orders.cancel': true,
   'orders.purchase': false,
+  // Marketing (I4) is the owner's: the messages, occasions, rules and the offers given.
+  'marketing.manage': false,
   'costs.view': false,
   'reports.view': false,
   'sales.viewAll': false,
