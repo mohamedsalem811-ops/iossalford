@@ -1,7 +1,11 @@
 import { router, Stack } from 'expo-router';
 import { useMemo, useState } from 'react';
 
-import { SplitView } from '@/components';
+import { View } from 'react-native';
+
+import { EmptyState, SplitView } from '@/components';
+import { sectionHref } from '@/features/management/management-menu';
+import { useSellLock } from '@/features/sale/sell-lock';
 import { BelowHeader } from '@/components/below-header';
 import { listForSale } from '@/domain/reserved';
 import { firstOfEachDesign, useProducts } from '@/features/products/use-products';
@@ -33,6 +37,8 @@ export default function SaleRoute() {
     [data.reserved, data.products],
   );
   const { cart } = useCart(system);
+  // An employee sells only with a shift open (S5, I3).
+  const locked = useSellLock(ctx);
   const { cartBeside } = useLayout();
 
   const openSizes = (designId: string) =>
@@ -87,7 +93,17 @@ export default function SaleRoute() {
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <BelowHeader>
-        {cartBeside ? (
+        {locked ? (
+          <View style={{ flex: 1, justifyContent: 'center' }} testID="sale-locked">
+            <EmptyState
+              icon="lock"
+              title="البيع مقفل حتى تفتح الوردية"
+              message="عدّ النقد في الدرج وافتح ورديتك، ثم ارجع للبيع."
+              action="فتح الوردية"
+              onAction={() => router.push(sectionHref('shift', system))}
+            />
+          </View>
+        ) : cartBeside ? (
           <SplitView list={<CartView ctx={ctx} embedded onCheckout={checkout} />} detail={grid} />
         ) : (
           grid

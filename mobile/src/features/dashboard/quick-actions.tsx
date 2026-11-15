@@ -4,70 +4,99 @@ import { Pressable, View } from 'react-native';
 import { Icon, Text } from '@/components';
 import { radius, spacing, useTheme, type SystemId } from '@/theme';
 
+export type QuickActionsProps = {
+  system: SystemId;
+  onNewSale: () => void;
+  /** The owner's second row (I3): a new receipt and a new piece or design. */
+  onNewReceipt?: () => void;
+  onNewProduct?: () => void;
+  /** Each one absent for someone who may not do it. */
+  onNewOrder?: () => void;
+  onReturn?: () => void;
+  onDebtPayment?: () => void;
+  onCustomer?: () => void;
+};
+
 /**
- * The home screen's shortcuts: a new sale (the main one), a new receipt, a deposit order (I2) and a
- * new piece or design.
+ * The home screen's shortcuts (I3): a new sale across the top, then طلب بعربون, مرتجع, دفعة دين
+ * and زبون (each only for someone who may), and for the owner a second row with إيصال جديد and
+ * قطعة جديدة (تصميم جديد for scarves).
  */
 export function QuickActions({
   system,
   onNewSale,
   onNewReceipt,
-  onNewOrder,
   onNewProduct,
-}: {
-  system: SystemId;
-  onNewSale: () => void;
-  onNewReceipt: () => void;
-  /** Absent for someone who may not take deposits. */
-  onNewOrder?: () => void;
-  /** Absent for someone who may not add pieces. */
-  onNewProduct?: () => void;
-}) {
+  onNewOrder,
+  onReturn,
+  onDebtPayment,
+  onCustomer,
+}: QuickActionsProps) {
+  const item = (
+    onPress: (() => void) | undefined,
+    title: string,
+    icon: SymbolViewProps['name'],
+    id: string,
+  ): Item[] => (onPress ? [{ title, icon, onPress, id }] : []);
+  const row = [
+    ...item(onNewOrder, 'طلب بعربون', 'shippingbox.fill', 'quick-order'),
+    ...item(onReturn, 'مرتجع', 'arrow.uturn.backward.circle.fill', 'quick-return'),
+    ...item(onDebtPayment, 'دفعة دين', 'banknote.fill', 'quick-payment'),
+    ...item(onCustomer, 'زبون', 'person.crop.circle.fill', 'quick-customer'),
+  ];
+  const second = [
+    ...item(onNewReceipt, 'إيصال جديد', 'doc.text.fill', 'quick-receipt'),
+    ...item(
+      onNewProduct,
+      system === 'scarves' ? 'تصميم جديد' : 'قطعة جديدة',
+      'plus.square.fill',
+      'quick-product',
+    ),
+  ];
   return (
-    <View style={{ flexDirection: 'row', gap: spacing.sm }} testID="quick-actions">
+    <View style={{ gap: spacing.sm }} testID="quick-actions">
       <Shortcut
         title="بيعة جديدة"
         icon="cart.badge.plus"
         main
+        wide
         onPress={onNewSale}
         testID="quick-sale"
       />
-      <Shortcut
-        title="إيصال جديد"
-        icon="doc.text.fill"
-        onPress={onNewReceipt}
-        testID="quick-receipt"
-      />
-      {onNewOrder ? (
-        <Shortcut
-          title="طلب بعربون"
-          icon="shippingbox.fill"
-          onPress={onNewOrder}
-          testID="quick-order"
-        />
-      ) : null}
-      {onNewProduct ? (
-        <Shortcut
-          title={system === 'scarves' ? 'تصميم جديد' : 'قطعة جديدة'}
-          icon="plus.square.fill"
-          onPress={onNewProduct}
-          testID="quick-product"
-        />
-      ) : null}
+      {[row, second].map((items, i) =>
+        items.length ? (
+          <View key={i} style={{ flexDirection: 'row', gap: spacing.sm }}>
+            {items.map((x) => (
+              <Shortcut
+                key={x.id}
+                title={x.title}
+                icon={x.icon}
+                onPress={x.onPress}
+                testID={x.id}
+              />
+            ))}
+          </View>
+        ) : null,
+      )}
     </View>
   );
 }
+
+type Item = { title: string; icon: SymbolViewProps['name']; onPress: () => void; id: string };
 
 function Shortcut({
   title,
   icon,
   main = false,
+  wide = false,
   onPress,
   testID,
 }: {
   title: string;
   icon: SymbolViewProps['name'];
   main?: boolean;
+  /** Across the whole width, icon beside the title. */
+  wide?: boolean;
   onPress: () => void;
   testID: string;
 }) {
@@ -81,10 +110,11 @@ function Shortcut({
       testID={testID}
       style={({ pressed }) => ({
         flex: 1,
+        flexDirection: wide ? 'row' : 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: spacing.xs,
-        minHeight: 84,
+        gap: wide ? spacing.sm : spacing.xs,
+        minHeight: wide ? 64 : 84,
         paddingVertical: spacing.ms,
         paddingHorizontal: spacing.xs,
         borderRadius: radius.lg,
@@ -100,7 +130,7 @@ function Shortcut({
         opacity: pressed ? 0.8 : 1,
         transform: [{ scale: pressed ? 0.97 : 1 }],
       })}>
-      <Icon name={icon} size={28} color={ink} />
+      <Icon name={icon} size={wide ? 26 : 24} color={ink} />
       <Text
         variant="bodyStrong"
         center

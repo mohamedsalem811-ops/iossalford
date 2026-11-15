@@ -72,6 +72,21 @@ const newReceipt = (system: string) =>
 const newOrder = (system: string) =>
   router.push({ pathname: '/[system]/order-form', params: { system } });
 
+/** The home shortcuts of I3 that depend on what this person may do. */
+function useShortcuts() {
+  const ctx = useCtx();
+  const system = ctx.system;
+  const mayOrder = useCan('orders.take');
+  const mayReturn = useCan('returns.create');
+  const mayPay = useCan('payments.create');
+  return {
+    onNewOrder: mayOrder ? () => newOrder(system) : undefined,
+    onReturn: mayReturn ? () => router.push(sectionHref('returnFind', system)) : undefined,
+    onDebtPayment: mayPay ? () => router.push(sectionHref('debts', system)) : undefined,
+    onCustomer: () => router.push(sectionHref('customers', system)),
+  };
+}
+
 /** The deposit reminders for the home screen (I2), fresh on focus and after each change. */
 function useOrderReminders(): OrderRemindersProps | undefined {
   const ctx = useCtx();
@@ -142,7 +157,7 @@ function EmployeeHome() {
   useOnDataChanged(refresh);
   const systemMenu = useSystemMenu();
   const orders = useOrderReminders();
-  const mayOrder = useCan('orders.take');
+  const shortcuts = useShortcuts();
   return (
     <EmployeeHomeScreen
       system={system}
@@ -153,8 +168,7 @@ function EmployeeHome() {
         onSystemMenu: systemMenu,
         onOpenSale: (id) => openSale(system, id),
         onNewSale: () => newSale(system),
-        onNewReceipt: () => newReceipt(system),
-        onNewOrder: mayOrder ? () => newOrder(system) : undefined,
+        ...shortcuts,
         onOpenAccount: () =>
           actor?.kind === 'employee' &&
           router.push({
@@ -188,6 +202,7 @@ function Dashboard() {
 
   const systemMenu = useSystemMenu();
   const orders = useOrderReminders();
+  const shortcuts = useShortcuts();
 
   return (
     <DashboardScreen
@@ -209,7 +224,7 @@ function Dashboard() {
         onOpenAlert: (alert) => showAlert(ctx, alert, refresh),
         onNewSale: () => newSale(system),
         onNewReceipt: () => newReceipt(system),
-        onNewOrder: () => newOrder(system),
+        ...shortcuts,
         onNewProduct: () =>
           router.push(
             system === 'scarves'

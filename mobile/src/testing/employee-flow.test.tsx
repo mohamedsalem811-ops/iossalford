@@ -29,6 +29,8 @@ import SaleRoute from '@/app/[system]/(tabs)/more/sale/[id]';
 import StaffRoute from '@/app/[system]/(tabs)/more/staff';
 import ProductsStack from '@/app/[system]/(tabs)/products/_layout';
 import Products from '@/app/[system]/(tabs)/products/index';
+import SaleStack from '@/app/[system]/(tabs)/sale/_layout';
+import SaleTab from '@/app/[system]/(tabs)/sale/index';
 import ProductRoute from '@/app/[system]/product/[id]';
 import { listActivity, recordWrongPin } from '@/domain/activity';
 import { ownerAlerts } from '@/domain/alerts';
@@ -148,6 +150,8 @@ const routes = {
   '[system]/(tabs)/products/_layout': ProductsStack,
   '[system]/(tabs)/products/index': Products,
   '[system]/product/[id]': ProductRoute,
+  '[system]/(tabs)/sale/_layout': SaleStack,
+  '[system]/(tabs)/sale/index': SaleTab,
 };
 
 function sell(actor: Actor, productId: number, qty = 1) {
@@ -394,10 +398,25 @@ describe('the S5 shift', () => {
     expect(screen.getByTestId('shift-open')).toBeOnTheScreen();
   });
 
-  it('shows her the open-shift banner on the home screen', async () => {
+  it('shows her the closed shift at the top of the home screen, and locks selling (I3)', async () => {
     setActor(SARA);
     await renderRouter(routes, { initialUrl: '/jewelry' });
-    expect(await screen.findByTestId('open-shift')).toBeOnTheScreen();
+    expect(await screen.findByTestId('open-shift')).toHaveTextContent(/الوردية مغلقة/);
+    // Her shortcuts: deposit, return, debt payment, customer; the receipt and new piece are the
+    // owner's second row.
+    for (const id of [
+      'quick-sale',
+      'quick-order',
+      'quick-return',
+      'quick-payment',
+      'quick-customer',
+    ])
+      expect(screen.getByTestId(id)).toBeOnTheScreen();
+    for (const id of ['quick-receipt', 'quick-product'])
+      expect(screen.queryByTestId(id)).toBeNull();
+    await renderRouter(routes, { initialUrl: '/jewelry/sale' });
+    expect(await screen.findByTestId('sale-locked')).toBeOnTheScreen();
+    expect(screen.getByText('البيع مقفل حتى تفتح الوردية')).toBeOnTheScreen();
   });
 
   it('lets the owner read the report and put the shortage on her account', async () => {
@@ -425,6 +444,14 @@ describe('the S5 shift', () => {
     await fireEvent.press(screen.getByTestId('shift-open'));
     expect(await screen.findByTestId('shift-open-card')).toBeOnTheScreen();
     expect(openShiftOf(ctxAs(OWNER), 'emp-s1')?.openingCash).toBe(100_000);
+    // The bar says since when (or, after the owner's hour, that it is time to close), and the
+    // sale tab opens again.
+    await renderRouter(routes, { initialUrl: '/jewelry' });
+    expect(await screen.findByTestId('shift-bar')).toHaveTextContent(
+      /الوردية مفتوحة منذ|حان وقت إغلاق الوردية/,
+    );
+    await renderRouter(routes, { initialUrl: '/jewelry/sale' });
+    expect(screen.queryByTestId('sale-locked')).toBeNull();
   });
 });
 

@@ -76,6 +76,17 @@ describe('the owner’s alerts', () => {
     expect(() => setPolicies(ctx, { alertWrongPins: -1 })).toThrow('حدود التنبيهات');
   });
 
+  it('keeps the close-shift reminder hour (I3): 9 pm until changed, 0 turns it off', () => {
+    expect(getPolicies(ctx).shiftReminderHour).toBe(21);
+    setPolicies(ctx, { shiftReminderHour: 20 });
+    expect(listActivity(ctx, {}, { limit: 1 })[0].summary).toContain(
+      'تذكير إغلاق الوردية الساعة 20:00',
+    );
+    setPolicies(ctx, { shiftReminderHour: 0 });
+    expect(listActivity(ctx, {}, { limit: 1 })[0].summary).toContain('تذكير إغلاق الوردية متوقف');
+    expect(() => setPolicies(ctx, { shiftReminderHour: 24 })).toThrow('ساعة تذكير');
+  });
+
   it('warns of many discounts by one employee in a day, not the owner’s', () => {
     setPolicies(ctx, { discountPerPiece: 50_000, discountPerSale: 50_000 });
     ctx.setActor(EMPLOYEE);

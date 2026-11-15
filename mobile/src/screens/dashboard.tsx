@@ -23,7 +23,8 @@ import { OrderRemindersCard, type OrderRemindersProps } from '@/features/orders/
 export type { DashboardActions };
 
 /**
- * The first tab: the shortcuts (new sale, new receipt, new piece), today and what needs attention,
+ * The first tab: the shortcuts (new sale; deposit, return, debt payment, customer; new receipt,
+ * new piece), today and what needs attention,
  * "ملخص الشهر" (four tiles, each with a dot comparing with the month before), the daily chart,
  * the breakdowns and the latest sales, then the stock. iPhone: one column; iPad: the cards fill
  * the width (Split View narrows it back to one column).
@@ -59,6 +60,9 @@ export function DashboardScreen({
         onNewSale={actions.onNewSale}
         onNewReceipt={actions.onNewReceipt}
         onNewOrder={actions.onNewOrder}
+        onReturn={actions.onReturn}
+        onDebtPayment={actions.onDebtPayment}
+        onCustomer={actions.onCustomer}
         onNewProduct={actions.onNewProduct}
       />
       {orders ? <OrderRemindersCard {...orders} /> : null}

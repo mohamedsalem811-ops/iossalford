@@ -38,8 +38,11 @@ export type DashboardActions = {
   onNewSale: () => void;
   onNewReceipt: () => void;
   onNewProduct: () => void;
-  /** A deposit order (I2). */
+  /** A deposit order (I2); a return, a debt payment, a customer (I3). */
   onNewOrder?: () => void;
+  onReturn?: () => void;
+  onDebtPayment?: () => void;
+  onCustomer?: () => void;
 };
 
 /** The cards of the home screen. */

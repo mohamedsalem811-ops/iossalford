@@ -858,6 +858,15 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 - **Tests:** `domain/orders-screens.test.ts`, `features/orders/model.test.ts`, `testing/orders-flow.test.tsx` (take, buy, arrive, deliver on the real screens), the permission matrix (`recordMessage`). Simulator flows written, not run yet: `e2e/deposit-order.yaml`, `e2e/deposit-hold.yaml`.
 - **Left for later:** scarf designs don't show the held badge yet (Products for jewellery does); I3 adds the remaining home shortcuts.
 
+**I3 as built (2026-11-15):**
+
+- **The membership card (design B):** a card with SALFORD and her tier at the top (عضوية VIP, زبون عائد, جديد), her photo or portrait and her name, and at the foot her visit dots (only when the visit reward is on) and points (only when points are on). VIP is black and gold, a returning customer the shop's colour, a new one ivory; VIP and new look the same in dark mode, like a card in the hand. At checkout the rows under it are the things to act on: visits, last visit and spending, the visit reward, a debt, a birthday this week, the note and "المزيد". The same card heads the customer page. The ids the simulator flows use are kept.
+- **The shift bar** at the top of an employee's home: closed ("الوردية مغلقة: افتحها للبيع", the `open-shift` id of S5), open since a time with its sales, or past the owner's hour ("حان وقت إغلاق الوردية", also for a shift left open from an earlier day). Each opens the shift screen. It never shows the expected cash: the count at closing stays blind.
+- **The close-shift reminder hour** is in قواعد البيع والمرتجعات → الوردية: 21 (9 pm) to start with, 0 turns it off; logged. It shows in the bar (no phone notification, as planned).
+- **The sale lock:** an employee with no open shift sees the sale tab locked ("البيع مقفل حتى تفتح الوردية", with "فتح الوردية"), and the cart's "إتمام البيع" is greyed out with the reason. Checkout already refused it (S5).
+- **Shortcuts:** "بيعة جديدة" across the top; then طلب بعربون, مرتجع (finding the sale), دفعة دين (the debts list) and زبون (the customers list), each only for someone who may; for the owner a second row with إيصال جديد and قطعة جديدة (تصميم جديد for scarves). Employees no longer have the receipt shortcut on their home; they make receipts from the Receipts tab.
+- **Tests:** the card colours, the reminder hour (rules and the bar), the sale lock, and the employee flow (closed bar, her shortcuts, the locked sale tab, then the open bar and the sale tab back). Simulator flow written, not run: `e2e/shift-bar-shortcuts.yaml`.
+
 ### Phase 10: switching over
 
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):

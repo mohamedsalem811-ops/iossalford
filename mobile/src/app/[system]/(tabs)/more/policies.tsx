@@ -87,6 +87,7 @@ function PoliciesScreen() {
     ) as Record<AlertLimit, string>;
   const [alerts, setAlerts] = useState(() => alertDraft(saved));
   const setAlert = (k: AlertLimit) => (v: string) => setAlerts((a) => ({ ...a, [k]: v }));
+  const [reminderHour, setReminderHour] = useState(String(saved.shiftReminderHour));
   const [deposits, setDeposits] = useState(() => getDepositRules(ctx));
   const [minPercent, setMinPercent] = useState(String(deposits.minPercent));
   const [remindDays, setRemindDays] = useState(String(deposits.remindDays));
@@ -121,6 +122,12 @@ function PoliciesScreen() {
       Alert.alert('لم يتم الحفظ', 'اكتب أقل عربون نسبةً من 1 إلى 100.');
       return;
     }
+    const hour = Number(latinDigits(reminderHour).trim() || '0');
+    if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+      haptic.error();
+      Alert.alert('لم يتم الحفظ', 'اكتب ساعة تذكير إغلاق الوردية من 0 إلى 23.');
+      return;
+    }
     if (!Number.isInteger(days) || days < 1 || days > 90) {
       haptic.error();
       Alert.alert('لم يتم الحفظ', 'اكتب أيام التذكير من 1 إلى 90.');
@@ -152,6 +159,7 @@ function PoliciesScreen() {
         returnConditions: conditions,
         discountReasons: reasons,
         quickDiscounts,
+        shiftReminderHour: hour,
         ...limits,
       });
       setSaved(next);
@@ -238,6 +246,17 @@ function PoliciesScreen() {
             onChange={setConditions}
             placeholder="شرط جديد"
             testID="policy-condition"
+          />
+        </Card>
+        <Card>
+          <Text variant="headline">الوردية</Text>
+          <NumberField
+            label="تذكير الموظف بإغلاق الوردية من الساعة"
+            value={reminderHour}
+            onChangeText={setReminderHour}
+            kind="integer"
+            hint="من 0 إلى 23 (21 = التاسعة مساءً). صفر يوقف التذكير. يظهر في شريط الوردية."
+            testID="policy-shift-hour"
           />
         </Card>
         <Card>

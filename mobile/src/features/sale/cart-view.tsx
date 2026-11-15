@@ -6,6 +6,9 @@ import { lineTotal, removeLine, setQuantity, setUnitPrice, type CartLine } from 
 import type { Ctx } from '@/domain/context';
 import { getProduct } from '@/domain/products';
 import { forSale } from '@/domain/reserved';
+import { NO_SHIFT } from '@/domain/shifts';
+
+import { useSellLock } from './sell-lock';
 import { getRate } from '@/domain/settings';
 import { parseThousandths } from '@/lib/digits';
 import { editableDinars, formatLyd, formatRate, formatUsd } from '@/lib/money';
@@ -36,6 +39,8 @@ export function CartView({
   // The below-cost note tells the cost: only for someone who may see it.
   const seesCost = useCan('costs.view');
   const { cart, setCart } = useCart(ctx.system);
+  // An employee sells only with a shift open (S5, I3).
+  const locked = useSellLock(ctx);
   // Stock or prices changed elsewhere (a delivery, an edit): check the lines again.
   const [, recheck] = useReducer((n: number) => n + 1, 0);
   useOnDataChanged(recheck);
@@ -225,11 +230,16 @@ export function CartView({
         <Text variant="caption" tone="secondary" testID="cart-total-usd">
           {`${formatUsd(totals.usd)} بسعر الصرف ${formatRate(rate)}`}
         </Text>
+        {locked ? (
+          <Text variant="caption" tone="warning" center testID="cart-locked">
+            {NO_SHIFT}
+          </Text>
+        ) : null}
         <Button
           title="إتمام البيع"
           icon="checkmark.circle.fill"
           fullWidth
-          disabled={warnings.size > 0}
+          disabled={warnings.size > 0 || locked}
           onPress={onCheckout}
           testID="cart-checkout"
         />

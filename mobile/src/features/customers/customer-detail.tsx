@@ -19,7 +19,10 @@ import { formatLyd } from '@/lib/money';
 import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
 
-import { CustomerAvatar } from './customer-avatar';
+import { MemberCard } from './member-card';
+import { customerStats } from '@/domain/customer-stats';
+import { getLoyalty, pointsBalance } from '@/domain/loyalty';
+import { rewardStatus } from '@/domain/visit-reward';
 import { CustomerFacts } from './customer-facts';
 import { PointsCard } from './points-card';
 import { WantedCard } from './wanted-card';
@@ -131,16 +134,18 @@ export function CustomerDetail({
   return (
     <Page>
       <Card>
-        <View style={{ alignItems: 'center' }}>
-          <CustomerAvatar
-            system={ctx.system}
-            gender={c.gender}
-            imageFile={c.imageFile}
-            size={96}
-            testID="customer-avatar"
-          />
-        </View>
-        <Text variant="title">{shownName(c.name, fullPhone)}</Text>
+        <MemberCard
+          system={ctx.system}
+          name={shownName(c.name, fullPhone)}
+          gender={c.gender}
+          imageFile={c.imageFile}
+          badge={customerStats(ctx, c.id).badge}
+          points={getLoyalty(ctx).enabled ? pointsBalance(ctx, c.id) : null}
+          dots={rewardStatus(ctx, c.id)?.dots ?? null}
+          avatarSize={72}
+          avatarTestID="customer-avatar"
+          testID="customer-member"
+        />
         {c.phone && !fullPhone ? (
           // An employee who may not see the numbers (feature 26): no call, which would show it.
           <Text variant="body" tone="secondary" testID="customer-phone-masked">

@@ -35,6 +35,8 @@ export type Policies = {
   alertShortage: number;
   /** How many days back the alerts look. */
   alertDays: number;
+  /** I3: from this hour (0-23) an employee's open shift shows "time to close it" (0: off). */
+  shiftReminderHour: number;
 };
 
 export const DEFAULT_CONDITIONS: Record<SystemId, string[]> = {
@@ -59,6 +61,7 @@ export function defaultPolicies(system: SystemId): Policies {
     alertWrongPins: 3,
     alertShortage: 0,
     alertDays: 7,
+    shiftReminderHour: 21,
   };
 }
 
@@ -105,6 +108,12 @@ export function setPolicies(ctx: Ctx, changes: Partial<Policies>): Policies {
   }
   if (next.alertDays < 1 || next.alertDays > 60)
     throw new RuleError('مدة التنبيهات بين يوم و60 يوماً');
+  if (
+    !Number.isInteger(next.shiftReminderHour) ||
+    next.shiftReminderHour < 0 ||
+    next.shiftReminderHour > 23
+  )
+    throw new RuleError('ساعة تذكير إغلاق الوردية من 0 إلى 23');
   next.quickDiscounts = [...new Set(next.quickDiscounts)].sort((a, b) => a - b);
   if (next.quickDiscounts.some((p) => !Number.isInteger(p) || p < 1 || p > 50))
     throw new RuleError('نسبة الخصم السريع رقم صحيح من 1 إلى 50');
@@ -138,6 +147,12 @@ export function setPolicies(ctx: Ctx, changes: Partial<Policies>): Policies {
     alertDays: (v) => `مدة التنبيهات ${v} يوم`,
   };
   for (const k of ALERT_LIMITS) if (next[k] !== old[k]) said.push(alertText[k](next[k]));
+  if (next.shiftReminderHour !== old.shiftReminderHour)
+    said.push(
+      next.shiftReminderHour
+        ? `تذكير إغلاق الوردية الساعة ${next.shiftReminderHour}:00`
+        : 'تذكير إغلاق الوردية متوقف',
+    );
   if (said.length === 0) return old;
   ctx.db.transaction(() => {
     setSetting(ctx, KEY, JSON.stringify(next));
