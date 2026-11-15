@@ -64,7 +64,7 @@ appId: com.salford.pos
     visible:
       id: 'product-reserved-.*'
     timeout: 30000
-- assertVisible: 'محجوز 1'
+- assertVisible: '.*محجوز 1.*'
 - takeScreenshot: ${DEVICE}-product-held
 - runFlow:
     file: subflows/open-section.yaml

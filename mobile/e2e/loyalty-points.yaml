@@ -39,6 +39,12 @@ appId: com.salford.pos
     file: subflows/scroll-form.yaml
     env:
       ID: 'rewards-vip-spend'
+# Run 64: the visit reward's switch sits above the VIP fields, out of view once they are centred.
+- scrollUntilVisible:
+    element:
+      id: 'rewards-enabled'
+    direction: UP
+    timeout: 30000
 - assertVisible: '.*مكافأة الزيارة متوقفة.*'
 - takeScreenshot: ${DEVICE}-rewards-rules
 - runFlow:

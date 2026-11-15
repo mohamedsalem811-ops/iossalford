@@ -10,6 +10,9 @@ appId: com.salford.pos
     file: subflows/open-section.yaml
     env:
       ID: 'manage-customers'
+- extendedWaitUntil:
+    visible: 'زبون جديد'
+    timeout: 15000
 - tapOn: 'زبون جديد'
 - tapOn:
     id: 'customer-name'
@@ -44,9 +47,15 @@ appId: com.salford.pos
       ID: 'wanted-add'
 - tapOn:
     id: 'wanted-add'
+# Run 64: the text was typed before the prompt was up. Wait for it; the saved row reads with its date.
+- extendedWaitUntil:
+    visible: 'قطعة يطلبها الزبون'
+    timeout: 10000
 - inputText: 'سوار ذهب'
 - tapOn: 'حفظ'
-- assertVisible: 'سوار ذهب'
+- extendedWaitUntil:
+    visible: '.*سوار ذهب.*'
+    timeout: 10000
 - takeScreenshot: ${DEVICE}-customer-wanted
 - tapOn: 'الزبائن'
 - tapOn: 'متابعة الزبائن'

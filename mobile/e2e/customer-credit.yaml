@@ -42,6 +42,11 @@ appId: com.salford.pos
       ID: 'manage-customers'
 - tapOn:
     id: 'customer-Sara'
+# Run 64: the customer page now has the card, wanted pieces and orders above the balance.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'customer-pay'
 - tapOn:
     id: 'customer-pay'
 - tapOn:

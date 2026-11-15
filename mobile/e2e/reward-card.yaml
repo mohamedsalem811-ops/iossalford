@@ -91,6 +91,15 @@ appId: com.salford.pos
     id: 'setup-whatsapp'
 - tapOn:
     id: 'loyalty-card'
+# Run 64: the share button is under both sides of the card.
+- extendedWaitUntil:
+    visible:
+      id: 'card-audience'
+    timeout: 15000
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'card-share'
 - extendedWaitUntil:
     visible:
       id: 'card-share'

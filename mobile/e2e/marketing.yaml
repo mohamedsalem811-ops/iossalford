@@ -45,6 +45,10 @@ appId: com.salford.pos
 - assertVisible:
     id: 'marketing-template-orderArrived'
 - takeScreenshot: ${DEVICE}-marketing-templates-orders
+- scrollUntilVisible:
+    element: 'تقرير'
+    direction: UP
+    timeout: 30000
 - tapOn: 'تقرير'
 - assertVisible:
     id: 'marketing-report'

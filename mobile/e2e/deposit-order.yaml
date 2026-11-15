@@ -72,7 +72,7 @@ appId: com.salford.pos
       id: 'orders-held'
     timeout: 30000
 - takeScreenshot: ${DEVICE}-orders-list
-- tapOn: 'Tiffany bracelet'
+- tapOn: '.*Tiffany bracelet.*'
 - extendedWaitUntil:
     visible:
       id: 'order-buy'
