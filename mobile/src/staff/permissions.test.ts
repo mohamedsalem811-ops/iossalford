@@ -38,6 +38,15 @@ import { addWanted, deleteWanted, mergeCustomers, setWantedDone } from '@/domain
 import { acknowledgeAlert } from '@/domain/alerts';
 import { applyCount, cancelCount, countPiece, startCount, submitCount } from '@/domain/stock-count';
 import { chargeReturn, recordRepayment, waiveCharge } from '@/domain/staff-ledger';
+import {
+  addOrderPayment,
+  cancelOrder,
+  markArrived,
+  markPurchased,
+  setDepositRules,
+  setEta,
+  takeOrder,
+} from '@/domain/orders';
 import { addReturn, addReturnWithoutSale, deleteReturn, deleteSale, getSale } from '@/domain/sales';
 import { deleteScarfDesign, saveScarfDesign } from '@/domain/scarves';
 import { deleteSet, saveSet } from '@/domain/sets';
@@ -79,6 +88,9 @@ type Seed = {
   set: number;
   brand: number;
   archived: number;
+  /** A deposit order waiting to be bought, and one bought from the supplier. */
+  waitingOrder: number;
+  purchasedOrder: number;
 };
 
 function cartOf(ctx: Ctx, id: number, qty = 1): CartLine[] {
@@ -160,7 +172,20 @@ function seed(ctx: TestCtx): Seed {
   countPiece(ctx, openCount, ring, 10);
   const twin = saveCustomer(ctx, { name: 'منى', phone: '0919999999' });
   const wanted = addWanted(ctx, customer, 'خاتم فضة');
+  const order = (description: string) =>
+    takeOrder(ctx, {
+      kind: 'order',
+      customer: { name: 'منى', phone: '0912345678' },
+      description,
+      unitPrice: 200_000,
+      deposit: { amount: 100_000, method: 'cash' },
+    }).orderId;
+  const waitingOrder = order('سوار تيفاني');
+  const purchasedOrder = order('قلادة باندورا');
+  markPurchased(ctx, purchasedOrder, { cost: 90_000, eta: '2026-12-01' });
   return {
+    waitingOrder,
+    purchasedOrder,
     twin,
     wanted,
     openCount,
@@ -416,6 +441,45 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
       permission: 'staff.ledger',
       run: (ctx) => recordRepayment(ctx, { key: 'emp-e1', name: 'سارة' }, 5_000),
     },
+    takeOrder: {
+      permission: 'orders.take',
+      run: (ctx, s) =>
+        takeOrder(ctx, {
+          kind: 'hold',
+          customer: { name: 'منى', phone: '0912345678' },
+          productId: s.ring,
+          deposit: { amount: 50_000, method: 'card' },
+        }),
+    },
+    addOrderPayment: {
+      permission: 'orders.take',
+      run: (ctx, s) => addOrderPayment(ctx, s.waitingOrder, { amount: 10_000, method: 'cash' }),
+    },
+    markPurchased: {
+      permission: 'orders.purchase',
+      run: (ctx, s) => markPurchased(ctx, s.waitingOrder, { costUsd: 15_000, eta: '2026-12-10' }),
+    },
+    setEta: {
+      permission: 'orders.purchase',
+      run: (ctx, s) => setEta(ctx, s.purchasedOrder, '2026-12-20'),
+    },
+    markArrived: {
+      permission: 'orders.deliver',
+      run: (ctx, s) => markArrived(ctx, s.purchasedOrder),
+    },
+    cancelOrder: {
+      permission: 'orders.cancel',
+      // An employee cancels with the owner's approval on the spot.
+      run: (ctx, s) =>
+        cancelOrder({ ...ctx, actor: ctx.actor, approvals: { take: () => true } }, s.waitingOrder, {
+          how: 'balance',
+          approval: 'ok',
+        }),
+    },
+    setDepositRules: {
+      permission: 'settings.edit',
+      run: (ctx) => setDepositRules(ctx, { minPercent: 30 }),
+    },
     restoreBackup: {
       permission: 'backup.restore',
       run: (ctx) => {
@@ -546,6 +610,10 @@ describe('every action has a check', () => {
     'earnOnSale',
     'earnOnPayment',
     'reverseOnReturn',
+    // Steps of the checked deposit actions and checkout (I1).
+    'insertProduct',
+    'deliveredBy',
+    'undeliver',
     ...EVENTS,
   ];
 

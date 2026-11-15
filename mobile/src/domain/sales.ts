@@ -18,6 +18,7 @@ import {
   who,
 } from './context';
 import { getProduct, moveStock } from './products';
+import { undeliver } from './orders';
 import { logAction } from './activity';
 import { reverseOnReturn } from './loyalty';
 import { getPolicies, type Policies } from './policies';
@@ -72,6 +73,11 @@ export type Sale = {
   rewardOff: number;
   /** The birthday discount taken off its prices (H1), in dirhams. */
   birthdayOff: number;
+  /** The deposit paid before, when the sale delivered a deposit order (I1). */
+  depositUsed: number;
+  /** The bring-a-friend and we-miss-you discounts (I4). */
+  friendOff: number;
+  offerOff: number;
   lines: SaleLine[];
 };
 
@@ -142,6 +148,9 @@ type SaleRow = {
   points_paid?: number | null;
   reward_off?: number | null;
   birthday_off?: number | null;
+  deposit_used?: number | null;
+  friend_off?: number | null;
+  offer_off?: number | null;
 };
 
 /** The lines of several sales in one query (in chunks, well under SQLite's parameter limit). */
@@ -178,6 +187,9 @@ function toSale(r: SaleRow, lines: SaleLine[]): Sale {
     pointsPaid: r.points_paid ?? 0,
     rewardOff: r.reward_off ?? 0,
     birthdayOff: r.birthday_off ?? 0,
+    depositUsed: r.deposit_used ?? 0,
+    friendOff: r.friend_off ?? 0,
+    offerOff: r.offer_off ?? 0,
     lines,
   };
 }
@@ -359,6 +371,8 @@ export function deleteSale(ctx: Ctx, saleId: number, opts: { deleteReceipt?: boo
         )
       : [];
     for (const r of receipts) ctx.db.run('DELETE FROM receipts WHERE id = ?', [r.id]);
+    // A sale that delivered a deposit order: the order waits for her again, with its deposit.
+    undeliver(ctx, saleId);
     ctx.db.run('DELETE FROM sales WHERE id = ?', [saleId]);
     logAction(
       ctx,

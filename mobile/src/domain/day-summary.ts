@@ -32,14 +32,26 @@ export type DaySummary = {
   refunded: number;
   /** Refunds paid in cash (a return on a credit sale lowers the debt instead). */
   cashRefunds: number;
+  /** Debt payments in money (a deposit moved to a balance, method 'order', is not money). */
   payments: { cash: number; other: number };
   payouts: { cash: number; other: number };
+  /**
+   * Deposits on orders (I1): taken and refunded, by cash or not; the deposits the day's
+   * deliveries used (paid on earlier days); and deposits the shop kept on cancelled orders.
+   */
+  deposits: {
+    taken: { cash: number; other: number };
+    refunded: { cash: number; other: number };
+    used: number;
+    kept: number;
+  };
   cashIn: number;
   cashOut: number;
   expenses: number;
   /**
-   * Cash the day brought in, whatever the shifts: cash sales and debt payments, less cash refunds
-   * and credit paid back in cash, plus cash put in and less cash taken out of the drawers.
+   * Cash the day brought in, whatever the shifts: cash sales, debt payments and deposits, less
+   * cash refunds (of returns and of deposits) and credit paid back in cash, plus cash put in and
+   * less cash taken out of the drawers.
    */
   cashNet: number;
   /** Shifts open at any time that day, oldest first. */
@@ -74,7 +86,7 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
     number
   >;
   for (const r of ctx.db.all<{ m: PaymentMethod; t: number }>(
-    `SELECT payment_method m, sum(total - points_paid) t FROM sales
+    `SELECT payment_method m, sum(total - points_paid - deposit_used) t FROM sales
       WHERE created_at >= ? AND created_at < ? GROUP BY payment_method`,
     range,
   ))
@@ -82,9 +94,10 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
   const sales = one(
     `SELECT count(*) n, coalesce(sum(total), 0) t, coalesce(sum(discount), 0) d, count(approved_by) a,
             count(nullif(reward_off, 0)) rn, coalesce(sum(reward_off), 0) ro,
-            count(nullif(birthday_off, 0)) bn, coalesce(sum(birthday_off), 0) bo
+            count(nullif(birthday_off, 0)) bn, coalesce(sum(birthday_off), 0) bo,
+            coalesce(sum(deposit_used), 0) du
        FROM sales WHERE created_at >= ? AND created_at < ?`,
-    { n: 0, t: 0, d: 0, a: 0, rn: 0, ro: 0, bn: 0, bo: 0 },
+    { n: 0, t: 0, d: 0, a: 0, rn: 0, ro: 0, bn: 0, bo: 0, du: 0 },
   );
   const pieces = one(
     `SELECT coalesce(sum(l.quantity), 0) q FROM sale_lines l JOIN sales s ON s.id = l.sale_id
@@ -109,15 +122,24 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
       WHERE r.created_at >= ? AND r.created_at < ?`,
     { n: 0, t: 0, cash: 0, a: 0 },
   );
-  const split = (table: 'payments' | 'payouts') =>
+  const split = (table: 'payments' | 'payouts' | 'order_payments', kind = '') =>
     one(
       `SELECT coalesce(sum(CASE WHEN method = 'cash' THEN amount END), 0) cash,
-              coalesce(sum(CASE WHEN method <> 'cash' THEN amount END), 0) other
-         FROM ${table} WHERE created_at >= ? AND created_at < ?`,
+              coalesce(sum(CASE WHEN method NOT IN ('cash', 'order') THEN amount END), 0) other
+         FROM ${table} WHERE created_at >= ? AND created_at < ?${kind ? ` AND kind = '${kind}'` : ''}`,
       { cash: 0, other: 0 },
     );
   const payments = split('payments');
   const payouts = split('payouts');
+  const taken = split('order_payments', 'pay');
+  const refundedDeposits = split('order_payments', 'refund');
+  const orders = one(
+    `SELECT coalesce((SELECT sum(settled) FROM orders WHERE cancel_how = 'keep'
+                       AND cancelled_at >= ?1 AND cancelled_at < ?2), 0) kept,
+            (SELECT count(approved_by) FROM orders WHERE created_at >= ?1 AND created_at < ?2)
+              + (SELECT count(cancel_approved_by) FROM orders WHERE cancelled_at >= ?1 AND cancelled_at < ?2) a`,
+    { kept: 0, a: 0 },
+  );
   const moves = one(
     `SELECT coalesce(sum(CASE kind WHEN 'in' THEN amount END), 0) i,
             coalesce(sum(CASE kind WHEN 'out' THEN amount END), 0) o
@@ -157,16 +179,25 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
     discounts: sales.d,
     rewards: { count: sales.rn, off: sales.ro },
     birthdays: { count: sales.bn, off: sales.bo },
-    approvals: sales.a + ret.a,
+    approvals: sales.a + ret.a + orders.a,
     returns: ret.n,
     refunded: ret.t,
     cashRefunds: ret.cash,
     payments,
     payouts,
+    deposits: { taken, refunded: refundedDeposits, used: sales.du, kept: orders.kept },
     cashIn: moves.i,
     cashOut: moves.o,
     expenses,
-    cashNet: byMethod.cash + payments.cash - ret.cash - payouts.cash + moves.i - moves.o,
+    cashNet:
+      byMethod.cash +
+      payments.cash +
+      taken.cash -
+      refundedDeposits.cash -
+      ret.cash -
+      payouts.cash +
+      moves.i -
+      moves.o,
     shifts,
     shortages: -differences.filter((d) => d < 0).reduce((t, d) => t + d, 0),
     extras: differences.filter((d) => d > 0).reduce((t, d) => t + d, 0),

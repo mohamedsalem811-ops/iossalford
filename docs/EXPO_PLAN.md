@@ -826,7 +826,23 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 - **I3 – the look:** customer card B, the shift bar and the sale lock, the shortcuts.
 - **I4 – marketing:** gift memory, occasions, thank-you, bring a friend (with the rewards card), VIP first look, we miss you, the message templates and the step-by-step sender.
 
-**Open question for the owner:** can a special-order piece be returned under the normal return rules, or not at all?
+**Owner's answer (2026-11-15):** a special-order piece can be returned within 24 hours, under the normal return rules.
+
+**I1 as built (2026-11-15):**
+
+- **Database 12** as planned, plus `orders.cost`, `cost_usd` and `cost_rate`, the expected date, each stage's time, how it was cancelled and what was settled, and the balance payment it became. A copy of the database is saved before the upgrade, as for every upgrade. Backups (both kinds) check links when the restore finishes, not row by row, so a customer can point at the customer who sent her.
+- **`domain/orders.ts`:** take an order or a hold (with its deposit receipt), add a payment, تم الشراء (owner: cost in dinars or dollars, and the date), change the date (owner), وصلت (the piece becomes a product at the agreed price and the owner's cost), cancel, the orders list with search and pages, the home reminders (no date, late, not collected after the owner's days), deposits held, and the owner's rules (minimum %, the policy line, reminder days) in Settings.
+- **Delivery** is a checkout with the order: the order's customer, its piece in the cart at the agreed price (the list price, so not a discount), the deposit used off what is paid now (points pay only the rest). Deleting that sale puts the order back.
+- **Held pieces:** checkout sells only stock − held; a held piece can't have its stock taken under what is held, nor be deleted or archived; an ordered piece that arrived can't be edited at all until delivered or cancelled. An arrived piece whose order is cancelled stays in stock as the shop's.
+- **Money:** shift expected cash, the shift report, the day summary and its PDF, the dashboard's money by method, debts and the statement, the monthly report and the quarterly closing (a line for deposits kept), as in the code check.
+- **Receipts:** the 5 designs print the deposit paid and what is left (deposit receipt), or the deposit paid before and what was paid now (delivery receipt, with the deposit receipts' numbers). A deposit receipt can't be deleted, nor its pieces or customer changed (its design can).
+- **Customers:** merge moves orders, gifts, offers, messages and who sent whom; a customer with orders can't be deleted.
+- **Tests:** `domain/orders.test.ts` (24), `db/database-12.test.ts` (upgrade from 10 and 11), the permission matrix (7 new actions). No screens yet, so no simulator flow: the flows come with I2.
+- **Choices made while building, for the owner to check:**
+  1. a deposit needs the customer's name **and phone** (the shop calls her when the piece is ready);
+  2. if a reward would bring the sale under the deposit already paid, the delivery is refused with a message (the reward is kept for another purchase) rather than putting the difference on her balance;
+  3. an employee needs the owner's approval for every cancel, a hold included;
+  4. an order can be for more than one of the same piece (the price typed is for one).
 
 ### Phase 10: switching over
 

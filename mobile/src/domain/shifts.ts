@@ -174,6 +174,9 @@ export type ShiftTotals = {
   cashPayments: number;
   /** Customer credit paid back in cash (audit F-4). */
   cashPayouts: number;
+  /** Deposits taken on orders (I1), less deposits refunded: in all, and in cash. */
+  deposits: number;
+  cashDeposits: number;
   cashIn: number;
   cashOut: number;
   /** Taken off list prices, and the owner's approvals (discounts and returns past the rules). */
@@ -188,8 +191,9 @@ export function shiftTotals(ctx: Ctx, shift: Pick<Shift, 'id' | 'openingCash'>):
   const id = shift.id;
   const byMethod: Record<PaymentMethod, number> = { cash: 0, card: 0, transfer: 0, credit: 0 };
   for (const r of ctx.db.all<{ m: PaymentMethod; t: number }>(
-    // Money only: the part paid with loyalty points (F3) never came into the drawer.
-    'SELECT payment_method m, sum(total - points_paid) t FROM sales WHERE shift_id = ? GROUP BY payment_method',
+    // Money only: the part paid with loyalty points (F3) never came into the drawer, and a
+    // deposit (I1) came in when it was paid, counted below.
+    'SELECT payment_method m, sum(total - points_paid - deposit_used) t FROM sales WHERE shift_id = ? GROUP BY payment_method',
     [id],
   ))
     byMethod[r.m] = r.t;
@@ -221,6 +225,15 @@ export function shiftTotals(ctx: Ctx, shift: Pick<Shift, 'id' | 'openingCash'>):
          FROM cash_moves WHERE shift_id = ?`,
     [id],
   ) ?? { i: 0, o: 0 };
+  const deposits = ctx.db.get<{ t: number; cash: number }>(
+    `SELECT coalesce(sum(CASE kind WHEN 'pay' THEN amount ELSE -amount END), 0) t,
+            coalesce(sum(CASE WHEN method <> 'cash' THEN 0 WHEN kind = 'pay' THEN amount ELSE -amount END), 0) cash
+       FROM order_payments WHERE shift_id = ?`,
+    [id],
+  ) ?? { t: 0, cash: 0 };
+  const orderApprovals =
+    ctx.db.get<{ n: number }>('SELECT count(approved_by) n FROM orders WHERE shift_id = ?', [id])
+      ?.n ?? 0;
   return {
     byMethod,
     sales: sales.n,
@@ -229,12 +242,21 @@ export function shiftTotals(ctx: Ctx, shift: Pick<Shift, 'id' | 'openingCash'>):
     cashRefunds: ret.cash,
     cashPayments,
     cashPayouts,
+    deposits: deposits.t,
+    cashDeposits: deposits.cash,
     cashIn: moves.i,
     cashOut: moves.o,
     discounts: sales.d,
-    approvals: sales.a + ret.a,
+    approvals: sales.a + ret.a + orderApprovals,
     expected:
-      shift.openingCash + byMethod.cash + cashPayments + moves.i - moves.o - ret.cash - cashPayouts,
+      shift.openingCash +
+      byMethod.cash +
+      cashPayments +
+      deposits.cash +
+      moves.i -
+      moves.o -
+      ret.cash -
+      cashPayouts,
   };
 }
 

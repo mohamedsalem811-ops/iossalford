@@ -26,8 +26,17 @@ export type ReceiptDoc = {
   rewardOff?: number;
   /** The birthday discount (H1) already taken off the prices: printed as the customer's gift. */
   birthdayOff?: number;
+  /** The bring-a-friend and we-miss-you discounts (I4), already taken off the prices. */
+  friendOff?: number;
+  offerOff?: number;
   /** Printed under the total as it was at the sale (points left, purchases to the reward). */
   footer?: string | null;
+  /**
+   * A deposit receipt (I1) prints the deposit paid and what is left; a sale's receipt with a
+   * deposit prints the deposit already paid and what was paid now.
+   */
+  kind?: 'sale' | 'deposit';
+  deposit?: number;
   receiptNo: string | null;
   date: string;
   time: string;
@@ -67,13 +76,29 @@ export function toCss(css: string): string {
  * Under the total, on a receipt with prices: what loyalty points paid ("مدفوع بالنقاط") and what
  * was paid in money.
  */
-export function pointsLines(doc: Pick<ReceiptDoc, 'items' | 'showPrices' | 'pointsPaid'>): string {
+export function pointsLines(
+  doc: Pick<ReceiptDoc, 'items' | 'showPrices' | 'pointsPaid' | 'kind' | 'deposit'>,
+): string {
+  if (!doc.showPrices) return '';
   const points = doc.pointsPaid ?? 0;
-  if (!doc.showPrices || points <= 0) return '';
+  const deposit = doc.deposit ?? 0;
   const total = doc.items.reduce((s, i) => s + i.price * i.quantity, 0);
-  return `
-    <div class="points"><span>Paid with points / مدفوع بالنقاط</span><span>${receiptMoney(points)} LYD</span></div>
-    <div class="points"><span>Paid / المدفوع</span><span>${receiptMoney(Math.max(0, total - points))} LYD</span></div>`;
+  const row = (label: string, amount: number) => `
+    <div class="points"><span>${label}</span><span>${receiptMoney(amount)} LYD</span></div>`;
+  if (doc.kind === 'deposit')
+    return (
+      row('Deposit paid / العربون المدفوع', deposit) +
+      row('Remaining / الباقي', Math.max(0, total - deposit))
+    );
+  if (points <= 0 && deposit <= 0) return '';
+  return (
+    (deposit > 0 ? row('Deposit paid before / العربون المدفوع مسبقاً', deposit) : '') +
+    (points > 0 ? row('Paid with points / مدفوع بالنقاط', points) : '') +
+    row(
+      deposit > 0 ? 'Paid now / المدفوع الآن' : 'Paid / المدفوع',
+      Math.max(0, total - points - deposit),
+    )
+  );
 }
 
 /**
@@ -81,7 +106,10 @@ export function pointsLines(doc: Pick<ReceiptDoc, 'items' | 'showPrices' | 'poin
  * from the sale.
  */
 export function rewardLines(
-  doc: Pick<ReceiptDoc, 'showPrices' | 'rewardOff' | 'birthdayOff' | 'footer'>,
+  doc: Pick<
+    ReceiptDoc,
+    'showPrices' | 'rewardOff' | 'birthdayOff' | 'friendOff' | 'offerOff' | 'footer'
+  >,
 ): string {
   const line = (label: string, off: number | undefined) =>
     doc.showPrices && (off ?? 0) > 0
@@ -90,7 +118,9 @@ export function rewardLines(
       : '';
   const saved =
     line('Visit reward / مكافأة الزيارة', doc.rewardOff) +
-    line('Birthday gift / هدية عيد الميلاد', doc.birthdayOff);
+    line('Birthday gift / هدية عيد الميلاد', doc.birthdayOff) +
+    line('Friend gift / هدية الصديقة', doc.friendOff) +
+    line('Welcome back / عرض العودة', doc.offerOff);
   const footer = (doc.footer ?? '')
     .split('\n')
     .map((l) => l.trim())

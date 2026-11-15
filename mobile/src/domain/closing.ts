@@ -12,6 +12,8 @@ export type Closing = {
   totalCost: number;
   totalExpenses: number;
   totalRefunds: number;
+  /** Deposits kept on cancelled orders (I1); 0 on closings made before database 12. */
+  otherIncome: number;
   netProfit: number;
   transactions: number;
   itemsSold: number;
@@ -27,6 +29,7 @@ type Row = {
   total_cost: number;
   total_expenses: number;
   total_refunds: number;
+  other_income?: number | null;
   net_profit: number;
   transactions: number;
   items_sold: number;
@@ -42,6 +45,7 @@ const toClosing = (r: Row): Closing => ({
   totalCost: r.total_cost,
   totalExpenses: r.total_expenses,
   totalRefunds: r.total_refunds,
+  otherIncome: r.other_income ?? 0,
   netProfit: r.net_profit,
   transactions: r.transactions,
   itemsSold: r.items_sold,
@@ -63,11 +67,11 @@ export function closeQuarter(ctx: Ctx, q: Quarter, notes?: string): Closing {
   return ctx.db.transaction(() => {
     const s = previewQuarter(ctx, q);
     ctx.db.run(
-      `INSERT INTO closings (period_key, title, total_sales, total_cost, total_expenses, total_refunds, net_profit, transactions, items_sold, notes, closed_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO closings (period_key, title, total_sales, total_cost, total_expenses, total_refunds, other_income, net_profit, transactions, items_sold, notes, closed_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(period_key) DO UPDATE SET title = excluded.title, total_sales = excluded.total_sales,
        total_cost = excluded.total_cost, total_expenses = excluded.total_expenses, total_refunds = excluded.total_refunds,
-       net_profit = excluded.net_profit, transactions = excluded.transactions, items_sold = excluded.items_sold,
+       other_income = excluded.other_income, net_profit = excluded.net_profit, transactions = excluded.transactions, items_sold = excluded.items_sold,
        notes = excluded.notes, closed_at = excluded.closed_at`,
       [
         quarterKey(q),
@@ -76,6 +80,7 @@ export function closeQuarter(ctx: Ctx, q: Quarter, notes?: string): Closing {
         s.costOfSales,
         s.expenses,
         s.refunds,
+        s.otherIncome,
         s.netProfit,
         s.transactions,
         s.itemsSold,

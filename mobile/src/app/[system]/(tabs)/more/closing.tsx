@@ -93,6 +93,9 @@ function ClosingRouteScreen() {
           <Line label="الربح الإجمالي" value={formatLyd(p.grossProfit)} />
           <Line label="المرتجعات (المبالغ المعادة)" value={formatLyd(p.refunds)} />
           <Line label="المصروفات" value={formatLyd(p.expenses)} />
+          {p.otherIncome > 0 ? (
+            <Line label="عربون احتفظ به المحل" value={formatLyd(p.otherIncome)} />
+          ) : null}
           <Line label="صافي الربح" value={formatLyd(p.netProfit)} strong testID="closing-net" />
           <Text variant="caption" tone="secondary">
             {`${p.transactions} بيعة • ${p.itemsSold} قطعة مباعة • ${p.itemsReturned} مرتجعة`}

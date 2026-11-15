@@ -20,7 +20,9 @@ import { getRewards, type RewardRules } from './rewards';
 import { rewardCart, rewardStatus } from './visit-reward';
 import { birthdayStatus, getBirthday } from './birthday';
 import { countText, PURCHASES_LEFT } from '@/lib/arabic-count';
-import { displayName, getProduct, moveStock } from './products';
+import { displayName, getProduct, moveStock, type Product } from './products';
+import { deliveredBy, depositReceiptNos, orderForDelivery, type Order } from './orders';
+import { reservedOf } from './reserved';
 import { issueReceipt, type Receipt, type TemplateId } from './receipts';
 import { getSet, setForCart } from './sets';
 import { getRate } from './settings';
@@ -97,6 +99,11 @@ export type CheckoutInput = {
   birthday?: boolean;
   /** The owner's one-time approval for a birthday saved less than 30 days before it. */
   birthdayApproval?: string;
+  /**
+   * Delivers this deposit order (I1): its piece is in the cart at the agreed price (its list
+   * price here), the customer is the order's, and the deposit paid comes off what is paid now.
+   */
+  orderId?: number;
 };
 
 export type CheckoutResult = { saleId: number; receipt: Receipt; total: number };
@@ -114,31 +121,36 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
     throw new CheckoutError([{ kind: 'credit-needs-customer' }]);
   }
   return ctx.db.transaction(() => {
-    const problems = cartProblems(input.cart, (id) => getProduct(ctx, id));
+    const order = input.orderId ? orderForDelivery(ctx, input.orderId) : null;
+    const productOf = sellable(ctx, order);
+    const problems = cartProblems(input.cart, productOf);
     if (problems.length) throw new CheckoutError(problems);
+    if (order) {
+      const inCart = input.cart
+        .filter((l) => l.productId === order.productId)
+        .reduce((n, l) => n + l.quantity, 0);
+      if (inCart < order.quantity)
+        throw new RuleError(`أضف قطعة الطلب «${order.description}» إلى السلة لتسليمها`);
+    }
     // A kept cart can be hours old: never sell at a price that has changed since (audit F-1).
-    const changed = priceChanges(
-      input.cart,
-      (id) => getProduct(ctx, id),
-      (id) => {
-        const set = getSet(ctx, id);
-        return set ? setForCart(ctx, set) : undefined;
-      },
-    );
+    const changed = priceChanges(input.cart, productOf, (id) => {
+      const set = getSet(ctx, id);
+      return set ? setForCart(ctx, set) : undefined;
+    });
     if (changed.length) throw new CheckoutError(changed);
     // Before the approval below: a sale refused for no open shift must not use it up (F-7).
     const shiftId = shiftFor(ctx, seller);
 
     // Discounts over the employee limits need the owner, with a reason (phase S4).
     const policies = getPolicies(ctx);
-    const discount = cartDiscount(input.cart, (id) => getProduct(ctx, id)?.price, policies);
+    const priceOf = (id: number) => productOf(id)?.price;
+    const discount = cartDiscount(input.cart, priceOf, policies);
     const reason = clean(input.discountReason);
     // One reward a purchase, and never with another discount (the owner's rule, H1): an agreed
     // price under the list price is a discount too. Sets keep their own price and are allowed.
     if (input.reward && input.birthday)
       throw new RuleError('مكافأة واحدة في كل شراء: مكافأة الزيارة أو خصم عيد الميلاد');
     if (input.reward || input.birthday) {
-      const priceOf = (id: number) => getProduct(ctx, id)?.price;
       if (policies.quickDiscounts.some((p) => hasPercentOff(input.cart, priceOf, p)))
         throw new RuleError('لا تُجمع المكافأة مع أزرار الخصم السريع');
       if (discount.total > 0)
@@ -154,6 +166,8 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
     }
 
     const customerId = ensureCustomer(ctx, c.name, c.phone, c.area, c.details);
+    if (order && customerId !== order.customerId)
+      throw new RuleError(`الطلب رقم ${order.id} باسم «${order.customerName}»: اختر الزبون نفسه`);
     const customerName = clean(c.name);
     const stamp = nowStamp(ctx);
     // The visit reward (G2): set up by the owner in advance, so it needs no approval and is not
@@ -201,11 +215,19 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       if (birthdayBy === 'approved') approvedBy = 'owner';
     }
     const lines = cart.map((l) => {
-      const p = getProduct(ctx, l.productId)!;
+      const p = productOf(l.productId)!;
       return { l, p, total: lineTotal(l), cost: p.cost * l.quantity };
     });
     const total = lines.reduce((t, x) => t + x.total, 0);
     const totalCost = lines.reduce((t, x) => t + x.cost, 0);
+    // The deposit paid comes off what is paid now; it can't be more than the sale (a reward on
+    // a piece paid almost in full would leave the shop owing her: refused, she keeps the reward
+    // for another purchase).
+    const depositUsed = order?.paid ?? 0;
+    if (depositUsed > total)
+      throw new RuleError(
+        `العربون المدفوع ${formatLyd(depositUsed)} أكبر من مبلغ البيعة ${formatLyd(total)}: لا تُستخدم المكافأة في هذا التسليم`,
+      );
 
     const saleId = ctx.db.run(
       `INSERT INTO sales (created_at, month, payment_method, customer_id, customer_name, note, rate, total, total_cost, seller, seller_name,
@@ -232,9 +254,12 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
 
     // Points paying part of the sale (F3): checked against the customer's points and the
     // owner's rules, then the rest earns new points.
+    if (depositUsed > 0)
+      ctx.db.run('UPDATE sales SET deposit_used = ? WHERE id = ?', [depositUsed, saleId]);
+    // Points pay only what is left after the deposit.
     const pointsPaid = redeemOnSale(
       ctx,
-      { id: saleId, customerId, total, method: input.paymentMethod },
+      { id: saleId, customerId, total: total - depositUsed, method: input.paymentMethod },
       input.points ?? 0,
     );
     if (pointsPaid > 0)
@@ -249,6 +274,10 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       paid: total - pointsPaid,
       method: input.paymentMethod,
     });
+    // A credit delivery earns the rest as it is paid; the deposit was money already paid.
+    if (input.paymentMethod === 'credit' && depositUsed > 0)
+      earnOnSale(ctx, { id: saleId, customerId, paid: depositUsed, method: 'cash' });
+    if (order) deliveredBy(ctx, order.id, saleId);
 
     for (const { l, p, total: lt, cost } of lines) {
       const lineId = ctx.db.run(
@@ -266,6 +295,7 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
           p.color,
           l.quantity,
           p.cost,
+          // The agreed price of a delivered order is its list price (productOf).
           p.price,
           l.unitPrice,
           lt,
@@ -291,7 +321,16 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       pointsPaid,
       rewardOff,
       birthdayOff,
-      footer: receiptFooter(ctx, customerId),
+      deposit: depositUsed,
+      orderId: order?.id ?? null,
+      footer: [
+        order
+          ? `${order.kind === 'hold' ? 'حجز' : 'طلب'} رقم ${order.id}، العربون: ${depositReceiptNos(ctx, order.id).join('، ')}`
+          : null,
+        receiptFooter(ctx, customerId),
+      ]
+        .filter(Boolean)
+        .join('\n'),
       items: lines.map(({ l, p }) => ({
         name: displayName(ctx, p),
         brand: p.brand,
@@ -315,9 +354,12 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
         birthdayOff
           ? `، خصم عيد الميلاد ${formatLyd(birthdayOff)}${birthdayBy === 'approved' ? ' بموافقة المالك' : ''}`
           : ''
-      }${pointsPaid ? `، مدفوع بالنقاط ${formatLyd(pointsPaid)}` : ''}`,
+      }${pointsPaid ? `، مدفوع بالنقاط ${formatLyd(pointsPaid)}` : ''}${
+        order ? `، تسليم الطلب رقم ${order.id} بعربون ${formatLyd(depositUsed)}` : ''
+      }`,
       {
         saleId,
+        ...(order ? { orderId: order.id, depositUsed } : {}),
         total,
         pieces,
         ...(pointsPaid ? { pointsPaid } : {}),
@@ -355,4 +397,22 @@ export function receiptFooter(
     );
   }
   return lines.length ? lines.join('\n') : null;
+}
+
+/**
+ * The pieces as checkout sells them: available = stock − pieces held for customers (I1), except
+ * the order being delivered, whose piece is hers and sells at the agreed price.
+ */
+function sellable(ctx: Ctx, order: Order | null) {
+  return (id: number): Product | undefined => {
+    const p = getProduct(ctx, id);
+    if (!p) return undefined;
+    const held = reservedOf(ctx, id, order?.id);
+    const mine = order && order.productId === id;
+    return {
+      ...p,
+      stock: Math.max(0, p.stock - held),
+      ...(mine ? { price: order.price / order.quantity } : {}),
+    };
+  };
 }

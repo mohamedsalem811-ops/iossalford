@@ -30,8 +30,12 @@ export const TABLES = [
   'expenses',
   'sets',
   'set_items',
+  // Database 12 (I1): an order points at its customer, piece, sale, shift and balance payment,
+  // and a deposit receipt at its order; an order payment at its receipt.
+  'orders',
   'receipts',
   'receipt_items',
+  'order_payments',
   'closings',
   'activity',
   'staff_ledger',
@@ -40,6 +44,10 @@ export const TABLES = [
   'payouts',
   'loyalty_moves',
   'wanted_pieces',
+  'gifts',
+  'referrals',
+  'offers',
+  'message_log',
 ] as const;
 
 type Row = Record<string, SqlValue>;
@@ -195,6 +203,9 @@ export function restoreBackup(ctx: Ctx, data: unknown): { safetyCopy: Backup } {
   const b = validateBackup(ctx, data);
   const safetyCopy = exportBackup(ctx);
   ctx.db.transaction(() => {
+    // Links are checked when the restore commits, not row by row: a customer can point at the
+    // customer who sent her (I4), whatever order they were saved in.
+    ctx.db.exec('PRAGMA defer_foreign_keys = ON;');
     const used = usedNumbers(ctx.db);
     for (const t of [...TABLES].reverse()) ctx.db.run(`DELETE FROM ${t}`);
     for (const t of TABLES) {

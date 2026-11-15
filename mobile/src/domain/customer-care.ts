@@ -199,7 +199,7 @@ export function duplicateCustomers(ctx: Ctx): Customer[][] {
 
 /**
  * The owner merges two customers into the one kept: the other one's purchases, debt payments,
- * credit paid back, points and wanted pieces move to it; the kept one's empty details are filled
+ * credit paid back, points, wanted pieces, deposit orders, gifts, offers and messages move to it; the kept one's empty details are filled
  * from the other, the notes are joined; then the other is deleted. Logged.
  */
 export function mergeCustomers(ctx: Ctx, keepId: number, dropId: number) {
@@ -209,8 +209,36 @@ export function mergeCustomers(ctx: Ctx, keepId: number, dropId: number) {
   const drop = getCustomer(ctx, dropId);
   if (!keep || !drop) throw new RuleError('الزبون غير موجود');
   ctx.db.transaction(() => {
-    for (const table of ['sales', 'payments', 'payouts', 'loyalty_moves', 'wanted_pieces'])
+    for (const table of [
+      'sales',
+      'payments',
+      'payouts',
+      'loyalty_moves',
+      'wanted_pieces',
+      // Database 12 (I1, I4): orders, gifts, offers and the messages sent.
+      'orders',
+      'gifts',
+      'offers',
+      'message_log',
+    ])
       ctx.db.run(`UPDATE ${table} SET customer_id = ? WHERE customer_id = ?`, [keepId, dropId]);
+    // Bring a friend: the one who was sent keeps one record (the kept one's, if both have one);
+    // the friends either of them sent now count for the kept one, never for herself.
+    if (ctx.db.get('SELECT 1 FROM referrals WHERE friend_id = ?', [keepId]))
+      ctx.db.run('DELETE FROM referrals WHERE friend_id = ?', [dropId]);
+    else ctx.db.run('UPDATE referrals SET friend_id = ? WHERE friend_id = ?', [keepId, dropId]);
+    ctx.db.run('UPDATE referrals SET referrer_id = ? WHERE referrer_id = ?', [keepId, dropId]);
+    ctx.db.run('DELETE FROM referrals WHERE friend_id = referrer_id');
+    ctx.db.run('UPDATE customers SET referred_by = ? WHERE referred_by = ?', [keepId, dropId]);
+    ctx.db.run(
+      `UPDATE customers SET referred_by = (SELECT referred_by FROM customers WHERE id = ?)
+        WHERE id = ? AND referred_by IS NULL`,
+      [dropId, keepId],
+    );
+    ctx.db.run('UPDATE customers SET referred_by = NULL WHERE id = ? AND referred_by = ?', [
+      keepId,
+      keepId,
+    ]);
     const notes = [keep.notes, drop.notes].filter((n, i, all) => n && all.indexOf(n) === i);
     ctx.db.run(
       `UPDATE customers SET

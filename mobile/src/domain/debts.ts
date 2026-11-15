@@ -7,14 +7,15 @@ import { earnOnPayment, pointsBalance } from './loyalty';
 import { shiftFor } from './shifts';
 
 /**
- * What a customer still owes: their credit (آجل) sales, minus refunds on returns of those sales,
- * minus payments received, plus what the shop paid back to them. Negative means the shop owes
- * the customer ("له رصيد").
+ * What a customer still owes: their credit (آجل) sales (less any deposit paid before, I1), minus
+ * refunds on returns of those sales, minus payments received (a deposit moved to her balance is a
+ * payment with method 'order'), plus what the shop paid back to them. Negative means the shop
+ * owes the customer ("له رصيد").
  */
 export function balance(ctx: Ctx, customerId: number): number {
   const r = ctx.db.get<{ owed: number; refunded: number; paid: number; paid_back: number }>(
     `SELECT
-       coalesce((SELECT sum(total) FROM sales WHERE customer_id = ?1 AND payment_method = 'credit'), 0) AS owed,
+       coalesce((SELECT sum(total - deposit_used) FROM sales WHERE customer_id = ?1 AND payment_method = 'credit'), 0) AS owed,
        coalesce((SELECT sum(r.refund) FROM returns r JOIN sale_lines l ON l.id = r.sale_line_id
                   JOIN sales s ON s.id = l.sale_id
                  WHERE s.customer_id = ?1 AND s.payment_method = 'credit'), 0) AS refunded,
@@ -38,7 +39,7 @@ export function allBalances(ctx: Ctx): Map<number, number> {
             coalesce(o.owed, 0) - coalesce(r.refunded, 0) - coalesce(p.paid, 0) + coalesce(b.back, 0)
               AS balance
        FROM customers c
-       LEFT JOIN (SELECT customer_id, sum(total) AS owed FROM sales
+       LEFT JOIN (SELECT customer_id, sum(total - deposit_used) AS owed FROM sales
                    WHERE payment_method = 'credit' AND customer_id IS NOT NULL
                    GROUP BY customer_id) o ON o.customer_id = c.id
        LEFT JOIN (SELECT s.customer_id, sum(r.refund) AS refunded FROM returns r
@@ -126,11 +127,14 @@ export function recordPayment(
 export function deletePayment(ctx: Ctx, id: number) {
   allow(ctx, 'payments.delete');
   ctx.db.transaction(() => {
-    const p = ctx.db.get<{ amount: number; name: string | null }>(
-      'SELECT p.amount, c.name FROM payments p LEFT JOIN customers c ON c.id = p.customer_id WHERE p.id = ?',
+    const p = ctx.db.get<{ amount: number; name: string | null; method: string }>(
+      'SELECT p.amount, p.method, c.name FROM payments p LEFT JOIN customers c ON c.id = p.customer_id WHERE p.id = ?',
       [id],
     );
     if (!p) return;
+    // A deposit moved to her balance is the record of a cancelled order (I1), not a payment.
+    if (p.method === 'order')
+      throw new RuleError('هذا رصيد من عربون طلب مُلغى: لا يُحذف. يُرد لها من «رد رصيد».');
     ctx.db.run('DELETE FROM payments WHERE id = ?', [id]);
     logAction(ctx, 'payment.delete', `حذف دفعة ${formatLyd(p.amount)} من «${p.name ?? '—'}»`, {
       paymentId: id,
@@ -238,6 +242,8 @@ export function deleteCustomer(ctx: Ctx, id: number) {
       [id],
     );
     if (credit) throw new RuleError(`لا يمكن حذف «${c.name}»: له تعاملات آجلة مسجلة`);
+    if (ctx.db.get('SELECT 1 FROM orders WHERE customer_id = ? LIMIT 1', [id]))
+      throw new RuleError(`لا يمكن حذف «${c.name}»: لها طلبات بعربون مسجلة`);
     const points = pointsBalance(ctx, id);
     if (points > 0) throw new RuleError(`لا يمكن حذف «${c.name}»: له ${points} نقطة ولاء`);
     // No points left: their history goes with them.
@@ -273,7 +279,7 @@ export function statement(ctx: Ctx, customerId: number): StatementLine[] {
     amount: number;
     note: string | null;
   }>(
-    `SELECT 'sale' AS kind, id, id AS sale_id, created_at, total AS amount, note
+    `SELECT 'sale' AS kind, id, id AS sale_id, created_at, total - deposit_used AS amount, note
        FROM sales WHERE customer_id = ?1 AND payment_method = 'credit'
      UNION ALL
      SELECT 'refund', r.id, s.id, r.created_at, -r.refund, r.reason

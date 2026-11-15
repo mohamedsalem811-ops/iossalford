@@ -66,8 +66,19 @@ export type Receipt = {
   rewardOff: number;
   /** The birthday discount taken off the sale (H1), printed as the customer's gift. */
   birthdayOff: number;
+  /** The bring-a-friend and we-miss-you discounts taken off the sale (I4). */
+  friendOff: number;
+  offerOff: number;
   /** Printed under the total, as it was at the sale (points left, purchases to the reward). */
   footer: string | null;
+  /**
+   * 'deposit': a deposit paid towards an order (I1), with `deposit` what was paid so far; it
+   * belongs to its order and can't be deleted, nor its pieces or customer changed. On a sale's
+   * receipt, `deposit` is the deposit the delivery used.
+   */
+  kind: 'sale' | 'deposit';
+  orderId: number | null;
+  deposit: number;
   saleId: number | null;
   items: ReceiptItem[];
   total: number;
@@ -147,7 +158,12 @@ export type IssueInput = {
   pointsPaid?: number;
   rewardOff?: number;
   birthdayOff?: number;
+  friendOff?: number;
+  offerOff?: number;
   footer?: string | null;
+  kind?: 'sale' | 'deposit';
+  orderId?: number | null;
+  deposit?: number;
 };
 
 /** Saves a new receipt with the next number. Used by checkout and for receipts made by hand. */
@@ -161,8 +177,9 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
     const { date, time } = receiptDateTime(ctx.now());
     const id = ctx.db.run(
       `INSERT INTO receipts (receipt_no, date, time, customer, template, show_prices, show_specs, sale_id, points_paid,
-         reward_off, birthday_off, footer, created_at, issued_by, issued_by_name)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         reward_off, birthday_off, friend_off, offer_off, footer, kind, order_id, deposit, created_at, issued_by,
+         issued_by_name)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         takeReceiptNo(ctx),
         date,
@@ -175,7 +192,12 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
         input.pointsPaid ?? 0,
         input.rewardOff ?? 0,
         input.birthdayOff ?? 0,
+        input.friendOff ?? 0,
+        input.offerOff ?? 0,
         input.footer?.trim() || null,
+        input.kind ?? 'sale',
+        input.orderId ?? null,
+        input.deposit ?? 0,
         nowStamp(ctx),
         actorKey(by),
         actorName(by),
@@ -183,8 +205,8 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
     ).lastInsertRowId;
     writeItems(ctx, id, items);
     const r = getReceipt(ctx, id)!;
-    // A sale's receipt is part of the sale's own line.
-    if (!input.saleId)
+    // A sale's receipt, and a deposit's, are part of the sale's or the order's own line.
+    if (!input.saleId && !input.orderId)
       logAction(ctx, 'receipt.create', `إيصال ${r.receiptNo} لـ «${r.customer}»`, {
         receiptId: id,
       });
@@ -192,13 +214,25 @@ export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
   });
 }
 
-/** Edits a saved receipt (customer, items, design, prices shown or not). Its number never changes. */
-export function updateReceipt(ctx: Ctx, id: number, input: Omit<IssueInput, 'saleId'>): Receipt {
+/**
+ * Edits a saved receipt (customer, items, design, prices shown or not). Its number never changes.
+ * A deposit receipt keeps its pieces and customer (it is the record of money paid): only its
+ * design and showing the prices change.
+ */
+export function updateReceipt(
+  ctx: Ctx,
+  id: number,
+  input: Omit<IssueInput, 'saleId' | 'kind' | 'orderId' | 'deposit'>,
+): Receipt {
   allow(ctx, 'receipts.edit');
   const items = cleanItems(input.items);
   return ctx.db.transaction(() => {
     const old = getReceipt(ctx, id);
     if (!old) throw new RuleError('الإيصال غير موجود');
+    if (old.kind === 'deposit' && depositChanged(old, input, items))
+      throw new RuleError(
+        'إيصال العربون سجلّ لمبلغ مدفوع: لا تتغير قطعه ولا اسم الزبون، ويمكن تغيير التصميم فقط.',
+      );
     const template = input.template ?? old.template;
     if (TEMPLATES[template]?.system !== ctx.system)
       throw new RuleError('هذا القالب غير متاح في هذا النظام');
@@ -231,7 +265,12 @@ type ReceiptRow = {
   points_paid?: number | null;
   reward_off?: number | null;
   birthday_off?: number | null;
+  friend_off?: number | null;
+  offer_off?: number | null;
   footer?: string | null;
+  kind?: 'sale' | 'deposit' | null;
+  order_id?: number | null;
+  deposit?: number | null;
   sale_id: number | null;
   created_at: string;
   updated_at: string | null;
@@ -276,7 +315,12 @@ function toReceipt(r: ReceiptRow, items: ReceiptItem[]): Receipt {
     pointsPaid: r.points_paid ?? 0,
     rewardOff: r.reward_off ?? 0,
     birthdayOff: r.birthday_off ?? 0,
+    friendOff: r.friend_off ?? 0,
+    offerOff: r.offer_off ?? 0,
     footer: r.footer ?? null,
+    kind: r.kind ?? 'sale',
+    orderId: r.order_id ?? null,
+    deposit: r.deposit ?? 0,
     saleId: r.sale_id,
     items,
     total: items.reduce((t, i) => t + i.price * i.quantity, 0),
@@ -372,13 +416,31 @@ export function receiptMonths(ctx: Ctx): string[] {
     .map((r) => r.m);
 }
 
-/** Deletes a receipt. Its number is not given out again. */
+/** Deletes a receipt. Its number is not given out again. A deposit receipt stays with its order. */
 export function deleteReceipt(ctx: Ctx, id: number) {
   allow(ctx, 'receipts.delete');
   ctx.db.transaction(() => {
     const r = getReceipt(ctx, id);
     if (!r) return;
+    if (r.kind === 'deposit' && ctx.db.get('SELECT 1 FROM orders WHERE id = ?', [r.orderId]))
+      throw new RuleError(`إيصال العربون ${r.receiptNo} سجلّ الطلب رقم ${r.orderId}: لا يُحذف.`);
     ctx.db.run('DELETE FROM receipts WHERE id = ?', [id]);
     logAction(ctx, 'receipt.delete', `حذف الإيصال ${r.receiptNo}`, { receiptId: id });
   });
+}
+
+/** True when an edit of a deposit receipt would change what it records (its pieces or customer). */
+function depositChanged(
+  old: Receipt,
+  input: Pick<IssueInput, 'customer'>,
+  items: ReceiptItem[],
+): boolean {
+  const same = (a: ReceiptItem, b: ReceiptItem) =>
+    a.name.trim() === b.name.trim() && a.quantity === b.quantity && a.price === b.price;
+  const customer = clean(input.customer) ?? DEFAULT_RECEIPT_CUSTOMER;
+  return (
+    customer !== old.customer ||
+    items.length !== old.items.length ||
+    items.some((i, n) => !same(i, old.items[n]))
+  );
 }

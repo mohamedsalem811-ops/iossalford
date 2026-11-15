@@ -22,7 +22,9 @@ export type PeriodSummary = {
   itemsSold: number;
   itemsReturned: number;
   netSales: number;
-  /** grossProfit − (refunds − returnedCost) − expenses. */
+  /** Deposits the shop kept on orders cancelled after the piece was bought (I1). */
+  otherIncome: number;
+  /** grossProfit − (refunds − returnedCost) − expenses + otherIncome. */
   netProfit: number;
   /** Sales and gross profit in US cents, each sale at its own rate. */
   grossSalesUsd: number;
@@ -66,8 +68,13 @@ export function summary(ctx: Ctx, months: string[]): PeriodSummary {
       }),
       { sales: 0, profit: 0 },
     );
+  const otherIncome = ctx.db.get<{ t: number }>(
+    `SELECT coalesce(sum(settled), 0) t FROM orders
+      WHERE cancel_how = 'keep' AND substr(cancelled_at, 1, 7) IN (${m.sql})`,
+    m.params,
+  )!.t;
   const grossProfit = s.sales - s.cost;
-  const netProfit = grossProfit - (r.refunds - r.cost) - expenses;
+  const netProfit = grossProfit - (r.refunds - r.cost) - expenses + otherIncome;
   return {
     grossSales: s.sales,
     costOfSales: s.cost,
@@ -78,6 +85,7 @@ export function summary(ctx: Ctx, months: string[]): PeriodSummary {
     transactions: s.n,
     itemsSold: items,
     itemsReturned: r.q,
+    otherIncome,
     netSales: s.sales - r.refunds,
     netProfit,
     grossSalesUsd: usd.sales,
@@ -180,7 +188,8 @@ export function today(ctx: Ctx): Today {
   )!.q;
   const byMethod: Record<PaymentMethod, number> = { cash: 0, card: 0, transfer: 0, credit: 0 };
   for (const r of ctx.db.all<{ m: PaymentMethod; t: number }>(
-    `SELECT payment_method m, sum(total) t FROM sales WHERE substr(created_at, 1, 10) = ? GROUP BY payment_method`,
+    // Money taken today: the part paid with points or by an earlier deposit is not.
+    `SELECT payment_method m, sum(total - points_paid - deposit_used) t FROM sales WHERE substr(created_at, 1, 10) = ? GROUP BY payment_method`,
     [day],
   )) {
     byMethod[r.m] = r.t;

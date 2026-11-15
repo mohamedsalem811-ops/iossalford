@@ -27,7 +27,12 @@ const receipt: Receipt = {
   pointsPaid: 0,
   rewardOff: 0,
   birthdayOff: 0,
+  friendOff: 0,
+  offerOff: 0,
   footer: null,
+  kind: 'sale',
+  orderId: null,
+  deposit: 0,
   saleId: null,
   items: [
     { name: 'Ring', brand: 'Pandora', color: null, code: 'RNG-0001', quantity: 2, price: 350_500 },

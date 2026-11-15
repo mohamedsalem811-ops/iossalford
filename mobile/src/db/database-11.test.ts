@@ -29,7 +29,6 @@ describe.each([9, 10])('the upgrade from database %i', (from) => {
     const sales = db.all('SELECT * FROM sales');
     migrate(db, migrations);
     expect(schemaVersion(db)).toBe(LATEST_VERSION);
-    expect(LATEST_VERSION).toBe(11);
     // A birthday saved before database 11 is trusted (no date: no owner's approval needed).
     // From database 9, database 10's columns come too: every old value is kept as it was.
     expect(db.all('SELECT * FROM customers')).toMatchObject(

@@ -40,6 +40,10 @@ export const PERMISSIONS = {
   'loyalty.adjust': 'تعديل نقاط الولاء',
   'customers.vip': 'تحديد زبون VIP',
   'customers.merge': 'دمج الزبائن المكررين',
+  'orders.take': 'أخذ عربون وطلب قطعة',
+  'orders.deliver': 'استلام وتسليم الطلبات',
+  'orders.cancel': 'إلغاء طلب بعربون',
+  'orders.purchase': 'شراء الطلب من المورد وموعد وصوله',
   // Seeing (checked by the screens).
   'costs.view': 'التكلفة والربح',
   'reports.view': 'ملخص الشهر والتقارير',
@@ -93,6 +97,13 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'loyalty.adjust': false,
   'customers.vip': false,
   'customers.merge': false,
+  // Deposits (I1): anyone takes a deposit, adds a payment, marks an order arrived and delivers it;
+  // cancelling needs the owner's approval on the spot; buying from the supplier (its cost and
+  // the expected date) and keeping a deposit are the owner's.
+  'orders.take': true,
+  'orders.deliver': true,
+  'orders.cancel': true,
+  'orders.purchase': false,
   'costs.view': false,
   'reports.view': false,
   'sales.viewAll': false,

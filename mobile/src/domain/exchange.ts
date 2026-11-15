@@ -38,6 +38,8 @@ export function exchange(
       // An exchange is not a new purchase: it never uses the visit reward (G2).
       reward: false,
       birthday: false,
+      // Nor the delivery of a deposit order (that is its own sale, I1).
+      orderId: undefined,
       note: clean(input.sale.note) ?? `استبدال (مرتجع رقم ${returnId})`,
     });
     ctx.db.run('UPDATE returns SET exchange_sale_id = ? WHERE id = ?', [saleId, returnId]);

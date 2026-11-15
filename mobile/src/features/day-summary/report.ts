@@ -83,6 +83,14 @@ export function daySections(d: DaySummary): Section[] {
       rows: some([
         { label: 'مبيعات نقداً', value: formatLyd(d.byMethod.cash) },
         d.payments.cash > 0 && { label: 'دفعات ديون نقداً', value: formatLyd(d.payments.cash) },
+        d.deposits.taken.cash > 0 && {
+          label: 'عربون نقداً',
+          value: formatLyd(d.deposits.taken.cash),
+        },
+        d.deposits.refunded.cash > 0 && {
+          label: 'عربون مُسترد نقداً',
+          value: `−${formatLyd(d.deposits.refunded.cash)}`,
+        },
         d.cashRefunds > 0 && { label: 'مرتجعات نقداً', value: `−${formatLyd(d.cashRefunds)}` },
         d.payouts.cash > 0 && {
           label: 'رد أرصدة زبائن نقداً',
@@ -107,6 +115,22 @@ export function daySections(d: DaySummary): Section[] {
           d.payouts.other > 0 && {
             label: 'رد أرصدة ببطاقة أو تحويل',
             value: formatLyd(d.payouts.other),
+          },
+          d.deposits.taken.other > 0 && {
+            label: 'عربون ببطاقة أو تحويل',
+            value: formatLyd(d.deposits.taken.other),
+          },
+          d.deposits.refunded.other > 0 && {
+            label: 'عربون مُسترد ببطاقة أو تحويل',
+            value: `−${formatLyd(d.deposits.refunded.other)}`,
+          },
+          d.deposits.used > 0 && {
+            label: 'عربون مدفوع سابقاً في تسليمات اليوم',
+            value: formatLyd(d.deposits.used),
+          },
+          d.deposits.kept > 0 && {
+            label: 'عربون احتفظ به المحل',
+            value: formatLyd(d.deposits.kept),
           },
         ]),
         { label: 'المصروفات', value: formatLyd(d.expenses) },
