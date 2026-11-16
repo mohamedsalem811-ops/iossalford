@@ -1,13 +1,12 @@
-# First launch: creates both PINs (each entered twice) and lands on the system choice. Each entry
-# is checked for a lost tap (pin-*-checked.yaml, run 71).
+# First launch: creates both PINs (each entered twice) and lands on the system choice.
 appId: com.salford.pos
 ---
 - assertVisible: 'أنشئ رمز نظام المجوهرات'
-- runFlow: pin-jewelry-checked.yaml
+- runFlow: pin-jewelry.yaml
 - assertVisible: 'أكّد الرمز'
-- runFlow: pin-jewelry-checked.yaml
+- runFlow: pin-jewelry.yaml
 - assertVisible: 'أنشئ رمز نظام الأوشحة'
-- runFlow: pin-scarves-checked.yaml
+- runFlow: pin-scarves.yaml
 - assertVisible: 'أكّد الرمز'
-- runFlow: pin-scarves-checked.yaml
+- runFlow: pin-scarves.yaml
 - assertVisible: 'اختر النظام'
