@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { AppState, type AppStateStatus } from 'react-native';
+import { AppState, Linking, type AppStateStatus } from 'react-native';
 
 import { OWNER, type Actor } from '@/staff/model';
 import type { SystemId } from '@/theme';
@@ -26,6 +26,24 @@ type LockState = {
 };
 
 const LockContext = createContext<LockState | null>(null);
+
+/** How long SALFORD stays open after it opened WhatsApp (or a call) itself. */
+export const OUTSIDE_GRACE_MS = 2 * 60 * 1000;
+let graceUntil = 0;
+
+/**
+ * Opens WhatsApp (or another app) from SALFORD: coming back within 2 minutes finds the same
+ * screen, so the step-by-step sender keeps its place. Leaving any other way locks as before.
+ */
+export function openOutside(url: string) {
+  graceUntil = Date.now() + OUTSIDE_GRACE_MS;
+  return Linking.openURL(url).catch(() => {
+    graceUntil = 0;
+  });
+}
+
+/** True while SALFORD itself sent the person to another app a moment ago. */
+export const inGrace = (now = Date.now()) => now < graceUntil;
 
 /** Leaving the app locks it: the next open needs the PIN (or Face ID) again. */
 export function shouldLock(next: AppStateStatus) {
@@ -47,12 +65,26 @@ export function LockProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState(true);
 
   useEffect(() => {
+    /** Left for WhatsApp: decided when the app comes back. */
+    let away = false;
     const sub = AppState.addEventListener('change', (next) => {
       setActive(isShown(next));
-      // 'inactive' (app switcher, Face ID prompt) only hides the screen; 'background' locks.
+      // 'inactive' (app switcher, Face ID prompt) only hides the screen; 'background' locks,
+      // unless SALFORD opened WhatsApp itself and the person comes back within the grace.
       if (shouldLock(next)) {
+        if (inGrace()) {
+          away = true;
+          return;
+        }
         setActor(null);
         setSession(null);
+      } else if (next === 'active' && away) {
+        away = false;
+        if (!inGrace()) {
+          setActor(null);
+          setSession(null);
+        }
+        graceUntil = 0;
       }
     });
     return () => sub.remove();

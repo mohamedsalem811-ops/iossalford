@@ -38,6 +38,25 @@ import { addWanted, deleteWanted, mergeCustomers, setWantedDone } from '@/domain
 import { acknowledgeAlert } from '@/domain/alerts';
 import { applyCount, cancelCount, countPiece, startCount, submitCount } from '@/domain/stock-count';
 import { chargeReturn, recordRepayment, waiveCharge } from '@/domain/staff-ledger';
+import {
+  addOrderPayment,
+  cancelOrder,
+  markArrived,
+  markPurchased,
+  setDepositRules,
+  setEta,
+  takeOrder,
+} from '@/domain/orders';
+import { recordMessage } from '@/domain/messages';
+import {
+  cancelOffer,
+  deleteGift,
+  giveOffers,
+  markGiftDone,
+  saveGift,
+  setMarketing,
+  setReferrer,
+} from '@/domain/marketing';
 import { addReturn, addReturnWithoutSale, deleteReturn, deleteSale, getSale } from '@/domain/sales';
 import { deleteScarfDesign, saveScarfDesign } from '@/domain/scarves';
 import { deleteSet, saveSet } from '@/domain/sets';
@@ -51,6 +70,10 @@ import { screenFilesCalling } from './testing/screen-calls';
 
 /** What the owner made before each action: one of everything an action can work on. */
 type Seed = {
+  /** Marketing (I4): two gift reminders and a "we miss you" offer. */
+  giftDone: number;
+  giftGone: number;
+  offerId: number;
   /** A count in progress, with one piece counted. */
   openCount: number;
   /** A count sent to the owner. */
@@ -79,6 +102,9 @@ type Seed = {
   set: number;
   brand: number;
   archived: number;
+  /** A deposit order waiting to be bought, and one bought from the supplier. */
+  waitingOrder: number;
+  purchasedOrder: number;
 };
 
 function cartOf(ctx: Ctx, id: number, qty = 1): CartLine[] {
@@ -160,7 +186,29 @@ function seed(ctx: TestCtx): Seed {
   countPiece(ctx, openCount, ring, 10);
   const twin = saveCustomer(ctx, { name: 'منى', phone: '0919999999' });
   const wanted = addWanted(ctx, customer, 'خاتم فضة');
+  const order = (description: string) =>
+    takeOrder(ctx, {
+      kind: 'order',
+      customer: { name: 'منى', phone: '0912345678' },
+      description,
+      unitPrice: 200_000,
+      deposit: { amount: 100_000, method: 'cash' },
+    }).orderId;
+  const giftDone = saveGift(ctx, customer, null, { forWhom: 'أمها', month: 3, day: 21 });
+  const giftGone = saveGift(ctx, customer, null, { forWhom: 'أختها', month: 5, day: 2 });
+  const [offer] = giveOffers(ctx, [customer]);
+  // Bring a friend (I4) needs the owner's rule, and loyalty points on.
+  setLoyalty(ctx, { enabled: true });
+  setMarketing(ctx, { friendEnabled: true });
+  const waitingOrder = order('سوار تيفاني');
+  const purchasedOrder = order('قلادة باندورا');
+  markPurchased(ctx, purchasedOrder, { cost: 90_000, eta: '2026-12-01' });
   return {
+    giftDone,
+    giftGone,
+    offerId: offer.id,
+    waitingOrder,
+    purchasedOrder,
     twin,
     wanted,
     openCount,
@@ -416,6 +464,74 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
       permission: 'staff.ledger',
       run: (ctx) => recordRepayment(ctx, { key: 'emp-e1', name: 'سارة' }, 5_000),
     },
+    takeOrder: {
+      permission: 'orders.take',
+      run: (ctx, s) =>
+        takeOrder(ctx, {
+          kind: 'hold',
+          customer: { name: 'منى', phone: '0912345678' },
+          productId: s.ring,
+          deposit: { amount: 50_000, method: 'card' },
+        }),
+    },
+    addOrderPayment: {
+      permission: 'orders.take',
+      run: (ctx, s) => addOrderPayment(ctx, s.waitingOrder, { amount: 10_000, method: 'cash' }),
+    },
+    markPurchased: {
+      permission: 'orders.purchase',
+      run: (ctx, s) => markPurchased(ctx, s.waitingOrder, { costUsd: 15_000, eta: '2026-12-10' }),
+    },
+    setEta: {
+      permission: 'orders.purchase',
+      run: (ctx, s) => setEta(ctx, s.purchasedOrder, '2026-12-20'),
+    },
+    markArrived: {
+      permission: 'orders.deliver',
+      run: (ctx, s) => markArrived(ctx, s.purchasedOrder),
+    },
+    cancelOrder: {
+      permission: 'orders.cancel',
+      // An employee cancels with the owner's approval on the spot.
+      run: (ctx, s) =>
+        cancelOrder({ ...ctx, actor: ctx.actor, approvals: { take: () => true } }, s.waitingOrder, {
+          how: 'balance',
+          approval: 'ok',
+        }),
+    },
+    recordMessage: {
+      permission: 'customers.phones',
+      run: (ctx, s) =>
+        recordMessage(ctx, { customerId: s.customer, kind: 'order-eta', ref: s.purchasedOrder }),
+    },
+    setMarketing: {
+      permission: 'marketing.manage',
+      run: (ctx) => setMarketing(ctx, { offerDays: 10 }),
+    },
+    giveOffers: {
+      permission: 'marketing.manage',
+      run: (ctx, s) => giveOffers(ctx, [s.twin]),
+    },
+    cancelOffer: {
+      permission: 'marketing.manage',
+      run: (ctx, s) => cancelOffer(ctx, s.offerId),
+    },
+    markGiftDone: {
+      permission: 'customers.edit',
+      run: (ctx, s) => markGiftDone(ctx, s.giftDone),
+    },
+    deleteGift: {
+      permission: 'customers.edit',
+      run: (ctx, s) => deleteGift(ctx, s.giftGone),
+    },
+    setReferrer: {
+      permission: 'customers.edit',
+      run: (ctx, s) => setReferrer(ctx, s.twin, s.customer),
+    },
+    setDepositRules: {
+      permission: 'settings.edit',
+      run: (ctx) => setDepositRules(ctx, { minPercent: 30 }),
+    },
     restoreBackup: {
       permission: 'backup.restore',
       run: (ctx) => {
@@ -522,12 +638,23 @@ describe('every action has a check', () => {
    * that has one (checkout, returns, restore…), never from a screen: see the import test below.
    */
   const INTERNAL_STEPS = [
+    // Inside a payment and an exchange: the friend's sender gets her points, or keeps them (I4).
+    'payReferral',
+    'moveReferral',
     'moveStock',
     'ensureCustomer',
     'ensureBrand',
     'takeReceiptNo',
     'setSetting',
     'keepUsedNumbers',
+    // Marketing (I4), inside checkout, a return or deleting a sale.
+    'addReferralMove',
+    'saveGift',
+    'linkReferrer',
+    'rewardReferrer',
+    'reverseReferral',
+    'spendOffer',
+    'freeOffer',
     // Files and the copy made for a backup, called by the checked backup actions and the
     // automatic backup (which runs whoever is signed in).
     'copyDatabase',
@@ -546,6 +673,10 @@ describe('every action has a check', () => {
     'earnOnSale',
     'earnOnPayment',
     'reverseOnReturn',
+    // Steps of the checked deposit actions and checkout (I1).
+    'insertProduct',
+    'deliveredBy',
+    'undeliver',
     ...EVENTS,
   ];
 

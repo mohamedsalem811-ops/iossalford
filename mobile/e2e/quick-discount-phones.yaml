@@ -6,7 +6,10 @@ appId: com.salford.pos
 ---
 - runFlow: subflows/open-jewelry.yaml
 - runFlow: subflows/add-ring.yaml
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:

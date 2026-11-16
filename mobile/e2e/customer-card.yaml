@@ -6,7 +6,10 @@ appId: com.salford.pos
 ---
 - runFlow: subflows/open-jewelry.yaml
 - runFlow: subflows/add-ring.yaml
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:
@@ -36,10 +39,20 @@ appId: com.salford.pos
     id: 'checkout-gender-female'
 - tapOn:
     id: 'checkout-details-toggle'
+# Run 64 (iPhone): centring the birth day itself left it under the sheet's header, where the tap
+# landed on «حفظ». Run 65: centring the row below it still left the birth day under the header,
+# because scrolling down stops once an element is above the screen's middle + 20%. Scrolling back
+# up stops only once it is below the middle − 20% (y > 287 of 956), clear of the header.
 - runFlow:
     file: subflows/scroll-form.yaml
     env:
-      ID: 'checkout-details-birth-day'
+      ID: 'checkout-details-heard-instagram'
+- scrollUntilVisible:
+    element:
+      id: 'checkout-details-birth-day'
+    direction: UP
+    centerElement: true
+    timeout: 30000
 - tapOn:
     id: 'checkout-details-birth-day'
 - inputText: '14'
@@ -54,11 +67,9 @@ appId: com.salford.pos
 - tapOn:
     id: 'checkout-details-heard-instagram'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'checkout-details-ring'
-- tapOn:
-    id: 'checkout-details-ring'
 - inputText: '16'
 - tapOn:
     id: 'keyboard.toolbar.done'
@@ -84,7 +95,10 @@ appId: com.salford.pos
 - tapOn:
     id: 'sold-new-sale'
 # The next sale: her phone finds her, and the card shows her.
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:
@@ -105,7 +119,10 @@ appId: com.salford.pos
     visible:
       id: 'checkout-known'
     timeout: 10000
-- assertVisible: 'جديد'
+# The card is one element, read as «name، tier[، points]» (member-card.tsx).
+- assertVisible:
+    id: 'checkout-known-member'
+    text: '.*جديد.*'
 - assertVisible:
     id: 'checkout-known-facts'
     text: 'زيارة واحدة.*'

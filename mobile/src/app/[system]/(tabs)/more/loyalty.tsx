@@ -21,7 +21,7 @@ import { useSaveOnce } from '@/hooks/use-save-once';
 import { latinDigits, parseThousandths } from '@/lib/digits';
 import { haptic } from '@/lib/haptics';
 import { editableDinars, formatLyd } from '@/lib/money';
-import { notifyDataChanged } from '@/state/data-events';
+import { notifyDataChanged, useRead } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { Allowed } from '@/staff/allowed';
 import { spacing, useTheme } from '@/theme';
@@ -72,6 +72,8 @@ function LoyaltyScreen() {
     };
   });
   const setup = useSetup();
+  // Read again after each change (useRead): «إظهار الكل» shows as soon as one is put aside.
+  const anyDismissed = useRead(() => dismissedSetup(ctx).length > 0);
   const scroll = useRef<KeyboardAwareScrollViewRef>(null);
   /** Where each section starts, to scroll to it from "يحتاج إعداد". */
   // A plain object kept for the screen's life: written by onLayout, read on a tap.
@@ -204,7 +206,7 @@ function LoyaltyScreen() {
           items={setup.items}
           onGo={go}
           onDismiss={putAside}
-          onRestore={dismissedSetup(ctx).length ? showAll : undefined}
+          onRestore={anyDismissed ? showAll : undefined}
         />
         <Button
           title="بطاقة المكافآت للزبائن"

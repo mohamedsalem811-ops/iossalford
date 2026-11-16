@@ -8,7 +8,10 @@ appId: com.salford.pos
 - runFlow: subflows/sell-ring.yaml
 - tapOn:
     id: 'sold-new-sale'
-- tapOn: 'الرئيسية'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'الرئيسية'
 - tapOn:
     id: 'today-summary'
 - assertVisible: 'ملخص اليوم'
@@ -26,6 +29,9 @@ appId: com.salford.pos
     id: 'day-next'
 - assertVisible: 'اليوم'
 # Also listed in Management, under المال.
-- tapOn: 'الإدارة'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'الإدارة'
 - assertVisible:
     id: 'manage-daySummary'

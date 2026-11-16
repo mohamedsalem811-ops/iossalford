@@ -5,6 +5,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
 import { Button, Card, FilterChip, KEYBOARD_GAP, NumberField, Text, TextField } from '@/components';
 import { errorBoundary } from '@/components/error-screen';
+import { getDepositRules, setDepositRules } from '@/domain/orders';
 import { ALERT_LIMITS, getPolicies, setPolicies, type Policies } from '@/domain/policies';
 import { showError } from '@/features/products/actions';
 import { useReadable } from '@/hooks/use-readable';
@@ -86,6 +87,11 @@ function PoliciesScreen() {
     ) as Record<AlertLimit, string>;
   const [alerts, setAlerts] = useState(() => alertDraft(saved));
   const setAlert = (k: AlertLimit) => (v: string) => setAlerts((a) => ({ ...a, [k]: v }));
+  const [reminderHour, setReminderHour] = useState(String(saved.shiftReminderHour));
+  const [deposits, setDeposits] = useState(() => getDepositRules(ctx));
+  const [minPercent, setMinPercent] = useState(String(deposits.minPercent));
+  const [remindDays, setRemindDays] = useState(String(deposits.remindDays));
+  const [depositPolicy, setDepositPolicy] = useState(deposits.policy);
 
   const save = () => {
     const perPiece = piece.trim() ? parseThousandths(piece) : 0;
@@ -108,7 +114,44 @@ function PoliciesScreen() {
       }
       limits[k] = v;
     }
+    // The deposit rules (I2) are checked before anything is saved, so nothing is half saved.
+    const pct = Number(latinDigits(minPercent).trim());
+    const days = Number(latinDigits(remindDays).trim());
+    if (!Number.isInteger(pct) || pct < 1 || pct > 100) {
+      haptic.error();
+      Alert.alert('لم يتم الحفظ', 'اكتب أقل عربون نسبةً من 1 إلى 100.');
+      return;
+    }
+    const hour = Number(latinDigits(reminderHour).trim() || '0');
+    if (!Number.isInteger(hour) || hour < 0 || hour > 23) {
+      haptic.error();
+      Alert.alert('لم يتم الحفظ', 'اكتب ساعة تذكير إغلاق الوردية من 0 إلى 23.');
+      return;
+    }
+    if (!Number.isInteger(days) || days < 1 || days > 90) {
+      haptic.error();
+      Alert.alert('لم يتم الحفظ', 'اكتب أيام التذكير من 1 إلى 90.');
+      return;
+    }
+    if (!depositPolicy.trim()) {
+      haptic.error();
+      Alert.alert('لم يتم الحفظ', 'اكتب سياسة العربون التي تُطبع على الإيصال.');
+      return;
+    }
+    const depositChanged =
+      pct !== deposits.minPercent ||
+      days !== deposits.remindDays ||
+      depositPolicy.trim() !== deposits.policy;
     try {
+      if (depositChanged) {
+        const d = setDepositRules(ctx, {
+          minPercent: pct,
+          remindDays: days,
+          policy: depositPolicy,
+        });
+        setDeposits(d);
+        setDepositPolicy(d.policy);
+      }
       const next = setPolicies(ctx, {
         discountPerPiece: perPiece,
         discountPerSale: perSale,
@@ -116,6 +159,7 @@ function PoliciesScreen() {
         returnConditions: conditions,
         discountReasons: reasons,
         quickDiscounts,
+        shiftReminderHour: hour,
         ...limits,
       });
       setSaved(next);
@@ -202,6 +246,45 @@ function PoliciesScreen() {
             onChange={setConditions}
             placeholder="شرط جديد"
             testID="policy-condition"
+          />
+        </Card>
+        <Card>
+          <Text variant="headline">الوردية</Text>
+          <NumberField
+            label="تذكير الموظف بإغلاق الوردية من الساعة"
+            value={reminderHour}
+            onChangeText={setReminderHour}
+            kind="integer"
+            hint="من 0 إلى 23 (21 = التاسعة مساءً). صفر يوقف التذكير. يظهر في شريط الوردية."
+            testID="policy-shift-hour"
+          />
+        </Card>
+        <Card>
+          <Text variant="headline">العربون</Text>
+          <NumberField
+            label="أقل عربون"
+            value={minPercent}
+            onChangeText={setMinPercent}
+            suffix="٪ من السعر"
+            kind="integer"
+            hint="أقل من ذلك يحتاج موافقتك عند أخذ العربون"
+            testID="policy-deposit-min"
+          />
+          <NumberField
+            label="تذكير بقطعة لم تُستلم بعد"
+            value={remindDays}
+            onChangeText={setRemindDays}
+            suffix="يوم"
+            kind="integer"
+            testID="policy-deposit-days"
+          />
+          <TextField
+            label="سياسة العربون (تُطبع على كل إيصال عربون)"
+            value={depositPolicy}
+            onChangeText={setDepositPolicy}
+            multiline
+            maxLength={300}
+            testID="policy-deposit-text"
           />
         </Card>
         <Card>

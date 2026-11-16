@@ -202,7 +202,8 @@ function photoNames(ctx: Ctx): string[] {
     .all<{ f: string }>(
       `SELECT image_file AS f FROM products WHERE image_file IS NOT NULL
        UNION SELECT image_file FROM brands WHERE image_file IS NOT NULL
-       UNION SELECT image_file FROM customers WHERE image_file IS NOT NULL`,
+       UNION SELECT image_file FROM customers WHERE image_file IS NOT NULL
+       UNION SELECT image_file FROM orders WHERE image_file IS NOT NULL`,
     )
     .map((r) => r.f);
 }

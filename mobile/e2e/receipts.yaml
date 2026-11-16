@@ -6,7 +6,10 @@ appId: com.salford.pos
 - runFlow: subflows/sell-ring.yaml
 - tapOn:
     id: 'sold-new-sale'
-- tapOn: 'الإيصالات'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'الإيصالات'
 - extendedWaitUntil:
     visible:
       id: 'receipts-summary'

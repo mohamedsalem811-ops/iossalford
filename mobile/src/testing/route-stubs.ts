@@ -35,6 +35,14 @@ const NAMES = [
   'stock/[id]',
   'add/[id]',
   'sizes/[id]',
+  'return-detail/[id]',
+  '(tabs)/more/orders',
+  '(tabs)/more/order/[id]',
+  'order-form',
+  'order-pay/[id]',
+  'order-buy/[id]',
+  'send',
+  '(tabs)/more/marketing',
 ];
 
 const Empty = () => null;

@@ -7,7 +7,7 @@ import { showError } from '@/features/products/actions';
 import { formatDate } from '@/lib/dates';
 import { haptic } from '@/lib/haptics';
 import { useCan } from '@/staff/use-can';
-import { notifyDataChanged } from '@/state/data-events';
+import { notifyDataChanged, useRead } from '@/state/data-events';
 
 /**
  * The pieces a customer asked for (G3): "تريد سوار ذهب عيار 21". When a matching product is
@@ -15,7 +15,8 @@ import { notifyDataChanged } from '@/state/data-events';
  */
 export function WantedCard({ ctx, customerId }: { ctx: Ctx; customerId: number }) {
   const mayEdit = useCan('customers.edit');
-  const pieces = listWanted(ctx, customerId);
+  // Read again after each save (useRead): a piece added here shows at once.
+  const pieces = useRead(() => listWanted(ctx, customerId));
   const run = (f: () => void) => {
     try {
       f();

@@ -4,6 +4,7 @@ import { useCallback, useState, type Dispatch, type SetStateAction } from 'react
 import { listBrands } from '@/domain/brands';
 import type { Ctx } from '@/domain/context';
 import { listProducts, type Product } from '@/domain/products';
+import { reservedCounts } from '@/domain/reserved';
 import { groupDesigns } from '@/domain/scarves';
 import { useOnDataChanged } from '@/state/data-events';
 
@@ -29,6 +30,8 @@ export function useProducts<Q extends { brand: BrandFilter }>(
     () => ({
       products: listProducts(ctx),
       brandImages: new Map(listBrands(ctx).map((b) => [b.id, b.imageFile])),
+      /** Pieces held for customers by a deposit (I2), by product. */
+      reserved: reservedCounts(ctx),
     }),
     [ctx],
   );

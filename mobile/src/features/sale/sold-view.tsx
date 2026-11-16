@@ -7,6 +7,7 @@ import { PAYMENT_LABELS } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
 import { receiptForSale } from '@/domain/receipts';
 import { getSale } from '@/domain/sales';
+import { ThanksButton } from '@/features/marketing/thanks-button';
 import { formatLyd } from '@/lib/money';
 import { spacing, useTheme } from '@/theme';
 
@@ -74,6 +75,12 @@ export function SoldView({
             testID="sold-show-receipt"
           />
         ) : null}
+        <ThanksButton
+          ctx={ctx}
+          saleId={sale.id}
+          customerId={sale.customerId}
+          testID="sold-thanks"
+        />
         <Button
           title="بيع جديد"
           icon="cart.badge.plus"

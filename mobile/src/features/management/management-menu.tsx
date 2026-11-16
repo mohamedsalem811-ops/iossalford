@@ -9,7 +9,7 @@ import { logError } from '@/lib/error-log';
 import { haptic } from '@/lib/haptics';
 import { showError } from '@/features/products/actions';
 import { clockMessage } from '@/staff/clock';
-import { acceptDeviceTime, clockGuard, useClockChanges, useLogAlerts } from '@/staff/guards';
+import { acceptDeviceTime, useClockBehind, useLogAlerts } from '@/staff/guards';
 import { ManagementScreen, type ManageTarget } from '@/screens/management';
 import { useLock } from '@/state/lock';
 import { actorName, type Actor } from '@/staff/model';
@@ -29,11 +29,13 @@ export const SECTION_NEEDS: Record<ManageTarget, Permission | null> = {
   shifts: 'shifts.view',
   daySummary: 'reports.view',
   sales: null,
+  orders: 'orders.take',
   returns: 'sales.viewAll',
   returnFind: 'returns.create',
   policies: 'settings.edit',
   customers: null,
   debts: null,
+  marketing: 'marketing.manage',
   expenses: 'expenses.view',
   closing: 'reports.view',
   comparison: 'reports.view',
@@ -61,11 +63,13 @@ export const SECTION_ROUTE: Record<ManageTarget, string> = {
   shifts: 'shifts',
   daySummary: 'day-summary',
   sales: 'sales',
+  orders: 'orders',
   returns: 'returns',
   returnFind: 'return-find',
   policies: 'policies',
   customers: 'customers',
   debts: 'debts',
+  marketing: 'marketing',
   expenses: 'expenses',
   closing: 'closing',
   comparison: 'comparison',
@@ -117,9 +121,8 @@ export function ManagementMenu({
       logError('نسخة عند القفل أو التبديل', error);
     }
   };
-  useClockChanges();
-  const latest = clockGuard.latest();
-  const clock = latest && clockGuard.behind(ctx.now()) ? clockMessage(latest) : null;
+  const behindSince = useClockBehind(ctx.now);
+  const clock = behindSince ? clockMessage(behindSince) : null;
   useFocusEffect(useCallback(() => setReminder(read()), [read]));
   const logBroken = useLogAlerts((s) => (s.broken[system]?.length ?? 0) > 0);
   const acceptClock = () =>

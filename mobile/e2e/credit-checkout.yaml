@@ -6,7 +6,10 @@ appId: com.salford.pos
 ---
 - runFlow: subflows/open-jewelry.yaml
 - runFlow: subflows/add-ring.yaml
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:
@@ -48,6 +51,11 @@ appId: com.salford.pos
       ID: 'manage-customers'
 - tapOn:
     id: 'customer-Sara'
+# Run 64: the customer page now has the card, wanted pieces and orders above the balance.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'customer-pay'
 - tapOn:
     id: 'customer-pay'
 - tapOn:
@@ -68,7 +76,10 @@ appId: com.salford.pos
 - runFlow: subflows/return-photo.yaml
 - runFlow: subflows/save-return.yaml
 # The next sale uses the credit.
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:

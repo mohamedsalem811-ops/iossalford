@@ -4,6 +4,7 @@
  * asked for, duplicate customers and their merge, and the owner's customer report.
  */
 import { monthKey } from '@/lib/dates';
+import { formatLyd } from '@/lib/money';
 
 import { logAction } from './activity';
 import { allow, allowView, clean, nowMonth, nowStamp, RuleError, type Ctx, who } from './context';
@@ -17,6 +18,7 @@ import {
 } from './customers';
 import { nextWindow, type BirthdayWindow } from './birthday';
 import { customerSales, spendingByCustomer } from './customer-stats';
+import { DEFAULT_TEMPLATES, fill } from './templates';
 
 // ---------------------------------------------------------------- WhatsApp
 
@@ -31,14 +33,16 @@ export function waLink(phone: string | null | undefined, text: string): string |
 /** The birthday message, with the birthday discount and its dates when it is on (H1). */
 export const birthdayMessage = (
   c: Pick<Customer, 'name' | 'gender'>,
-  gift: { percent: number; when: string } | null,
+  gift: { percent: number; maxOff: number; when: string } | null,
+  template = DEFAULT_TEMPLATES.birthday,
 ) =>
-  `${c.gender === 'male' ? 'عزيزنا' : 'عزيزتنا'} ${c.name}، كل عام وأنت بخير بمناسبة عيد ميلادك 🎂${
-    gift ? `\nهديتك عندنا: خصم ${gift.percent}% على مشترياتك ${gift.when}.` : ''
-  }\nSALFORD`;
-
-export const missYouMessage = (c: Pick<Customer, 'name' | 'gender'>) =>
-  `${c.gender === 'male' ? 'عزيزنا' : 'عزيزتنا'} ${c.name}، اشتقنا لزيارتك! وصلتنا قطع جديدة قد تعجبك.\nSALFORD`;
+  fill(template, {
+    الاسم: c.name,
+    عزيزتنا: c.gender === 'male' ? 'عزيزنا' : 'عزيزتنا',
+    الهدية: gift
+      ? `\nهديتك عندنا: خصم ${gift.percent}% (بحد أقصى ${formatLyd(gift.maxOff)} للخصم) على مشترياتك ${gift.when}.`
+      : '',
+  });
 
 // ---------------------------------------------------------------- birthdays and visits
 
@@ -199,7 +203,7 @@ export function duplicateCustomers(ctx: Ctx): Customer[][] {
 
 /**
  * The owner merges two customers into the one kept: the other one's purchases, debt payments,
- * credit paid back, points and wanted pieces move to it; the kept one's empty details are filled
+ * credit paid back, points, wanted pieces, deposit orders, gifts, offers and messages move to it; the kept one's empty details are filled
  * from the other, the notes are joined; then the other is deleted. Logged.
  */
 export function mergeCustomers(ctx: Ctx, keepId: number, dropId: number) {
@@ -209,8 +213,36 @@ export function mergeCustomers(ctx: Ctx, keepId: number, dropId: number) {
   const drop = getCustomer(ctx, dropId);
   if (!keep || !drop) throw new RuleError('الزبون غير موجود');
   ctx.db.transaction(() => {
-    for (const table of ['sales', 'payments', 'payouts', 'loyalty_moves', 'wanted_pieces'])
+    for (const table of [
+      'sales',
+      'payments',
+      'payouts',
+      'loyalty_moves',
+      'wanted_pieces',
+      // Database 12 (I1, I4): orders, gifts, offers and the messages sent.
+      'orders',
+      'gifts',
+      'offers',
+      'message_log',
+    ])
       ctx.db.run(`UPDATE ${table} SET customer_id = ? WHERE customer_id = ?`, [keepId, dropId]);
+    // Bring a friend: the one who was sent keeps one record (the kept one's, if both have one);
+    // the friends either of them sent now count for the kept one, never for herself.
+    if (ctx.db.get('SELECT 1 FROM referrals WHERE friend_id = ?', [keepId]))
+      ctx.db.run('DELETE FROM referrals WHERE friend_id = ?', [dropId]);
+    else ctx.db.run('UPDATE referrals SET friend_id = ? WHERE friend_id = ?', [keepId, dropId]);
+    ctx.db.run('UPDATE referrals SET referrer_id = ? WHERE referrer_id = ?', [keepId, dropId]);
+    ctx.db.run('DELETE FROM referrals WHERE friend_id = referrer_id');
+    ctx.db.run('UPDATE customers SET referred_by = ? WHERE referred_by = ?', [keepId, dropId]);
+    ctx.db.run(
+      `UPDATE customers SET referred_by = (SELECT referred_by FROM customers WHERE id = ?)
+        WHERE id = ? AND referred_by IS NULL`,
+      [dropId, keepId],
+    );
+    ctx.db.run('UPDATE customers SET referred_by = NULL WHERE id = ? AND referred_by = ?', [
+      keepId,
+      keepId,
+    ]);
     const notes = [keep.notes, drop.notes].filter((n, i, all) => n && all.indexOf(n) === i);
     ctx.db.run(
       `UPDATE customers SET
@@ -275,6 +307,9 @@ export type CustomerReport = {
   rewards: { count: number; off: number };
   /** Birthday discounts this year (H1). */
   birthdays: { count: number; off: number };
+  /** Bring a friend gifts and «نفتقدك» offers this year (I4). */
+  friends: { count: number; off: number };
+  offers: { count: number; off: number };
   /** Points this year: earned, and what the points paid. */
   points: { earned: number; paid: number };
 };
@@ -316,9 +351,20 @@ export function customerReport(ctx: Ctx): CustomerReport {
           .map((s) => s.day),
       ).size >= 2,
   ).length;
-  const rewards = ctx.db.get<{ n: number; t: number; bn: number; bt: number }>(
+  const rewards = ctx.db.get<{
+    n: number;
+    t: number;
+    bn: number;
+    bt: number;
+    fn: number;
+    ft: number;
+    on_: number;
+    ot: number;
+  }>(
     `SELECT count(nullif(reward_off, 0)) n, coalesce(sum(reward_off), 0) t,
-            count(nullif(birthday_off, 0)) bn, coalesce(sum(birthday_off), 0) bt
+            count(nullif(birthday_off, 0)) bn, coalesce(sum(birthday_off), 0) bt,
+            count(nullif(friend_off, 0)) fn, coalesce(sum(friend_off), 0) ft,
+            count(nullif(offer_off, 0)) on_, coalesce(sum(offer_off), 0) ot
        FROM sales WHERE created_at >= ?`,
     [yearStart],
   )!;
@@ -335,6 +381,8 @@ export function customerReport(ctx: Ctx): CustomerReport {
     returning,
     rewards: { count: rewards.n, off: rewards.t },
     birthdays: { count: rewards.bn, off: rewards.bt },
+    friends: { count: rewards.fn, off: rewards.ft },
+    offers: { count: rewards.on_, off: rewards.ot },
     points: { earned: points.e, paid: points.p },
   };
 }

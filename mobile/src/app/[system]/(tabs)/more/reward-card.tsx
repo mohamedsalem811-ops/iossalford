@@ -4,7 +4,7 @@ import { useCallback, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
-import { Button, Card, Text } from '@/components';
+import { Button, Card, Segmented, Text } from '@/components';
 import { errorBoundary } from '@/components/error-screen';
 import { getBirthday } from '@/domain/birthday';
 import { getContact } from '@/domain/contact';
@@ -16,7 +16,14 @@ import { haptic } from '@/lib/haptics';
 import { logError } from '@/lib/error-log';
 import { printCard, saveCardToFiles, shareCard } from '@/receipts/card-output';
 import { cardFontCss } from '@/receipts/fonts';
-import { cardSections, rewardCardHtml, type CardInput } from '@/receipts/reward-card';
+import { friendOn, getMarketing } from '@/domain/marketing';
+import {
+  AUDIENCE_LABELS,
+  cardSections,
+  rewardCardHtml,
+  type Audience,
+  type CardInput,
+} from '@/receipts/reward-card';
 import { Allowed } from '@/staff/allowed';
 import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
@@ -38,10 +45,17 @@ function RewardCardScreen() {
       rewards: getRewards(ctx),
       birthday: getBirthday(ctx),
       contact: getContact(ctx),
+      friend: (() => {
+        const m = getMarketing(ctx);
+        return friendOn(ctx, m) ? { percent: m.friendPercent, times: m.friendTimes } : null;
+      })(),
     }),
     [ctx],
   );
-  const [input, setInput] = useState(read);
+  const [rules, setInput] = useState(read);
+  // The same card worded for women or for men: each printed or shared on its own.
+  const [audience, setAudience] = useState<Audience>('women');
+  const input: CardInput = { ...rules, audience };
   const refresh = useCallback(() => setInput(read()), [read]);
   useFocusEffect(refresh);
   useOnDataChanged(refresh);
@@ -146,6 +160,15 @@ function RewardCardScreen() {
             />
           </Card>
         ) : null}
+        <Segmented<Audience>
+          options={(['women', 'men'] as const).map((a) => ({
+            value: a,
+            label: AUDIENCE_LABELS[a],
+          }))}
+          value={audience}
+          onChange={setAudience}
+          testID="card-audience"
+        />
         <View
           onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
           accessibilityLabel="معاينة بطاقة المكافآت: الوجه الأمامي ثم الخلفي"

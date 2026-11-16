@@ -18,11 +18,14 @@ import {
 import { Grid, Split } from '@/features/dashboard/layout';
 import { MonthSummary } from '@/features/dashboard/month-summary';
 import { QuickActions } from '@/features/dashboard/quick-actions';
+import { GiftRemindersCard, type GiftRemindersProps } from '@/features/marketing/gift-reminders';
+import { OrderRemindersCard, type OrderRemindersProps } from '@/features/orders/reminders-card';
 
 export type { DashboardActions };
 
 /**
- * The first tab: the shortcuts (new sale, new receipt, new piece), today and what needs attention,
+ * The first tab: the shortcuts (new sale; deposit, return, debt payment, customer; new receipt,
+ * new piece), today and what needs attention,
  * "ملخص الشهر" (four tiles, each with a dot comparing with the month before), the daily chart,
  * the breakdowns and the latest sales, then the stock. iPhone: one column; iPad: the cards fill
  * the width (Split View narrows it back to one column).
@@ -31,10 +34,16 @@ export function DashboardScreen({
   system,
   data,
   actions,
+  orders,
+  gifts,
 }: {
   system: SystemId;
   data: DashboardData;
   actions: DashboardActions;
+  /** The deposit reminders (I2). */
+  orders?: OrderRemindersProps;
+  /** The gift reminders a week before (I4). */
+  gifts?: GiftRemindersProps;
 }) {
   const { dashboardColumns: columns } = useLayout();
   const wide = columns > 1;
@@ -54,8 +63,14 @@ export function DashboardScreen({
         system={system}
         onNewSale={actions.onNewSale}
         onNewReceipt={actions.onNewReceipt}
+        onNewOrder={actions.onNewOrder}
+        onReturn={actions.onReturn}
+        onDebtPayment={actions.onDebtPayment}
+        onCustomer={actions.onCustomer}
         onNewProduct={actions.onNewProduct}
       />
+      {orders ? <OrderRemindersCard {...orders} /> : null}
+      {gifts ? <GiftRemindersCard {...gifts} /> : null}
       <Grid columns={Math.min(columns, 2)}>
         <TodayCard data={data} piece={piece} onOpenDay={actions.onOpenDay} />
         <AttentionCard data={data} actions={actions} />

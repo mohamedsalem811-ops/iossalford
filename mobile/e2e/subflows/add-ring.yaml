@@ -1,7 +1,10 @@
 # Adds "Ring Zircon" (Pandora, 350 د.ل, cost 200, 3 in stock) from the Products tab.
 appId: com.salford.pos
 ---
-- tapOn: 'المنتجات'
+- runFlow:
+    file: open-tab.yaml
+    env:
+      TAB: 'المنتجات'
 - tapOn: 'إضافة قطعة'
 - extendedWaitUntil:
     visible:
@@ -20,31 +23,25 @@ appId: com.salford.pos
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: scroll-form.yaml
+    file: scroll-to-field.yaml
     env:
       ID: 'product-price'
-- tapOn:
-    id: 'product-price'
 - inputText: '350'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: scroll-form.yaml
+    file: scroll-to-field.yaml
     env:
       ID: 'product-cost'
-- tapOn:
-    id: 'product-cost'
 - inputText: '200'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: scroll-form.yaml
+    file: scroll-to-field.yaml
     env:
       ID: 'product-stock'
-- tapOn:
-    id: 'product-stock'
 - eraseText
 - inputText: '3'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).

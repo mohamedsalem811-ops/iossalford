@@ -12,6 +12,7 @@ const month = (o: Partial<PeriodSummary>): PeriodSummary => ({
   transactions: 0,
   itemsSold: 0,
   itemsReturned: 0,
+  otherIncome: 0,
   netSales: 0,
   netProfit: 0,
   grossSalesUsd: 0,

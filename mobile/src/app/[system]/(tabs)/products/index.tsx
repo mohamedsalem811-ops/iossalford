@@ -131,6 +131,7 @@ function JewelryProducts({ ctx }: { ctx: Ctx }) {
           system={system}
           products={data.products}
           brandImages={data.brandImages}
+          reserved={data.reserved}
           query={query}
           onQuery={setQuery}
           editHref={editHref}
@@ -191,6 +192,7 @@ function ScarvesProducts({ ctx }: { ctx: Ctx }) {
           onAdjust={(id) => adjustSheet(system, id)}
           onAdd={add}
           grid={split}
+          reserved={data.reserved}
         />
       </BelowHeader>
     </>

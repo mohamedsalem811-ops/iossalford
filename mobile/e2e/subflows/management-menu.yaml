@@ -4,7 +4,10 @@
 # The menu keeps where it was scrolled to, so it is swiped to its top on both.
 appId: com.salford.pos
 ---
-- tapOn: 'الإدارة'
+- runFlow:
+    file: open-tab.yaml
+    env:
+      TAB: 'الإدارة'
 - runFlow:
     when:
       true: ${DEVICE != 'iPad'}

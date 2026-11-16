@@ -30,6 +30,15 @@ import {
   notBack,
 } from '@/domain/customer-care';
 import { rewardStatus } from '@/domain/visit-reward';
+import {
+  giftReminders,
+  getMarketing,
+  missYouCandidates,
+  offerCustomers,
+  offersReport,
+} from '@/domain/marketing';
+import { listOrders } from '@/domain/orders';
+import { reservedCounts } from '@/domain/reserved';
 import { allBalances, creditBalances, debtors } from '@/domain/debts';
 import { displayName, getProduct, listProducts } from '@/domain/products';
 import { countReceipts, listReceipts, receiptMonths } from '@/domain/receipts';
@@ -201,6 +210,8 @@ function measure(sales: number) {
   migrate(db);
   db.exec('PRAGMA journal_mode = WAL;');
   seed(db, 2_000, sales);
+  // Half the customers accept offers: the marketing lists (I4) have real work to do.
+  db.run('UPDATE customers SET offers = 1 WHERE id % 2 = 0');
   const ctx: Ctx = { db, system: 'jewelry', now: () => now, actor: OWNER };
   const month = '2026-11';
   const months = recentMonths(12, now);
@@ -238,6 +249,13 @@ function measure(sales: number) {
   check('Customers: not back in 90 days (G3)', () => notBack(ctx));
   check('Customers: the owner’s report (G3)', () => customerReport(ctx), 1_000);
   check('Customers: duplicates (G3)', () => duplicateCustomers(ctx));
+  check('Orders: open deposit orders, first page (I2)', () => listOrders(ctx, {}, { limit: 60 }));
+  check('Products: pieces held by deposits (I2)', () => reservedCounts(ctx));
+  check('Home: gift reminders (I4)', () => giftReminders(ctx));
+  check('Marketing: VIP first look (I4)', () => offerCustomers(ctx, true));
+  check('Marketing: who gets an occasion message (I4)', () => offerCustomers(ctx));
+  check('Marketing: «نفتقدك» suggestions (I4)', () => missYouCandidates(ctx, getMarketing(ctx)));
+  check('Marketing: the offers report (I4)', () => offersReport(ctx));
   check('Checkout: the visit reward (G2)', () =>
     rewardStatus(ctx, 4, { ...getRewards(ctx), enabled: true, startedAt: '2000-01-01' }),
   );

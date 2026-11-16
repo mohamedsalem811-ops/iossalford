@@ -5,6 +5,7 @@ import { ensureBrand } from './brands';
 import { allow, clean, nowStamp, RuleError, type Ctx, who } from './context';
 import { getRate } from './settings';
 import { logAction } from './activity';
+import { refuseIfOrdered, refuseUnderReserved, reservedOf } from './reserved';
 
 export type Product = {
   id: number;
@@ -231,6 +232,8 @@ export function saveProduct(ctx: Ctx, input: ProductInput): number {
 
     if (input.id) {
       const old = requireProduct(ctx, input.id);
+      refuseIfOrdered(ctx, input.id);
+      if (input.stock !== old.stock) refuseUnderReserved(ctx, input.id, input.stock);
       const sku = typed || old.sku;
       // The same dollar cost as before keeps the rate it was bought at: editing the name or the
       // price must not reprice the cost at today's rate.
@@ -271,31 +274,7 @@ export function saveProduct(ctx: Ctx, input: ProductInput): number {
       return input.id;
     }
 
-    const id = ctx.db.run(
-      `INSERT INTO products (sku, name, brand_id, category, size, color, cost, cost_usd, cost_rate, price, stock,
-         low_stock, image_file, design_id, specs, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        typed || generateSku(ctx, input.category),
-        input.name.trim(),
-        brandId,
-        input.category,
-        size,
-        clean(input.color),
-        cost,
-        usd,
-        usd !== null ? rate : null,
-        input.price,
-        input.stock,
-        input.lowStock ?? 2,
-        input.imageFile ?? null,
-        input.designId ?? null,
-        cleanSpecs(input.specs),
-        stamp,
-        stamp,
-      ],
-    ).lastInsertRowId;
-    recordMove(ctx, id, input.stock, 'initial', null);
+    const id = insertProduct(ctx, { ...input, sku: typed || undefined }, null);
     logAction(ctx, 'product.add', `قطعة جديدة «${label(input.name, size)}»`, {
       productId: id,
       price: input.price,
@@ -303,6 +282,45 @@ export function saveProduct(ctx: Ctx, input: ProductInput): number {
     });
     return id;
   });
+}
+
+/**
+ * Writes a new product with its opening stock. Called by saveProduct and when an ordered piece
+ * arrives (orders.ts, with the order as the reason), inside their checked actions.
+ */
+export function insertProduct(ctx: Ctx, input: ProductInput, reason: string | null): number {
+  validate(input);
+  const brandId = ensureBrand(ctx, input.brand);
+  const rate = getRate(ctx);
+  const usd = input.costUsd ?? null;
+  const cost = usd !== null ? usdToLyd(usd, rate) : (input.cost ?? 0);
+  const stamp = nowStamp(ctx);
+  const id = ctx.db.run(
+    `INSERT INTO products (sku, name, brand_id, category, size, color, cost, cost_usd, cost_rate, price, stock,
+       low_stock, image_file, design_id, specs, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      (input.sku ?? '').trim().toUpperCase() || generateSku(ctx, input.category),
+      input.name.trim(),
+      brandId,
+      input.category,
+      input.size ? latinDigits(input.size.trim()) : null,
+      clean(input.color),
+      cost,
+      usd,
+      usd !== null ? rate : null,
+      input.price,
+      input.stock,
+      input.lowStock ?? 2,
+      input.imageFile ?? null,
+      input.designId ?? null,
+      cleanSpecs(input.specs),
+      stamp,
+      stamp,
+    ],
+  ).lastInsertRowId;
+  recordMove(ctx, id, input.stock, 'initial', reason);
+  return id;
 }
 
 /** Changes stock by `delta` (a delivery +3, breakage −1) with a reason. Stock never goes below 0. */
@@ -314,6 +332,8 @@ export function adjustStock(ctx: Ctx, productId: number, delta: number, reason: 
   ctx.db.transaction(() => {
     const p = requireProduct(ctx, productId);
     if (p.stock + delta < 0) throw new RuleError(`المتوفر ${p.stock} فقط، لا يمكن إنقاص ${-delta}`);
+    refuseIfOrdered(ctx, productId);
+    if (delta < 0) refuseUnderReserved(ctx, productId, p.stock + delta);
     ctx.db.run('UPDATE products SET stock = stock + ?, updated_at = ? WHERE id = ?', [
       delta,
       nowStamp(ctx),
@@ -368,11 +388,12 @@ export function stockHistory(ctx: Ctx, productId: number): StockMove[] {
     }));
 }
 
-/** Has this product ever been sold or returned? Then it is archived, not deleted. */
+/** Has this product ever been sold, returned or ordered? Then it is archived, not deleted. */
 function hasHistory(ctx: Ctx, id: number): boolean {
   return !!ctx.db.get(
-    'SELECT 1 FROM sale_lines WHERE product_id = ? UNION ALL SELECT 1 FROM returns WHERE product_id = ? LIMIT 1',
-    [id, id],
+    `SELECT 1 FROM sale_lines WHERE product_id = ?1 UNION ALL SELECT 1 FROM returns WHERE product_id = ?1
+     UNION ALL SELECT 1 FROM orders WHERE product_id = ?1 LIMIT 1`,
+    [id],
   );
 }
 
@@ -394,6 +415,8 @@ export function deleteProduct(ctx: Ctx, id: number): 'deleted' | 'archived' {
   allow(ctx, 'products.edit');
   return ctx.db.transaction(() => {
     const p = requireProduct(ctx, id);
+    refuseIfOrdered(ctx, id);
+    if (reservedOf(ctx, id) > 0) refuseHeld(p.name);
     if (hasHistory(ctx, id)) {
       ctx.db.run('UPDATE products SET archived = 1, updated_at = ? WHERE id = ?', [
         nowStamp(ctx),
@@ -409,6 +432,12 @@ export function deleteProduct(ctx: Ctx, id: number): 'deleted' | 'archived' {
     logAction(ctx, 'product.delete', `حذف القطعة «${label(p.name, p.size)}»`, { productId: id });
     return 'deleted';
   });
+}
+
+function refuseHeld(name: string): never {
+  throw new RuleError(
+    `«${name}» محجوزة لزبون بعربون: لا تُحذف ولا تُؤرشف حتى تُسلّم أو يُلغى الحجز.`,
+  );
 }
 
 export function restoreProduct(ctx: Ctx, id: number) {

@@ -7,6 +7,7 @@ import type { Receipt } from '@/domain/receipts';
 import { deleteSale, saleDeleteCheck, type Sale } from '@/domain/sales';
 import { showError } from '@/features/products/actions';
 import { formatDate, formatTime } from '@/lib/dates';
+import { ThanksButton } from '@/features/marketing/thanks-button';
 import { formatLyd, formatRate } from '@/lib/money';
 import { notifyDataChanged } from '@/state/data-events';
 import { spacing, useTheme } from '@/theme';
@@ -23,6 +24,8 @@ export function SaleDetail({
   ctx,
   sale,
   receipt,
+  orderId,
+  onOrder,
   onReturn,
   onReceipt,
   onCustomer,
@@ -31,6 +34,9 @@ export function SaleDetail({
   ctx: Ctx;
   sale: Sale | undefined;
   receipt: Receipt | undefined;
+  /** The deposit order this sale delivered (I2). */
+  orderId?: number;
+  onOrder?: (orderId: number) => void;
   onReturn: (lineId: number) => void;
   onReceipt: (receiptId: number) => void;
   onCustomer?: (customerId: number) => void;
@@ -121,9 +127,24 @@ export function SaleDetail({
             {`خصم عيد الميلاد ${formatLyd(sale.birthdayOff)}${sale.approvedBy ? ' • بموافقة المالك' : ''}`}
           </Text>
         ) : null}
+        {sale.friendOff > 0 ? (
+          <Text variant="subhead" testID="sale-friend-off">
+            {`هدية الصديقة ${formatLyd(sale.friendOff)}`}
+          </Text>
+        ) : null}
+        {sale.offerOff > 0 ? (
+          <Text variant="subhead" testID="sale-offer-off">
+            {`عرض «نفتقدك» ${formatLyd(sale.offerOff)}`}
+          </Text>
+        ) : null}
         {sale.pointsPaid > 0 ? (
           <Text variant="subhead" testID="sale-points-paid">
-            {`مدفوع بالنقاط ${formatLyd(sale.pointsPaid)} • المدفوع ${formatLyd(sale.total - sale.pointsPaid)}`}
+            {`مدفوع بالنقاط ${formatLyd(sale.pointsPaid)}${sale.depositUsed > 0 ? '' : ` • المدفوع ${formatLyd(sale.total - sale.pointsPaid)}`}`}
+          </Text>
+        ) : null}
+        {sale.depositUsed > 0 ? (
+          <Text variant="subhead" testID="sale-deposit">
+            {`عربون مدفوع مسبقاً ${formatLyd(sale.depositUsed)} • المدفوع عند التسليم ${formatLyd(Math.max(0, sale.total - sale.pointsPaid - sale.depositUsed))}`}
           </Text>
         ) : null}
         {seesSellers && sale.seller !== 'owner' ? (
@@ -138,6 +159,17 @@ export function SaleDetail({
           onPress={sale.customerId && onCustomer ? () => onCustomer(sale.customerId!) : undefined}
         />
       </ListGroup>
+
+      {orderId && onOrder ? (
+        <ListGroup>
+          <ListRow
+            icon="shippingbox"
+            title={`تسليم الطلب رقم ${orderId}`}
+            onPress={() => onOrder(orderId)}
+            testID="sale-order"
+          />
+        </ListGroup>
+      ) : null}
 
       <Text variant="subhead" tone="secondary" style={{ paddingHorizontal: spacing.xs }}>
         {`القطع${returned ? ` • مرتجع ${returned}` : ''}`}
@@ -201,6 +233,7 @@ export function SaleDetail({
         </Card>
       ) : null}
 
+      <ThanksButton ctx={ctx} saleId={sale.id} customerId={sale.customerId} testID="sale-thanks" />
       {receipt ? (
         <Button
           title={`الإيصال ${receipt.receiptNo}`}

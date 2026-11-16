@@ -1,0 +1,123 @@
+# Phase I4. Marketing: the owner opens التسويق and looks through its tabs (the occasions with
+# Ramadan and the Eids waiting for this year's date, نفتقدك with its rules, bring a friend, the
+# message templates with the birthday and deposit-order messages, the report). Then a sale to a new customer with a gift to remember next year
+# ("هدية لمن؟"), and the sold screen with «رسالة شكر». iPhone and iPad (screens: occasions, miss
+# you, friend, templates, checkout gift, sold with thanks).
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-marketing'
+- extendedWaitUntil:
+    visible:
+      id: 'marketing-occasion-valentine'
+    timeout: 10000
+- assertVisible:
+    id: 'marketing-occasion-fitr'
+- takeScreenshot: ${DEVICE}-marketing-occasions
+# A moving date is asked for before anything is sent.
+- tapOn:
+    id: 'marketing-occasion-fitr'
+- assertVisible: 'اكتب التاريخ أولاً'
+- tapOn: 'OK'
+- tapOn: 'نفتقدك'
+- assertVisible:
+    id: 'marketing-offer-percent'
+- takeScreenshot: ${DEVICE}-marketing-miss-you
+- tapOn: 'صديقة'
+- assertVisible:
+    id: 'marketing-friend-toggle'
+- assertVisible:
+    id: 'marketing-friend-needs'
+- takeScreenshot: ${DEVICE}-marketing-friend
+- tapOn: 'رسائل'
+- assertVisible:
+    id: 'marketing-template-thanks'
+- takeScreenshot: ${DEVICE}-marketing-templates
+# The birthday wishes and the deposit-order messages are the owner's to word too.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'marketing-template-orderArrived'
+- assertVisible:
+    id: 'marketing-template-orderArrived'
+- takeScreenshot: ${DEVICE}-marketing-templates-orders
+- scrollUntilVisible:
+    element: 'تقرير'
+    direction: UP
+    timeout: 30000
+- tapOn: 'تقرير'
+- assertVisible:
+    id: 'marketing-report'
+# A sale to a new customer, with a gift to remember. Run 66: the tab bar was still minimised from
+# the scrolled templates (only الإدارة on screen).
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
+- tapOn:
+    id: 'sale-tile-Ring Zircon'
+- runFlow:
+    when:
+      visible:
+        id: 'cart-bar'
+    commands:
+      - tapOn:
+          id: 'cart-bar'
+- tapOn:
+    id: 'cart-checkout'
+- extendedWaitUntil:
+    visible:
+      id: 'checkout-phone'
+    timeout: 30000
+- tapOn:
+    id: 'checkout-phone'
+- inputText: '0912345678'
+- tapOn:
+    id: 'checkout-name'
+- inputText: 'Mona'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-gift-toggle'
+- tapOn:
+    id: 'checkout-gift-toggle'
+- tapOn:
+    id: 'checkout-gift-for'
+- inputText: 'Mama'
+# Run 65: the day and month fields were under the keyboard, so their taps typed «i» and «e» into
+# «لمن الهدية؟» («Mamai21e3») and the sale stopped at «تاريخ المناسبة غير صحيح». The keyboard is
+# closed and the day brought into view first.
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-to-field.yaml
+    env:
+      ID: 'checkout-gift-day'
+- inputText: '21'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'checkout-gift-month'
+- inputText: '3'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- takeScreenshot: ${DEVICE}-checkout-gift
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'checkout-confirm'
+- tapOn:
+    id: 'checkout-confirm'
+- extendedWaitUntil:
+    visible:
+      id: 'sold-title'
+    timeout: 30000
+- assertVisible:
+    id: 'sold-thanks'
+- takeScreenshot: ${DEVICE}-sold-thanks

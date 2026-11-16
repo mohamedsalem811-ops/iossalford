@@ -10,11 +10,9 @@ appId: com.salford.pos
 - runFlow: subflows/open-shift.yaml
 # She closes with nothing counted: 100 short.
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'shift-counted'
-- tapOn:
-    id: 'shift-counted'
 - inputText: '0'
 - tapOn:
     id: 'keyboard.toolbar.done'

@@ -750,6 +750,216 @@ ALTER TABLE receipts ADD COLUMN birthday_off INTEGER NOT NULL DEFAULT 0 CHECK (b
 ALTER TABLE customers ADD COLUMN birthday_set_at TEXT;
 `,
   },
+  {
+    version: 12,
+    name: 'deposit orders, gifts, referrals, offers and messages',
+    sql: `
+-- A piece ordered for a customer from a supplier, or a piece in stock held for her (I1), paid in
+-- part with a deposit (عربون). The agreed price is fixed when the deposit is taken. An order
+-- goes waiting → purchased (the owner: its cost and the expected date) → arrived (it becomes a
+-- product, held for her) → delivered (a sale), or cancelled; a hold goes held → delivered or
+-- cancelled. Never deleted: it keeps the deposit's history.
+CREATE TABLE orders (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind         TEXT NOT NULL CHECK (kind IN ('order', 'hold')),
+  status       TEXT NOT NULL
+    CHECK (status IN ('waiting', 'purchased', 'arrived', 'held', 'delivered', 'cancelled')),
+  customer_id  INTEGER NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
+  -- What she asked for, as typed (an order), or the held piece's name (a hold).
+  description  TEXT NOT NULL CHECK (length(trim(description)) > 0),
+  brand        TEXT,
+  category     TEXT,
+  size         TEXT,
+  color        TEXT,
+  note         TEXT,
+  image_file   TEXT,
+  -- The held piece (a hold), or the product made when an ordered piece arrives.
+  product_id   INTEGER REFERENCES products(id) ON DELETE RESTRICT,
+  quantity     INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+  -- The agreed price for all of it, in dirhams.
+  price        INTEGER NOT NULL CHECK (price > 0),
+  -- Entered by the owner at "purchased": in dirhams, and in US cents with the rate when in dollars.
+  cost         INTEGER CHECK (cost >= 0),
+  cost_usd     INTEGER,
+  cost_rate    INTEGER,
+  -- The expected arrival date "2026-12-01", typed by the owner.
+  eta          TEXT,
+  purchased_at TEXT,
+  arrived_at   TEXT,
+  delivered_at TEXT,
+  sale_id      INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+  cancelled_at TEXT,
+  -- On cancelling: the deposit moved to her balance, refunded the way she paid, or kept by the
+  -- shop (income); the amount it was, and the balance payment it became.
+  cancel_how   TEXT CHECK (cancel_how IN ('balance', 'refund', 'keep')),
+  settled      INTEGER NOT NULL DEFAULT 0 CHECK (settled >= 0),
+  payment_id   INTEGER REFERENCES payments(id) ON DELETE SET NULL,
+  -- 'owner' or 'approved' when the owner allowed a deposit under the minimum, or the cancel.
+  approved_by  TEXT,
+  cancel_approved_by TEXT,
+  created_at   TEXT NOT NULL,
+  month        TEXT NOT NULL,
+  updated_at   TEXT,
+  by           TEXT,
+  by_name      TEXT,
+  shift_id     INTEGER REFERENCES shifts(id) ON DELETE SET NULL,
+  uid          TEXT,
+  device       TEXT
+);
+CREATE INDEX orders_customer ON orders(customer_id);
+CREATE INDEX orders_status ON orders(status);
+CREATE INDEX orders_product ON orders(product_id);
+CREATE INDEX orders_sale ON orders(sale_id);
+CREATE INDEX orders_cancelled ON orders(cancelled_at);
+CREATE UNIQUE INDEX orders_uid ON orders(uid);
+CREATE TRIGGER orders_new_uid AFTER INSERT ON orders WHEN NEW.uid IS NULL BEGIN
+  UPDATE orders SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+-- Money paid towards an order (the deposit and later payments), or refunded on cancelling, by
+-- the way it was paid. Each payment has its deposit receipt. Cash counts in the shift's drawer.
+CREATE TABLE order_payments (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id    INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  kind        TEXT NOT NULL CHECK (kind IN ('pay', 'refund')),
+  amount      INTEGER NOT NULL CHECK (amount > 0),
+  method      TEXT NOT NULL CHECK (method IN ('cash', 'card', 'transfer')),
+  receipt_id  INTEGER REFERENCES receipts(id) ON DELETE SET NULL,
+  note        TEXT,
+  created_at  TEXT NOT NULL,
+  month       TEXT NOT NULL,
+  by          TEXT,
+  by_name     TEXT,
+  shift_id    INTEGER REFERENCES shifts(id) ON DELETE SET NULL,
+  uid         TEXT,
+  device      TEXT
+);
+CREATE INDEX order_payments_order ON order_payments(order_id);
+CREATE INDEX order_payments_shift ON order_payments(shift_id);
+CREATE INDEX order_payments_created ON order_payments(created_at);
+CREATE UNIQUE INDEX order_payments_uid ON order_payments(uid);
+CREATE TRIGGER order_payments_new_uid AFTER INSERT ON order_payments WHEN NEW.uid IS NULL BEGIN
+  UPDATE order_payments SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+-- The delivery sale: the deposit already paid (money taken before the sale, not in its drawer
+-- money), and the bring-a-friend and we-miss-you discounts (I4), already in the pieces' prices
+-- and kept apart like the birthday discount. The receipt keeps its own copies.
+ALTER TABLE sales ADD COLUMN deposit_used INTEGER NOT NULL DEFAULT 0 CHECK (deposit_used >= 0);
+ALTER TABLE sales ADD COLUMN friend_off INTEGER NOT NULL DEFAULT 0 CHECK (friend_off >= 0);
+ALTER TABLE sales ADD COLUMN offer_off INTEGER NOT NULL DEFAULT 0 CHECK (offer_off >= 0);
+CREATE INDEX sales_deposit ON sales(deposit_used) WHERE deposit_used > 0;
+-- A deposit receipt ('deposit') belongs to its order; 'deposit' is what was paid towards it so
+-- far (on a delivery receipt: the deposit used).
+ALTER TABLE receipts ADD COLUMN kind TEXT NOT NULL DEFAULT 'sale' CHECK (kind IN ('sale', 'deposit'));
+ALTER TABLE receipts ADD COLUMN order_id INTEGER REFERENCES orders(id) ON DELETE SET NULL;
+ALTER TABLE receipts ADD COLUMN deposit INTEGER NOT NULL DEFAULT 0 CHECK (deposit >= 0);
+ALTER TABLE receipts ADD COLUMN friend_off INTEGER NOT NULL DEFAULT 0 CHECK (friend_off >= 0);
+ALTER TABLE receipts ADD COLUMN offer_off INTEGER NOT NULL DEFAULT 0 CHECK (offer_off >= 0);
+CREATE INDEX receipts_order ON receipts(order_id);
+-- Who sent this customer (bring a friend, I4).
+ALTER TABLE customers ADD COLUMN referred_by INTEGER REFERENCES customers(id) ON DELETE SET NULL;
+-- Deposits kept by the shop on cancelled orders, in the quarter's closing.
+ALTER TABLE closings ADD COLUMN other_income INTEGER NOT NULL DEFAULT 0;
+-- A gift bought for someone (I4): for whom, the occasion and its day, to remind next year.
+CREATE TABLE gifts (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  sale_id     INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+  for_whom    TEXT NOT NULL CHECK (length(trim(for_whom)) > 0),
+  occasion    TEXT,
+  occ_month   INTEGER NOT NULL CHECK (occ_month BETWEEN 1 AND 12),
+  occ_day     INTEGER NOT NULL CHECK (occ_day BETWEEN 1 AND 31),
+  -- The last year the reminder was handled.
+  done_year   INTEGER,
+  created_at  TEXT NOT NULL,
+  month       TEXT NOT NULL,
+  by          TEXT,
+  by_name     TEXT,
+  uid         TEXT,
+  device      TEXT
+);
+CREATE INDEX gifts_customer ON gifts(customer_id);
+CREATE INDEX gifts_date ON gifts(occ_month, occ_day);
+CREATE UNIQUE INDEX gifts_uid ON gifts(uid);
+CREATE TRIGGER gifts_new_uid AFTER INSERT ON gifts WHEN NEW.uid IS NULL BEGIN
+  UPDATE gifts SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+-- Bring a friend (I4): the friend's first purchase, and the points it gave the one who sent her
+-- (a loyalty 'adjust' move), taken back when that purchase is fully returned.
+CREATE TABLE referrals (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  friend_id   INTEGER NOT NULL UNIQUE REFERENCES customers(id) ON DELETE CASCADE,
+  referrer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  sale_id     INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+  points      INTEGER NOT NULL DEFAULT 0,
+  move_id     INTEGER REFERENCES loyalty_moves(id) ON DELETE SET NULL,
+  reversed_at TEXT,
+  created_at  TEXT NOT NULL,
+  by          TEXT,
+  by_name     TEXT,
+  uid         TEXT,
+  device      TEXT
+);
+CREATE INDEX referrals_referrer ON referrals(referrer_id);
+CREATE INDEX referrals_sale ON referrals(sale_id);
+CREATE UNIQUE INDEX referrals_uid ON referrals(uid);
+CREATE TRIGGER referrals_new_uid AFTER INSERT ON referrals WHEN NEW.uid IS NULL BEGIN
+  UPDATE referrals SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+-- A one-time discount the owner gives a customer who hasn't come back (we miss you, I4).
+CREATE TABLE offers (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  percent     INTEGER NOT NULL CHECK (percent BETWEEN 1 AND 100),
+  cap         INTEGER NOT NULL DEFAULT 0 CHECK (cap >= 0),
+  expires_at  TEXT NOT NULL,
+  sale_id     INTEGER REFERENCES sales(id) ON DELETE SET NULL,
+  used_at     TEXT,
+  created_at  TEXT NOT NULL,
+  month       TEXT NOT NULL,
+  by          TEXT,
+  by_name     TEXT,
+  uid         TEXT,
+  device      TEXT
+);
+CREATE INDEX offers_customer ON offers(customer_id);
+CREATE INDEX offers_sale ON offers(sale_id);
+CREATE UNIQUE INDEX offers_uid ON offers(uid);
+CREATE TRIGGER offers_new_uid AFTER INSERT ON offers WHEN NEW.uid IS NULL BEGIN
+  UPDATE offers SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+-- Each WhatsApp message the app opened for a customer (the person sends it), so it is not
+-- offered twice: its kind and what it was about.
+CREATE TABLE message_log (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_id INTEGER NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  kind        TEXT NOT NULL,
+  ref         TEXT,
+  created_at  TEXT NOT NULL,
+  by          TEXT,
+  by_name     TEXT,
+  uid         TEXT,
+  device      TEXT
+);
+CREATE INDEX message_log_customer ON message_log(customer_id, kind);
+CREATE INDEX message_log_kind ON message_log(kind, ref);
+CREATE UNIQUE INDEX message_log_uid ON message_log(uid);
+CREATE TRIGGER message_log_new_uid AFTER INSERT ON message_log WHEN NEW.uid IS NULL BEGIN
+  UPDATE message_log SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

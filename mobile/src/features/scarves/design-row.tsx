@@ -6,7 +6,7 @@ import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
-import { Icon, Text } from '@/components';
+import { Badge, Icon, Text } from '@/components';
 import type { ScarfDesign } from '@/domain/scarves';
 import { BrandBadge } from '@/features/products/brand-badge';
 import { ProductPhoto } from '@/features/products/product-photo';
@@ -25,6 +25,7 @@ export function DesignRow({
   onDelete,
   onAdjust,
   card,
+  reserved,
 }: {
   system: SystemId;
   design: ScarfDesign;
@@ -35,6 +36,8 @@ export function DesignRow({
   onAdjust: (productId: number) => void;
   /** iPad grid: drawn as a photo card this wide instead of a swipeable row. */
   card?: number;
+  /** Pieces of each size held for customers by a deposit (I2). */
+  reserved?: Map<number, number>;
 }) {
   const { colors } = useTheme();
   // An employee sees each design's prices and stock only.
@@ -44,6 +47,13 @@ export function DesignRow({
   const first = d.sizes[0];
   const photo = d.sizes.find((s) => s.imageFile)?.imageFile ?? null;
   const details = designDetails(d);
+  const held = d.sizes.reduce((n, s) => n + (reserved?.get(s.id) ?? 0), 0);
+  const heldBadge =
+    held > 0 ? (
+      <View style={{ flexDirection: 'row' }} testID={`design-reserved-${first.name}`}>
+        <Badge label={`محجوز ${held}`} tone="warning" />
+      </View>
+    ) : null;
   // Tap edits (on iPad it opens beside the list); a long press shows every action as a menu.
   const open = mayEdit ? () => router.push(href) : undefined;
   const menu = () => {
@@ -127,6 +137,7 @@ export function DesignRow({
           </Text>
         ) : null}
         {sizeChips}
+        {heldBadge}
         <Text variant="headline" tone="accent" numberOfLines={1}>
           {priceRange(d)}
         </Text>
@@ -168,6 +179,7 @@ export function DesignRow({
           </Text>
         ) : null}
         {sizeChips}
+        {heldBadge}
         <Text variant="subhead" tone="accent">
           {priceRange(d)}
         </Text>

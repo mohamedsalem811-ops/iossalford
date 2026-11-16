@@ -5,6 +5,9 @@ import { LatestCard } from '@/features/dashboard/cards';
 import { Grid } from '@/features/dashboard/layout';
 import type { MySales } from '@/features/dashboard/my-sales';
 import { QuickActions } from '@/features/dashboard/quick-actions';
+import { ShiftBar } from '@/features/dashboard/shift-bar';
+import { GiftRemindersCard, type GiftRemindersProps } from '@/features/marketing/gift-reminders';
+import { OrderRemindersCard, type OrderRemindersProps } from '@/features/orders/reminders-card';
 import { useLayout } from '@/hooks/use-layout';
 import { formatLyd } from '@/lib/money';
 import { spacing, type SystemId } from '@/theme';
@@ -20,15 +23,24 @@ export function EmployeeHomeScreen({
   name,
   data,
   actions,
+  orders,
+  gifts,
 }: {
   system: SystemId;
   name: string;
   data: MySales;
+  /** The deposit reminders (I2). */
+  orders?: OrderRemindersProps;
+  /** The gift reminders a week before (I4). */
+  gifts?: GiftRemindersProps;
   actions: {
     onSystemMenu: () => void;
     onOpenSale: (id: number) => void;
     onNewSale: () => void;
-    onNewReceipt: () => void;
+    onNewOrder?: () => void;
+    onReturn?: () => void;
+    onDebtPayment?: () => void;
+    onCustomer?: () => void;
     onOpenAccount: () => void;
     onOpenShift: () => void;
   };
@@ -42,24 +54,18 @@ export function EmployeeHomeScreen({
         rate={data.rate}
         onSystemMenu={actions.onSystemMenu}
       />
+      <ShiftBar shift={data.shift} onOpen={actions.onOpenShift} />
       <Text variant="title" testID="employee-hello">{`أهلاً، ${name}`}</Text>
-      {data.shiftOpen ? null : (
-        <Pressable onPress={actions.onOpenShift} accessibilityRole="button" testID="open-shift">
-          <Card>
-            <Text variant="bodyStrong" tone="warning">
-              افتح الوردية للبيع
-            </Text>
-            <Text variant="caption" tone="accent">
-              عدّ النقد في الدرج وافتح الوردية
-            </Text>
-          </Card>
-        </Pressable>
-      )}
       <QuickActions
         system={system}
         onNewSale={actions.onNewSale}
-        onNewReceipt={actions.onNewReceipt}
+        onNewOrder={actions.onNewOrder}
+        onReturn={actions.onReturn}
+        onDebtPayment={actions.onDebtPayment}
+        onCustomer={actions.onCustomer}
       />
+      {orders ? <OrderRemindersCard {...orders} /> : null}
+      {gifts ? <GiftRemindersCard {...gifts} /> : null}
       <Grid columns={Math.min(dashboardColumns, 2)}>
         <HeroCard style={{ flex: 1 }}>
           <Text variant="subhead" tone="onAccent">

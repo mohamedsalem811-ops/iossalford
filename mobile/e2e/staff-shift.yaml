@@ -38,11 +38,9 @@ appId: com.salford.pos
 - assertNotVisible:
     id: 'shift-expected'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'shift-counted'
-- tapOn:
-    id: 'shift-counted'
 - inputText: '0'
 - tapOn:
     id: 'keyboard.toolbar.done'
@@ -58,7 +56,10 @@ appId: com.salford.pos
 - assertVisible: 'عجز.*'
 - takeScreenshot: ${DEVICE}-shift-closed
 # The home screen asks her to open a shift before selling again.
-- tapOn: 'الرئيسية'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'الرئيسية'
 - assertVisible:
     id: 'open-shift'
 # The owner: the list of shifts, the report, the shortage on her account.

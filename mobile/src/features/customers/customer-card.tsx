@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { Badge, Text } from '@/components';
+import { Text } from '@/components';
 import type { Ctx } from '@/domain/context';
 import {
   AUTO_NOTE,
@@ -10,7 +10,7 @@ import {
   shownName,
   type Customer,
 } from '@/domain/customers';
-import { BADGE_LABELS, birthdayNote, customerStats, sinceText } from '@/domain/customer-stats';
+import { birthdayNote, customerStats, sinceText } from '@/domain/customer-stats';
 import { balance } from '@/domain/debts';
 import { getLoyalty, pointsBalance } from '@/domain/loyalty';
 import { birthdayStatus, getBirthday, windowEnd } from '@/domain/birthday';
@@ -20,15 +20,16 @@ import { formatLyd } from '@/lib/money';
 import { useLayout } from '@/hooks/use-layout';
 import { haptic } from '@/lib/haptics';
 import { useCan } from '@/staff/use-can';
-import { radius, spacing, useTheme } from '@/theme';
+import { spacing } from '@/theme';
 
-import { CustomerAvatar } from './customer-avatar';
+import { MemberCard } from './member-card';
 import { spendText, visitsText } from './model';
 
 /**
- * The customer card at checkout (G1): who they are at a glance (VIP, returning or new, visits,
- * last visit, spending as this person may see it, a birthday this week, the note) and, under
- * "المزيد", their last purchases (pieces only, no amounts) and the details they gave.
+ * The customer at checkout (G1; I3 design B): the membership card (tier, photo, name, points and
+ * visit dots), then the things to act on in rows under it: visits, last visit and spending as this
+ * person may see it, the visit reward, a debt, a birthday this week, the note and, under "المزيد",
+ * their last purchases (pieces only, no amounts) and the details they gave.
  */
 export function CustomerCard({
   ctx,
@@ -39,7 +40,6 @@ export function CustomerCard({
   customer: Customer;
   testID?: string;
 }) {
-  const { colors } = useTheme();
   const [more, setMore] = useState(false);
   const fullName = useCan('customers.phones');
   const exact = useCan('customers.spend');
@@ -77,45 +77,26 @@ export function CustomerCard({
   ].filter((t): t is string => !!t);
   const hasMore = s.lastPurchases.length > 0 || details.length > 0;
   return (
-    <View
-      testID={testID}
-      style={{
-        gap: spacing.sm,
-        padding: spacing.ms,
-        borderRadius: radius.md,
-        borderCurve: 'continuous',
-        backgroundColor: colors.accentSoft,
-      }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-        <CustomerAvatar
-          system={ctx.system}
-          gender={c.gender}
-          imageFile={c.imageFile}
-          size={44}
-          testID="checkout-avatar"
-        />
-        <View style={{ flex: 1, gap: spacing.xxs }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-            <Text variant="bodyStrong" numberOfLines={1} style={{ flexShrink: 1 }}>
-              {shownName(c.name, fullName)}
-            </Text>
-            <Badge label={BADGE_LABELS[s.badge]} tone={s.badge === 'vip' ? 'warning' : 'accent'} />
-          </View>
-          <Text variant="caption" tone="secondary" testID={`${testID}-facts`}>
-            {facts.join(' • ')}
-          </Text>
-        </View>
-      </View>
-      {reward || points !== null ? (
+    <View testID={testID} style={{ gap: spacing.sm }}>
+      <MemberCard
+        system={ctx.system}
+        name={shownName(c.name, fullName)}
+        gender={c.gender}
+        imageFile={c.imageFile}
+        badge={s.badge}
+        points={points}
+        dots={reward ? reward.dots : null}
+        avatarTestID="checkout-avatar"
+        testID={`${testID}-member`}
+      />
+      <Text variant="caption" tone="secondary" testID={`${testID}-facts`}>
+        {facts.join(' • ')}
+      </Text>
+      {reward ? (
         <Text variant="caption" tone="accent" testID={`${testID}-reward`}>
-          {[
-            reward
-              ? `${reward.dots} ${reward.ready ? `مكافأة ${rules.percent}% جاهزة` : `مكافأة الزيارة ${reward.count} من ${reward.every}`}`
-              : null,
-            points !== null ? `${points} نقطة` : null,
-          ]
-            .filter(Boolean)
-            .join(' • ')}
+          {reward.ready
+            ? `مكافأة ${rules.percent}% جاهزة 🎁`
+            : `مكافأة الزيارة ${reward.count} من ${reward.every}`}
         </Text>
       ) : null}
       {owes > 0 ? (

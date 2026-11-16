@@ -18,8 +18,10 @@ import {
   who,
 } from './context';
 import { getProduct, moveStock } from './products';
+import { undeliver } from './orders';
 import { logAction } from './activity';
 import { reverseOnReturn } from './loyalty';
+import { freeOffer, reverseReferral } from './marketing';
 import { getPolicies, type Policies } from './policies';
 import { shiftFor } from './shifts';
 
@@ -72,6 +74,11 @@ export type Sale = {
   rewardOff: number;
   /** The birthday discount taken off its prices (H1), in dirhams. */
   birthdayOff: number;
+  /** The deposit paid before, when the sale delivered a deposit order (I1). */
+  depositUsed: number;
+  /** The bring-a-friend and we-miss-you discounts (I4). */
+  friendOff: number;
+  offerOff: number;
   lines: SaleLine[];
 };
 
@@ -142,6 +149,9 @@ type SaleRow = {
   points_paid?: number | null;
   reward_off?: number | null;
   birthday_off?: number | null;
+  deposit_used?: number | null;
+  friend_off?: number | null;
+  offer_off?: number | null;
 };
 
 /** The lines of several sales in one query (in chunks, well under SQLite's parameter limit). */
@@ -178,6 +188,9 @@ function toSale(r: SaleRow, lines: SaleLine[]): Sale {
     pointsPaid: r.points_paid ?? 0,
     rewardOff: r.reward_off ?? 0,
     birthdayOff: r.birthday_off ?? 0,
+    depositUsed: r.deposit_used ?? 0,
+    friendOff: r.friend_off ?? 0,
+    offerOff: r.offer_off ?? 0,
     lines,
   };
 }
@@ -359,6 +372,13 @@ export function deleteSale(ctx: Ctx, saleId: number, opts: { deleteReceipt?: boo
         )
       : [];
     for (const r of receipts) ctx.db.run('DELETE FROM receipts WHERE id = ?', [r.id]);
+    // A sale that delivered a deposit order: the order waits for her again, with its deposit.
+    undeliver(ctx, saleId);
+    // Marketing (I4): her "we miss you" offer comes back; the friend's points go back off.
+    freeOffer(ctx, saleId);
+    reverseReferral(ctx, saleId, 'deleted');
+    // A gift remembered with this sale goes with it (the owner's choice).
+    ctx.db.run('DELETE FROM gifts WHERE sale_id = ?', [saleId]);
     ctx.db.run('DELETE FROM sales WHERE id = ?', [saleId]);
     logAction(
       ctx,
@@ -526,7 +546,12 @@ export type ReturnInput = {
  * from the sale so profit stays exact; pieces go back into stock. A return of a credit sale lowers
  * what the customer owes (see debts.ts).
  */
-export function addReturn(ctx: Ctx, input: ReturnInput): number {
+export function addReturn(
+  ctx: Ctx,
+  input: ReturnInput,
+  /** Inside an exchange: the friend's referral moves to the new sale instead (I4). */
+  opts: { exchange?: boolean } = {},
+): number {
   const actor = allow(ctx, 'returns.create');
   return ctx.db.transaction(() => {
     const line = getSaleLine(ctx, input.saleLineId);
@@ -598,6 +623,14 @@ export function addReturn(ctx: Ctx, input: ReturnInput): number {
       saleId: line.saleId,
       lineTotal: divRound(line.lineTotal * input.quantity, line.quantity),
     });
+    // A friend's first purchase fully returned: who sent her loses its points (I4).
+    const left = ctx.db.get<{ n: number }>(
+      `SELECT coalesce(sum(l.quantity), 0) - coalesce((SELECT sum(r.quantity) FROM returns r
+          JOIN sale_lines x ON x.id = r.sale_line_id WHERE x.sale_id = ?), 0) n
+         FROM sale_lines l WHERE l.sale_id = ?`,
+      [line.saleId, line.saleId],
+    );
+    if ((left?.n ?? 0) <= 0 && !opts.exchange) reverseReferral(ctx, line.saleId, 'returned');
     logAction(
       ctx,
       'return.create',

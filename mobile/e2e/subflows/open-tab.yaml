@@ -1,0 +1,46 @@
+# Opens the tab ${TAB} and checks it is the selected one.
+# Run 66 (iPhone): once a page is scrolled down, iOS shrinks the tab bar to the current tab alone
+# (minimizeBehavior onScrollDown) and scrolling back up did not bring it back; the current tab is
+# then tapped, which should open the whole bar again (a screenshot is kept to show it). The shrunk
+# button is still named after its tab and selected (run 67 screen tree: «الإدارة», "Collapsed").
+# Run 66 (iPhone) also: a tap on المنتجات reached the app (touch down and up in the device log) but
+# the tab did not change: the tap is repeated when the screen does not change (retryTapIfNoChange).
+# Run 68: a `when: notVisible` that is false costs up to 7 seconds (Maestro waits that long for the
+# element to go away), and each tab tap had two of them: about 35 minutes per run. The shrunk-bar
+# checks run on iPhone only (the iPad's tab bar is at the top and never shrinks), and the check
+# after the tap is the tap's own retry.
+appId: com.salford.pos
+---
+- runFlow:
+    when:
+      true: ${DEVICE != 'iPad'}
+    commands:
+      - runFlow:
+          when:
+            notVisible: ${TAB}
+          commands:
+            - takeScreenshot: ${DEVICE}-tab-bar-minimised
+            - tapOn:
+                text: 'الرئيسية|بيع|المنتجات|الإيصالات|الإدارة'
+                selected: true
+      # If the bar is still shrunk, the page is scrolled back to its top, the other way iOS opens it.
+      - runFlow:
+          when:
+            notVisible: ${TAB}
+          commands:
+            - takeScreenshot: ${DEVICE}-tab-bar-still-minimised
+            - repeat:
+                times: 3
+                commands:
+                  - swipe:
+                      start: 50%, 30%
+                      end: 50%, 80%
+                      duration: 400
+- tapOn:
+    text: ${TAB}
+    retryTapIfNoChange: true
+- extendedWaitUntil:
+    visible:
+      text: ${TAB}
+      selected: true
+    timeout: 5000

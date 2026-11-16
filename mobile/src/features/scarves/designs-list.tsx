@@ -29,6 +29,7 @@ export function DesignsList({
   onAdjust,
   onAdd,
   grid = false,
+  reserved,
 }: {
   system: SystemId;
   products: Product[];
@@ -42,6 +43,8 @@ export function DesignsList({
   onAdd?: () => void;
   /** iPad: photo cards filling the width instead of rows (tapping opens the form as a window). */
   grid?: boolean;
+  /** Pieces held for customers by a deposit, by product (I2). */
+  reserved?: Map<number, number>;
 }) {
   const { colors } = useTheme();
   const [width, setWidth] = useState(0);
@@ -143,6 +146,7 @@ export function DesignsList({
               onDelete={onDelete}
               onAdjust={onAdjust}
               card={card}
+              reserved={reserved}
             />
           );
           return card ? (

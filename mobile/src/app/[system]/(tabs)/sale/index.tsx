@@ -1,8 +1,13 @@
 import { router, Stack } from 'expo-router';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
-import { SplitView } from '@/components';
+import { View } from 'react-native';
+
+import { EmptyState, SplitView } from '@/components';
+import { sectionHref } from '@/features/management/management-menu';
+import { useSellLock } from '@/features/sale/sell-lock';
 import { BelowHeader } from '@/components/below-header';
+import { listForSale } from '@/domain/reserved';
 import { firstOfEachDesign, useProducts } from '@/features/products/use-products';
 import { addPiece } from '@/features/sale/actions';
 import { CartView } from '@/features/sale/cart-view';
@@ -26,7 +31,14 @@ export default function SaleRoute() {
   const searchRef = useSearchShortcut();
   const [query, setQuery] = useState<SaleQuery>(DEFAULT_SALE_QUERY);
   const data = useProducts(ctx, setQuery, system === 'scarves' ? firstOfEachDesign : undefined);
+  // Pieces held for customers by a deposit are not free to sell (I2).
+  const forSaleList = useMemo(
+    () => listForSale(data.reserved, data.products),
+    [data.reserved, data.products],
+  );
   const { cart } = useCart(system);
+  // An employee sells only with a shift open (S5, I3).
+  const locked = useSellLock(ctx);
   const { cartBeside } = useLayout();
 
   const openSizes = (designId: string) =>
@@ -47,7 +59,7 @@ export default function SaleRoute() {
   const grid = (
     <SaleGrid
       system={system}
-      products={data.products}
+      products={forSaleList}
       brandImages={data.brandImages}
       query={query}
       onQuery={setQuery}
@@ -81,7 +93,17 @@ export default function SaleRoute() {
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <BelowHeader>
-        {cartBeside ? (
+        {locked ? (
+          <View style={{ flex: 1, justifyContent: 'center' }} testID="sale-locked">
+            <EmptyState
+              icon="lock"
+              title="البيع مقفل حتى تفتح الوردية"
+              message="عدّ النقد في الدرج وافتح ورديتك، ثم ارجع للبيع."
+              action="فتح الوردية"
+              onAction={() => router.push(sectionHref('shift', system))}
+            />
+          </View>
+        ) : cartBeside ? (
           <SplitView list={<CartView ctx={ctx} embedded onCheckout={checkout} />} detail={grid} />
         ) : (
           grid

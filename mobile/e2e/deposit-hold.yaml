@@ -1,0 +1,82 @@
+# Phase I2. Ring Zircon (350 د.ل, 3 in stock) held for Huda with a 200 deposit by card, from
+# Management → الطلبات بعربون → + → حجز قطعة موجودة. Products shows it held ("محجوز 1"), and
+# Huda's page lists the hold with a button for a new one.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow: subflows/add-ring.yaml
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-orders'
+- tapOn: 'طلب أو حجز جديد'
+- tapOn: 'حجز قطعة موجودة'
+- extendedWaitUntil:
+    visible:
+      id: 'order-name'
+    timeout: 30000
+- tapOn:
+    id: 'order-name'
+- inputText: 'Huda'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'order-phone'
+- inputText: '0927777777'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-to-field.yaml
+    env:
+      ID: 'order-search'
+- inputText: 'Ring'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'order-found-.*'
+- assertVisible:
+    id: 'order-piece'
+- runFlow:
+    file: subflows/scroll-to-field.yaml
+    env:
+      ID: 'order-deposit'
+- inputText: '200'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn: 'بطاقة'
+- takeScreenshot: ${DEVICE}-hold-form
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'order-save'
+- tapOn:
+    id: 'order-save'
+- extendedWaitUntil:
+    visible: 'إغلاق'
+    timeout: 30000
+- tapOn: 'إغلاق'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'المنتجات'
+- extendedWaitUntil:
+    visible:
+      id: 'product-reserved-.*'
+    timeout: 30000
+- assertVisible: '.*محجوز 1.*'
+- takeScreenshot: ${DEVICE}-product-held
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-customers'
+# Run 65: a customer row is read as one element («صورة زبون, Huda, 0927777777, لا مشتريات»), so
+# the bare name never matched it; the row's id does.
+- tapOn:
+    id: 'customer-Huda'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'customer-new-order'
+- assertVisible:
+    id: 'customer-new-order'
+- takeScreenshot: ${DEVICE}-customer-orders

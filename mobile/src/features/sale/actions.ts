@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { addSet, addToCart, problemMessage, type CartProblem, type Result } from '@/domain/cart';
 import type { Ctx } from '@/domain/context';
 import { displayName, getProduct, type Product } from '@/domain/products';
+import { forSale } from '@/domain/reserved';
 import { getSet, setForCart } from '@/domain/sets';
 import { getCart, putCart } from '@/state/cart';
 import { haptic } from '@/lib/haptics';
@@ -34,7 +35,11 @@ export function addPiece(ctx: Ctx, product: Product, quantity = 1, unitPrice?: n
     showCartProblem({ kind: 'missing', name });
     return false;
   }
-  return apply(ctx, addToCart(getCart(ctx.system), current, name, quantity, unitPrice));
+  // Pieces held for customers by a deposit are not free to sell (I2).
+  return apply(
+    ctx,
+    addToCart(getCart(ctx.system), forSale(ctx, current), name, quantity, unitPrice),
+  );
 }
 
 /** Adds one whole set, its discount spread over its pieces. */

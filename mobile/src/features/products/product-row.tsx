@@ -6,7 +6,7 @@ import ReanimatedSwipeable, {
   type SwipeableMethods,
 } from 'react-native-gesture-handler/ReanimatedSwipeable';
 
-import { Icon, Text } from '@/components';
+import { Badge, Icon, Text } from '@/components';
 import type { Product } from '@/domain/products';
 import { formatDinars, formatLyd } from '@/lib/money';
 import { useCan } from '@/staff/use-can';
@@ -34,6 +34,7 @@ export function ProductRow({
   editHref,
   brandImage,
   actions,
+  reserved = 0,
   card,
 }: {
   system: SystemId;
@@ -41,6 +42,8 @@ export function ProductRow({
   editHref: Href;
   brandImage: string | null;
   actions: ProductActions;
+  /** Pieces held for customers by a deposit (I2). */
+  reserved?: number;
   /** iPad grid: drawn as a photo card this wide instead of a swipeable row. */
   card?: number;
 }) {
@@ -112,6 +115,11 @@ export function ProductRow({
         <Text variant="caption" tone="secondary" numberOfLines={1}>
           {productDetails(p)}
         </Text>
+        {reserved > 0 ? (
+          <View style={{ flexDirection: 'row' }} testID={`product-reserved-${p.sku}`}>
+            <Badge label={`محجوز ${reserved}`} tone="warning" />
+          </View>
+        ) : null}
         {p.specs ? (
           <Text
             variant="caption"
@@ -172,6 +180,11 @@ export function ProductRow({
         <Text variant="caption" tone="secondary" numberOfLines={1}>
           {productDetails(p)}
         </Text>
+        {reserved > 0 ? (
+          <View style={{ flexDirection: 'row' }} testID={`product-reserved-${p.sku}`}>
+            <Badge label={`محجوز ${reserved}`} tone="warning" />
+          </View>
+        ) : null}
         {p.specs ? (
           <Text
             variant="caption"

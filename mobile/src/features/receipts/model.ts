@@ -134,7 +134,11 @@ export function studioDoc(
         pointsPaid?: number;
         rewardOff?: number;
         birthdayOff?: number;
+        friendOff?: number;
+        offerOff?: number;
         footer?: string | null;
+        kind?: Receipt['kind'];
+        deposit?: number;
       })
     | null,
   now: Date,
@@ -147,7 +151,11 @@ export function studioDoc(
     pointsPaid: saved?.pointsPaid ?? 0,
     rewardOff: saved?.rewardOff ?? 0,
     birthdayOff: saved?.birthdayOff ?? 0,
+    friendOff: saved?.friendOff ?? 0,
+    offerOff: saved?.offerOff ?? 0,
     footer: saved?.footer ?? null,
+    kind: saved?.kind ?? 'sale',
+    deposit: saved?.deposit ?? 0,
     receiptNo: saved?.receiptNo ?? null,
     date: when.date,
     time: when.time,
@@ -165,7 +173,11 @@ export function receiptDoc(r: Receipt): ReceiptDoc {
     pointsPaid: r.pointsPaid,
     rewardOff: r.rewardOff,
     birthdayOff: r.birthdayOff,
+    friendOff: r.friendOff,
+    offerOff: r.offerOff,
     footer: r.footer,
+    kind: r.kind,
+    deposit: r.deposit,
     receiptNo: r.receiptNo,
     date: r.date,
     time: r.time,

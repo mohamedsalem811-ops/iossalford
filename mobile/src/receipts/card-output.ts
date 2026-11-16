@@ -13,8 +13,8 @@ import { cardPage, rewardCardHtml, type CardInput } from './reward-card';
 const MARGINS = { top: 0, bottom: 0, left: 0, right: 0 };
 
 /** "SALFORD-Rewards-Card-jewelry-print-shop.pdf" */
-export const cardPdfName = (input: Pick<CardInput, 'system'>, mode: 'a6' | 'press') =>
-  `SALFORD-Rewards-Card-${input.system}${mode === 'press' ? '-print-shop' : '-A6'}.pdf`;
+export const cardPdfName = (input: Pick<CardInput, 'system' | 'audience'>, mode: 'a6' | 'press') =>
+  `SALFORD-Rewards-Card-${input.system}-${input.audience ?? 'men'}${mode === 'press' ? '-print-shop' : '-A6'}.pdf`;
 
 /** Makes the card's PDF (front, then back) in the app's cache. */
 export async function makeCardPdf(input: CardInput, mode: 'a6' | 'press'): Promise<File> {

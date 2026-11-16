@@ -106,6 +106,16 @@ jest.mock('@/features/dashboard/model', () => ({
     stock: { items: 0, pieces: 0, costValue: 0, priceValue: 0, low: 0, out: 0 },
   }),
 }));
+// The home screen's deposit reminders (I2): none.
+jest.mock('@/domain/orders', () => ({
+  ...jest.requireActual('@/domain/orders'),
+  orderReminders: () => ({ noDate: [], late: [], waiting: [] }),
+}));
+// The home screen's gift reminders (I4): none.
+jest.mock('@/domain/marketing', () => ({
+  ...jest.requireActual('@/domain/marketing'),
+  giftReminders: () => [],
+}));
 jest.mock('@expo/ui/swift-ui', () => ({ Host: () => null, Chart: () => null }));
 jest.mock('@/domain/settings', () => ({ getRate: () => 7_000 }));
 

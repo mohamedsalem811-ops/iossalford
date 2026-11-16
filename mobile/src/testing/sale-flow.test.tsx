@@ -93,6 +93,8 @@ jest.mock('@/hooks/use-layout', () => ({
 // Already unlocked: the PIN screens have their own tests.
 let mockUnlocked = 'jewelry';
 jest.mock('@/state/lock', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories cannot use imports
+  openOutside: (url: string) => require('react-native').Linking.openURL(url),
   LockProvider: ({ children }: { children: React.ReactNode }) => children,
   useLock: () => ({ unlocked: mockUnlocked, unlock: () => {}, lock: () => {}, active: true }),
 }));

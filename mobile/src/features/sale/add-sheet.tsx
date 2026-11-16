@@ -6,6 +6,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Button, Card, EmptyState, KEYBOARD_GAP, NumberField, Stepper, Text } from '@/components';
 import type { Ctx } from '@/domain/context';
 import { displayName, getProduct } from '@/domain/products';
+import { forSale } from '@/domain/reserved';
 import { parseThousandths } from '@/lib/digits';
 import { editableDinars, formatLyd } from '@/lib/money';
 import { useCart } from '@/state/cart';
@@ -26,7 +27,11 @@ export function AddSheet({
 }) {
   const { colors } = useTheme();
   const { cart } = useCart(ctx.system);
-  const [product] = useState(() => getProduct(ctx, productId));
+  // Pieces held for customers by a deposit are not free to sell (I2).
+  const [product] = useState(() => {
+    const p = getProduct(ctx, productId);
+    return p ? forSale(ctx, p) : undefined;
+  });
   const [quantity, setQuantity] = useState(1);
   const [price, setPrice] = useState(() => (product ? editableDinars(product.price) : ''));
 

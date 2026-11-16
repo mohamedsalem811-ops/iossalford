@@ -5,18 +5,37 @@ appId: com.salford.pos
 ---
 - runFlow: subflows/open-jewelry.yaml
 - runFlow: subflows/add-ring.yaml
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
+# The tile then shows 2 of the 3 free. Run 65 (iPad): the touch reached the app but the cart was
+# empty at checkout (the same code passed runs 61 and 64). If the piece is not in the cart, a
+# screenshot is kept to show it and the tile tapped once more.
+- extendedWaitUntil:
+    visible: '.*متوفر 2.*'
+    timeout: 5000
+    optional: true
+- runFlow:
+    when:
+      notVisible: '.*متوفر 2.*'
+    commands:
+      - takeScreenshot: ${DEVICE}-audit-tile-not-added
+      - tapOn:
+          id: 'sale-tile-Ring Zircon'
+- assertVisible: '.*متوفر 2.*'
 # The price changes while the piece is in the cart.
-- tapOn: 'المنتجات'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'المنتجات'
 - tapOn: '.*Ring Zircon.*'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'product-price'
-- tapOn:
-    id: 'product-price'
 - eraseText
 - inputText: '300'
 - tapOn:
@@ -27,7 +46,10 @@ appId: com.salford.pos
       ID: 'product-save'
 - tapOn:
     id: 'product-save'
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - runFlow:
     when:
       visible:

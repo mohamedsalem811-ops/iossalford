@@ -7,6 +7,18 @@ import { errorBoundary } from '@/components/error-screen';
 import { acknowledgeAlert, type OwnerAlert } from '@/domain/alerts';
 import type { Ctx } from '@/domain/context';
 import { readDashboard } from '@/features/dashboard/model';
+import { waLink } from '@/domain/customer-care';
+import {
+  getMarketing,
+  giftMessage,
+  giftReminders,
+  markGiftDone,
+  type Gift,
+} from '@/domain/marketing';
+import { recordMessage } from '@/domain/messages';
+import { orderReminders } from '@/domain/orders';
+import type { GiftRemindersProps } from '@/features/marketing/gift-reminders';
+import type { OrderRemindersProps } from '@/features/orders/reminders-card';
 import { showError } from '@/features/products/actions';
 import { haptic } from '@/lib/haptics';
 import { sectionHref } from '@/features/management/management-menu';
@@ -15,7 +27,7 @@ import { monthKey, type MonthKey } from '@/lib/dates';
 import { logError } from '@/lib/error-log';
 import { DashboardScreen } from '@/screens/dashboard';
 import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
-import { useLock } from '@/state/lock';
+import { openOutside, useLock } from '@/state/lock';
 import { useCtx } from '@/state/system-db';
 import { readMySales } from '@/features/dashboard/my-sales';
 import { EmployeeHomeScreen } from '@/screens/employee-home';
@@ -67,6 +79,111 @@ const newSale = (system: string) => router.push({ pathname: '/[system]/sale', pa
 const newReceipt = (system: string) =>
   router.push({ pathname: '/[system]/receipt/[id]', params: { system, id: 'new' } });
 
+const newOrder = (system: string) =>
+  router.push({ pathname: '/[system]/order-form', params: { system } });
+
+/** The home shortcuts of I3 that depend on what this person may do. */
+function useShortcuts() {
+  const ctx = useCtx();
+  const system = ctx.system;
+  const mayOrder = useCan('orders.take');
+  const mayReturn = useCan('returns.create');
+  const mayPay = useCan('payments.create');
+  return {
+    onNewOrder: mayOrder ? () => newOrder(system) : undefined,
+    onReturn: mayReturn ? () => router.push(sectionHref('returnFind', system)) : undefined,
+    onDebtPayment: mayPay ? () => router.push(sectionHref('debts', system)) : undefined,
+    onCustomer: () => router.push(sectionHref('customers', system)),
+  };
+}
+
+/** The deposit reminders for the home screen (I2), fresh on focus and after each change. */
+function useOrderReminders(): OrderRemindersProps | undefined {
+  const ctx = useCtx();
+  const system = ctx.system;
+  const may = useCan('orders.take');
+  const owner = useCan('orders.purchase');
+  const phones = useCan('customers.phones');
+  const read = useCallback(() => (may ? orderReminders(ctx) : undefined), [ctx, may]);
+  const [reminders, setReminders] = useState(read);
+  const refresh = useCallback(() => setReminders(read()), [read]);
+  useFocusEffect(refresh);
+  useOnDataChanged(refresh);
+  if (!reminders) return undefined;
+  return {
+    reminders,
+    owner,
+    phones,
+    onOpenOrder: (id) =>
+      router.push({ pathname: '/[system]/more/order/[id]', params: { system, id: String(id) } }),
+    onOpenOrders: () => router.push(sectionHref('orders', system)),
+  };
+}
+
+/** The gift reminders a week before (I4), for someone who may edit customers. */
+function useGiftReminders(): GiftRemindersProps | undefined {
+  const ctx = useCtx();
+  const system = ctx.system;
+  const may = useCan('customers.edit');
+  const phones = useCan('customers.phones');
+  const read = useCallback(() => (may ? giftReminders(ctx) : undefined), [ctx, may]);
+  const [gifts, setGifts] = useState(read);
+  const refresh = useCallback(() => setGifts(read()), [read]);
+  useFocusEffect(refresh);
+  useOnDataChanged(refresh);
+  if (!gifts) return undefined;
+  const done = (g: Gift) => {
+    try {
+      markGiftDone(ctx, g.id);
+    } catch (error) {
+      showError(error);
+      return false;
+    }
+    haptic.success();
+    notifyDataChanged();
+    return true;
+  };
+  const message = (g: Gift) => {
+    const link = waLink(g.customerPhone, giftMessage(getMarketing(ctx).templates.gift, g));
+    if (!link) return;
+    try {
+      recordMessage(ctx, {
+        customerId: g.customerId,
+        kind: 'gift',
+        ref: `${g.id}-${ctx.now().getFullYear()}`,
+      });
+    } catch (error) {
+      showError(error);
+      return;
+    }
+    if (done(g)) openOutside(link);
+  };
+  return {
+    gifts,
+    phones,
+    onGift: (g) =>
+      Alert.alert(
+        `هدية لـ${g.forWhom}`,
+        `${g.customerName}${g.occasion ? ` • ${g.occasion}` : ''}`,
+        [
+          ...(phones && g.customerPhone && g.customerOffers
+            ? [{ text: 'رسالة واتساب', onPress: () => message(g) }]
+            : []),
+          { text: 'تم', onPress: () => done(g) },
+          {
+            text: 'صفحة الزبون',
+            onPress: () =>
+              router.push({
+                pathname: '/[system]/more/customer/[id]',
+                params: { system, id: String(g.customerId) },
+              }),
+          },
+          { text: 'إلغاء', style: 'cancel' },
+        ],
+      ),
+  };
+}
+
 /** Where an alert leads (phase S6): the shift's report, the return, or the activity log. */
 function openAlertTarget(system: string, alert: OwnerAlert) {
   const t = alert.target;
@@ -113,16 +230,21 @@ function EmployeeHome() {
   useFocusEffect(refresh);
   useOnDataChanged(refresh);
   const systemMenu = useSystemMenu();
+  const orders = useOrderReminders();
+  const gifts = useGiftReminders();
+  const shortcuts = useShortcuts();
   return (
     <EmployeeHomeScreen
       system={system}
       name={actor ? actorName(actor) : ''}
       data={data}
+      orders={orders}
+      gifts={gifts}
       actions={{
         onSystemMenu: systemMenu,
         onOpenSale: (id) => openSale(system, id),
         onNewSale: () => newSale(system),
-        onNewReceipt: () => newReceipt(system),
+        ...shortcuts,
         onOpenAccount: () =>
           actor?.kind === 'employee' &&
           router.push({
@@ -155,11 +277,16 @@ function Dashboard() {
   useOnDataChanged(refresh);
 
   const systemMenu = useSystemMenu();
+  const orders = useOrderReminders();
+  const gifts = useGiftReminders();
+  const shortcuts = useShortcuts();
 
   return (
     <DashboardScreen
       system={system}
       data={data}
+      orders={orders}
+      gifts={gifts}
       actions={{
         onSystemMenu: systemMenu,
         onEditRate: () => promptRate(ctx, refresh),
@@ -175,6 +302,7 @@ function Dashboard() {
         onOpenAlert: (alert) => showAlert(ctx, alert, refresh),
         onNewSale: () => newSale(system),
         onNewReceipt: () => newReceipt(system),
+        ...shortcuts,
         onNewProduct: () =>
           router.push(
             system === 'scarves'

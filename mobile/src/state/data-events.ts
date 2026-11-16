@@ -1,4 +1,4 @@
-import { useContext, useEffect } from 'react';
+import { useContext, useEffect, useMemo, useReducer } from 'react';
 // The navigation of the screen a hook is in. expo-router keeps React Navigation inside its own
 // package and does not export this context; if an upgrade moves it, the type check fails here.
 import { NavigationContext } from 'expo-router/build/react-navigation/core/NavigationContext';
@@ -72,4 +72,22 @@ export function useOnDataChanged(onChange: () => void) {
       unsubscribe?.();
     };
   }, [onChange, navigation]);
+}
+
+/**
+ * Something read from the database while drawing, read again after each change (and when the
+ * screen comes back into view after one). The app is built with the React Compiler, which keeps
+ * the result of a call made while drawing until the values it is given change: a list read
+ * straight in a component (`listWanted(ctx, customerId)`) kept showing what it read first after a
+ * save on the same page (run 65: a wanted piece was saved but the list still showed none). `read`
+ * names what it depends on; the compiler keeps the same function until those values change.
+ */
+export function useRead<T>(read: () => T): T {
+  // Not compiled: `version` must stay among the values that make it read again.
+  'use no memo';
+  const [version, changed] = useReducer((n: number) => n + 1, 0);
+  useOnDataChanged(changed);
+  // `version` is not used inside: it is there so that each change reads again.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => read(), [read, version]);
 }

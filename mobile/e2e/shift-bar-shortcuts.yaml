@@ -1,0 +1,69 @@
+# Phase I3. The owner's home: a new sale across the top, then طلب بعربون, مرتجع, دفعة دين, زبون,
+# and the second row (إيصال جديد, قطعة جديدة). سارة signs in: the shift bar at the top says her
+# shift is closed and the sale tab is locked; she opens her shift, the bar says since when, and
+# the sale tab sells again. iPhone and iPad (screens: owner home, closed bar, locked sale tab,
+# open bar).
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- assertVisible:
+    id: 'quick-sale'
+- assertVisible:
+    id: 'quick-order'
+- assertVisible:
+    id: 'quick-return'
+- assertVisible:
+    id: 'quick-payment'
+- assertVisible:
+    id: 'quick-customer'
+- assertVisible:
+    id: 'quick-receipt'
+- assertVisible:
+    id: 'quick-product'
+- takeScreenshot: ${DEVICE}-owner-shortcuts
+- runFlow: subflows/add-ring.yaml
+- runFlow: subflows/add-employee.yaml
+# Her home: the closed shift at the top, her shortcuts without the owner's second row.
+- assertVisible:
+    id: 'open-shift'
+# The bar is one button, read with its second line («…، عدّ النقد في الدرج وافتح الوردية»).
+- assertVisible: '.*الوردية مغلقة: افتحها للبيع.*'
+- assertNotVisible:
+    id: 'quick-product'
+- assertNotVisible:
+    id: 'quick-receipt'
+- takeScreenshot: ${DEVICE}-shift-bar-closed
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
+- assertVisible:
+    id: 'sale-locked'
+- takeScreenshot: ${DEVICE}-sale-locked
+- tapOn: 'فتح الوردية'
+- tapOn:
+    id: 'shift-opening'
+- inputText: '100'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'shift-open'
+- assertVisible:
+    id: 'shift-open-card'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'الرئيسية'
+- extendedWaitUntil:
+    visible:
+      id: 'shift-bar'
+    timeout: 10000
+- takeScreenshot: ${DEVICE}-shift-bar-open
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
+- assertNotVisible:
+    id: 'sale-locked'
+- assertVisible:
+    id: 'sale-tile-Ring Zircon'

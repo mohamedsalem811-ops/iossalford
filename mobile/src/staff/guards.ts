@@ -63,8 +63,20 @@ export const clockGuard = new ClockGuard({
 
 /** Re-draws a screen when the clock is found behind or accepted (the Management banner). */
 const clockChanges = create<{ n: number }>()(() => ({ n: 0 }));
-export const useClockChanges = () => clockChanges((s) => s.n);
 export const clockChanged = () => clockChanges.setState((s) => ({ n: s.n + 1 }));
+
+/**
+ * While the device clock is behind the latest time the app saw: that time (for the Management
+ * banner); otherwise null. Read again whenever the clock is found behind or accepted. Not
+ * compiled: with the React Compiler, a screen that only re-drew on a change kept the banner it read
+ * first, so «قبول وقت الجهاز» left it on screen.
+ */
+export function useClockBehind(now: () => Date): Date | null {
+  'use no memo';
+  clockChanges((s) => s.n);
+  const latest = clockGuard.latest();
+  return latest && clockGuard.behind(now()) ? latest : null;
+}
 
 /**
  * The owner says the device's time is right (after it went back): changes are allowed again,

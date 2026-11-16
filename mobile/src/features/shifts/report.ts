@@ -33,6 +33,13 @@ export function reportRows(r: ShiftReport): { label: string; value: string }[] {
     ...(totals.cashPayouts
       ? [{ label: 'رد أرصدة زبائن نقداً', value: `−${formatLyd(totals.cashPayouts)}` }]
       : []),
+    // Deposits on orders (I1), less deposits refunded: the cash part is in the drawer.
+    ...(totals.deposits || totals.cashDeposits
+      ? [
+          { label: 'عربون الطلبات', value: formatLyd(totals.deposits) },
+          { label: 'منه نقداً', value: formatLyd(totals.cashDeposits) },
+        ]
+      : []),
     { label: 'الخصومات', value: formatLyd(totals.discounts) },
     { label: 'موافقات المالك', value: String(totals.approvals) },
     { label: 'نقد البداية', value: formatLyd(shift.openingCash) },

@@ -185,9 +185,13 @@ function SystemStack() {
       <Stack.Screen name="stock/[id]" options={halfSheet} />
       <Stack.Screen name="customer-form/[id]" options={sheet} />
       <Stack.Screen name="payment/[id]" options={halfSheet} />
+      <Stack.Screen name="order-form" options={sheet} />
+      <Stack.Screen name="order-pay/[id]" options={halfSheet} />
+      <Stack.Screen name="order-buy/[id]" options={halfSheet} />
       <Stack.Screen name="return/[id]" options={sheet} />
       <Stack.Screen name="return-detail/[id]" options={sheet} />
       <Stack.Screen name="change-pin" options={sheet} />
+      <Stack.Screen name="send" options={sheet} />
       <Stack.Screen name="set/[id]" options={sheet} />
       <Stack.Screen name="sets" options={sheet} />
       <Stack.Screen name="cart" options={sheet} />

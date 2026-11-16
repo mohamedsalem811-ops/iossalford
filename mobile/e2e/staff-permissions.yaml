@@ -25,7 +25,10 @@ appId: com.salford.pos
 # Selling needs an open shift (phase S5).
 - runFlow: subflows/open-shift.yaml
 # Products: price and stock, no cost.
-- tapOn: 'المنتجات'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'المنتجات'
 - assertNotVisible: '.*تكلفة.*'
 - takeScreenshot: ${DEVICE}-employee-products
 # A sale, then its details: no cost, profit or delete.

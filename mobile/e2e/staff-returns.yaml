@@ -11,21 +11,17 @@ appId: com.salford.pos
     env:
       ID: 'manage-policies'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'policy-piece'
-- tapOn:
-    id: 'policy-piece'
 - eraseText
 - inputText: '10'
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'policy-sale'
-- tapOn:
-    id: 'policy-sale'
 - eraseText
 - inputText: '20'
 - tapOn:
@@ -42,7 +38,10 @@ appId: com.salford.pos
 - runFlow: subflows/add-employee.yaml
 - runFlow: subflows/open-shift.yaml
 # 300 instead of 350: over her limit, so the owner approves.
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:

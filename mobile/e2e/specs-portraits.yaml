@@ -5,7 +5,10 @@
 appId: com.salford.pos
 ---
 - runFlow: subflows/open-jewelry.yaml
-- tapOn: 'المنتجات'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'المنتجات'
 - tapOn: 'إضافة قطعة'
 - extendedWaitUntil:
     visible:
@@ -17,29 +20,23 @@ appId: com.salford.pos
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'product-specs'
-- tapOn:
-    id: 'product-specs'
 - inputText: 'Silver 925 rhodium'
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'product-price'
-- tapOn:
-    id: 'product-price'
 - inputText: '120'
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'product-cost'
-- tapOn:
-    id: 'product-cost'
 - inputText: '60'
 - tapOn:
     id: 'keyboard.toolbar.done'
@@ -59,7 +56,10 @@ appId: com.salford.pos
     file: subflows/open-section.yaml
     env:
       ID: 'manage-customers'
-- tapOn: 'زبون جديد'
+- runFlow:
+    file: subflows/toolbar-button.yaml
+    env:
+      LABEL: 'زبون جديد'
 - extendedWaitUntil:
     visible:
       id: 'customer-name'
@@ -70,6 +70,11 @@ appId: com.salford.pos
 - inputText: 'Mona'
 - tapOn:
     id: 'keyboard.toolbar.done'
+# Run 65: the save button was below the screen; it is brought into view first.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'customer-save'
 - tapOn:
     id: 'customer-save'
 - extendedWaitUntil:
@@ -78,7 +83,10 @@ appId: com.salford.pos
     timeout: 30000
 - assertVisible:
     id: 'avatar-female'
-- tapOn: 'زبون جديد'
+- runFlow:
+    file: subflows/toolbar-button.yaml
+    env:
+      LABEL: 'زبون جديد'
 - extendedWaitUntil:
     visible:
       id: 'customer-name'
@@ -88,6 +96,11 @@ appId: com.salford.pos
 - inputText: 'Nour'
 - tapOn:
     id: 'keyboard.toolbar.done'
+# Run 65: the save button was below the screen; it is brought into view first.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'customer-save'
 - tapOn:
     id: 'customer-save'
 - extendedWaitUntil:

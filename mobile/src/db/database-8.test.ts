@@ -46,7 +46,7 @@ describe('the upgrade from database 7', () => {
     migrate(db, migrations.slice(0, 7));
     const old = { ...ctx, db } as TestCtx;
     expect(schemaVersion(db)).toBe(7);
-    // This test writes through today's code, which also fills database 9's and 10's columns: they
+    // This test writes through today's code, which also fills database 9's to 12's columns: they
     // are added here (database 8 doesn't touch these tables; database-9/10.test cover them).
     db.exec(`ALTER TABLE products ADD COLUMN specs TEXT;
       ALTER TABLE receipt_items ADD COLUMN specs TEXT;
@@ -59,6 +59,22 @@ describe('the upgrade from database 7', () => {
       ALTER TABLE sales ADD COLUMN birthday_off INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE receipts ADD COLUMN birthday_off INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE customers ADD COLUMN birthday_set_at TEXT;
+      ALTER TABLE sales ADD COLUMN deposit_used INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE sales ADD COLUMN friend_off INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE sales ADD COLUMN offer_off INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE receipts ADD COLUMN kind TEXT NOT NULL DEFAULT 'sale';
+      ALTER TABLE receipts ADD COLUMN order_id INTEGER;
+      ALTER TABLE receipts ADD COLUMN deposit INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE receipts ADD COLUMN friend_off INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE receipts ADD COLUMN offer_off INTEGER NOT NULL DEFAULT 0;
+      CREATE TABLE orders (id INTEGER PRIMARY KEY, kind TEXT, status TEXT, customer_id INTEGER,
+        product_id INTEGER, quantity INTEGER);
+      CREATE TABLE referrals (id INTEGER PRIMARY KEY, friend_id INTEGER UNIQUE, referrer_id INTEGER,
+        sale_id INTEGER, points INTEGER NOT NULL DEFAULT 0, move_id INTEGER, reversed_at TEXT,
+        created_at TEXT, by TEXT, by_name TEXT);
+      CREATE TABLE offers (id INTEGER PRIMARY KEY, customer_id INTEGER, percent INTEGER, cap INTEGER,
+        expires_at TEXT, sale_id INTEGER, used_at TEXT, created_at TEXT, month TEXT, by TEXT,
+        by_name TEXT);
       CREATE TABLE loyalty_moves (id INTEGER PRIMARY KEY, customer_id INTEGER, kind TEXT, points INTEGER,
         sale_id INTEGER, return_id INTEGER, payment_id INTEGER, value INTEGER, note TEXT,
         created_at TEXT, month TEXT, by TEXT, by_name TEXT);`);

@@ -50,12 +50,56 @@ describe('what the card says', () => {
     expect(titles({ birthday: { ...all.birthday, maxOff: 0 } })).not.toContain('خصم عيد الميلاد');
   });
 
+  it('adds bring a friend (I4) when it is on, and only with the points', () => {
+    const friend = { percent: 2, times: 2 };
+    expect(titles({ friend })).toEqual([
+      'مكافأة الزيارة',
+      'نقاط الولاء',
+      'VIP',
+      'أرسل صديقاً',
+      'خصم عيد الميلاد',
+    ]);
+    const part = (i: Partial<CardInput>) => cardSections({ ...all, friend, ...i })[3];
+    expect(part({})).toMatchObject({
+      lines: ['صديقك الجديد يأخذ خصم 2% على أول شراء له.'],
+      note: 'وتكسب نقاطاً مضاعفة عن شرائه.',
+    });
+    expect(part({ audience: 'women' })).toMatchObject({
+      title: 'أرسلي صديقة',
+      lines: ['صديقتك الجديدة تأخذ خصم 2% على أول شراء لها.'],
+      note: 'وتكسبين نقاطاً مضاعفة عن شرائها.',
+    });
+    expect(part({ audience: 'women', friend: { percent: 3, times: 3 } }).note).toBe(
+      'وتكسبين نقاط شرائها 3 أضعاف.',
+    );
+    expect(titles({ friend, loyalty: { ...all.loyalty, enabled: false } })).not.toContain(
+      'أرسل صديقاً',
+    );
+    expect(titles({ friend: null })).not.toContain('أرسل صديقاً');
+  });
+
+  it('speaks to men or to women, the same card otherwise', () => {
+    const friend = { percent: 2, times: 2 };
+    const men = rewardCardHtml({ ...all, friend });
+    const women = rewardCardHtml({ ...all, friend, audience: 'women' });
+    for (const w of ['تشترين', 'ادفعي', 'اشتري', 'لتصبحي', 'وتكسبين', 'سجّلي', 'امسحي'])
+      expect(women).toContain(w);
+    for (const w of ['تشتري بها', 'ادفع ', 'اشترِ', 'لتصبح ', 'وتكسب ', 'سجّل ', 'امسح '])
+      expect(men).toContain(w);
+    expect(men).not.toMatch(/تشترين|ادفعي|لتصبحي|وتكسبين|سجّلي|امسحي/);
+    expect(women).not.toMatch(/اشترِ|تشتري بها|وتكسب |سجّل |امسح /);
+    // Accounts but no WhatsApp: "follow us".
+    const socialOnly = { ...EMPTY_CONTACT, instagram: 'salford.ly' };
+    expect(rewardCardHtml({ ...all, contact: socialOnly, audience: 'women' })).toContain('تابعينا');
+    expect(rewardCardHtml({ ...all, contact: socialOnly })).toContain('تابعنا');
+  });
+
   it('writes the numbers in correct Arabic', () => {
     const [visit, , vip] = cardSections({
       ...all,
       rewards: { ...all.rewards, every: 2, vipMonths: 6 },
     });
-    expect(visit.lines[0]).toBe('بعد شراءين، خصم 10% على شرائك التالي، حتى 250 د.ل.');
+    expect(visit.lines[0]).toBe('بعد شراءين، خصم 10% على شرائك التالي، بحد أقصى 250 د.ل للخصم.');
     expect(vip.lines[0]).toContain('خلال 6 أشهر');
     expect(cardSections(all)[2].lines[0]).toContain('خلال 12 شهراً');
   });
@@ -69,7 +113,7 @@ describe('what the card says', () => {
 
   it('says the birthday rules as the app applies them', () => {
     const b = cardSections(all)[3];
-    expect(b.lines[0]).toBe('خصم 10% على شرائك في أسبوع ميلادك، حتى 200 د.ل.');
+    expect(b.lines[0]).toBe('خصم 10% على شرائك في أسبوع ميلادك، بحد أقصى 200 د.ل للخصم.');
     expect(b.note).toContain('من 3 أيام قبل يوم ميلادك إلى 3 أيام بعده، مرة في السنة');
     expect(b.note).toContain('قبل 30 يوماً');
   });

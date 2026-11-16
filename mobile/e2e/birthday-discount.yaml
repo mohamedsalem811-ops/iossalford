@@ -25,11 +25,9 @@ appId: com.salford.pos
 - tapOn:
     id: 'birthday-enabled'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'birthday-max-off'
-- tapOn:
-    id: 'birthday-max-off'
 - inputText: '200'
 - tapOn:
     id: 'keyboard.toolbar.done'
@@ -47,7 +45,10 @@ appId: com.salford.pos
     file: subflows/open-section.yaml
     env:
       ID: 'manage-customers'
-- tapOn: 'زبون جديد'
+- runFlow:
+    file: subflows/toolbar-button.yaml
+    env:
+      LABEL: 'زبون جديد'
 - tapOn:
     id: 'customer-name'
 - inputText: 'Huda'
@@ -59,11 +60,9 @@ appId: com.salford.pos
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'customer-details-birth-day'
-- tapOn:
-    id: 'customer-details-birth-day'
 - inputText: ${output.day}
 - tapOn:
     id: 'keyboard.toolbar.done'
@@ -83,7 +82,10 @@ appId: com.salford.pos
       id: 'customer-Huda'
     timeout: 30000
 # The sale: her phone finds her, and her card shows the discount (the owner needs no approval).
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:
@@ -152,7 +154,10 @@ appId: com.salford.pos
     text: 'خصم عيد الميلاد 35 د.ل'
 - takeScreenshot: ${DEVICE}-sale-birthday
 # Her next sale: used for this year, no button.
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:

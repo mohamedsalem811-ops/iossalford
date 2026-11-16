@@ -7,13 +7,19 @@ appId: com.salford.pos
 - tapOn:
     id: 'sold-new-sale'
 # Dashboard.
-- tapOn: 'الرئيسية'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'الرئيسية'
 - takeScreenshot: ${DEVICE}-p8-dashboard-portrait
 - setOrientation: LANDSCAPE_LEFT
 - takeScreenshot: ${DEVICE}-p8-dashboard-landscape
 - setOrientation: PORTRAIT
 # Management: the tab bar stays; on iPad the menu stays beside the section.
-- tapOn: 'الإدارة'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'الإدارة'
 - takeScreenshot: ${DEVICE}-p8-management-portrait
 - tapOn:
     id: 'manage-sales'
@@ -42,7 +48,10 @@ appId: com.salford.pos
           timeout: 60000
 - takeScreenshot: ${DEVICE}-p8-settings
 # Receipts: on iPad the receipt beside the list.
-- tapOn: 'الإيصالات'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'الإيصالات'
 - tapOn:
     text: 'GR-.*'
 - takeScreenshot: ${DEVICE}-p8-receipts-portrait

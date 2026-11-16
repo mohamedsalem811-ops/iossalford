@@ -206,6 +206,8 @@ export function restoreSnapshot(db: Db, open: OpenDb, path: string) {
   db.exec(`ATTACH DATABASE ${sqlString(toPath(path))} AS backup`);
   try {
     db.transaction(() => {
+      // Links are checked once everything is in (foreign_key_check below, and at commit).
+      db.exec('PRAGMA defer_foreign_keys = ON;');
       const used = usedNumbers(db);
       for (const t of [...TABLES].reverse()) db.run(`DELETE FROM main.${t}`);
       for (const t of TABLES) {

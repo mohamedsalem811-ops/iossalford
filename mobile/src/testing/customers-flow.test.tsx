@@ -21,9 +21,11 @@ import { checkout } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
 import { listCustomers } from '@/domain/customers';
 import { balance, payments, recordPayment } from '@/domain/debts';
+import { takeOrder } from '@/domain/orders';
 import { getPolicies } from '@/domain/policies';
 import { addReturn, getSale } from '@/domain/sales';
 import { getProduct, saveProduct } from '@/domain/products';
+import { notifyDataChanged } from '@/state/data-events';
 import { routeStubs } from '@/testing/route-stubs';
 
 jest.mock('expo-haptics', () => ({
@@ -77,6 +79,8 @@ jest.mock('@/hooks/use-layout', () => ({
   useLayout: () => ({ split: false, cartBeside: false }),
 }));
 jest.mock('@/state/lock', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories cannot use imports
+  openOutside: (url: string) => require('react-native').Linking.openURL(url),
   LockProvider: ({ children }: { children: React.ReactNode }) => children,
   useLock: () => ({ unlocked: 'jewelry', unlock: () => {}, lock: () => {}, active: true }),
 }));
@@ -226,4 +230,35 @@ it('pays back a customer the shop owes, in cash, from the customer’s page', as
   expect(balance(ctx(), huda)).toBe(0);
   expect(await screen.findByTestId('customer-balance')).toHaveTextContent('لا ديون');
   expect(screen.getByText('رد من رصيده')).toBeOnTheScreen();
+});
+
+// The tests are built with the React Compiler, like the app (babel.config.js). Run 65 on the
+// simulator: a wanted piece was saved, but «قطع يطلبها» still said (0) until the page was opened
+// again, because the compiler kept the list read while drawing.
+it('shows at once what was just saved on the customer’s page', async () => {
+  jest.spyOn(Alert, 'prompt').mockImplementation((_title, _message, buttons) => {
+    const save = (buttons as { text: string; onPress?: (text?: string) => void }[]).find(
+      (b) => b.text === 'حفظ',
+    )!;
+    save.onPress!('سوار ذهب');
+  });
+  await renderRouter(routes, { initialUrl: `/jewelry/more/customer/${sara}` });
+  expect(await screen.findByText('قطع يطلبها (0)')).toBeOnTheScreen();
+  await fireEvent.press(screen.getByTestId('wanted-add'));
+  expect(await screen.findByText('سوار ذهب')).toBeOnTheScreen();
+  expect(screen.getByText('قطع يطلبها (1)')).toBeOnTheScreen();
+
+  // A deposit taken on the order form shows on her page as soon as the data changes.
+  expect(screen.getByText('الطلبات بعربون (0)')).toBeOnTheScreen();
+  await act(async () => {
+    takeOrder(ctx(), {
+      kind: 'order',
+      customer: { name: 'سارة', phone: '0912345678' },
+      description: 'خاتم ألماس',
+      unitPrice: 900_000,
+      deposit: { amount: 450_000, method: 'cash' },
+    });
+    notifyDataChanged();
+  });
+  expect(await screen.findByText('الطلبات بعربون (1)')).toBeOnTheScreen();
 });

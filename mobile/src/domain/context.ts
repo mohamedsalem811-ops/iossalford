@@ -29,7 +29,11 @@ export type Ctx = {
   approvals?: { take(token: string, purpose: ApprovalPurpose): boolean };
 };
 
-export type ApprovalPurpose = 'discount' | 'return' | 'birthday';
+/**
+ * What the owner approves: a discount, a return past the rules, a birthday discount, a deposit
+ * under the minimum, or cancelling a deposit order (I1).
+ */
+export type ApprovalPurpose = 'discount' | 'return' | 'birthday' | 'deposit' | 'orderCancel';
 
 /**
  * Who allows going past an employee rule: 'owner' when the owner is signed in, 'approved' when

@@ -11,11 +11,13 @@ export type ManageTarget =
   | 'shifts'
   | 'daySummary'
   | 'sales'
+  | 'orders'
   | 'returns'
   | 'returnFind'
   | 'policies'
   | 'customers'
   | 'debts'
+  | 'marketing'
   | 'expenses'
   | 'closing'
   | 'comparison'
@@ -38,6 +40,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
     rows: [
       { target: 'shift', icon: 'clock.badge.checkmark', title: 'الوردية' },
       { target: 'sales', icon: 'list.bullet.rectangle', title: 'سجل المبيعات' },
+      { target: 'orders', icon: 'shippingbox', title: 'الطلبات بعربون' },
       { target: 'returnFind', icon: 'arrow.left.arrow.right.circle', title: 'مرتجع أو استبدال' },
       { target: 'returns', icon: 'arrow.uturn.backward', title: 'المرتجعات' },
     ],
@@ -47,6 +50,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
     rows: [
       { target: 'customers', icon: 'person.2', title: 'الزبائن' },
       { target: 'debts', icon: 'creditcard', title: 'الديون' },
+      { target: 'marketing', icon: 'megaphone', title: 'التسويق' },
     ],
   },
   {
