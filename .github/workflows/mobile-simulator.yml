@@ -125,6 +125,10 @@ jobs:
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
       - name: Run tests on the ${{ matrix.device }} simulator
+        # Run 68 (iPad): the tests ran into the job's limit, GitHub stopped the machine and the
+        # upload below never ran, so nothing was kept. The tests stop first (a build takes up to
+        # about 65 minutes), leaving time to upload what they produced.
+        timeout-minutes: 275
         env:
           # A freshly booted simulator is slow on its first launch; the default driver
           # start-up timeout was too short for the iPad run (5 minutes was not always enough
