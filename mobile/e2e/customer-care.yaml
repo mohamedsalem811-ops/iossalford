@@ -55,21 +55,47 @@ appId: com.salford.pos
     visible: '.*سوار ذهب.*'
     timeout: 10000
 - takeScreenshot: ${DEVICE}-customer-wanted
-# Back to the list by the back button's id: in the iPad's narrow pane its title may be left out.
-- tapOn:
-    id: 'BackButton'
-# Run 68 (iPad): «More» was found, opened, and «متابعة الزبائن» was not in what Maestro saw (only
-# the job's console line was kept). Unlike birthday-discount, where the same step passed, this
-# comes right after the back button, while the page slides back. Wait for the list itself.
-- extendedWaitUntil:
-    visible:
-      id: 'customer-Noor'
-    timeout: 15000
-- waitForAnimationToEnd
+# iPad: from the home screen's «أعياد ميلاد هذا الأسبوع» row (attention-birthdays), which opens the
+# same page. Run 68 (iPad) failed opening it from the customers' «More» menu: after the back button
+# «More» was opened and «متابعة الزبائن» was not found (only the job's console line was kept, so
+# what the menu showed is unknown). This way does not use that menu: the home tab (open-tab) and
+# the «يحتاج انتباهك» card (sale.yaml finds its debts row there) pass on iPad.
 - runFlow:
-    file: subflows/toolbar-button.yaml
-    env:
-      LABEL: 'متابعة الزبائن'
+    when:
+      true: ${DEVICE == 'iPad'}
+    commands:
+      - runFlow:
+          file: subflows/open-tab.yaml
+          env:
+            TAB: 'الرئيسية'
+      - runFlow:
+          file: subflows/scroll-form.yaml
+          env:
+            ID: 'attention-birthdays'
+      # A list row reads as its title alone (list-group.tsx), «أعياد ميلاد هذا الأسبوع: 1».
+      - assertVisible:
+          id: 'attention-birthdays'
+          text: 'أعياد ميلاد هذا الأسبوع: 1'
+      - tapOn:
+          id: 'attention-birthdays'
+# iPhone: the customers' toolbar button, back to the list by the back button's id (passed in run 68).
+- runFlow:
+    when:
+      true: ${DEVICE != 'iPad'}
+    commands:
+      - tapOn:
+          id: 'BackButton'
+      - extendedWaitUntil:
+          visible:
+            id: 'customer-Noor'
+          timeout: 15000
+      - runFlow:
+          file: subflows/toolbar-button.yaml
+          env:
+            LABEL: 'متابعة الزبائن'
+- extendedWaitUntil:
+    visible: 'أعياد ميلاد هذا الأسبوع'
+    timeout: 15000
 - assertVisible: 'أعياد ميلاد هذا الأسبوع'
 - takeScreenshot: ${DEVICE}-care-birthdays
 - tapOn: 'التقرير'
