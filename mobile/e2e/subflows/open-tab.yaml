@@ -1,7 +1,8 @@
 # Opens the tab ${TAB} and checks it is the selected one.
 # Run 66 (iPhone): once a page is scrolled down, iOS shrinks the tab bar to the current tab alone
 # (minimizeBehavior onScrollDown) and scrolling back up did not bring it back; the current tab is
-# then tapped, which should open the whole bar again (a screenshot is kept to show it).
+# then tapped, which should open the whole bar again (a screenshot is kept to show it). The shrunk
+# button is still named after its tab and selected (run 67 screen tree: «الإدارة», "Collapsed").
 # Run 66 (iPhone) also: a tap on المنتجات reached the app (touch down and up in the device log) but
 # the tab did not change; if the tab is not selected after the tap, a screenshot is kept and it is
 # tapped once more.
@@ -15,6 +16,19 @@ appId: com.salford.pos
       - tapOn:
           text: 'الرئيسية|بيع|المنتجات|الإيصالات|الإدارة'
           selected: true
+# If the bar is still shrunk, the page is scrolled back to its top, the other way iOS opens it.
+- runFlow:
+    when:
+      notVisible: ${TAB}
+    commands:
+      - takeScreenshot: ${DEVICE}-tab-bar-still-minimised
+      - repeat:
+          times: 3
+          commands:
+            - swipe:
+                start: 50%, 30%
+                end: 50%, 80%
+                duration: 400
 - tapOn: ${TAB}
 - extendedWaitUntil:
     visible:

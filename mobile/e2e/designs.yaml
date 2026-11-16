@@ -9,7 +9,10 @@ appId: com.salford.pos
 - extendedWaitUntil:
     visible: 'مبيعات اليوم'
     timeout: 90000
-- tapOn: 'المنتجات'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'المنتجات'
 - extendedWaitUntil:
     visible: 'لا توجد أوشحة بعد'
     timeout: 30000

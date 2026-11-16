@@ -2,7 +2,10 @@
 # (the Products tab's add button is in its toolbar's overflow menu on iPad once a piece exists).
 appId: com.salford.pos
 ---
-- tapOn: 'الرئيسية'
+- runFlow:
+    file: open-tab.yaml
+    env:
+      TAB: 'الرئيسية'
 - tapOn:
     id: 'quick-product'
 - extendedWaitUntil:
@@ -22,31 +25,25 @@ appId: com.salford.pos
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: scroll-form.yaml
+    file: scroll-to-field.yaml
     env:
       ID: 'product-price'
-- tapOn:
-    id: 'product-price'
 - inputText: '500'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: scroll-form.yaml
+    file: scroll-to-field.yaml
     env:
       ID: 'product-cost'
-- tapOn:
-    id: 'product-cost'
 - inputText: '300'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: scroll-form.yaml
+    file: scroll-to-field.yaml
     env:
       ID: 'product-stock'
-- tapOn:
-    id: 'product-stock'
 - eraseText
 - inputText: '3'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
@@ -64,7 +61,10 @@ appId: com.salford.pos
     notVisible:
       id: 'product-name'
     timeout: 30000
-- tapOn: 'المنتجات'
+- runFlow:
+    file: open-tab.yaml
+    env:
+      TAB: 'المنتجات'
 - extendedWaitUntil:
     visible: '.*Chain Gold.*'
     timeout: 30000

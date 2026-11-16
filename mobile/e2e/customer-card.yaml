@@ -6,7 +6,10 @@ appId: com.salford.pos
 ---
 - runFlow: subflows/open-jewelry.yaml
 - runFlow: subflows/add-ring.yaml
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:
@@ -64,11 +67,9 @@ appId: com.salford.pos
 - tapOn:
     id: 'checkout-details-heard-instagram'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'checkout-details-ring'
-- tapOn:
-    id: 'checkout-details-ring'
 - inputText: '16'
 - tapOn:
     id: 'keyboard.toolbar.done'
@@ -94,7 +95,10 @@ appId: com.salford.pos
 - tapOn:
     id: 'sold-new-sale'
 # The next sale: her phone finds her, and the card shows her.
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:

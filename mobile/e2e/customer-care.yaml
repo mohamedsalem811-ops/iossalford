@@ -20,11 +20,9 @@ appId: com.salford.pos
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'customer-details-birth-day'
-- tapOn:
-    id: 'customer-details-birth-day'
 - inputText: ${output.day}
 - tapOn:
     id: 'keyboard.toolbar.done'

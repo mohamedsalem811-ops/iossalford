@@ -45,29 +45,23 @@ appId: com.salford.pos
 - tapOn:
     id: 'birthday-enabled'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'birthday-max-off'
-- tapOn:
-    id: 'birthday-max-off'
 - inputText: '200'
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'contact-whatsapp'
-- tapOn:
-    id: 'contact-whatsapp'
 - inputText: '0912345678'
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'contact-instagram'
-- tapOn:
-    id: 'contact-instagram'
 - inputText: 'salford.ly'
 - tapOn:
     id: 'keyboard.toolbar.done'

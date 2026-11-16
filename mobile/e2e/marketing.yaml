@@ -96,11 +96,9 @@ appId: com.salford.pos
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'checkout-gift-day'
-- tapOn:
-    id: 'checkout-gift-day'
 - inputText: '21'
 - tapOn:
     id: 'keyboard.toolbar.done'

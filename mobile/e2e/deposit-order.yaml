@@ -22,29 +22,23 @@ appId: com.salford.pos
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'order-description'
-- tapOn:
-    id: 'order-description'
 - inputText: 'Tiffany bracelet'
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'order-price'
-- tapOn:
-    id: 'order-price'
 - inputText: '1000'
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'order-deposit'
-- tapOn:
-    id: 'order-deposit'
 - inputText: '500'
 - tapOn:
     id: 'keyboard.toolbar.done'

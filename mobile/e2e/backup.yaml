@@ -50,5 +50,8 @@ appId: com.salford.pos
     id: 'backup-.*_safety\.db'
 - takeScreenshot: ${DEVICE}-backup-restored
 # The sale made after the backup is gone; the piece is back to 3 in stock.
-- tapOn: 'الرئيسية'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'الرئيسية'
 - assertVisible: '0 د.ل'

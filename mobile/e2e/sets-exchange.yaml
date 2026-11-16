@@ -47,7 +47,10 @@ appId: com.salford.pos
       id: 'set-Gift Set'
     timeout: 30000
 # Sold from the Sale tab: 350 + 500 − 50 = 800.
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 # On iPad the header's buttons can fold into a "More" menu when they don't fit beside the tabs.
 - runFlow:
     when:
@@ -82,7 +85,10 @@ appId: com.salford.pos
 - tapOn:
     id: 'sold-new-sale'
 # The exchange: another Ring Zircon in the cart, then one piece of sale 1 brought back for it.
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:

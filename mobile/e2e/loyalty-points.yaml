@@ -25,11 +25,9 @@ appId: com.salford.pos
 - tapOn:
     id: 'loyalty-enabled'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'loyalty-min'
-- tapOn:
-    id: 'loyalty-min'
 - eraseText
 - inputText: '10'
 - tapOn:
@@ -98,7 +96,10 @@ appId: com.salford.pos
 - tapOn:
     id: 'sold-new-sale'
 # Second sale: her phone finds her, and 35 points pay 3.5 of it.
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:

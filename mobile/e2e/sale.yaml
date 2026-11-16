@@ -24,7 +24,10 @@ appId: com.salford.pos
       - tapOn:
           id: 'sold-new-sale'
 # A credit sale needs the customer.
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - tapOn:
     id: 'sale-tile-Ring Zircon'
 - runFlow:
@@ -56,7 +59,10 @@ appId: com.salford.pos
 - tapOn:
     id: 'sold-new-sale'
 # The dashboard: 700 today, half on credit, and the debt under "needs attention".
-- tapOn: 'الرئيسية'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'الرئيسية'
 - assertVisible:
     id: 'today-total'
 - assertVisible: 'مدفوع 350 د.ل • آجل 350 د.ل'

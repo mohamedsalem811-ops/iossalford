@@ -17,15 +17,27 @@ appId: com.salford.pos
     visible: 'مبيعات اليوم'
     timeout: 90000
 - takeScreenshot: ${DEVICE}-dashboard-jewelry
-- tapOn: 'بيع'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
 - assertVisible: 'لا توجد منتجات للبيع بعد'
-- tapOn: 'المنتجات'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'المنتجات'
 - extendedWaitUntil:
     visible: 'لا توجد قطع بعد'
     timeout: 30000
-- tapOn: 'الإيصالات'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'الإيصالات'
 - assertVisible: 'لا توجد إيصالات بعد'
-- tapOn: 'الإدارة'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'الإدارة'
 - takeScreenshot: ${DEVICE}-management-jewelry
 # The lock button shows the login again in place of the screens.
 - runFlow:

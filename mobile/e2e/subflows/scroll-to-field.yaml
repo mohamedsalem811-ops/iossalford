@@ -1,0 +1,35 @@
+# Scrolls to the text field ${ID} (scroll-form.yaml), taps it and checks that it took the keyboard.
+# Run 67 (iPhone, birthday-discount): Maestro's centring swipe carried «أكبر مبلغ للخصم» from
+# y 662 to y 83 in one go, under the screen's title bar (which ends at y 116). The tap on the
+# field's middle (y 106) landed on the bar, the field never had the keyboard and the typed amount
+# was lost. When the keyboard's «تم» bar does not appear, the form is pulled down a little
+# (a slow drag, so it does not run on) and the field is tapped again.
+appId: com.salford.pos
+---
+- runFlow:
+    file: scroll-form.yaml
+    env:
+      ID: ${ID}
+- tapOn:
+    id: ${ID}
+- extendedWaitUntil:
+    visible:
+      id: 'keyboard.toolbar.done'
+    timeout: 3000
+    optional: true
+- runFlow:
+    when:
+      notVisible:
+        id: 'keyboard.toolbar.done'
+    commands:
+      - takeScreenshot: ${DEVICE}-field-without-keyboard
+      - swipe:
+          start: 50%, 40%
+          end: 50%, 60%
+          duration: 1500
+      - tapOn:
+          id: ${ID}
+- extendedWaitUntil:
+    visible:
+      id: 'keyboard.toolbar.done'
+    timeout: 5000

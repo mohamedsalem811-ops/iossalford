@@ -26,11 +26,9 @@ appId: com.salford.pos
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'order-search'
-- tapOn:
-    id: 'order-search'
 - inputText: 'Ring'
 - tapOn:
     id: 'keyboard.toolbar.done'
@@ -39,11 +37,9 @@ appId: com.salford.pos
 - assertVisible:
     id: 'order-piece'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'order-deposit'
-- tapOn:
-    id: 'order-deposit'
 - inputText: '200'
 - tapOn:
     id: 'keyboard.toolbar.done'
@@ -59,7 +55,10 @@ appId: com.salford.pos
     visible: 'إغلاق'
     timeout: 30000
 - tapOn: 'إغلاق'
-- tapOn: 'المنتجات'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'المنتجات'
 - extendedWaitUntil:
     visible:
       id: 'product-reserved-.*'

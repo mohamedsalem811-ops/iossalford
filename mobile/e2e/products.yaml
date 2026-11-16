@@ -10,7 +10,10 @@ appId: com.salford.pos
 - extendedWaitUntil:
     visible: 'مبيعات اليوم'
     timeout: 90000
-- tapOn: 'المنتجات'
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'المنتجات'
 - extendedWaitUntil:
     visible: 'لا توجد قطع بعد'
     timeout: 30000
@@ -34,21 +37,17 @@ appId: com.salford.pos
     id: 'keyboard.toolbar.done'
 - assertVisible: 'ماركة جديدة — ستُضاف للقائمة عند الحفظ'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'product-price'
-- tapOn:
-    id: 'product-price'
 - inputText: '350'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
-    file: subflows/scroll-form.yaml
+    file: subflows/scroll-to-field.yaml
     env:
       ID: 'product-cost'
-- tapOn:
-    id: 'product-cost'
 - inputText: '200'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
