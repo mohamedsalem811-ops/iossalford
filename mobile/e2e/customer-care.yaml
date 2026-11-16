@@ -58,6 +58,14 @@ appId: com.salford.pos
 # Back to the list by the back button's id: in the iPad's narrow pane its title may be left out.
 - tapOn:
     id: 'BackButton'
+# Run 68 (iPad): «More» was found, opened, and «متابعة الزبائن» was not in what Maestro saw (only
+# the job's console line was kept). Unlike birthday-discount, where the same step passed, this
+# comes right after the back button, while the page slides back. Wait for the list itself.
+- extendedWaitUntil:
+    visible:
+      id: 'customer-Noor'
+    timeout: 15000
+- waitForAnimationToEnd
 - runFlow:
     file: subflows/toolbar-button.yaml
     env:

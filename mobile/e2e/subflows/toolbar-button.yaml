@@ -13,4 +13,5 @@ appId: com.salford.pos
     commands:
       - tapOn:
           id: 'OverflowBarButtonItem'
+      - takeScreenshot: ${DEVICE}-toolbar-more-open
 - tapOn: ${LABEL}
