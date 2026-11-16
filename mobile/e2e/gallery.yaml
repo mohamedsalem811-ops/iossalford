@@ -3,10 +3,16 @@ appId: com.salford.pos
 ---
 - runFlow: subflows/fresh-launch.yaml
 - openLink: salfordpos://gallery
-# iOS may ask before opening the app's own link.
+# iOS may ask before opening the app's own link. Run 67 (iPad): the question came after the flow
+# had looked for it, stayed on screen and blocked the 21 flows after this one. Wait for either it
+# or the gallery.
+- extendedWaitUntil:
+    visible: 'Open in .*|مبيعات اليوم'
+    timeout: 60000
+    optional: true
 - runFlow:
     when:
-      visible: 'Open'
+      visible: 'Open in .*'
     commands:
       - tapOn: 'Open'
 # The CI simulator has taken from 19 to 90 seconds to hand the link to the app after "Open".

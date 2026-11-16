@@ -923,6 +923,8 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 - **Simulator run 66, iPhone:** 33 of 36 passed, with every run 65 fix that ran there (customer-care with the wanted piece shown at once, deposit-hold, specs-portraits, customer-card, the gift dates in marketing). The three left are the tab bar:
   - Once a page is scrolled down, iOS shrinks the tab bar to the current tab alone, and scrolling back up did not bring it back (loyalty-points, and marketing even on a page that was not scrolled). `e2e/subflows/open-tab.yaml` taps the shrunken bar first; a screenshot is kept to show it opens.
   - A tap on المنتجات reached the app (touch down and up in the device log) but the tab did not change (shift-bar-shortcuts); the cause is not known. open-tab checks the tab is selected and otherwise keeps a screenshot and taps once more.
+- **Simulator run 67 (2026-11-16), iPad:** the first 14 flows passed, including the run 66 fixes (loyalty-points, birthday-discount through «More», audit-fixes). The other 22 failed from one cause in the tests, not the app:
+  - The gallery flow opens the app's own link, and iOS asks «Open in “SALFORD POS”?». The flow looked for the question once, before it appeared (its screen tree has no dialog then), so it went on without answering. The question stayed above the app through every later launch, and the 21 flows after it could not reach the code screen (their screenshots show it over the screen). gallery now waits up to a minute for the question or the gallery, and `subflows/fresh-launch.yaml` answers «Cancel» to a question left over, so one system question can't stop the flows after it.
 
 ### Phase 10: switching over
 

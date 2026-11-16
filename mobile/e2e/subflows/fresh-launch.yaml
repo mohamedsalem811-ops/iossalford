@@ -8,6 +8,13 @@ appId: com.salford.pos
       visible: 'Not Now'
     commands:
       - tapOn: 'Not Now'
+# iOS's «Open in “SALFORD POS”?» (from the gallery's link) stays above every app launch if it was
+# left unanswered (run 67, iPad: 21 flows failed behind it).
+- runFlow:
+    when:
+      visible: 'Open in .*'
+    commands:
+      - tapOn: 'Cancel'
 - launchApp:
     clearState: true
     clearKeychain: true
