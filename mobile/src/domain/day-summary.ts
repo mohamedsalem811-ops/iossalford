@@ -4,6 +4,7 @@
  * returns, debt payments, customer credit paid back, cash moved in and out, expenses, and each
  * shift that ran that day with its count. Owner only (it shows every person's sales).
  */
+import { nextDayKey } from '@/lib/dates';
 import { PAYMENT_METHODS, type PaymentMethod } from './checkout';
 import { allowView, type Ctx } from './context';
 import { listShiftsOn, shiftTotals, type Shift, type ShiftTotals } from './shifts';
@@ -65,11 +66,7 @@ export type DaySummary = {
 };
 
 /** "2026-11-14" for "2026-11-13". */
-export function nextDay(day: string): string {
-  const [y, m, d] = day.split('-').map(Number);
-  const next = new Date(y, m - 1, d + 1);
-  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
-}
+export const nextDay = nextDayKey;
 
 /** "2026-11-12" for "2026-11-13". */
 export function previousDay(day: string): string {

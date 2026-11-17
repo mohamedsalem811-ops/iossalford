@@ -1,4 +1,4 @@
-import { dayKey, daysInMonth, monthRange } from '@/lib/dates';
+import { dayKey, daysInMonth, monthRange, nextDayKey } from '@/lib/dates';
 import { lydToUsd } from '@/lib/money';
 
 import type { PaymentMethod } from './checkout';
@@ -177,20 +177,25 @@ export type Today = {
 /** Today's sales, profit, number of sales and pieces, and money by payment method. */
 export function today(ctx: Ctx): Today {
   allowView(ctx, 'reports.view');
+  // From midnight up to the next: read with the index on the sale time (J1), not every sale.
   const day = dayKey(ctx.now());
+  const range = [day, nextDayKey(day)];
   const s = ctx.db.get<{ total: number; profit: number; n: number }>(
-    `SELECT coalesce(sum(total), 0) total, coalesce(sum(total - total_cost), 0) profit, count(*) n FROM sales WHERE substr(created_at, 1, 10) = ?`,
-    [day],
+    `SELECT coalesce(sum(total), 0) total, coalesce(sum(total - total_cost), 0) profit, count(*) n
+       FROM sales WHERE created_at >= ? AND created_at < ?`,
+    range,
   )!;
   const pieces = ctx.db.get<{ q: number }>(
-    `SELECT coalesce(sum(l.quantity), 0) q FROM sale_lines l JOIN sales s ON s.id = l.sale_id WHERE substr(s.created_at, 1, 10) = ?`,
-    [day],
+    `SELECT coalesce(sum(l.quantity), 0) q FROM sale_lines l JOIN sales s ON s.id = l.sale_id
+      WHERE s.created_at >= ? AND s.created_at < ?`,
+    range,
   )!.q;
   const byMethod: Record<PaymentMethod, number> = { cash: 0, card: 0, transfer: 0, credit: 0 };
   for (const r of ctx.db.all<{ m: PaymentMethod; t: number }>(
     // Money taken today: the part paid with points or by an earlier deposit is not.
-    `SELECT payment_method m, sum(total - points_paid - deposit_used) t FROM sales WHERE substr(created_at, 1, 10) = ? GROUP BY payment_method`,
-    [day],
+    `SELECT payment_method m, sum(total - points_paid - deposit_used) t FROM sales
+      WHERE created_at >= ? AND created_at < ? GROUP BY payment_method`,
+    range,
   )) {
     byMethod[r.m] = r.t;
   }

@@ -1,5 +1,5 @@
 import { latinDigits } from '@/lib/digits';
-import { quarterKey, quarterOf, quarterTitle } from '@/lib/dates';
+import { nextDayKey, quarterKey, quarterOf, quarterTitle } from '@/lib/dates';
 import { divRound, formatDinars, formatLyd } from '@/lib/money';
 
 import type { PaymentMethod } from './checkout';
@@ -237,8 +237,9 @@ function saleFilter(ctx: Ctx, q: SaleQuery) {
     params.push(q.month);
   }
   if (q.day) {
-    where.push('substr(s.created_at, 1, 10) = ?');
-    params.push(q.day);
+    // A time range, read with the index (J1).
+    where.push('s.created_at >= ? AND s.created_at < ?');
+    params.push(q.day, nextDayKey(q.day));
   }
   if (q.paymentMethod) {
     where.push('s.payment_method = ?');
