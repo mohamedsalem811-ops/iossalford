@@ -984,10 +984,11 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 - From the costs each sale kept, so a later price or cost change never changes the past. A PDF to share. Speed-test line.
 - *Done:* `domain/profits.ts` (`profitRows`, `profitTotals`, the period helpers). A return counts in the month it was made, as in the month summary: its refund comes off the sales and the cost of the piece back in stock off the cost; a return without a sale goes to the piece's brand and category today. The brands add up to the summary's sales profit (tested). Pieces are sold less returned. The report has no expenses and no repair income (it is the profit of the pieces). Sales with no brand or category are «بدون ماركة» / «بدون فئة» and still open. Owner only (`costs.view`). Screen: Management → المال → الأرباح, شهر / ربع / سنة with السابق and التالي, sorted by profit or margin, a brand opens its categories and a category its pieces (each its own screen, so back returns one level), the total of the level shown, print and PDF. Tests: `profits.test.ts`, `features/profits/report.test.ts`, `testing/profits-flow.test.tsx`; speed test 12 ms for a year with 30,000 sales. Maestro: `e2e/profits.yaml`, not run yet.
 
-**J5 – Slow-moving stock**
+**J5 – Slow-moving stock** ✅
 
 - Products → **الراكدة** (owner): pieces in stock with no sale in 60, 90 or 180 days (or never sold since they came in), how long, and the money tied up in them (cost × stock), by brand.
 - Tap a piece to change its price (logged). Sorted by money tied up. Speed-test line.
+- *Done:* `domain/slow-stock.ts` (`slowStock`, `setProductPrice`). A piece is idle since its last sale or since stock last came in (added, or raised by hand: a new delivery), whichever is later; returns don't count as coming in. Pieces out of stock and archived pieces are left out. The money tied up is cost × stock; the list is sorted by it, with the brands added up above it and the total at the top. Owner only (`costs.view`), in both systems: the products tab's ترتيب وفلترة menu → «الراكدة». A tap opens the piece's price (needs `products.edit`); the change is logged as «تغيير سعر» with the old and new price and changes nothing else. Tests: `slow-stock.test.ts`, `features/slow-stock/model.test.ts`, `testing/slow-stock-flow.test.tsx`, the permission matrix; speed test 112 ms at most with 30,000 sales. Maestro: `e2e/slow-stock.yaml`, not run yet.
 
 **J6 – Reminders on the iPad while the app is closed**
 

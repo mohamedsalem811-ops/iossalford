@@ -70,6 +70,7 @@ import { addReturn, addReturnWithoutSale, deleteReturn, deleteSale, getSale } fr
 import { deleteScarfDesign, saveScarfDesign } from '@/domain/scarves';
 import { deleteSet, saveSet } from '@/domain/sets';
 import { setRate } from '@/domain/settings';
+import { setProductPrice } from '@/domain/slow-stock';
 import { addToCart, type CartLine } from '@/domain/cart';
 import { EMPLOYEE, makeCtx, passing, type TestCtx } from '@/domain/testing/ctx';
 import { OWNER } from './model';
@@ -547,6 +548,10 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     deliverRepair: {
       permission: 'repairs.deliver',
       run: (ctx, s) => deliverRepair(ctx, s.readyRepair, { method: 'card' }),
+    },
+    setProductPrice: {
+      permission: 'products.edit',
+      run: (ctx, s) => setProductPrice(ctx, s.chain, 1_000),
     },
     setRepairCost: {
       permission: 'repairs.cost',

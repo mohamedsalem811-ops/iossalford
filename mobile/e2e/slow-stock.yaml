@@ -1,0 +1,26 @@
+# Phase J5. Products → الراكدة (the owner): the pieces with no sale for 60, 90 or 180 days and the
+# money tied up in them, by brand; a piece opened to change its price.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'المنتجات'
+- tapOn: 'ترتيب وفلترة'
+- tapOn: 'الراكدة'
+- extendedWaitUntil:
+    visible:
+      id: 'slow-total'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-slow-90
+- tapOn: '60 يوماً'
+- takeScreenshot: ${DEVICE}-slow-60
+- tapOn: '180 يوماً'
+- takeScreenshot: ${DEVICE}-slow-180
+- tapOn: '60 يوماً'
+- tapOn:
+    id: 'slow-row-.*'
+    index: 0
+    optional: true
+- takeScreenshot: ${DEVICE}-slow-price

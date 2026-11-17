@@ -40,6 +40,7 @@ const NAMES = [
   '(tabs)/more/order/[id]',
   '(tabs)/more/repairs',
   '(tabs)/more/profits',
+  '(tabs)/products/slow',
   '(tabs)/more/repair/[id]',
   'repair-form',
   'repair-ticket/[id]',

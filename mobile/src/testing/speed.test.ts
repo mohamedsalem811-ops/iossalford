@@ -38,6 +38,7 @@ import {
   offersReport,
 } from '@/domain/marketing';
 import { listOrders } from '@/domain/orders';
+import { slowStock } from '@/domain/slow-stock';
 import { reservedCounts } from '@/domain/reserved';
 import { allBalances, creditBalances, debtors } from '@/domain/debts';
 import { displayName, getProduct, listProducts } from '@/domain/products';
@@ -280,6 +281,7 @@ function measure(sales: number, people = 1_500) {
     const [cat] = profitRows(ctx, year, { brand: top.key });
     if (cat) profitRows(ctx, year, { brand: top.key, category: cat.key });
   });
+  check('Slow stock: pieces unsold 90 days, by brand (J5)', () => slowStock(ctx, 90));
   check('Checkout: find a customer by name (no phone)', () => ensureCustomer(ctx, 'زبون 1200'));
   check('Comparison: 12 months', () =>
     monthlyComparison(ctx, months[months.length - 1], months[0]),
