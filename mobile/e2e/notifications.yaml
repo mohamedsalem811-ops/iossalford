@@ -1,0 +1,35 @@
+# Phase J6. Settings → التنبيهات (the owner): asking iOS for the permission, each kind on or off,
+# names hidden on the lock screen, and the morning and closing times.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-settings'
+- tapOn:
+    id: 'settings-notifications'
+- extendedWaitUntil:
+    visible:
+      id: 'notify-status'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-notify-first
+- tapOn:
+    id: 'notify-allow'
+    optional: true
+# iOS asks once; the simulator's dialog is in English or Arabic.
+- tapOn:
+    text: 'Allow|سماح'
+    optional: true
+- tapOn:
+    id: 'notify-kind-gifts'
+- tapOn:
+    id: 'notify-hide-names'
+- takeScreenshot: ${DEVICE}-notify-kinds
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'notify-save-times'
+- assertVisible:
+    id: 'notify-morning'
+- takeScreenshot: ${DEVICE}-notify-times

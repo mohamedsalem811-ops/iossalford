@@ -387,6 +387,13 @@ export function orderReminders(ctx: Ctx): OrderReminders {
   };
 }
 
+/** Bought orders expected on this day ("YYYY-MM-DD"), for the morning reminder (J6). */
+export function ordersDueOn(ctx: Ctx, day: string): Order[] {
+  return ctx.db
+    .all<OrderRow>(`${SELECT} WHERE o.status = 'purchased' AND o.eta = ? ORDER BY o.id`, [day])
+    .map(toOrder);
+}
+
 // ---------------------------------------------------------------- taking a deposit
 
 /** The deposit is under the owner's minimum: the owner approves on the spot. */

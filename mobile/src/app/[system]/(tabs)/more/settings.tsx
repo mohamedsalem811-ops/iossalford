@@ -115,6 +115,17 @@ export default function SettingsRoute() {
               }
             : undefined
         }
+        notifications={
+          mayEditRate
+            ? {
+                onOpen: () =>
+                  router.push({
+                    pathname: '/[system]/more/notifications',
+                    params: { system: ctx.system },
+                  }),
+              }
+            : undefined
+        }
         onChangePin={() =>
           router.push({ pathname: '/[system]/change-pin', params: { system: ctx.system } })
         }

@@ -71,6 +71,7 @@ import { deleteScarfDesign, saveScarfDesign } from '@/domain/scarves';
 import { deleteSet, saveSet } from '@/domain/sets';
 import { setRate } from '@/domain/settings';
 import { setProductPrice } from '@/domain/slow-stock';
+import { setNotifyRules } from '@/domain/notify';
 import { addToCart, type CartLine } from '@/domain/cart';
 import { EMPLOYEE, makeCtx, passing, type TestCtx } from '@/domain/testing/ctx';
 import { OWNER } from './model';
@@ -549,6 +550,7 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
       permission: 'repairs.deliver',
       run: (ctx, s) => deliverRepair(ctx, s.readyRepair, { method: 'card' }),
     },
+    setNotifyRules: { permission: 'settings.edit', run: (ctx) => setNotifyRules(ctx, { hour: 8 }) },
     setProductPrice: {
       permission: 'products.edit',
       run: (ctx, s) => setProductPrice(ctx, s.chain, 1_000),

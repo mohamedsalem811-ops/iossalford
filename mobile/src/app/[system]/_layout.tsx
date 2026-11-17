@@ -1,6 +1,7 @@
 import { Redirect, router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCallback, type ReactNode } from 'react';
 
+import { ReminderSync } from '@/features/notifications/scheduler';
 import { AutoBackup } from '@/backup/auto-backup';
 import { KeyboardBar } from '@/components/keyboard-bar';
 import { DbErrorScreen } from '@/screens/db-error';
@@ -114,6 +115,7 @@ function SystemDb({ system }: { system: SystemId }) {
     <CtxProvider db={result.db} system={system}>
       <AutoBackupOfOpenSystem />
       <LogGuardOfOpenSystem />
+      <ReminderSyncOfOpenSystem />
       <IdleLockOfSession>
         <SystemStack />
       </IdleLockOfSession>
@@ -136,6 +138,11 @@ function IdleLockOfSession({ children }: { children: ReactNode }) {
 /** The activity log's waiting lines and its check (phase S3). */
 function LogGuardOfOpenSystem() {
   return <LogGuard ctx={useCtx()} />;
+}
+
+/** The open system's reminders on the device while the app is closed (J6). */
+function ReminderSyncOfOpenSystem() {
+  return <ReminderSync ctx={useCtx()} />;
 }
 
 /** A backup of the open system each time the app goes to the background. */

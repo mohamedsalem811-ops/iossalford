@@ -62,6 +62,12 @@
           "supportedLocales": ["ar"]
         }
       ],
+      [
+        "expo-notifications",
+        {
+          "enableRemoteNotifications": false
+        }
+      ],
       "expo-sqlite",
       "expo-secure-store",
       [

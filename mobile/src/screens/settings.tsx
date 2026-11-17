@@ -24,6 +24,7 @@ export function SettingsScreen({
   errors,
   onEditRate,
   loyalty,
+  notifications,
   onChangePin,
   onAppearance,
 }: {
@@ -39,6 +40,8 @@ export function SettingsScreen({
   /** Loyalty points (F3), for the owner: on or off, and the screen with the rules. */
   /** `setup`: how many of its settings still need doing (H2). */
   loyalty?: { on: boolean; setup?: number; onOpen: () => void };
+  /** Reminders on the device while the app is closed (J6), for the owner. */
+  notifications?: { onOpen: () => void };
   onChangePin: () => void;
   onAppearance: (a: Appearance) => void;
 }) {
@@ -79,6 +82,18 @@ export function SettingsScreen({
           testID="settings-pin"
         />
       </ListGroup>
+      {notifications ? (
+        <ListGroup
+          header="التنبيهات"
+          footer="على هذا الجهاز والتطبيق مغلق: الصيانة والطلبيات والهدايا وأعياد الميلاد والوردية والنسخ الاحتياطي.">
+          <ListRow
+            icon="bell"
+            title="التنبيهات"
+            onPress={notifications.onOpen}
+            testID="settings-notifications"
+          />
+        </ListGroup>
+      ) : null}
       <ListGroup header="المظهر" footer="«تلقائي» يتبع إعداد الجهاز. يطبّق على النظامين.">
         <Segmented
           options={APPEARANCES}
