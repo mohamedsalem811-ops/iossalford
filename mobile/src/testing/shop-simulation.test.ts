@@ -29,6 +29,14 @@ import {
   takeOrder,
 } from '@/domain/orders';
 import { adjustStock, displayName, getProduct, saveProduct } from '@/domain/products';
+import {
+  cancelRepair,
+  deliverRepair,
+  getRepair,
+  moveRepair,
+  takeRepair,
+  type RepairDeliverMethod,
+} from '@/domain/repairs';
 import { reservedCounts } from '@/domain/reserved';
 import { summary } from '@/domain/reports';
 import { getReceipt } from '@/domain/receipts';
@@ -129,6 +137,11 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
   let sales = 0;
   let returns = 0;
   let deposits = 0;
+  /** Repairs (J3): those still in the shop, and the income of those delivered, by month. */
+  const openRepairs: { repairId: number; customerId: number }[] = [];
+  const repairMonth = new Map<string, number>();
+  let repairs = 0;
+  let repairsDelivered = 0;
   let deliveries = 0;
   let cancels = 0;
   let deletes = 0;
@@ -177,6 +190,55 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
     const steps = Math.round((18 + Math.floor(rnd() * 15)) * Number(process.env.BUSY ?? 1));
     for (let step = 0; step < steps; step++) {
       t.setNow(new Date(date.getTime() + Math.floor(((step + 1) * 10 * 3_600_000) / (steps + 1))));
+      if (rnd() < 0.08) {
+        // A repair: taken in with or without a deposit, moved along, delivered, or cancelled.
+        try {
+          if (!openRepairs.length || rnd() < 0.4) {
+            const person = pick(PEOPLE);
+            const price = Math.floor(rnd() * 21) * 5_000;
+            const deposit = price > 0 && rnd() < 0.5 ? price / 2 : 0;
+            const r = takeRepair(ctx, {
+              customer: person,
+              description: 'خاتم للصيانة',
+              work: pick(['resize', 'solder', 'polish', 'clasp', 'stone', 'other'] as const),
+              price,
+              readyBy: dk(new Date(t.now().getTime() + 3 * 86_400_000)),
+              ...(deposit ? { deposit: { amount: deposit, method: 'cash' as const } } : {}),
+            });
+            const cid = customerByPhone(ctx, person.phone)!.id;
+            personOf.set(cid, person);
+            openRepairs.push({ repairId: r.repairId, customerId: cid });
+            drawer += deposit;
+            repairs++;
+          } else {
+            const o = pick(openRepairs);
+            const r = getRepair(ctx, o.repairId)!;
+            if (r.status === 'received') moveRepair(ctx, o.repairId, 'workshop');
+            else if (r.status === 'workshop') moveRepair(ctx, o.repairId, 'ready');
+            else if (rnd() < 0.1) {
+              // The owner cancels: the deposit goes to her balance.
+              t.setActor(OWNER);
+              cancelRepair(ctx, o.repairId, { how: 'balance', reason: 'لم تعد تريدها' });
+              t.setActor(EMPLOYEE);
+              owed.set(o.customerId, (owed.get(o.customerId) ?? 0) - r.paid);
+              openRepairs.splice(openRepairs.indexOf(o), 1);
+            } else {
+              const method = pick<RepairDeliverMethod>(['cash', 'cash', 'card', 'credit']);
+              deliverRepair(ctx, o.repairId, { method });
+              if (method === 'cash') drawer += r.remaining;
+              if (method === 'credit')
+                owed.set(o.customerId, (owed.get(o.customerId) ?? 0) + r.remaining);
+              repairMonth.set(key.slice(0, 7), (repairMonth.get(key.slice(0, 7)) ?? 0) + r.price);
+              openRepairs.splice(openRepairs.indexOf(o), 1);
+              repairsDelivered++;
+            }
+          }
+        } catch (e) {
+          if (!(e instanceof RuleError)) throw e;
+          unexpected(e, 'repair');
+        }
+        continue;
+      }
       const roll = rnd();
       try {
         if (roll < 0.62) {
@@ -494,6 +556,8 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
       ds.payments.cash +
       ds.deposits.taken.cash -
       ds.deposits.refunded.cash +
+      ds.repairs.taken.cash -
+      ds.repairs.refunded.cash +
       ds.cashIn -
       ds.cashOut -
       ds.cashRefunds -
@@ -530,6 +594,10 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
     const total = ours.reduce((n, x) => n + x.total, 0);
     if (s.grossSales !== total) fail(m, `month sales ${s.grossSales}, ours ${total}`);
   }
+  // «دخل الصيانة» by month against ours, apart from sales.
+  for (const [m, income] of repairMonth)
+    if (summary(ctx, [m]).repairIncome !== income)
+      fail(m, `repair income ${summary(ctx, [m]).repairIncome}, ours ${income}`);
   // Receipt numbers never repeat; the activity log's chain holds; the database is sound.
   const dup = t.db.get<{ n: number }>(
     'SELECT count(*) n FROM (SELECT receipt_no FROM receipts GROUP BY receipt_no HAVING count(*) > 1)',
@@ -569,6 +637,8 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
     deletes,
     payouts,
     restocks,
+    repairs,
+    repairsDelivered,
   };
   if (DAYS >= 120)
     for (const [what, n] of Object.entries(counts)) if (n === 0) fail('end', `no ${what} happened`);

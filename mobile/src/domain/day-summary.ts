@@ -52,6 +52,16 @@ export type DaySummary = {
     used: number;
     kept: number;
   };
+  /**
+   * Repairs (J3): delivered that day and their income (the agreed prices), and the money paid
+   * towards repairs and refunded, by cash or not (credit is not money).
+   */
+  repairs: {
+    delivered: number;
+    income: number;
+    taken: { cash: number; other: number };
+    refunded: { cash: number; other: number };
+  };
   cashIn: number;
   cashOut: number;
   expenses: number;
@@ -132,10 +142,10 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
     range,
   ))
     refundsBy[r.m] = r.t;
-  const split = (table: 'payments' | 'payouts' | 'order_payments', kind = '') =>
+  const split = (table: 'payments' | 'payouts' | 'order_payments' | 'repair_payments', kind = '') =>
     one(
       `SELECT coalesce(sum(CASE WHEN method = 'cash' THEN amount END), 0) cash,
-              coalesce(sum(CASE WHEN method NOT IN ('cash', 'order') THEN amount END), 0) other
+              coalesce(sum(CASE WHEN method NOT IN ('cash', 'order', 'repair', 'credit') THEN amount END), 0) other
          FROM ${table} WHERE created_at >= ? AND created_at < ?${kind ? ` AND kind = '${kind}'` : ''}`,
       { cash: 0, other: 0 },
     );
@@ -143,6 +153,13 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
   const payouts = split('payouts');
   const taken = split('order_payments', 'pay');
   const refundedDeposits = split('order_payments', 'refund');
+  const repairsTaken = split('repair_payments', 'pay');
+  const repairsRefunded = split('repair_payments', 'refund');
+  const delivered = one(
+    `SELECT count(*) n, coalesce(sum(price), 0) t FROM repairs
+      WHERE status = 'delivered' AND delivered_at >= ? AND delivered_at < ?`,
+    { n: 0, t: 0 },
+  );
   const orders = one(
     `SELECT coalesce((SELECT sum(settled) FROM orders WHERE cancel_how = 'keep'
                        AND cancelled_at >= ?1 AND cancelled_at < ?2), 0) kept,
@@ -199,6 +216,12 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
     payments,
     payouts,
     deposits: { taken, refunded: refundedDeposits, used: sales.du, kept: orders.kept },
+    repairs: {
+      delivered: delivered.n,
+      income: delivered.t,
+      taken: repairsTaken,
+      refunded: repairsRefunded,
+    },
     cashIn: moves.i,
     cashOut: moves.o,
     expenses,
@@ -206,7 +229,9 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
       byMethod.cash +
       payments.cash +
       taken.cash -
-      refundedDeposits.cash -
+      refundedDeposits.cash +
+      repairsTaken.cash -
+      repairsRefunded.cash -
       ret.cash -
       payouts.cash +
       moves.i -

@@ -233,6 +233,8 @@ export function mergeCustomers(ctx: Ctx, keepId: number, dropId: number) {
       'gifts',
       'offers',
       'message_log',
+      // Database 15 (J3): her repairs.
+      'repairs',
     ])
       ctx.db.run(`UPDATE ${table} SET customer_id = ? WHERE customer_id = ?`, [keepId, dropId]);
     // Bring a friend: the one who was sent keeps one record (the kept one's, if both have one);

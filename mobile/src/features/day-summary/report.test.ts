@@ -27,6 +27,12 @@ const quiet: DaySummary = {
   payments: { cash: 0, other: 0 },
   payouts: { cash: 0, other: 0 },
   deposits: { taken: { cash: 0, other: 0 }, refunded: { cash: 0, other: 0 }, used: 0, kept: 0 },
+  repairs: {
+    delivered: 0,
+    income: 0,
+    taken: { cash: 0, other: 0 },
+    refunded: { cash: 0, other: 0 },
+  },
   cashIn: 0,
   cashOut: 0,
   expenses: 0,

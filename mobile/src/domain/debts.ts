@@ -15,17 +15,25 @@ import { shiftFor } from './shifts';
  * owes the customer ("له رصيد").
  */
 export function balance(ctx: Ctx, customerId: number): number {
-  const r = ctx.db.get<{ owed: number; refunded: number; paid: number; paid_back: number }>(
+  const r = ctx.db.get<{
+    owed: number;
+    refunded: number;
+    repairs: number;
+    paid: number;
+    paid_back: number;
+  }>(
     `SELECT
        coalesce((SELECT sum(total - deposit_used) FROM sales WHERE customer_id = ?1 AND payment_method = 'credit'), 0) AS owed,
        coalesce((SELECT sum(r.refund) FROM returns r JOIN sale_lines l ON l.id = r.sale_line_id
                   JOIN sales s ON s.id = l.sale_id
                  WHERE s.customer_id = ?1 AND r.refund_method IN ('debt', 'balance')), 0) AS refunded,
+       coalesce((SELECT sum(p.amount) FROM repair_payments p JOIN repairs x ON x.id = p.repair_id
+                 WHERE x.customer_id = ?1 AND p.method = 'credit'), 0) AS repairs,
        coalesce((SELECT sum(amount) FROM payments WHERE customer_id = ?1), 0) AS paid,
        coalesce((SELECT sum(amount) FROM payouts WHERE customer_id = ?1), 0) AS paid_back`,
     [customerId],
   )!;
-  return r.owed - r.refunded - r.paid + r.paid_back;
+  return r.owed + r.repairs - r.refunded - r.paid + r.paid_back;
 }
 
 export type Debtor = { customer: Customer; balance: number };
@@ -38,7 +46,8 @@ export type Debtor = { customer: Customer; balance: number };
 export function allBalances(ctx: Ctx): Map<number, number> {
   const rows = ctx.db.all<{ id: number; balance: number }>(
     `SELECT c.id,
-            coalesce(o.owed, 0) - coalesce(r.refunded, 0) - coalesce(p.paid, 0) + coalesce(b.back, 0)
+            coalesce(o.owed, 0) + coalesce(x.owed, 0) - coalesce(r.refunded, 0) - coalesce(p.paid, 0)
+              + coalesce(b.back, 0)
               AS balance
        FROM customers c
        LEFT JOIN (SELECT customer_id, sum(total - deposit_used) AS owed FROM sales
@@ -48,11 +57,14 @@ export function allBalances(ctx: Ctx): Map<number, number> {
                     JOIN sale_lines l ON l.id = r.sale_line_id JOIN sales s ON s.id = l.sale_id
                    WHERE r.refund_method IN ('debt', 'balance') AND s.customer_id IS NOT NULL
                    GROUP BY s.customer_id) r ON r.customer_id = c.id
+       LEFT JOIN (SELECT x.customer_id, sum(p.amount) AS owed FROM repair_payments p
+                    JOIN repairs x ON x.id = p.repair_id WHERE p.method = 'credit'
+                   GROUP BY x.customer_id) x ON x.customer_id = c.id
        LEFT JOIN (SELECT customer_id, sum(amount) AS paid FROM payments GROUP BY customer_id) p
               ON p.customer_id = c.id
        LEFT JOIN (SELECT customer_id, sum(amount) AS back FROM payouts GROUP BY customer_id) b
               ON b.customer_id = c.id
-      WHERE o.owed IS NOT NULL OR r.refunded IS NOT NULL OR p.paid IS NOT NULL OR b.back IS NOT NULL`,
+      WHERE o.owed IS NOT NULL OR x.owed IS NOT NULL OR r.refunded IS NOT NULL OR p.paid IS NOT NULL OR b.back IS NOT NULL`,
   );
   return new Map(rows.filter((r) => r.balance !== 0).map((r) => [r.id, r.balance]));
 }
@@ -254,6 +266,8 @@ export function deleteCustomer(ctx: Ctx, id: number) {
     if (credit) throw new RuleError(`لا يمكن حذف «${c.name}»: له تعاملات آجلة مسجلة`);
     if (ctx.db.get('SELECT 1 FROM orders WHERE customer_id = ? LIMIT 1', [id]))
       throw new RuleError(`لا يمكن حذف «${c.name}»: لها طلبات بعربون مسجلة`);
+    if (ctx.db.get('SELECT 1 FROM repairs WHERE customer_id = ? LIMIT 1', [id]))
+      throw new RuleError(`لا يمكن حذف «${c.name}»: لها صيانة مسجلة`);
     const points = pointsBalance(ctx, id);
     if (points > 0) throw new RuleError(`لا يمكن حذف «${c.name}»: له ${points} نقطة ولاء`);
     // No points left: their history goes with them.
@@ -264,8 +278,8 @@ export function deleteCustomer(ctx: Ctx, id: number) {
 }
 
 export type StatementLine = {
-  kind: 'sale' | 'refund' | 'payment' | 'payout';
-  /** The sale, return, payment or payout id. */
+  kind: 'sale' | 'refund' | 'payment' | 'payout' | 'repair';
+  /** The sale, return, payment, payout or repair id. */
   id: number;
   saleId: number | null;
   createdAt: string;
@@ -295,6 +309,10 @@ export function statement(ctx: Ctx, customerId: number): StatementLine[] {
      SELECT 'refund', r.id, s.id, r.created_at, -r.refund, r.reason
        FROM returns r JOIN sale_lines l ON l.id = r.sale_line_id JOIN sales s ON s.id = l.sale_id
       WHERE s.customer_id = ?1 AND r.refund_method IN ('debt', 'balance')
+     UNION ALL
+     SELECT 'repair', x.id, NULL, p.created_at, p.amount, 'صيانة ' || x.ticket_no
+       FROM repair_payments p JOIN repairs x ON x.id = p.repair_id
+      WHERE x.customer_id = ?1 AND p.method = 'credit'
      UNION ALL
      SELECT 'payment', id, NULL, created_at, -amount, coalesce(note, method)
        FROM payments WHERE customer_id = ?1

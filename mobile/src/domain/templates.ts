@@ -13,7 +13,8 @@ export type TemplateKind =
   | 'birthday'
   | 'orderEta'
   | 'orderArrived'
-  | 'orderWaiting';
+  | 'orderWaiting'
+  | 'repairReady';
 
 export const TEMPLATE_KINDS: TemplateKind[] = [
   'thanks',
@@ -25,6 +26,7 @@ export const TEMPLATE_KINDS: TemplateKind[] = [
   'orderEta',
   'orderArrived',
   'orderWaiting',
+  'repairReady',
 ];
 
 export const TEMPLATE_LABELS: Record<TemplateKind, string> = {
@@ -37,6 +39,7 @@ export const TEMPLATE_LABELS: Record<TemplateKind, string> = {
   orderEta: 'الطلب: موعد الوصول',
   orderArrived: 'الطلب: جاهز للاستلام',
   orderWaiting: 'الطلب: تذكير بالاستلام',
+  repairReady: 'الصيانة: جاهزة للاستلام',
 };
 
 /** The fill-ins each message may use, as the owner types them. */
@@ -50,6 +53,7 @@ export const FILL_INS: Record<TemplateKind, string[]> = {
   orderEta: ['{الاسم}', '{القطعة}', '{رقم}', '{الموعد}'],
   orderArrived: ['{الاسم}', '{طلبك}', '{القطعة}', '{رقم}', '{الباقي}'],
   orderWaiting: ['{الاسم}', '{طلبك}', '{القطعة}', '{رقم}', '{الباقي}'],
+  repairReady: ['{الاسم}', '{القطعة}', '{رقم}', '{الباقي}'],
 };
 
 export const DEFAULT_TEMPLATES: Record<TemplateKind, string> = {
@@ -67,6 +71,8 @@ export const DEFAULT_TEMPLATES: Record<TemplateKind, string> = {
     'أهلاً {الاسم}،\n{طلبك} «{القطعة}» (رقم {رقم}) بانتظارك للاستلام 🎁{الباقي}\nبانتظارك في SALFORD',
   orderWaiting:
     'أهلاً {الاسم}، تذكير لطيف: {طلبك} «{القطعة}» (رقم {رقم}) ما زال بانتظارك للاستلام 🎁{الباقي}\nSALFORD',
+  repairReady:
+    'أهلاً {الاسم}،\nقطعتك «{القطعة}» (إيصال الصيانة {رقم}) جاهزة للاستلام ✨{الباقي}\nبانتظارك في SALFORD',
 };
 
 /** Defaults the app once had: a saved copy of one of these follows the new default. */

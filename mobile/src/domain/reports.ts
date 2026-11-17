@@ -24,7 +24,11 @@ export type PeriodSummary = {
   netSales: number;
   /** Deposits the shop kept on orders cancelled after the piece was bought (I1). */
   otherIncome: number;
-  /** grossProfit − (refunds − returnedCost) − expenses + otherIncome. */
+  /** «دخل الصيانة» (J3): the agreed prices of the repairs delivered, and the workshop's cost. */
+  repairIncome: number;
+  repairCost: number;
+  repairs: number;
+  /** grossProfit − (refunds − returnedCost) − expenses + otherIncome + repairIncome − repairCost. */
   netProfit: number;
   /** Sales and gross profit in US cents, each sale at its own rate. */
   grossSalesUsd: number;
@@ -73,8 +77,14 @@ export function summary(ctx: Ctx, months: string[]): PeriodSummary {
       WHERE cancel_how = 'keep' AND substr(cancelled_at, 1, 7) IN (${m.sql})`,
     m.params,
   )!.t;
+  const rep = ctx.db.get<{ n: number; income: number; cost: number }>(
+    `SELECT count(*) n, coalesce(sum(price), 0) income, coalesce(sum(cost), 0) cost FROM repairs
+      WHERE status = 'delivered' AND substr(delivered_at, 1, 7) IN (${m.sql})`,
+    m.params,
+  )!;
   const grossProfit = s.sales - s.cost;
-  const netProfit = grossProfit - (r.refunds - r.cost) - expenses + otherIncome;
+  const netProfit =
+    grossProfit - (r.refunds - r.cost) - expenses + otherIncome + rep.income - rep.cost;
   return {
     grossSales: s.sales,
     costOfSales: s.cost,
@@ -86,6 +96,9 @@ export function summary(ctx: Ctx, months: string[]): PeriodSummary {
     itemsSold: items,
     itemsReturned: r.q,
     otherIncome,
+    repairIncome: rep.income,
+    repairCost: rep.cost,
+    repairs: rep.n,
     netSales: s.sales - r.refunds,
     netProfit,
     grossSalesUsd: usd.sales,

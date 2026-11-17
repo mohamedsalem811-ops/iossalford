@@ -180,6 +180,9 @@ export type ShiftTotals = {
   /** Deposits taken on orders (I1), less deposits refunded: in all, and in cash. */
   deposits: number;
   cashDeposits: number;
+  /** Paid towards repairs (J3), less refunds, in money (credit is not): in all, and in cash. */
+  repairs: number;
+  cashRepairs: number;
   cashIn: number;
   cashOut: number;
   /** Taken off list prices, and the owner's approvals (discounts and returns past the rules). */
@@ -239,6 +242,12 @@ export function shiftTotals(ctx: Ctx, shift: Pick<Shift, 'id' | 'openingCash'>):
        FROM order_payments WHERE shift_id = ?`,
     [id],
   ) ?? { t: 0, cash: 0 };
+  const repairs = ctx.db.get<{ t: number; cash: number }>(
+    `SELECT coalesce(sum(CASE WHEN method = 'credit' THEN 0 WHEN kind = 'pay' THEN amount ELSE -amount END), 0) t,
+            coalesce(sum(CASE WHEN method <> 'cash' THEN 0 WHEN kind = 'pay' THEN amount ELSE -amount END), 0) cash
+       FROM repair_payments WHERE shift_id = ?`,
+    [id],
+  ) ?? { t: 0, cash: 0 };
   const orderApprovals =
     ctx.db.get<{ n: number }>('SELECT count(approved_by) n FROM orders WHERE shift_id = ?', [id])
       ?.n ?? 0;
@@ -253,6 +262,8 @@ export function shiftTotals(ctx: Ctx, shift: Pick<Shift, 'id' | 'openingCash'>):
     cashPayouts,
     deposits: deposits.t,
     cashDeposits: deposits.cash,
+    repairs: repairs.t,
+    cashRepairs: repairs.cash,
     cashIn: moves.i,
     cashOut: moves.o,
     discounts: sales.d,
@@ -262,6 +273,7 @@ export function shiftTotals(ctx: Ctx, shift: Pick<Shift, 'id' | 'openingCash'>):
       byMethod.cash +
       cashPayments +
       deposits.cash +
+      repairs.cash +
       moves.i -
       moves.o -
       ret.cash -

@@ -203,7 +203,8 @@ function photoNames(ctx: Ctx): string[] {
       `SELECT image_file AS f FROM products WHERE image_file IS NOT NULL
        UNION SELECT image_file FROM brands WHERE image_file IS NOT NULL
        UNION SELECT image_file FROM customers WHERE image_file IS NOT NULL
-       UNION SELECT image_file FROM orders WHERE image_file IS NOT NULL`,
+       UNION SELECT image_file FROM orders WHERE image_file IS NOT NULL
+       UNION SELECT json_each.value FROM repairs, json_each(repairs.photos)`,
     )
     .map((r) => r.f);
 }

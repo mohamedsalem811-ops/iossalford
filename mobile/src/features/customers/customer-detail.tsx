@@ -37,6 +37,7 @@ const LINE_LABEL: Record<StatementLine['kind'], string> = {
   refund: 'مرتجع',
   payment: 'دفعة',
   payout: 'رد من رصيده',
+  repair: 'صيانة آجل',
 };
 
 /**
