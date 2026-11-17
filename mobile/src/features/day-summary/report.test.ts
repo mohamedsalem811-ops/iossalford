@@ -56,6 +56,18 @@ describe('the end-of-day page', () => {
     expect(busy.flatMap((s) => s.rows)).toContainEqual({ label: 'عجز في العدّ', value: '−5 د.ل' });
   });
 
+  it('says how the refunds went back, only the ways used (J2)', () => {
+    const rows = daySections({
+      ...quiet,
+      returns: 2,
+      refunded: 300_000,
+      refundsBy: { cash: 0, card: 100_000, transfer: 0, balance: 200_000, debt: 0 },
+    }).flatMap((s) => s.rows);
+    expect(rows).toContainEqual({ label: '  منها بطاقة', value: '100 د.ل' });
+    expect(rows).toContainEqual({ label: '  منها رصيد للزبون', value: '200 د.ل' });
+    expect(rows.map((r) => r.label)).not.toContain('  منها كاش');
+  });
+
   it('prints names safely', () => {
     const html = daySummaryHtml(
       { ...quiet, bySeller: [...quiet.bySeller, { name: '<b>x</b>', sales: 1, total: 1_000 }] },

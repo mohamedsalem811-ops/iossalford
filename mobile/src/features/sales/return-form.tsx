@@ -34,7 +34,10 @@ import {
   hoursSince,
   soldAtOfLine,
   maxRefund,
+  REFUND_METHOD_LABELS,
+  refundChoicesForLine,
   ReturnRefused,
+  type RefundMethod,
   type ReturnInput,
 } from '@/domain/sales';
 import { PhotoPicker } from '@/features/products/photo-picker';
@@ -84,6 +87,11 @@ export function ReturnForm({
   const [swapMethod, setSwapMethod] = useState<PaymentMethod>('cash');
   const [policies] = useState(() => getPolicies(ctx));
   const [soldAt] = useState(() => (saleLineId ? soldAtOfLine(ctx, saleLineId) : undefined));
+  // How the money goes back (J2): it starts on how the sale was paid.
+  const [ways] = useState<RefundMethod[]>(() =>
+    saleLineId ? refundChoicesForLine(ctx, saleLineId) : ['cash', 'card', 'transfer'],
+  );
+  const [refundMethod, setRefundMethod] = useState<RefundMethod>(ways[0]);
   const owner = useActor()?.kind === 'owner';
   const { cart } = useCart(ctx.system);
   const swapTotal = cartTotal(cart);
@@ -114,6 +122,7 @@ export function ReturnForm({
           photo: photo ?? undefined,
           answers,
           override,
+          refundMethod,
         };
         if (swap && cart.length) {
           const r = exchange(ctx, {
@@ -130,6 +139,7 @@ export function ReturnForm({
           refund: check.refund!,
           reason,
           photo: photo ?? undefined,
+          refundMethod,
         });
     } catch (error) {
       if (error instanceof ReturnRefused && !override) {
@@ -324,6 +334,38 @@ export function ReturnForm({
             placeholder="أو اكتب السبب"
             testID="return-reason"
           />
+        </Card>
+
+        <Card testID="return-method">
+          <Text variant="subhead" tone="secondary">
+            طريقة إعادة المبلغ
+          </Text>
+          {ways.length === 1 && ways[0] === 'debt' ? (
+            <Text variant="body" testID="return-method-debt">
+              بيعة آجل: يُخصم المبلغ من دين الزبون.
+            </Text>
+          ) : (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+              {ways.map((m) => (
+                <FilterChip
+                  key={m}
+                  label={REFUND_METHOD_LABELS[m]}
+                  selected={refundMethod === m}
+                  onPress={() => setRefundMethod(m)}
+                  testID={`return-method-${m}`}
+                />
+              ))}
+            </View>
+          )}
+          <Text variant="caption" tone="secondary">
+            {refundMethod === 'cash'
+              ? 'يخرج من الدرج.'
+              : refundMethod === 'balance'
+                ? 'يُضاف إلى رصيد الزبون، يستعمله عند الدفع لاحقاً.'
+                : refundMethod === 'debt'
+                  ? 'لا يخرج مال من الدرج.'
+                  : 'لا يخرج من الدرج: يُعاد على البطاقة أو بالتحويل.'}
+          </Text>
         </Card>
 
         {line ? (

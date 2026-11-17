@@ -170,12 +170,22 @@ it('shows the sale, takes a return against its line, lists it, and undoes it', a
   );
   await fireEvent.changeText(screen.getByTestId('return-refund'), '');
   await fireEvent.changeText(screen.getByTestId('return-reason'), 'المقاس');
+  // How it goes back (J2): cash first (how she paid); she has a name, so her balance too.
+  expect(screen.getByTestId('return-method')).toHaveTextContent(/كاش.*بطاقة.*تحويل.*رصيد للزبون/);
+  await fireEvent.press(screen.getByTestId('return-method-balance'));
+  expect(screen.getByTestId('return-method')).toHaveTextContent(/يُضاف إلى رصيد الزبون/);
   await fireEvent.press(screen.getByTestId('return-save'));
   expect(listReturns(ctx())).toMatchObject([
-    { quantity: 2, refund: 700_000, reason: 'المقاس', photo: 'return.jpg' },
+    {
+      quantity: 2,
+      refund: 700_000,
+      reason: 'المقاس',
+      photo: 'return.jpg',
+      refundMethod: 'balance',
+    },
   ]);
   expect(getProduct(ctx(), ring)!.stock).toBe(4); // 5 − 3 sold + 2 back
-  expect(await screen.findByText('أُرجع 2 من 3')).toBeOnTheScreen();
+  expect(await screen.findByText('أُرجع 2 من 3 • رصيد للزبون')).toBeOnTheScreen();
 
   // The returns list; undoing the return takes the pieces out of stock again.
   await act(() => router.push('/jewelry/more/returns'));
@@ -215,8 +225,16 @@ it('records a return of a piece sold before the app, with the amount given back'
   expect(alert).toHaveBeenLastCalledWith('لم يتم الحفظ', 'اكتب المبلغ الذي أُعيد للزبون');
   await fireEvent.changeText(screen.getByTestId('return-refund'), '300');
   await fireEvent.press(screen.getByTestId('return-save'));
+  // No customer to hold a balance: cash, card or transfer only.
+  expect(screen.queryByTestId('return-method-balance')).toBeNull();
   expect(listReturns(ctx())).toMatchObject([
-    { saleLineId: null, quantity: 1, refund: 300_000, reason: 'مرتجع بدون فاتورة' },
+    {
+      saleLineId: null,
+      quantity: 1,
+      refund: 300_000,
+      reason: 'مرتجع بدون فاتورة',
+      refundMethod: 'cash',
+    },
   ]);
   expect(getProduct(ctx(), ring)!.stock).toBe(6);
 });

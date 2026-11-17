@@ -8,6 +8,7 @@ import { File, Paths } from 'expo-file-system';
 
 import { PAYMENT_LABELS, PAYMENT_METHODS } from '@/domain/checkout';
 import type { DayShift, DaySummary } from '@/domain/day-summary';
+import { REFUND_METHOD_LABELS, REFUND_METHODS } from '@/domain/sales';
 import { differenceText } from '@/domain/shifts';
 import { formatDay, formatTime } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
@@ -115,6 +116,11 @@ export function daySections(d: DaySummary): Section[] {
       title: 'أخرى',
       rows: [
         { label: 'المرتجعات', value: `${d.returns} • ${formatLyd(d.refunded)}` },
+        // How the money went back (J2): only the cash came out of the drawer.
+        ...REFUND_METHODS.filter((m) => d.refundsBy[m] > 0).map((m) => ({
+          label: `  منها ${REFUND_METHOD_LABELS[m]}`,
+          value: formatLyd(d.refundsBy[m]),
+        })),
         ...some([
           d.payments.other > 0 && {
             label: 'دفعات ديون ببطاقة أو تحويل',

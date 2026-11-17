@@ -46,6 +46,15 @@ describe('the shift report', () => {
     expect(rows['موافقات المالك']).toBe('1');
   });
 
+  it('lists the refunds that went back another way than cash (J2)', () => {
+    const rows = reportRows({
+      ...report,
+      totals: { ...totals, refundsBy: { ...totals.refundsBy, transfer: 50_000 } },
+    });
+    expect(rows).toContainEqual({ label: 'منها تحويل', value: '50 د.ل' });
+    expect(reportRows(report).map((r) => r.label)).not.toContain('منها بطاقة');
+  });
+
   it('is an Arabic right-to-left page, with names escaped', () => {
     const html = shiftReportHtml(report);
     expect(html).toContain('dir="rtl"');

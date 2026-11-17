@@ -545,6 +545,29 @@ function saleOfLine(ctx: Ctx, saleId: number) {
   }>('SELECT created_at, payment_method, customer_id FROM sales WHERE id = ?', [saleId]);
 }
 
+/** For each line of a sale with returns, the ways their money went back (J2), as labels. */
+export function refundWaysOfSale(ctx: Ctx, saleId: number): Map<number, string> {
+  const ways = new Map<number, RefundMethod[]>();
+  for (const r of ctx.db.all<{ line: number; m: RefundMethod }>(
+    `SELECT DISTINCT r.sale_line_id line, r.refund_method m FROM returns r
+       JOIN sale_lines l ON l.id = r.sale_line_id WHERE l.sale_id = ? ORDER BY r.id`,
+    [saleId],
+  ))
+    ways.set(r.line, [...(ways.get(r.line) ?? []), r.m]);
+  return new Map(
+    [...ways].map(([line, ms]) => [line, ms.map((m) => REFUND_METHOD_LABELS[m]).join('، ')]),
+  );
+}
+
+/** The ways a return of this sale line can be paid back, the default first (J2). */
+export function refundChoicesForLine(ctx: Ctx, lineId: number): RefundMethod[] {
+  const s = ctx.db.get<{ payment_method: PaymentMethod; customer_id: number | null }>(
+    'SELECT s.payment_method, s.customer_id FROM sales s JOIN sale_lines l ON l.sale_id = s.id WHERE l.id = ?',
+    [lineId],
+  );
+  return refundChoices(s ? { paymentMethod: s.payment_method, customerId: s.customer_id } : null);
+}
+
 /** When the sale of a line was made (for the return window shown on the form). */
 export function soldAtOfLine(ctx: Ctx, lineId: number): string | undefined {
   return ctx.db.get<{ created_at: string }>(
