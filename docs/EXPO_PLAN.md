@@ -941,9 +941,9 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 
 **Owner's choices (2026-11-17),** after the full check of the app (code, flows, screenshots, three busy years of simulated use and a 100,000-sale load test; no change made by the check):
 
-- One `.ipa` at the end of the phase; nothing goes out as an instant update before it (database 13 and 14, a camera and reminders, so it needs a new `.ipa` anyway).
+- One `.ipa` at the end of the phase; nothing goes out as an instant update before it (databases 13 and 14 and the reminders need a new `.ipa` anyway).
 - The 2 TB iPad is the till; the backup copies kept on the device stay as they are (10 newest plus one a day for 7 days).
-- Not now: suppliers and receiving stock, gift vouchers, staff targets. iCloud backup stays in Phase 11.
+- Not now: suppliers and receiving stock, gift vouchers, staff targets, scanning with the camera, price tags. iCloud backup stays in Phase 11.
 - Built in this order, one draft pull request for the phase, each part pushed as it is done, with Jest tests (a failing test first for every bug) and a Maestro flow for every new screen. `npm run check`, `npm run speed` and `npx expo-doctor` before every push.
 
 **J1 – Fixes from the full check**
@@ -963,21 +963,7 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 - The return receipt and the sale's page show the method; the returns list can filter by it.
 - **Database 13:** `returns.refund_method` ('cash', 'card', 'transfer', 'balance', 'debt'). The upgrade sets 'debt' for returns of credit sales and 'cash' for the rest (what the app assumed until now), so no past figure changes. Saved copy first, foreign keys checked, older backups upgraded, a test restoring a backup from schema 1.
 
-**J3 – Scan to sell (the iPad camera)**
-
-- `expo-camera` (in Expo Go too, so the preview keeps working); the Arabic camera text in the app's settings.
-- **Sale screen:** a scan button; scanning a piece's code adds it to the cart (a short sound and vibration); an unknown code says so. Keeps scanning for the next piece until closed.
-- **Products:** scanning opens the piece. **Stock count:** scanning a piece counts one more (still blind for employees).
-- **Her own card:** the membership card gets a personal QR (a code unique to her, never her phone number), to share with her by WhatsApp or print; at checkout, scanning it picks her. The rewards card keeps the shop's WhatsApp QR.
-- Reads the QR codes of J4 and the barcodes already on brand pieces when they carry the piece's code (SKU).
-
-**J4 – Price tags and labels**
-
-- Print tags with the brand, the piece's name and size, the price (or no price), the code as text and as a QR that J3 scans; SALFORD's name small.
-- From **Products:** choose pieces (or a brand, or a category) and how many tags each; from a **stock arrival** (adjust stock, a new piece, an arrived order): its tags in one tap.
-- Printed with the same printing as the receipts, on label sheets. **Owner to say** which label paper: A4 sticker sheets (e.g. 24 or 65 a sheet) or a small jewellery-tag printer; the first layout follows that answer.
-
-**J5 – Repairs and services, صيانة (database 14)**
+**J3 – Repairs and services, صيانة (database 14)**
 
 - **New repair:** the customer (name and phone), the piece (description and photos), what to do (تصغير أو تكبير المقاس، لحام، تلميع، تغيير قفل، تبديل حجر، أخرى), notes, the price agreed (0 for free), the date it will be ready, and an optional deposit (cash, card or transfer).
 - **Stages:** استُلمت → في الورشة → جاهزة → سُلّمت, or ملغاة (the deposit back or to her balance, as for deposit orders). The workshop's cost (owner only) for the profit.
@@ -988,25 +974,25 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 - Permissions `repairs.take`, `repairs.deliver` (employees yes), `repairs.cost`, `repairs.cancel` (owner), in the permission test with their log lines. Backups carry the repair photos.
 - **Database 14:** tables `repairs` and `repair_payments` (unique ids, the device, the shift), upgrade tests from 12 and 13.
 
-**J6 – Profit by brand, category and piece**
+**J4 – Profit by brand, category and piece**
 
 - Management → المال → **الأرباح** (owner only): a month, a quarter or a year; for each brand its sales, pieces, cost, profit and margin, after returns; tap a brand for its categories, a category for its pieces; sorted by profit or by margin.
 - From the costs each sale kept, so a later price or cost change never changes the past. A PDF to share. Speed-test line.
 
-**J7 – Slow-moving stock**
+**J5 – Slow-moving stock**
 
 - Products → **الراكدة** (owner): pieces in stock with no sale in 60, 90 or 180 days (or never sold since they came in), how long, and the money tied up in them (cost × stock), by brand.
-- Tap a piece to change its price (logged), then print its new tag (J4). Sorted by money tied up. Speed-test line.
+- Tap a piece to change its price (logged). Sorted by money tied up. Speed-test line.
 
-**J8 – Reminders on the iPad while the app is closed**
+**J6 – Reminders on the iPad while the app is closed**
 
 - `expo-notifications`, **local reminders only** (scheduled on the device, no internet, no Apple push service): an order or repair due or late, a repair or order ready and not collected, a gift date next week, birthdays this morning, the shift-closing hour for an open shift, and the off-device backup reminder.
 - Settings → التنبيهات: each kind on or off and the time of day; the lock screen shows no customer phone, and the owner can hide names there.
-- **Checked first:** when phase I was planned, reminders were marked not possible with a Sideloadly install. Local reminders don't need Apple's push service, so they should work: the first step builds the `.ipa` with local reminders only (no push entitlement) and the owner installs it with Sideloadly. If it can't be installed or the reminders don't show, J8 moves to Phase 11 (signed builds) and the in-app reminders stay as they are.
+- **Checked first:** when phase I was planned, reminders were marked not possible with a Sideloadly install. Local reminders don't need Apple's push service, so they should work: the first step builds the `.ipa` with local reminders only (no push entitlement) and the owner installs it with Sideloadly. If it can't be installed or the reminders don't show, J6 moves to Phase 11 (signed builds) and the in-app reminders stay as they are.
 
-**J9 – End of the phase**
+**J7 – End of the phase**
 
-- Self-check of the whole phase against this plan and real use at the counter (the iPad as the till: scanning, tags, repairs); every new screen at iPad width, upright and sideways.
+- Self-check of the whole phase against this plan and real use at the counter (the iPad as the till: refunds, repairs, the reports, the reminders); every new screen at iPad width, upright and sideways.
 - Maestro flows for every new screen, ready for 10.0 (no simulator run during the build, as decided).
 - The `.ipa` built and installed, then recorded for instant updates (`npm run update:record`).
 
