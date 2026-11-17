@@ -9,7 +9,8 @@ import { shiftFor } from './shifts';
 
 /**
  * What a customer still owes: their credit (آجل) sales (less any deposit paid before, I1), minus
- * refunds on returns of those sales, minus payments received (a deposit moved to her balance is a
+ * refunds taken off the debt or put on her balance (J2: returns of credit sales, and refunds
+ * «رصيد للزبون» of any sale), minus payments received (a deposit moved to her balance is a
  * payment with method 'order'), plus what the shop paid back to them. Negative means the shop
  * owes the customer ("له رصيد").
  */
@@ -19,7 +20,7 @@ export function balance(ctx: Ctx, customerId: number): number {
        coalesce((SELECT sum(total - deposit_used) FROM sales WHERE customer_id = ?1 AND payment_method = 'credit'), 0) AS owed,
        coalesce((SELECT sum(r.refund) FROM returns r JOIN sale_lines l ON l.id = r.sale_line_id
                   JOIN sales s ON s.id = l.sale_id
-                 WHERE s.customer_id = ?1 AND s.payment_method = 'credit'), 0) AS refunded,
+                 WHERE s.customer_id = ?1 AND r.refund_method IN ('debt', 'balance')), 0) AS refunded,
        coalesce((SELECT sum(amount) FROM payments WHERE customer_id = ?1), 0) AS paid,
        coalesce((SELECT sum(amount) FROM payouts WHERE customer_id = ?1), 0) AS paid_back`,
     [customerId],
@@ -45,13 +46,13 @@ export function allBalances(ctx: Ctx): Map<number, number> {
                    GROUP BY customer_id) o ON o.customer_id = c.id
        LEFT JOIN (SELECT s.customer_id, sum(r.refund) AS refunded FROM returns r
                     JOIN sale_lines l ON l.id = r.sale_line_id JOIN sales s ON s.id = l.sale_id
-                   WHERE s.payment_method = 'credit' AND s.customer_id IS NOT NULL
+                   WHERE r.refund_method IN ('debt', 'balance') AND s.customer_id IS NOT NULL
                    GROUP BY s.customer_id) r ON r.customer_id = c.id
        LEFT JOIN (SELECT customer_id, sum(amount) AS paid FROM payments GROUP BY customer_id) p
               ON p.customer_id = c.id
        LEFT JOIN (SELECT customer_id, sum(amount) AS back FROM payouts GROUP BY customer_id) b
               ON b.customer_id = c.id
-      WHERE o.owed IS NOT NULL OR p.paid IS NOT NULL OR b.back IS NOT NULL`,
+      WHERE o.owed IS NOT NULL OR r.refunded IS NOT NULL OR p.paid IS NOT NULL OR b.back IS NOT NULL`,
   );
   return new Map(rows.filter((r) => r.balance !== 0).map((r) => [r.id, r.balance]));
 }
@@ -293,7 +294,7 @@ export function statement(ctx: Ctx, customerId: number): StatementLine[] {
      UNION ALL
      SELECT 'refund', r.id, s.id, r.created_at, -r.refund, r.reason
        FROM returns r JOIN sale_lines l ON l.id = r.sale_line_id JOIN sales s ON s.id = l.sale_id
-      WHERE s.customer_id = ?1 AND s.payment_method = 'credit'
+      WHERE s.customer_id = ?1 AND r.refund_method IN ('debt', 'balance')
      UNION ALL
      SELECT 'payment', id, NULL, created_at, -amount, coalesce(note, method)
        FROM payments WHERE customer_id = ?1

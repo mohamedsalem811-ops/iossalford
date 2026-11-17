@@ -26,6 +26,7 @@ const totals: ShiftTotals = {
   returns: 1,
   refunded: 0,
   cashRefunds: 0,
+  refundsBy: { cash: 0, card: 0, transfer: 0, balance: 0, debt: 0 },
   cashPayments: 0,
   cashIn: 0,
   cashOut: 20_000,

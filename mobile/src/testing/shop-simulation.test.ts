@@ -32,7 +32,7 @@ import { adjustStock, displayName, getProduct, saveProduct } from '@/domain/prod
 import { reservedCounts } from '@/domain/reserved';
 import { summary } from '@/domain/reports';
 import { getReceipt } from '@/domain/receipts';
-import { addReturn, deleteSale, getSale } from '@/domain/sales';
+import { addReturn, deleteSale, getSale, refundChoices, type RefundMethod } from '@/domain/sales';
 import { getSet, saveSet, setForCart } from '@/domain/sets';
 import { closeShift, openShift, shiftTotals, getShift } from '@/domain/shifts';
 import { verifyLog } from '@/domain/activity';
@@ -137,6 +137,14 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
   let payouts = 0;
   let restocks = 0;
   let setSales = 0;
+  let otherWay = 0;
+  /** A refund paid back: what leaves the drawer (cash), or what comes off what she owes. */
+  const paidBack = (customerId: number | null, how: RefundMethod, refund: number) => {
+    if (how === 'cash') return refund;
+    if ((how === 'debt' || how === 'balance') && customerId)
+      owed.set(customerId, (owed.get(customerId) ?? 0) - refund);
+    return 0;
+  };
 
   for (let day = 0; day < DAYS; day++) {
     const date = new Date(2026, 0, 3 + day, 9, 0);
@@ -254,21 +262,23 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
           if (!sale) continue;
           const line = sale.lines.find((l) => l.quantity - l.returned > 0);
           if (!line) continue;
+          // Paid back any way the sale allows (J2): only cash leaves the drawer.
+          const how = pick(refundChoices({ paymentMethod: s.method, customerId: s.customerId }));
           const rid = addReturn(ctx, {
             saleLineId: line.id,
             quantity: 1,
             reason: 'لم يناسبها',
+            refundMethod: how,
             ...passing(ctx),
           });
+          if (how !== s.method) otherWay++;
           returns++;
           const refund = t.db.get<{ refund: number }>('SELECT refund FROM returns WHERE id = ?', [
             rid,
           ])!.refund;
           refunded(key, refund);
           stock.set(line.productId!, stock.get(line.productId!)! + 1);
-          if (s.method === 'credit' && s.customerId)
-            owed.set(s.customerId, (owed.get(s.customerId) ?? 0) - refund);
-          else drawer -= refund;
+          drawer -= paidBack(s.customerId, how, refund);
         } else if (roll < 0.78) {
           // A debt payment, in cash, from someone who owes.
           const debtors = [...owed.entries()].filter(([, v]) => v > 0);
@@ -384,8 +394,15 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
           if (!('cart' in r)) continue;
           const person = s.customerId ? personOf.get(s.customerId) : undefined;
           const method: PaymentMethod = s.method === 'credit' ? 'credit' : 'cash';
+          const how = pick(refundChoices({ paymentMethod: s.method, customerId: s.customerId }));
           const res = exchange(ctx, {
-            ret: { saleLineId: line.id, quantity: 1, reason: 'استبدال', ...passing(ctx) },
+            ret: {
+              saleLineId: line.id,
+              quantity: 1,
+              reason: 'استبدال',
+              refundMethod: how,
+              ...passing(ctx),
+            },
             sale: { cart: r.cart, paymentMethod: method, customer: person },
           });
           exchanges++;
@@ -396,11 +413,10 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
           stock.set(line.productId!, stock.get(line.productId!)! + 1);
           stock.set(id, stock.get(id)! - 1);
           const newSale = getSale(ctx, res.saleId)!;
-          if (method === 'credit' && s.customerId) {
-            owed.set(s.customerId, (owed.get(s.customerId) ?? 0) - refund + newSale.total);
-          } else {
-            drawer += newSale.total - newSale.pointsPaid - refund;
-          }
+          drawer -= paidBack(s.customerId, how, refund);
+          if (method === 'credit' && s.customerId)
+            owed.set(s.customerId, (owed.get(s.customerId) ?? 0) + newSale.total);
+          else drawer += newSale.total - newSale.pointsPaid;
           saleMonth.set(res.saleId, {
             month: key.slice(0, 7),
             total: newSale.total,
@@ -543,6 +559,7 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
   const counts = {
     sales,
     setSales,
+    otherWay,
     deliveries,
     exchanges,
     usedPoints,

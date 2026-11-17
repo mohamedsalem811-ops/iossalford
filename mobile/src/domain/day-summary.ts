@@ -8,6 +8,7 @@ import { nextDayKey } from '@/lib/dates';
 import { PAYMENT_METHODS, type PaymentMethod } from './checkout';
 import { allowView, type Ctx } from './context';
 import { listShiftsOn, shiftTotals, type Shift, type ShiftTotals } from './shifts';
+import type { RefundMethod } from './sales';
 
 export type DayShift = { shift: Shift; totals: ShiftTotals };
 
@@ -34,8 +35,10 @@ export type DaySummary = {
   approvals: number;
   returns: number;
   refunded: number;
-  /** Refunds paid in cash (a return on a credit sale lowers the debt instead). */
+  /** Refunds paid in cash: only those leave the drawer (J2). */
   cashRefunds: number;
+  /** What went back each way: cash, card, transfer, to a balance, off a debt. */
+  refundsBy: Record<RefundMethod, number>;
   /** Debt payments in money (a deposit moved to a balance, method 'order', is not money). */
   payments: { cash: number; other: number };
   payouts: { cash: number; other: number };
@@ -117,13 +120,18 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
     .map((r) => ({ name: r.name ?? 'المالك', sales: r.n, total: r.t }));
   const ret = one(
     `SELECT count(*) n, coalesce(sum(r.refund), 0) t,
-            coalesce(sum(CASE WHEN s.payment_method = 'credit' THEN 0 ELSE r.refund END), 0) cash,
+            coalesce(sum(CASE WHEN r.refund_method = 'cash' THEN r.refund ELSE 0 END), 0) cash,
             count(r.approved_by) a
-       FROM returns r LEFT JOIN sale_lines l ON l.id = r.sale_line_id
-       LEFT JOIN sales s ON s.id = l.sale_id
-      WHERE r.created_at >= ? AND r.created_at < ?`,
+       FROM returns r WHERE r.created_at >= ? AND r.created_at < ?`,
     { n: 0, t: 0, cash: 0, a: 0 },
   );
+  const refundsBy = { cash: 0, card: 0, transfer: 0, balance: 0, debt: 0 };
+  for (const r of ctx.db.all<{ m: RefundMethod; t: number }>(
+    `SELECT refund_method m, sum(refund) t FROM returns
+      WHERE created_at >= ? AND created_at < ? GROUP BY refund_method`,
+    range,
+  ))
+    refundsBy[r.m] = r.t;
   const split = (table: 'payments' | 'payouts' | 'order_payments', kind = '') =>
     one(
       `SELECT coalesce(sum(CASE WHEN method = 'cash' THEN amount END), 0) cash,
@@ -187,6 +195,7 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
     returns: ret.n,
     refunded: ret.t,
     cashRefunds: ret.cash,
+    refundsBy,
     payments,
     payouts,
     deposits: { taken, refunded: refundedDeposits, used: sales.du, kept: orders.kept },

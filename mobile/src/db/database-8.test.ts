@@ -67,6 +67,7 @@ describe('the upgrade from database 7', () => {
       ALTER TABLE receipts ADD COLUMN deposit INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE receipts ADD COLUMN friend_off INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE receipts ADD COLUMN offer_off INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE returns ADD COLUMN refund_method TEXT NOT NULL DEFAULT 'cash';
       CREATE TABLE orders (id INTEGER PRIMARY KEY, kind TEXT, status TEXT, customer_id INTEGER,
         product_id INTEGER, quantity INTEGER);
       CREATE TABLE referrals (id INTEGER PRIMARY KEY, friend_id INTEGER UNIQUE, referrer_id INTEGER,
@@ -85,6 +86,8 @@ describe('the upgrade from database 7', () => {
     const kept = sellAndReturn(old, 'Ring');
     const gone = sellAndReturn(old, 'Chain');
     deleteReturn(old, gone.ret); // the newest return id (2) was used, then deleted
+    // Database 14's column goes again: database 8 rebuilds returns with database 7's columns.
+    db.exec('ALTER TABLE returns DROP COLUMN refund_method;');
     const before = db.all('SELECT * FROM returns ORDER BY id');
 
     migrate(db, migrations.slice(0, 8));
@@ -93,7 +96,9 @@ describe('the upgrade from database 7', () => {
     expect(db.all('PRAGMA foreign_key_check')).toEqual([]);
     // The database itself now refuses deleting a sale that has returns.
     expect(() => db.run('DELETE FROM sales WHERE id = ?', [kept.sale])).toThrow(/FOREIGN KEY/);
-    // Return 2 was given before: the next return is 3, with its unique id filled in.
+    // Return 2 was given before: the next return is 3, with its unique id filled in (written by
+    // today's code, so database 14's column is added back).
+    db.exec("ALTER TABLE returns ADD COLUMN refund_method TEXT NOT NULL DEFAULT 'cash';");
     const next = sellAndReturn(old, 'Pin');
     expect(next.ret).toBe(3);
     expect(db.get<{ uid: string }>('SELECT uid FROM returns WHERE id = 3')?.uid).toMatch(

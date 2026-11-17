@@ -980,6 +980,21 @@ CREATE INDEX gifts_sale ON gifts(sale_id);
 CREATE INDEX referrals_move ON referrals(move_id);
 `,
   },
+  {
+    version: 14,
+    name: 'how a refund was paid back',
+    sql: `
+-- How the money of a return went back (J2): cash (out of the drawer), card, transfer, to her
+-- balance (له رصيد), or off her debt (a sale on credit). Until now the app took every refund of
+-- a credit sale off the debt and every other one out of the drawer: the upgrade says so, so no
+-- past figure changes.
+ALTER TABLE returns ADD COLUMN refund_method TEXT NOT NULL DEFAULT 'cash'
+  CHECK (refund_method IN ('cash', 'card', 'transfer', 'balance', 'debt'));
+UPDATE returns SET refund_method = 'debt'
+ WHERE sale_line_id IN (SELECT l.id FROM sale_lines l JOIN sales s ON s.id = l.sale_id
+                         WHERE s.payment_method = 'credit');
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

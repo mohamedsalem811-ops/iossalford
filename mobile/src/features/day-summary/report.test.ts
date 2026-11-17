@@ -23,6 +23,7 @@ const quiet: DaySummary = {
   returns: 0,
   refunded: 0,
   cashRefunds: 0,
+  refundsBy: { cash: 0, card: 0, transfer: 0, balance: 0, debt: 0 },
   payments: { cash: 0, other: 0 },
   payouts: { cash: 0, other: 0 },
   deposits: { taken: { cash: 0, other: 0 }, refunded: { cash: 0, other: 0 }, used: 0, kept: 0 },
