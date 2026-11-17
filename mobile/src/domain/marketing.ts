@@ -17,7 +17,7 @@ import { formatLyd } from '@/lib/money';
 
 import { logAction } from './activity';
 import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx, who } from './context';
-import { getCustomer, type Customer } from './customers';
+import { customersById, getCustomer, type Customer } from './customers';
 import { isVip, spendingByCustomer } from './customer-stats';
 import { getRewards } from './rewards';
 import { addReferralMove, getLoyalty, pointsBalance, pointsFor } from './loyalty';
@@ -194,12 +194,13 @@ const withPhone = (c: Customer | undefined): c is Customer => !!c?.phone;
 
 /** Customers who accept offers and have a phone: the ones an occasion or VIP message may go to. */
 export function offerCustomers(ctx: Ctx, onlyVip = false): Customer[] {
-  const list = ctx.db
+  const ids = ctx.db
     .all<{ id: number }>(
       "SELECT id FROM customers WHERE offers = 1 AND phone IS NOT NULL AND phone <> '' ORDER BY name",
     )
-    .map((r) => getCustomer(ctx, r.id))
-    .filter(withPhone);
+    .map((r) => r.id);
+  const people = customersById(ctx, ids);
+  const list = ids.map((id) => people.get(id)).filter(withPhone);
   if (!onlyVip) return list;
   // Everyone's spending in one query, as the customers list shows VIP (G1).
   const rules = getRewards(ctx);
@@ -214,14 +215,18 @@ export function missYouCandidates(
 ): { customer: Customer; last: string; visits: number }[] {
   const cutoff = new Date(ctx.now());
   cutoff.setDate(cutoff.getDate() - rules.missDays);
-  return ctx.db
-    .all<{ id: number; last: string; visits: number }>(
-      `SELECT customer_id id, max(created_at) last, count(DISTINCT substr(created_at, 1, 10)) visits
-         FROM sales WHERE customer_id IS NOT NULL
-        GROUP BY customer_id HAVING max(created_at) < ? AND visits >= ? ORDER BY last`,
-      [dayKey(cutoff), rules.missVisits],
-    )
-    .map((r) => ({ customer: getCustomer(ctx, r.id), last: r.last, visits: r.visits }))
+  const rows = ctx.db.all<{ id: number; last: string; visits: number }>(
+    `SELECT customer_id id, max(created_at) last, count(DISTINCT substr(created_at, 1, 10)) visits
+       FROM sales WHERE customer_id IS NOT NULL
+      GROUP BY customer_id HAVING max(created_at) < ? AND visits >= ? ORDER BY last`,
+    [dayKey(cutoff), rules.missVisits],
+  );
+  const people = customersById(
+    ctx,
+    rows.map((r) => r.id),
+  );
+  return rows
+    .map((r) => ({ customer: people.get(r.id), last: r.last, visits: r.visits }))
     .filter(
       (x): x is { customer: Customer; last: string; visits: number } =>
         withPhone(x.customer) && x.customer.offers,

@@ -64,7 +64,7 @@ const CATEGORIES = ['خواتم', 'قلادات', 'أساور', 'أقراط', '�
 const now = new Date(2026, 10, 12, 12, 0);
 
 /** Fills the database the way the app would (same tables and columns), quickly. */
-function seed(db: Db, products: number, sales: number) {
+function seed(db: Db, products: number, sales: number, people = 1_500) {
   db.transaction(() => {
     const at = '2026-01-01T10:00:00';
     for (const b of BRANDS) db.run('INSERT INTO brands (name, created_at) VALUES (?, ?)', [b, at]);
@@ -85,7 +85,7 @@ function seed(db: Db, products: number, sales: number) {
         ],
       );
     }
-    for (let i = 1; i <= 1_500; i++) {
+    for (let i = 1; i <= people; i++) {
       const phone = `09${String(10_000_000 + i)}`;
       db.run(
         'INSERT INTO customers (name, name_key, phone, phone_key, created_at) VALUES (?, ?, ?, ?, ?)',
@@ -100,7 +100,7 @@ function seed(db: Db, products: number, sales: number) {
       const stamp = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T12:00:00`;
       const month = stamp.slice(0, 7);
       const method = methods[s % methods.length];
-      const customer = method === 'credit' || s % 4 === 0 ? (s % 1_500) + 1 : null;
+      const customer = method === 'credit' || s % 4 === 0 ? (s % people) + 1 : null;
       const lines = 1 + (s % 3);
       let total = 0;
       let cost = 0;
@@ -204,12 +204,12 @@ function time(fn: () => unknown): number {
   return Math.round(best * 10) / 10;
 }
 
-function measure(sales: number) {
+function measure(sales: number, people = 1_500) {
   const dir = tempDir();
   const db = openFileDb(dir.at('jewelry.db'));
   migrate(db);
   db.exec('PRAGMA journal_mode = WAL;');
-  seed(db, 2_000, sales);
+  seed(db, 2_000, sales, people);
   // Half the customers accept offers: the marketing lists (I4) have real work to do.
   db.run('UPDATE customers SET offers = 1 WHERE id % 2 = 0');
   const ctx: Ctx = { db, system: 'jewelry', now: () => now, actor: OWNER };
@@ -304,16 +304,23 @@ function measure(sales: number) {
 
 run('speed with years of data (8.0l)', () => {
   jest.setTimeout(600_000);
-  for (const sales of [10_000, 30_000]) {
-    it(`stays fast with 2,000 products and ${sales.toLocaleString('en')} sales`, () => {
-      const results = measure(sales);
+  // The last: a shop with many customers (J1, from the full check: the customer report took 5 s
+  // with 10,000 customers).
+  for (const [sales, people] of [
+    [10_000, 1_500],
+    [30_000, 1_500],
+    [30_000, 10_000],
+  ]) {
+    const who = `${sales.toLocaleString('en')} sales, ${people.toLocaleString('en')} customers`;
+    it(`stays fast with 2,000 products, ${who}`, () => {
+      const results = measure(sales, people);
       const table = results
         .map(
           ([what, ms, target]) =>
             `${ms <= target ? '✓' : '✗'} ${String(ms).padStart(7)} ms  (target ${target})  ${what}`,
         )
         .join('\n');
-      console.log(`\n2,000 products, ${sales.toLocaleString('en')} sales:\n${table}`);
+      console.log(`\n2,000 products, ${who}:\n${table}`);
       for (const [what, ms, target] of results)
         expect({ what, ms: ms <= target }).toEqual({ what, ms: true });
     });

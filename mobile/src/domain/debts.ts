@@ -1,7 +1,7 @@
 import { formatDinars, formatLyd } from '@/lib/money';
 
 import { allow, clean, nowMonth, nowStamp, RuleError, type Ctx, who } from './context';
-import { getCustomer, type Customer } from './customers';
+import { customersById, getCustomer, type Customer } from './customers';
 import { logAction } from './activity';
 import { payReferral } from './marketing';
 import { earnOnPayment, pointsBalance } from './loyalty';
@@ -56,11 +56,17 @@ export function allBalances(ctx: Ctx): Map<number, number> {
   return new Map(rows.filter((r) => r.balance !== 0).map((r) => [r.id, r.balance]));
 }
 
-const withBalances = (ctx: Ctx, keep: (b: number) => boolean): Debtor[] =>
-  [...allBalances(ctx)]
-    .filter(([, b]) => keep(b))
-    .map(([id, b]) => ({ customer: getCustomer(ctx, id)!, balance: b }))
-    .filter((d) => d.customer);
+const withBalances = (ctx: Ctx, keep: (b: number) => boolean): Debtor[] => {
+  const kept = [...allBalances(ctx)].filter(([, b]) => keep(b));
+  const people = customersById(
+    ctx,
+    kept.map(([id]) => id),
+  );
+  return kept.flatMap(([id, balance]) => {
+    const customer = people.get(id);
+    return customer ? [{ customer, balance }] : [];
+  });
+};
 
 /** Customers who owe money, largest balance first. */
 export function debtors(ctx: Ctx): Debtor[] {

@@ -960,6 +960,26 @@ CREATE TRIGGER message_log_new_uid AFTER INSERT ON message_log WHEN NEW.uid IS N
 END;
 `,
   },
+  {
+    version: 13,
+    name: 'an index under every link',
+    sql: `
+-- Deleting a row makes SQLite look for the rows that point at it; without an index under the
+-- link it reads the whole table each time (J1, from the full check: restoring a backup with
+-- 10,000 customers took 10 s, each customer deleted reading every customer for referred_by).
+-- Indexes only: no row changes.
+CREATE INDEX customers_referred_by ON customers(referred_by);
+CREATE INDEX set_items_product ON set_items(product_id);
+CREATE INDEX staff_ledger_shift ON staff_ledger(shift_id);
+CREATE INDEX stock_count_lines_product ON stock_count_lines(product_id);
+CREATE INDEX returns_exchange_sale ON returns(exchange_sale_id);
+CREATE INDEX orders_shift ON orders(shift_id);
+CREATE INDEX orders_payment ON orders(payment_id);
+CREATE INDEX order_payments_receipt ON order_payments(receipt_id);
+CREATE INDEX gifts_sale ON gifts(sale_id);
+CREATE INDEX referrals_move ON referrals(move_id);
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

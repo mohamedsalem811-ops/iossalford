@@ -161,6 +161,24 @@ export function getCustomer(ctx: Ctx, id: number): Customer | undefined {
   return r ? toCustomer(r) : undefined;
 }
 
+/**
+ * Several customers by id in a few queries (J1: a list of who owes read each customer on its own,
+ * thousands of queries with 10,000 customers). Ids not found are left out.
+ */
+export function customersById(ctx: Ctx, ids: number[]): Map<number, Customer> {
+  const found = new Map<number, Customer>();
+  const unique = [...new Set(ids)];
+  for (let i = 0; i < unique.length; i += 500) {
+    const part = unique.slice(i, i + 500);
+    for (const r of ctx.db.all<Row>(
+      `SELECT * FROM customers WHERE id IN (${part.map(() => '?').join(', ')})`,
+      part,
+    ))
+      found.set(r.id, toCustomer(r));
+  }
+  return found;
+}
+
 export function customerByPhone(ctx: Ctx, phone: string): Customer | undefined {
   const key = phoneKey(phone);
   if (!key) return undefined;

@@ -211,9 +211,10 @@ function photoNames(ctx: Ctx): string[] {
 /**
  * Shares a full copy (the data and its photos in one file) through the iOS share sheet: AirDrop to
  * the other device, Save to Files, or a message to oneself. Photos are added one at a time, so
- * memory stays small however many there are. Also saved as a backup on this device.
+ * memory stays small however many there are. Also saved as a backup on this device. `onReady` runs
+ * once the file is made, just before the share sheet opens (the screen hides its "please wait").
  */
-export async function shareCopy(ctx: Ctx): Promise<void> {
+export async function shareCopy(ctx: Ctx, onReady?: () => void): Promise<void> {
   allow(ctx, 'backup.manage');
   logAction(ctx, 'backup.share', 'فتح مشاركة نسخة احتياطية إلى خارج الجهاز');
   saveBackup(ctx, 'manual');
@@ -234,6 +235,7 @@ export async function shareCopy(ctx: Ctx): Promise<void> {
   const file = new File(cache, name);
   removeQuietly(file);
   part.rename(name);
+  onReady?.();
   try {
     await Sharing.shareAsync(file.uri, {
       mimeType: 'application/x-sqlite3',

@@ -941,29 +941,31 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 
 **Owner's choices (2026-11-17),** after the full check of the app (code, flows, screenshots, three busy years of simulated use and a 100,000-sale load test; no change made by the check):
 
-- One `.ipa` at the end of the phase; nothing goes out as an instant update before it (databases 13 and 14 and the reminders need a new `.ipa` anyway).
+- One `.ipa` at the end of the phase; nothing goes out as an instant update before it (databases 13 to 15 and the reminders need a new `.ipa` anyway).
 - The 2 TB iPad is the till; the backup copies kept on the device stay as they are (10 newest plus one a day for 7 days).
 - Not now: suppliers and receiving stock, gift vouchers, staff targets, scanning with the camera, price tags. iCloud backup stays in Phase 11.
 - Built in this order, one draft pull request for the phase, each part pushed as it is done, with Jest tests (a failing test first for every bug) and a Maestro flow for every new screen. `npm run check`, `npm run speed` and `npx expo-doctor` before every push.
 
 **J1 – Fixes from the full check**
 
-1. **Set prices in whole dinars.** A set's price is split over its pieces to the dirham today, so a receipt shows prices like 329.412; with 2 of the same piece the receipt total came to 1,100.001 for a sale of 1,100.000. The split becomes whole dinars per piece, the same way the quick % discount and the rewards already work, so every line and the receipt total match the sale exactly. Old sales and receipts are not changed. Test first: the set with 2 of a piece, receipt total = sale total.
-2. **Restore shows "please wait".** The restore starts in the same moment as the spinner, so the screen freezes without one (2 seconds at the planned size, 5.5 seconds after three busy years). The screen first shows «جارٍ الاستعادة… قد يستغرق ذلك دقيقة», then restores. The same for «نسخة الآن» and the copy to send off the device.
-3. **Faster customer report.** «عملاء عادوا هذه السنة» reads each customer's purchases one by one (0.7 s at the planned size, 5.5 s with 10,000 customers). One grouped query instead; a speed-test line with 10,000 customers, target 1 s.
-4. **Earlier off-device reminder:** after 3 days without a copy leaving the device, instead of 7 (no iCloud yet).
+1. ✅ **Set prices in whole dinars.** A set's price is split over its pieces to the dirham today, so a receipt shows prices like 329.412; with 2 of the same piece the receipt total came to 1,100.001 for a sale of 1,100.000. The split becomes whole dinars per piece, the same way the quick % discount and the rewards already work, so every line and the receipt total match the sale exactly. Old sales and receipts are not changed. Test first: the set with 2 of a piece, receipt total = sale total. *Done:* `setLineTotals` in `domain/cart.ts`; a discount with dirhams (50.500) goes on one piece that can carry it exactly, and only when none can is it spread to the dirham (still exact in total). A set kept in a cart from before is compared by its total, so it shows no false price change (`set-prices.test.ts`).
+2. ✅ **Restore shows "please wait".** The restore starts in the same moment as the spinner, so the screen freezes without one (2 seconds at the planned size, 5.5 seconds after three busy years). The screen first shows «جارٍ الاستعادة… قد يستغرق ذلك دقيقة», then restores. The same for «نسخة الآن» and the copy to send off the device. *Done:* `components/working.tsx` covers the screen with the message (nothing behind it can be tapped) and gives it a moment to draw before the work starts; the copy's message closes just before the share sheet opens.
+3. ✅ **Faster customer report.** «عملاء عادوا هذه السنة» reads each customer's purchases one by one (0.7 s at the planned size, 5.5 s with 10,000 customers). One grouped query instead; a speed-test line with 10,000 customers, target 1 s. *Done:* the speed test now also runs 30,000 sales with 10,000 customers. It found more than the report:
+   - **Restore took 10 s** with 10,000 customers: `customers.referred_by` (and 9 other links) had no index, so each row deleted read the whole table pointing at it. **Database 13** adds an index under every link (indexes only, no row changes; `database-13.test.ts` checks every link has one, and the upgrade from 4 and 12 keeps every row). Restore: 10.2 s → 2.3 s.
+   - Lists that read each customer one by one (who owes, not back in 90 days, VIP and occasion messages, «نفتقدك», birthdays, duplicates) now read them together (`customersById`). At 10,000 customers: who owes 464 → 157 ms, not back 334 → 104 ms, the report 875 → 175 ms.
+4. ✅ **Earlier off-device reminder:** after 3 days without a copy leaving the device, instead of 7 (no iCloud yet).
 5. **Faster "today" on the home screen** and the sales list's one-day filter: they read every sale ever made; a date range uses the index.
 6. **The shop simulation becomes a permanent test:** 120 days of an employee's shifts, sales, returns, exchanges, debts, deposits, deliveries, cancellations, points and deleted sales, with an independent record of the drawer, stock, debts and points checked every day (it found no difference in about 12 simulated shop-years; it guards every future change).
 
-**J2 – How a refund is paid back (database 13)**
+**J2 – How a refund is paid back (database 14)**
 
 - A return asks how the money went back: **كاش، بطاقة، تحويل، or رصيد للزبونة** (her له رصيد, to use at checkout). It starts on the way the sale was paid. A return of a sale on credit lowers her debt, as now (no choice).
 - Only cash refunds come out of the drawer: the shift's expected cash, the day summary and its PDF, the shift report and the dashboard follow the method. «رصيد للزبونة» needs a customer on the sale.
 - An exchange: the difference is refunded the chosen way, or paid as a normal sale.
 - The return receipt and the sale's page show the method; the returns list can filter by it.
-- **Database 13:** `returns.refund_method` ('cash', 'card', 'transfer', 'balance', 'debt'). The upgrade sets 'debt' for returns of credit sales and 'cash' for the rest (what the app assumed until now), so no past figure changes. Saved copy first, foreign keys checked, older backups upgraded, a test restoring a backup from schema 1.
+- **Database 14:** `returns.refund_method` ('cash', 'card', 'transfer', 'balance', 'debt'). The upgrade sets 'debt' for returns of credit sales and 'cash' for the rest (what the app assumed until now), so no past figure changes. Saved copy first, foreign keys checked, older backups upgraded, a test restoring a backup from schema 1.
 
-**J3 – Repairs and services, صيانة (database 14)**
+**J3 – Repairs and services, صيانة (database 15)**
 
 - **New repair:** the customer (name and phone), the piece (description and photos), what to do (تصغير أو تكبير المقاس، لحام، تلميع، تغيير قفل، تبديل حجر، أخرى), notes, the price agreed (0 for free), the date it will be ready, and an optional deposit (cash, card or transfer).
 - **Stages:** استُلمت → في الورشة → جاهزة → سُلّمت, or ملغاة (the deposit back or to her balance, as for deposit orders). The workshop's cost (owner only) for the profit.
@@ -972,7 +974,7 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 - **WhatsApp «جاهزة للاستلام»** message, typed by the owner in التسويق → الرسائل with fill-ins.
 - **Home reminders:** due today, late, ready and not collected after 14 days. Her repairs on her customer page; Management → الصيانة, the list with search and stages.
 - Permissions `repairs.take`, `repairs.deliver` (employees yes), `repairs.cost`, `repairs.cancel` (owner), in the permission test with their log lines. Backups carry the repair photos.
-- **Database 14:** tables `repairs` and `repair_payments` (unique ids, the device, the shift), upgrade tests from 12 and 13.
+- **Database 15:** tables `repairs` and `repair_payments` (unique ids, the device, the shift), upgrade tests from 12 and 14.
 
 **J4 – Profit by brand, category and piece**
 
@@ -994,6 +996,7 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 
 - Self-check of the whole phase against this plan and real use at the counter (the iPad as the till: refunds, repairs, the reports, the reminders); every new screen at iPad width, upright and sideways.
 - Maestro flows for every new screen, ready for 10.0 (no simulator run during the build, as decided).
+- Expo's newer patch versions brought in first (`npx expo install --check`: on 2026-11-17 expo-doctor listed 6 packages, among them expo-router, expo-sqlite and expo-file-system), so the one native build has them; then the full checks again.
 - The `.ipa` built and installed, then recorded for instant updates (`npm run update:record`).
 
 ### Phase 10: switching over

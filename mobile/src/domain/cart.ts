@@ -169,10 +169,12 @@ export function addSet(cart: CartLine[], set: SetForCart): Result {
     }
     pieces.push({ product: i.product, name: i.name, quantity: i.quantity });
   }
-  const lists = pieces.map((i) => i.product.price * i.quantity);
-  const list = lists.reduce((a, b) => a + b, 0);
+  const list = pieces.reduce((a, i) => a + i.product.price * i.quantity, 0);
   const discount = Math.min(Math.max(0, set.discount), list);
-  const totals = split(list - discount, lists);
+  const totals = setLineTotals(
+    pieces.map((i) => ({ price: i.product.price, quantity: i.quantity })),
+    discount,
+  );
   const group = newKey();
   return {
     cart: [
@@ -190,6 +192,58 @@ export function addSet(cart: CartLine[], set: SetForCart): Result {
       })),
     ],
   };
+}
+
+/**
+ * What each line of a set costs after its discount (J1, from the full check). The discount is
+ * taken off in whole dinars a piece, in proportion to the pieces' prices, so every piece keeps a
+ * round price and price × quantity is the line total: the receipt adds up to what was paid. Part
+ * of a dinar in the discount goes on one piece that can carry it; only when none can (every piece
+ * twice or more and the amount does not divide) is it spread to the dirham, still exact in total.
+ */
+export function setLineTotals(lines: { price: number; quantity: number }[], discount: number) {
+  const list = lines.reduce((t, l) => t + l.price * l.quantity, 0);
+  if (discount <= 0 || list <= 0) return lines.map((l) => l.price * l.quantity);
+  const dinars = Math.floor(discount / DIRHAMS_PER_DINAR);
+  const shares = lines.map((l) => {
+    const exact = (dinars * l.price) / list;
+    const most = Math.floor(l.price / DIRHAMS_PER_DINAR);
+    const off = Math.min(Math.floor(exact), most);
+    return { ...l, off, most, rest: exact - off };
+  });
+  let left = dinars - shares.reduce((s, x) => s + x.off * x.quantity, 0);
+  const order = [...shares].sort((a, b) => b.rest - a.rest);
+  for (let moved = true; moved && left > 0;) {
+    moved = false;
+    for (const x of order) {
+      if (x.quantity <= left && x.off < x.most) {
+        x.off += 1;
+        left -= x.quantity;
+        moved = true;
+      }
+    }
+  }
+  const offs = shares.map((x) => x.off * DIRHAMS_PER_DINAR * x.quantity);
+  // What could not go as whole dinars a piece: on one piece if one can carry it exactly.
+  let rest = left * DIRHAMS_PER_DINAR + (discount - dinars * DIRHAMS_PER_DINAR);
+  if (rest > 0) {
+    const fits = (n: number) =>
+      rest % shares[n].quantity === 0 && offs[n] + rest <= shares[n].price * shares[n].quantity;
+    const byQuantity = shares
+      .map((_, n) => n)
+      .sort((a, b) => shares[a].quantity - shares[b].quantity);
+    const one = byQuantity.find(fits);
+    if (one !== undefined) {
+      offs[one] += rest;
+      rest = 0;
+    } else {
+      // Spread to the dirham (exact in total; a piece's price may then have dirhams).
+      const room = shares.map((x, n) => x.price * x.quantity - offs[n]);
+      split(rest, room).forEach((part, n) => (offs[n] += part));
+      rest = 0;
+    }
+  }
+  return lines.map((l, n) => l.price * l.quantity - offs[n]);
 }
 
 /** The list price a line was added at (carts kept before this was saved: the price paid). */
@@ -225,14 +279,14 @@ function bundleNow(bundle: Bundle, set: SetForCart | undefined): CartLine[] | nu
   return 'cart' in r ? r.cart : null;
 }
 
+/**
+ * The same pieces at the same set price. How the price is spread over the pieces is not compared:
+ * a set kept in a cart from before J1 was split to the dirham, and is still the same price.
+ */
 const sameBundle = (was: CartLine[], now: CartLine[]) =>
   was.length === now.length &&
-  was.every(
-    (l, n) =>
-      l.productId === now[n].productId &&
-      l.quantity === now[n].quantity &&
-      lineTotal(l) === lineTotal(now[n]),
-  );
+  was.every((l, n) => l.productId === now[n].productId && l.quantity === now[n].quantity) &&
+  was.reduce((t, l) => t + lineTotal(l), 0) === now.reduce((t, l) => t + lineTotal(l), 0);
 
 /**
  * The prices that changed since the pieces went into the cart: a piece's list price, or a set's
