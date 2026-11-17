@@ -116,12 +116,59 @@ describe('the customers', () => {
 });
 
 describe('the shift and the backup', () => {
-  it('reminds at closing time while a shift is open', () => {
+  const openToday = () => {
     ctx.setActor(EMPLOYEE); // signed in with her shift open
+    ctx.db.run("UPDATE shifts SET opened_at = '2026-11-17T10:00:00'");
     ctx.setActor(OWNER);
+  };
+
+  it('reminds at each closing time while a shift is open, and the morning after', () => {
+    ctx.setNow(new Date(2026, 10, 17, 12));
+    openToday();
     const list = of(planReminders(ctx, noBackup), 'shift');
-    expect(list.map(at)).toEqual(['11/17 21:30']);
-    expect(list[0].title).toBe('الوردية ما زالت مفتوحة');
+    expect(list.map(at)).toEqual([
+      '11/17 21:30',
+      '11/18 9:00',
+      '11/18 21:30',
+      '11/19 21:30',
+      '11/20 21:30',
+      '11/21 21:30',
+      '11/22 21:30',
+      '11/23 21:30',
+    ]);
+    expect(list[0]).toMatchObject({
+      id: 'jewelry-shift-2026-11-17',
+      title: 'الوردية ما زالت مفتوحة',
+    });
+    expect(list[1]).toMatchObject({
+      id: 'jewelry-shift-morning-2026-11-18',
+      title: 'وردية أمس ما زالت مفتوحة',
+      body: 'أغلق الوردية وعُدّ الصندوق.',
+    });
+  });
+
+  it('left open past closing: the next morning, then each closing time', () => {
+    openToday();
+    ctx.setNow(new Date(2026, 10, 17, 23)); // put away after closing
+    expect(of(planReminders(ctx, noBackup), 'shift').map(at).slice(0, 3)).toEqual([
+      '11/18 9:00',
+      '11/18 21:30',
+      '11/19 21:30',
+    ]);
+  });
+
+  it('reminds the morning after only once, however long it stays open', () => {
+    openToday();
+    ctx.setNow(new Date(2026, 10, 19, 8));
+    const list = of(planReminders(ctx, noBackup), 'shift');
+    expect(list.map(at)[0]).toBe('11/19 21:30');
+    expect(list.filter((r) => r.id.includes('morning'))).toEqual([]);
+  });
+
+  it('reminds nothing once the shift is closed', () => {
+    openToday();
+    ctx.db.run("UPDATE shifts SET closed_at = '2026-11-17T21:00:00'");
+    expect(of(planReminders(ctx, noBackup), 'shift')).toEqual([]);
   });
 
   it('reminds once the off-device copy is due', () => {

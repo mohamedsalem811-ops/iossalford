@@ -5,7 +5,8 @@
  *
  * Each morning at the owner's time: repairs and orders due that day, late, or ready and not
  * collected; gift dates a week ahead; birthdays that day; the off-device backup once it is due.
- * At the closing time: a shift still open. One reminder per kind per day, naming three people at
+ * While a shift is open: each closing time of the week, and once the morning after it was left
+ * open past closing. One reminder per kind per day (the shift: its morning one too), naming three people at
  * most (or only counting them, when the owner hides names on the lock screen). Never a phone.
  * What is planned for later days assumes nothing changes; the app plans again every time it
  * goes to the background and after each change.
@@ -121,9 +122,9 @@ export function planReminders(ctx: Ctx, backup: BackupDates): PlannedReminder[] 
   const now = ctx.now();
   const hide = rules.hideNames;
   const out: PlannedReminder[] = [];
-  const add = (kind: NotifyKind, at: Date, title: string, body: string) => {
+  const add = (kind: NotifyKind, at: Date, title: string, body: string, tag: string = kind) => {
     if (body && at.getTime() > now.getTime())
-      out.push({ id: `${ctx.system}-${kind}-${dayKey(at)}`, kind, at, title, body });
+      out.push({ id: `${ctx.system}-${tag}-${dayKey(at)}`, kind, at, title, body });
   };
   let backupWasDue = false;
 
@@ -215,16 +216,45 @@ export function planReminders(ctx: Ctx, backup: BackupDates): PlannedReminder[] 
   }
 
   if (rules.on.shift) {
-    const open = ctx.db.get<{ n: number }>('SELECT count(*) n FROM shifts WHERE closed_at IS NULL');
-    const at = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate(),
-      rules.closeHour,
-      rules.closeMinute,
+    // The oldest shift still open (the owner's and an employee's can both be).
+    const open = ctx.db.get<{ opened_at: string | null }>(
+      'SELECT min(opened_at) opened_at FROM shifts WHERE closed_at IS NULL',
     );
-    if (open && open.n > 0)
-      add('shift', at, 'الوردية ما زالت مفتوحة', 'أغلق الوردية وعُدّ الصندوق قبل المغادرة.');
+    if (open?.opened_at) {
+      const opened = new Date(open.opened_at);
+      const closing = (d: Date, plus: number) =>
+        new Date(
+          d.getFullYear(),
+          d.getMonth(),
+          d.getDate() + plus,
+          rules.closeHour,
+          rules.closeMinute,
+        );
+      // Each closing time of the week while it stays open.
+      for (let i = 0; i < DAYS; i++)
+        add(
+          'shift',
+          closing(now, i),
+          'الوردية ما زالت مفتوحة',
+          'أغلق الوردية وعُدّ الصندوق قبل المغادرة.',
+        );
+      // Once, the morning after the first closing time it was left open past.
+      const firstClosing = closing(opened, closing(opened, 0) > opened ? 0 : 1);
+      const morning = new Date(
+        firstClosing.getFullYear(),
+        firstClosing.getMonth(),
+        firstClosing.getDate() + 1,
+        rules.hour,
+        rules.minute,
+      );
+      add(
+        'shift',
+        morning,
+        'وردية أمس ما زالت مفتوحة',
+        'أغلق الوردية وعُدّ الصندوق.',
+        'shift-morning',
+      );
+    }
   }
 
   return out.sort((a, b) => a.at.getTime() - b.at.getTime()).slice(0, MAX);
