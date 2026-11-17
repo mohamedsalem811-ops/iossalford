@@ -99,6 +99,7 @@ export type PlannedReminder = {
 export type BackupDates = { lastCopied: Date | null; firstBackup: Date | null };
 
 const DAYS = 7;
+const SYSTEM_NAMES: Record<Ctx['system'], string> = { jewelry: 'المجوهرات', scarves: 'الأوشحة' };
 const MAX = 60;
 
 /** "منى، سلمى، هدى و2 غيرهن", or "5" when names are hidden. */
@@ -124,7 +125,14 @@ export function planReminders(ctx: Ctx, backup: BackupDates): PlannedReminder[] 
   const out: PlannedReminder[] = [];
   const add = (kind: NotifyKind, at: Date, title: string, body: string, tag: string = kind) => {
     if (body && at.getTime() > now.getTime())
-      out.push({ id: `${ctx.system}-${tag}-${dayKey(at)}`, kind, at, title, body });
+      out.push({
+        id: `${ctx.system}-${tag}-${dayKey(at)}`,
+        kind,
+        at,
+        // Both systems remind on the same iPad: which one it is.
+        title: `${title} • ${SYSTEM_NAMES[ctx.system]}`,
+        body,
+      });
   };
   let backupWasDue = false;
 
@@ -181,7 +189,7 @@ export function planReminders(ctx: Ctx, backup: BackupDates): PlannedReminder[] 
         'هدايا الأسبوع القادم',
         hide
           ? gifts.length
-            ? String(gifts.length)
+            ? `العدد: ${gifts.length}`
             : ''
           : gifts.map((g) => `${g.customerName}: ${g.occasion ?? g.forWhom}`).join(' • '),
       );
@@ -193,10 +201,12 @@ export function planReminders(ctx: Ctx, backup: BackupDates): PlannedReminder[] 
         at,
         'أعياد الميلاد اليوم',
         today.length
-          ? people(
-              today.map((b) => b.customer.name),
-              hide,
-            )
+          ? hide
+            ? `العدد: ${today.length}`
+            : people(
+                today.map((b) => b.customer.name),
+                false,
+              )
           : '',
       );
     }

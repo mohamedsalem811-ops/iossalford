@@ -121,16 +121,54 @@ describe('the refund method', () => {
     expect(listReturns(ctx)).toHaveLength(3);
   });
 
-  it('pays the difference of an exchange the chosen way', () => {
+  it('moves only the difference of an exchange, the one way chosen', () => {
     const id = shift();
-    const first = sell('cash');
+    const first = sell('card');
     const before = expected(id);
-    // The same price back on a card, the new piece paid in cash: the drawer takes the new piece.
-    exchange(ctx, {
+    // Paid by card, exchanged for the same price, the difference «paid» in cash: nothing moves.
+    const same = exchange(ctx, {
       ret: { ...passing(ctx), saleLineId: lineOf(first), quantity: 1, refundMethod: 'card' },
       sale: { cart: cart(), paymentMethod: 'cash' },
     });
+    expect(getReturn(ctx, same.returnId)!.refundMethod).toBe('cash');
+    expect(expected(id)).toBe(before);
+    // A dearer piece (two rings for one), the difference paid in cash: only it enters the drawer.
+    const second = sell('card');
+    const two = (addToCart([], getProduct(ctx, ring)!, 'خاتم', 2) as { cart: CartLine[] }).cart;
+    exchange(ctx, {
+      ret: { ...passing(ctx), saleLineId: lineOf(second), quantity: 1 },
+      sale: { cart: two, paymentMethod: 'cash' },
+    });
     expect(expected(id)).toBe(before + 100_000);
+  });
+
+  it('gives a smaller difference back the one way chosen', () => {
+    const id = shift();
+    const two = (addToCart([], getProduct(ctx, ring)!, 'خاتم', 2) as { cart: CartLine[] }).cart;
+    const sale = checkout(ctx, { cart: two, paymentMethod: 'transfer' }).saleId;
+    const before = expected(id);
+    // Two rings back for one: 100 back to her in cash.
+    const r = exchange(ctx, {
+      ret: { ...passing(ctx), saleLineId: lineOf(sale), quantity: 2 },
+      sale: { cart: cart(), paymentMethod: 'cash' },
+    });
+    expect(r.difference).toBe(-100_000);
+    expect(expected(id)).toBe(before - 100_000);
+  });
+
+  it('keeps an exchange of a sale on credit on her account: only the difference', () => {
+    shift();
+    const sale = sell('credit', HUDA);
+    const customerId = getSale(ctx, sale)!.customerId!;
+    expect(balance(ctx, customerId)).toBe(100_000);
+    const two = (addToCart([], getProduct(ctx, ring)!, 'خاتم', 2) as { cart: CartLine[] }).cart;
+    const r = exchange(ctx, {
+      ret: { ...passing(ctx), saleLineId: lineOf(sale), quantity: 1 },
+      sale: { cart: two, paymentMethod: 'cash' },
+    });
+    expect(getReturn(ctx, r.returnId)!.refundMethod).toBe('debt');
+    expect(getSale(ctx, r.saleId)).toMatchObject({ paymentMethod: 'credit', customerId });
+    expect(balance(ctx, customerId)).toBe(200_000);
   });
 
   it('pays back a return without a sale in cash, on a card or by transfer, never to a balance', () => {

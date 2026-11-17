@@ -120,6 +120,9 @@ function NotificationsScreen() {
               />
             </>
           ) : null}
+          <Text variant="caption" tone="secondary" testID="notify-per-system">
+            {`هذه الإعدادات لنظام ${ctx.system === 'jewelry' ? 'المجوهرات' : 'الأوشحة'} وحده، وللنظام الآخر إعداداته. تُجدَّد تنبيهات كل نظام كلما فُتح، فافتح النظامين مرة في الأسبوع على الأقل.`}
+          </Text>
           <Text variant="caption" tone="secondary">
             تنبيهات على هذا الجهاز فقط، تعمل والتطبيق مغلق ودون إنترنت. لا يظهر رقم هاتف أي زبون على
             شاشة القفل.

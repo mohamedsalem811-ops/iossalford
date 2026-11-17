@@ -28,6 +28,21 @@ export async function askNotifyPermission(): Promise<boolean> {
   return p.granted;
 }
 
+/**
+ * iOS shows a reminder only while the app is closed or in the background unless told otherwise;
+ * the iPad is the till and usually open, so they show as a banner then too (the phase J check).
+ */
+export function showWhileOpen() {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
+
 /** Plans the coming week again for this system. Returns how many were scheduled. */
 export async function syncReminders(ctx: Ctx): Promise<number> {
   if ((await notifyPermission()) !== 'granted') return 0;
@@ -62,6 +77,7 @@ export function ReminderSync({ ctx }: { ctx: Ctx }) {
     };
   }, [ctx]);
   useEffect(() => {
+    showWhileOpen();
     run.current();
     const sub = AppState.addEventListener('change', (next) => {
       if (next === 'background') run.current();

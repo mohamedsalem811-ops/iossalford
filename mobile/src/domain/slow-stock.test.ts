@@ -8,6 +8,7 @@ import { addToCart, type CartLine } from './cart';
 import { checkout } from './checkout';
 import { PermissionError, RuleError } from './context';
 import { adjustStock, getProduct, saveProduct } from './products';
+import { markArrived, markPurchased, takeOrder, type TakeOrderInput } from './orders';
 import { setProductPrice, slowStock } from './slow-stock';
 import { EMPLOYEE, makeCtx, type TestCtx } from './testing/ctx';
 
@@ -108,6 +109,42 @@ describe('the slow pieces', () => {
   it('is the owner’s only', () => {
     ctx.setActor(EMPLOYEE);
     expect(() => slowStock(ctx, 60)).toThrow(PermissionError);
+  });
+});
+
+describe('pieces held for customers', () => {
+  it('leaves out what is held with a deposit: it is sold, not slow', () => {
+    takeOrder(ctx, {
+      kind: 'hold',
+      customer: { name: 'منى', phone: '0912345678' },
+      productId: ring,
+      quantity: 2,
+      deposit: { amount: 100_000, method: 'cash' },
+    } as TakeOrderInput);
+    takeOrder(ctx, {
+      kind: 'hold',
+      customer: { name: 'سلمى', phone: '0923456789' },
+      productId: earring,
+      deposit: { amount: 100_000, method: 'cash' },
+    } as TakeOrderInput);
+    ctx.setNow(new Date(2026, 3, 1, 10));
+    const s = slowStock(ctx, 60);
+    expect(s.rows.find((r) => r.productId === ring)).toMatchObject({ stock: 1, tiedUp: 40_000 });
+    expect(s.rows.map((r) => r.productId)).not.toContain(earring);
+  });
+
+  it('does not change the price of a piece bought for an order', () => {
+    const { orderId } = takeOrder(ctx, {
+      kind: 'order',
+      customer: { name: 'منى', phone: '0912345678' },
+      description: 'سوار',
+      brand: 'Tiffany',
+      unitPrice: 300_000,
+      deposit: { amount: 150_000, method: 'cash' },
+    } as TakeOrderInput);
+    markPurchased(ctx, orderId, { cost: 100_000, eta: '2026-01-10' });
+    const piece = markArrived(ctx, orderId);
+    expect(() => setProductPrice(ctx, piece, 250_000)).toThrow(/محجوزة/);
   });
 });
 

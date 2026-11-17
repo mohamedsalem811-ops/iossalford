@@ -456,7 +456,8 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
           if (!('cart' in r)) continue;
           const person = s.customerId ? personOf.get(s.customerId) : undefined;
           const method: PaymentMethod = s.method === 'credit' ? 'credit' : 'cash';
-          const how = pick(refundChoices({ paymentMethod: s.method, customerId: s.customerId }));
+          // Only the difference moves, the new piece's way (J2, fixed in the phase J check).
+          const how: RefundMethod = method === 'credit' ? 'debt' : 'cash';
           const res = exchange(ctx, {
             ret: {
               saleLineId: line.id,

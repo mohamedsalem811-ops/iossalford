@@ -7,7 +7,7 @@ import * as Notifications from 'expo-notifications';
 import { takeRepair } from '@/domain/repairs';
 import { makeCtx, type TestCtx } from '@/domain/testing/ctx';
 
-import { syncReminders } from './scheduler';
+import { showWhileOpen, syncReminders } from './scheduler';
 
 jest.mock('@/backup/store', () => ({ lastCopied: () => null, firstBackup: () => null }));
 
@@ -45,8 +45,18 @@ it('replaces this system’s reminders and leaves the other system’s', async (
   expect(N.scheduleNotificationAsync).toHaveBeenCalledWith(
     expect.objectContaining({
       identifier: 'jewelry-repairs-2026-11-18',
-      content: expect.objectContaining({ title: 'الصيانة', body: 'موعدها اليوم: منى' }),
+      content: expect.objectContaining({ title: 'الصيانة • المجوهرات', body: 'موعدها اليوم: منى' }),
       trigger: { type: 'date', date: new Date(2026, 10, 18, 9, 0) },
     }),
   );
+});
+
+it('shows a reminder while the app is open too (the iPad is the till)', async () => {
+  showWhileOpen();
+  const handler = N.setNotificationHandler.mock.calls[0][0]!;
+  await expect(handler.handleNotification({} as never)).resolves.toMatchObject({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+  });
 });

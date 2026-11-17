@@ -336,37 +336,39 @@ export function ReturnForm({
           />
         </Card>
 
-        <Card testID="return-method">
-          <Text variant="subhead" tone="secondary">
-            طريقة إعادة المبلغ
-          </Text>
-          {ways.length === 1 && ways[0] === 'debt' ? (
-            <Text variant="body" testID="return-method-debt">
-              بيعة آجل: يُخصم المبلغ من دين الزبون.
+        {swap && cart.length ? null : (
+          <Card testID="return-method">
+            <Text variant="subhead" tone="secondary">
+              طريقة إعادة المبلغ
             </Text>
-          ) : (
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-              {ways.map((m) => (
-                <FilterChip
-                  key={m}
-                  label={REFUND_METHOD_LABELS[m]}
-                  selected={refundMethod === m}
-                  onPress={() => setRefundMethod(m)}
-                  testID={`return-method-${m}`}
-                />
-              ))}
-            </View>
-          )}
-          <Text variant="caption" tone="secondary">
-            {refundMethod === 'cash'
-              ? 'يخرج من الدرج.'
-              : refundMethod === 'balance'
-                ? 'يُضاف إلى رصيد الزبون، يستعمله عند الدفع لاحقاً.'
-                : refundMethod === 'debt'
-                  ? 'لا يخرج مال من الدرج.'
-                  : 'لا يخرج من الدرج: يُعاد على البطاقة أو بالتحويل.'}
-          </Text>
-        </Card>
+            {ways.length === 1 && ways[0] === 'debt' ? (
+              <Text variant="body" testID="return-method-debt">
+                بيعة آجل: يُخصم المبلغ من دين الزبون.
+              </Text>
+            ) : (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                {ways.map((m) => (
+                  <FilterChip
+                    key={m}
+                    label={REFUND_METHOD_LABELS[m]}
+                    selected={refundMethod === m}
+                    onPress={() => setRefundMethod(m)}
+                    testID={`return-method-${m}`}
+                  />
+                ))}
+              </View>
+            )}
+            <Text variant="caption" tone="secondary">
+              {refundMethod === 'cash'
+                ? 'يخرج من الدرج.'
+                : refundMethod === 'balance'
+                  ? 'يُضاف إلى رصيد الزبون، يستعمله عند الدفع لاحقاً.'
+                  : refundMethod === 'debt'
+                    ? 'لا يخرج مال من الدرج.'
+                    : 'لا يخرج من الدرج: يُعاد على البطاقة أو بالتحويل.'}
+            </Text>
+          </Card>
+        )}
 
         {line ? (
           <Card testID="return-conditions">
@@ -423,16 +425,27 @@ export function ReturnForm({
                 <Text variant="subhead" testID="return-difference">
                   {differenceText(swapTotal - maxRefund(line, quantity))}
                 </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-                  {(['cash', 'card', 'transfer'] as const).map((m) => (
-                    <FilterChip
-                      key={m}
-                      label={PAYMENT_LABELS[m]}
-                      selected={swapMethod === m}
-                      onPress={() => setSwapMethod(m)}
-                    />
-                  ))}
-                </View>
+                {ways[0] === 'debt' ? (
+                  <Text variant="caption" tone="secondary" testID="return-swap-credit">
+                    بيعة آجل: يُخصم المرتجع من دينها وتُضاف القطعة الجديدة إليه.
+                  </Text>
+                ) : (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                    {(['cash', 'card', 'transfer'] as const).map((m) => (
+                      <FilterChip
+                        key={m}
+                        label={PAYMENT_LABELS[m]}
+                        selected={swapMethod === m}
+                        onPress={() => setSwapMethod(m)}
+                      />
+                    ))}
+                  </View>
+                )}
+                {ways[0] === 'debt' ? null : (
+                  <Text variant="caption" tone="secondary">
+                    يُدفع الفرق أو يُعاد بهذه الطريقة فقط، وقيمة القطعة المرتجعة تُحسب منها.
+                  </Text>
+                )}
               </>
             ) : null}
           </Card>

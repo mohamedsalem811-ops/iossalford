@@ -64,7 +64,7 @@ describe('repairs and orders', () => {
       '11/22 9:00',
       '11/23 9:00',
     ]);
-    expect(list[0]).toMatchObject({ title: 'الصيانة', body: 'موعدها اليوم: منى' });
+    expect(list[0]).toMatchObject({ title: 'الصيانة • المجوهرات', body: 'موعدها اليوم: منى' });
     expect(list[1].body).toBe('متأخرة: منى');
   });
 
@@ -80,7 +80,10 @@ describe('repairs and orders', () => {
   it('reminds about an order due and then late', () => {
     order('2026-11-18');
     const list = of(planReminders(ctx, noBackup), 'orders');
-    expect(list[0]).toMatchObject({ title: 'الطلبيات', body: 'موعد وصولها اليوم: سعاد' });
+    expect(list[0]).toMatchObject({
+      title: 'الطلبيات • المجوهرات',
+      body: 'موعد وصولها اليوم: سعاد',
+    });
     expect(at(list[0])).toBe('11/18 9:00');
     expect(list[1].body).toBe('متأخرة عن موعدها: سعاد');
   });
@@ -99,7 +102,7 @@ describe('the customers', () => {
     saveCustomer(ctx, { name: 'ليلى', phone: '0931111111', birthMonth: 11, birthDay: 20 });
     const list = of(planReminders(ctx, noBackup), 'birthdays');
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ title: 'أعياد الميلاد اليوم', body: 'ليلى' });
+    expect(list[0]).toMatchObject({ title: 'أعياد الميلاد اليوم • المجوهرات', body: 'ليلى' });
     expect(at(list[0])).toBe('11/20 9:00');
   });
 
@@ -109,7 +112,10 @@ describe('the customers', () => {
     ctx.db.run("UPDATE gifts SET created_at = '2025-11-20T10:00:00'");
     const list = of(planReminders(ctx, noBackup), 'gifts');
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ title: 'هدايا الأسبوع القادم', body: 'هدى: ذكرى الزواج' });
+    expect(list[0]).toMatchObject({
+      title: 'هدايا الأسبوع القادم • المجوهرات',
+      body: 'هدى: ذكرى الزواج',
+    });
     // 27 November: a week before is the 20th.
     expect(at(list[0])).toBe('11/20 9:00');
   });
@@ -138,11 +144,11 @@ describe('the shift and the backup', () => {
     ]);
     expect(list[0]).toMatchObject({
       id: 'jewelry-shift-2026-11-17',
-      title: 'الوردية ما زالت مفتوحة',
+      title: 'الوردية ما زالت مفتوحة • المجوهرات',
     });
     expect(list[1]).toMatchObject({
       id: 'jewelry-shift-morning-2026-11-18',
-      title: 'وردية أمس ما زالت مفتوحة',
+      title: 'وردية أمس ما زالت مفتوحة • المجوهرات',
       body: 'أغلق الوردية وعُدّ الصندوق.',
     });
   });
@@ -177,7 +183,7 @@ describe('the shift and the backup', () => {
       'backup',
     );
     expect(list).toHaveLength(1);
-    expect(list[0].title).toBe('النسخ الاحتياطي');
+    expect(list[0].title).toBe('النسخ الاحتياطي • المجوهرات');
     expect(list[0].body).toContain('خارج الجهاز');
   });
 });
@@ -197,6 +203,22 @@ describe('the owner’s choices', () => {
     repair('2026-11-18', { name: 'سلمى', phone: '0941111111' });
     setNotifyRules(ctx, { hideNames: true });
     expect(of(planReminders(ctx, noBackup), 'repairs')[0].body).toBe('موعدها اليوم: 2');
+  });
+
+  it('says which system, and counts plainly when names are hidden', () => {
+    const scarves = makeCtx('scarves', new Date(2026, 10, 17, 8));
+    saveCustomer(scarves, { name: 'ليلى', phone: '0931111111', birthMonth: 11, birthDay: 18 });
+    expect(planReminders(scarves, noBackup)[0].title).toBe('أعياد الميلاد اليوم • الأوشحة');
+    scarves.close();
+    saveCustomer(ctx, { name: 'ليلى', phone: '0931111111', birthMonth: 11, birthDay: 18 });
+    saveCustomer(ctx, { name: 'منى', phone: '0932222222', birthMonth: 11, birthDay: 18 });
+    const id = saveCustomer(ctx, { name: 'هدى', phone: '0933333333' });
+    saveGift(ctx, id, null, { forWhom: 'زوجها', month: 11, day: 24 });
+    ctx.db.run("UPDATE gifts SET created_at = '2025-11-20T10:00:00'");
+    setNotifyRules(ctx, { hideNames: true });
+    const list = planReminders(ctx, noBackup);
+    expect(of(list, 'birthdays')[0].body).toBe('العدد: 2');
+    expect(of(list, 'gifts')[0].body).toBe('العدد: 1');
   });
 
   it('never shows a phone number', () => {

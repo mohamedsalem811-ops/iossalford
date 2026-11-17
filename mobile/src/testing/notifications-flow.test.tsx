@@ -112,6 +112,7 @@ it('asks for the permission, turns a kind off, hides names and moves the times',
   const N = jest.mocked(Notifications);
   await renderRouter(routes, { initialUrl: '/jewelry/more/notifications' });
   expect(await screen.findByTestId('notify-status')).toHaveTextContent(/غير مسموح/);
+  expect(screen.getByTestId('notify-per-system')).toHaveTextContent(/لنظام المجوهرات وحده/);
 
   N.getPermissionsAsync.mockResolvedValue({ granted: true, canAskAgain: true } as never);
   await fireEvent.press(screen.getByTestId('notify-allow'));

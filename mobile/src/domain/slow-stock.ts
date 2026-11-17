@@ -4,11 +4,13 @@
  * brand, the most money first.
  *
  * A piece is idle since its last sale, or since stock last came in (it was added, or stock was
- * raised by hand: a new delivery), whichever is later. Archived pieces are left out.
+ * raised by hand: a new delivery), whichever is later. Archived pieces are left out, and so is
+ * what is held for customers with a deposit or bought for their order: it is sold, not slow.
  */
 import { logAction } from './activity';
 import { allow, allowView, nowStamp, RuleError, type Ctx } from './context';
 import { getProduct } from './products';
+import { refuseIfOrdered, reservedCounts } from './reserved';
 
 export const SLOW_DAYS = [60, 90, 180] as const;
 export type SlowDays = (typeof SLOW_DAYS)[number];
@@ -21,6 +23,7 @@ export type SlowRow = {
   brand: string | null;
   category: string;
   imageFile: string | null;
+  /** In stock, less what is held for customers. */
   stock: number;
   cost: number;
   price: number;
@@ -45,6 +48,7 @@ export function slowStock(
 ): { rows: SlowRow[]; brands: SlowBrand[]; total: Omit<SlowBrand, 'brand'> } {
   allowView(ctx, 'costs.view');
   const now = ctx.now().getTime();
+  const held = reservedCounts(ctx);
   const rows = ctx.db
     .all<{
       id: number;
@@ -70,6 +74,8 @@ export function slowStock(
          FROM products p LEFT JOIN brands b ON b.id = p.brand_id
         WHERE p.archived = 0 AND p.stock > 0`,
     )
+    .map((r) => ({ ...r, stock: r.stock - (held.get(r.id) ?? 0) }))
+    .filter((r) => r.stock > 0)
     .map((r): SlowRow => {
       const since = [r.created_at, r.sold, r.came]
         .filter((t): t is string => !!t)
@@ -122,6 +128,7 @@ export function setProductPrice(ctx: Ctx, productId: number, price: number) {
   ctx.db.transaction(() => {
     const p = getProduct(ctx, productId);
     if (!p) throw new RuleError('القطعة غير موجودة في المخزون');
+    refuseIfOrdered(ctx, productId);
     if (p.price === price) return;
     ctx.db.run('UPDATE products SET price = ?, updated_at = ? WHERE id = ?', [
       price,
