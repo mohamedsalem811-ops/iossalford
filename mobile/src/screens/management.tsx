@@ -21,6 +21,7 @@ export type ManageTarget =
   | 'marketing'
   | 'expenses'
   | 'closing'
+  | 'profits'
   | 'comparison'
   | 'brands'
   | 'sets'
@@ -61,6 +62,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
       { target: 'daySummary', icon: 'calendar', title: 'ملخص اليوم' },
       { target: 'shifts', icon: 'tray.full', title: 'الورديات وعدّ النقد' },
       { target: 'expenses', icon: 'banknote', title: 'المصروفات' },
+      { target: 'profits', icon: 'chart.pie', title: 'الأرباح' },
       { target: 'closing', icon: 'checkmark.seal', title: 'الإقفال الربع سنوي' },
       { target: 'comparison', icon: 'chart.bar', title: 'مقارنة الأشهر' },
     ],

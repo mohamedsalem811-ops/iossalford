@@ -42,6 +42,7 @@ import { reservedCounts } from '@/domain/reserved';
 import { allBalances, creditBalances, debtors } from '@/domain/debts';
 import { displayName, getProduct, listProducts } from '@/domain/products';
 import { countReceipts, listReceipts, receiptMonths } from '@/domain/receipts';
+import { periodMonths, profitRows } from '@/domain/profits';
 import {
   breakdown,
   dailySales,
@@ -272,6 +273,13 @@ function measure(sales: number, people = 1_500) {
     stockSummary(ctx);
   });
   check('End-of-day summary: a day with its shifts', () => daySummary(ctx, dayKey(now)));
+  check('Profits: a year by brand, its first brand by category and piece (J4)', () => {
+    const year = periodMonths({ kind: 'year', key: String(now.getFullYear()) });
+    const [top] = profitRows(ctx, year);
+    if (!top) return;
+    const [cat] = profitRows(ctx, year, { brand: top.key });
+    if (cat) profitRows(ctx, year, { brand: top.key, category: cat.key });
+  });
   check('Checkout: find a customer by name (no phone)', () => ensureCustomer(ctx, 'زبون 1200'));
   check('Comparison: 12 months', () =>
     monthlyComparison(ctx, months[months.length - 1], months[0]),
