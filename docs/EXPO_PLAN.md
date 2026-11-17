@@ -937,6 +937,79 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
   - **iPhone: 35 of 36 passed.** loyalty-points stopped while creating the scarves PIN at first launch: the dots showed 7 of 8 and «أكّد الرمز» never came, although Maestro reported all 8 taps done. The device log proves why: every tap shows the screen touched and released ("contact 2 presence: touching", then "presence: none"), except the «6» at 12:59:44.54, which has no release; a key counts only on release, so the simulator lost that digit, not the app. Lost taps were already handled at sign-in (pin-retry.yaml) and for سارة's PINs (run 61), but not in the first-launch setup, which runs at the start of nearly every flow (32 taps). A check for this was tried in run 72 and removed (below); the setup is as in runs 68 and 71.
 - **Simulator run 72 (2026-11-16): broken by the test change, not the app; reverted.** iPhone: 34 of 36 flows failed at the first-launch PIN setup. The run's commands and maestro.log show why: after all 8 digits were typed, copyTextFrom read the dots' label, and the retry `when: true: ${/[1-7] من 8$/.test(maestro.copiedText)}` still ran every time (it was never false), so it cleared and retyped the PIN onto the next screen and used up the confirm step; then «أنشئ رمز نظام الأوشحة» or pin-key-5 was not found. The two `pin-*-checked.yaml` files were deleted and `setup-pins.yaml` is back to the version that passed in runs 68 and 71. No further simulator run was started (owner's decision): runs 68 (iPhone 36/36) and 71 (iPad 36/36, iPhone 35/36, the one failure a tap the simulator lost) together cover every flow.
 
+### Phase J: fixes from the full check, and new tools for the counter (after I1 to I4)
+
+**Owner's choices (2026-11-17),** after the full check of the app (code, flows, screenshots, three busy years of simulated use and a 100,000-sale load test; no change made by the check):
+
+- One `.ipa` at the end of the phase; nothing goes out as an instant update before it (database 13 and 14, a camera and reminders, so it needs a new `.ipa` anyway).
+- The 2 TB iPad is the till; the backup copies kept on the device stay as they are (10 newest plus one a day for 7 days).
+- Not now: suppliers and receiving stock, gift vouchers, staff targets. iCloud backup stays in Phase 11.
+- Built in this order, one draft pull request for the phase, each part pushed as it is done, with Jest tests (a failing test first for every bug) and a Maestro flow for every new screen. `npm run check`, `npm run speed` and `npx expo-doctor` before every push.
+
+**J1 – Fixes from the full check**
+
+1. **Set prices in whole dinars.** A set's price is split over its pieces to the dirham today, so a receipt shows prices like 329.412; with 2 of the same piece the receipt total came to 1,100.001 for a sale of 1,100.000. The split becomes whole dinars per piece, the same way the quick % discount and the rewards already work, so every line and the receipt total match the sale exactly. Old sales and receipts are not changed. Test first: the set with 2 of a piece, receipt total = sale total.
+2. **Restore shows "please wait".** The restore starts in the same moment as the spinner, so the screen freezes without one (2 seconds at the planned size, 5.5 seconds after three busy years). The screen first shows «جارٍ الاستعادة… قد يستغرق ذلك دقيقة», then restores. The same for «نسخة الآن» and the copy to send off the device.
+3. **Faster customer report.** «عملاء عادوا هذه السنة» reads each customer's purchases one by one (0.7 s at the planned size, 5.5 s with 10,000 customers). One grouped query instead; a speed-test line with 10,000 customers, target 1 s.
+4. **Earlier off-device reminder:** after 3 days without a copy leaving the device, instead of 7 (no iCloud yet).
+5. **Faster "today" on the home screen** and the sales list's one-day filter: they read every sale ever made; a date range uses the index.
+6. **The shop simulation becomes a permanent test:** 120 days of an employee's shifts, sales, returns, exchanges, debts, deposits, deliveries, cancellations, points and deleted sales, with an independent record of the drawer, stock, debts and points checked every day (it found no difference in about 12 simulated shop-years; it guards every future change).
+
+**J2 – How a refund is paid back (database 13)**
+
+- A return asks how the money went back: **كاش، بطاقة، تحويل، or رصيد للزبونة** (her له رصيد, to use at checkout). It starts on the way the sale was paid. A return of a sale on credit lowers her debt, as now (no choice).
+- Only cash refunds come out of the drawer: the shift's expected cash, the day summary and its PDF, the shift report and the dashboard follow the method. «رصيد للزبونة» needs a customer on the sale.
+- An exchange: the difference is refunded the chosen way, or paid as a normal sale.
+- The return receipt and the sale's page show the method; the returns list can filter by it.
+- **Database 13:** `returns.refund_method` ('cash', 'card', 'transfer', 'balance', 'debt'). The upgrade sets 'debt' for returns of credit sales and 'cash' for the rest (what the app assumed until now), so no past figure changes. Saved copy first, foreign keys checked, older backups upgraded, a test restoring a backup from schema 1.
+
+**J3 – Scan to sell (the iPad camera)**
+
+- `expo-camera` (in Expo Go too, so the preview keeps working); the Arabic camera text in the app's settings.
+- **Sale screen:** a scan button; scanning a piece's code adds it to the cart (a short sound and vibration); an unknown code says so. Keeps scanning for the next piece until closed.
+- **Products:** scanning opens the piece. **Stock count:** scanning a piece counts one more (still blind for employees).
+- **Her own card:** the membership card gets a personal QR (a code unique to her, never her phone number), to share with her by WhatsApp or print; at checkout, scanning it picks her. The rewards card keeps the shop's WhatsApp QR.
+- Reads the QR codes of J4 and the barcodes already on brand pieces when they carry the piece's code (SKU).
+
+**J4 – Price tags and labels**
+
+- Print tags with the brand, the piece's name and size, the price (or no price), the code as text and as a QR that J3 scans; SALFORD's name small.
+- From **Products:** choose pieces (or a brand, or a category) and how many tags each; from a **stock arrival** (adjust stock, a new piece, an arrived order): its tags in one tap.
+- Printed with the same printing as the receipts, on label sheets. **Owner to say** which label paper: A4 sticker sheets (e.g. 24 or 65 a sheet) or a small jewellery-tag printer; the first layout follows that answer.
+
+**J5 – Repairs and services, صيانة (database 14)**
+
+- **New repair:** the customer (name and phone), the piece (description and photos), what to do (تصغير أو تكبير المقاس، لحام، تلميع، تغيير قفل، تبديل حجر، أخرى), notes, the price agreed (0 for free), the date it will be ready, and an optional deposit (cash, card or transfer).
+- **Stages:** استُلمت → في الورشة → جاهزة → سُلّمت, or ملغاة (the deposit back or to her balance, as for deposit orders). The workshop's cost (owner only) for the profit.
+- **Repair ticket** printed for her, with its number (R-2026-0001) and the shop's repair note; she shows it to collect.
+- **Delivery:** the rest paid (any method, or on credit); the money counts in the shift, the day summary, the dashboard and the quarterly closing as **دخل الصيانة**, apart from product sales (no stock moves).
+- **WhatsApp «جاهزة للاستلام»** message, typed by the owner in التسويق → الرسائل with fill-ins.
+- **Home reminders:** due today, late, ready and not collected after 14 days. Her repairs on her customer page; Management → الصيانة, the list with search and stages.
+- Permissions `repairs.take`, `repairs.deliver` (employees yes), `repairs.cost`, `repairs.cancel` (owner), in the permission test with their log lines. Backups carry the repair photos.
+- **Database 14:** tables `repairs` and `repair_payments` (unique ids, the device, the shift), upgrade tests from 12 and 13.
+
+**J6 – Profit by brand, category and piece**
+
+- Management → المال → **الأرباح** (owner only): a month, a quarter or a year; for each brand its sales, pieces, cost, profit and margin, after returns; tap a brand for its categories, a category for its pieces; sorted by profit or by margin.
+- From the costs each sale kept, so a later price or cost change never changes the past. A PDF to share. Speed-test line.
+
+**J7 – Slow-moving stock**
+
+- Products → **الراكدة** (owner): pieces in stock with no sale in 60, 90 or 180 days (or never sold since they came in), how long, and the money tied up in them (cost × stock), by brand.
+- Tap a piece to change its price (logged), then print its new tag (J4). Sorted by money tied up. Speed-test line.
+
+**J8 – Reminders on the iPad while the app is closed**
+
+- `expo-notifications`, **local reminders only** (scheduled on the device, no internet, no Apple push service): an order or repair due or late, a repair or order ready and not collected, a gift date next week, birthdays this morning, the shift-closing hour for an open shift, and the off-device backup reminder.
+- Settings → التنبيهات: each kind on or off and the time of day; the lock screen shows no customer phone, and the owner can hide names there.
+- **Checked first:** when phase I was planned, reminders were marked not possible with a Sideloadly install. Local reminders don't need Apple's push service, so they should work: the first step builds the `.ipa` with local reminders only (no push entitlement) and the owner installs it with Sideloadly. If it can't be installed or the reminders don't show, J8 moves to Phase 11 (signed builds) and the in-app reminders stay as they are.
+
+**J9 – End of the phase**
+
+- Self-check of the whole phase against this plan and real use at the counter (the iPad as the till: scanning, tags, repairs); every new screen at iPad width, upright and sideways.
+- Maestro flows for every new screen, ready for 10.0 (no simulator run during the build, as decided).
+- The `.ipa` built and installed, then recorded for instant updates (`npm run update:record`).
+
 ### Phase 10: switching over
 
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):
@@ -949,7 +1022,7 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 - **10.2** You set up both PINs and enter your products and brands (the new app starts empty, as decided). Then the first backup, copied to the other device.
 - **10.3** A few days of real use with the current app still installed. What you find is fixed and sent as instant updates (or a new `.ipa` when native).
 - **10.4** Delete the old app, only after a fresh backup has been copied off the device.
-- **10.5** **NEW** Retire the old SwiftUI app in the repository: its build workflow switched off and its code kept in history, so only the Expo app is built from then on (with your OK).
+- **10.5** **Done by the owner (2026-11-16):** the old SwiftUI app was removed from the repository (its folders, `codemagic.yaml`, `README_AR.md` and its build workflow); its code stays in the history, and only the Expo app is built now.
 
 ### Phase 11: Apple Developer account and the App Store
 
