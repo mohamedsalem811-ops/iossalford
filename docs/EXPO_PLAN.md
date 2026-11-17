@@ -1003,6 +1003,7 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 - Maestro flows for every new screen, ready for 10.0 (no simulator run during the build, as decided).
 - Expo's newer patch versions brought in first (`npx expo install --check`: on 2026-11-17 expo-doctor listed 6 packages, among them expo-router, expo-sqlite and expo-file-system), so the one native build has them; then the full checks again.
 - The `.ipa` built and installed, then recorded for instant updates (`npm run update:record`).
+- *Done so far (2026-11-17):* the six patch versions brought in (`@expo/ui` 58.0.29, `expo` 58.0.26, `expo-file-system` 58.0.14, `expo-router` 58.0.32, `expo-sqlite` 58.0.18, `jest-expo` 58.0.15); `npx expo install --check` is clean and expo-doctor's only failures are the two that need the internet. Full checks pass (1,206 tests), the speed test passes. Maestro flows for every new screen of the phase are in `e2e/` (`staff-returns.yaml` for J2, `repairs.yaml`, `profits.yaml`, `slow-stock.yaml`, `notifications.yaml`), their ids checked against the code; ready for the simulator run, which is not started until the owner says so. **Still to do:** the self-check of the whole phase (when the owner asks), the simulator run, then the `.ipa` build (it carries the new native module `expo-notifications`, so an instant update alone can't bring J6) with the Sideloadly reminder check, and `npm run update:record`.
 
 ### Phase 10: switching over
 
