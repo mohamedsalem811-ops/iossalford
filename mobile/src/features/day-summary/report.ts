@@ -100,6 +100,14 @@ export function daySections(d: DaySummary): Section[] {
           label: 'عربون مُسترد نقداً',
           value: `−${formatLyd(d.deposits.refunded.cash)}`,
         },
+        d.repairs.taken.cash > 0 && {
+          label: 'الصيانة نقداً',
+          value: formatLyd(d.repairs.taken.cash),
+        },
+        d.repairs.refunded.cash > 0 && {
+          label: 'عربون صيانة مُسترد نقداً',
+          value: `−${formatLyd(d.repairs.refunded.cash)}`,
+        },
         d.cashRefunds > 0 && { label: 'مرتجعات نقداً', value: `−${formatLyd(d.cashRefunds)}` },
         d.payouts.cash > 0 && {
           label: 'رد أرصدة زبائن نقداً',
@@ -145,6 +153,19 @@ export function daySections(d: DaySummary): Section[] {
           d.deposits.kept > 0 && {
             label: 'عربون احتفظ به المحل',
             value: formatLyd(d.deposits.kept),
+          },
+          // Repairs (J3): the income is the price of what was delivered, apart from sales.
+          d.repairs.delivered > 0 && {
+            label: 'دخل الصيانة',
+            value: `${d.repairs.delivered} • ${formatLyd(d.repairs.income)}`,
+          },
+          d.repairs.taken.other > 0 && {
+            label: 'الصيانة ببطاقة أو تحويل',
+            value: formatLyd(d.repairs.taken.other),
+          },
+          d.repairs.refunded.other > 0 && {
+            label: 'عربون صيانة مُسترد ببطاقة أو تحويل',
+            value: `−${formatLyd(d.repairs.refunded.other)}`,
           },
         ]),
         { label: 'المصروفات', value: formatLyd(d.expenses) },

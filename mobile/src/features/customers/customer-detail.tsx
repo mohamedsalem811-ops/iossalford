@@ -28,6 +28,7 @@ import { PointsCard } from './points-card';
 import { MarketingCard } from './marketing-card';
 import { WantedCard } from './wanted-card';
 import { CustomerOrders } from '@/features/orders/customer-orders';
+import { CustomerRepairs } from '@/features/repairs/customer-repairs';
 import { balanceText, paymentWayLabel } from './model';
 import { haptic } from '@/lib/haptics';
 import { useCan } from '@/staff/use-can';
@@ -196,6 +197,7 @@ export function CustomerDetail({
       <MarketingCard ctx={ctx} customerId={c.id} />
 
       <CustomerOrders ctx={ctx} customerId={c.id} />
+      <CustomerRepairs ctx={ctx} customerId={c.id} />
 
       <Card>
         <Text variant="subhead" tone="secondary">

@@ -12,6 +12,7 @@ export type ManageTarget =
   | 'daySummary'
   | 'sales'
   | 'orders'
+  | 'repairs'
   | 'returns'
   | 'returnFind'
   | 'policies'
@@ -41,6 +42,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
       { target: 'shift', icon: 'clock.badge.checkmark', title: 'الوردية' },
       { target: 'sales', icon: 'list.bullet.rectangle', title: 'سجل المبيعات' },
       { target: 'orders', icon: 'shippingbox', title: 'الطلبات بعربون' },
+      { target: 'repairs', icon: 'wrench.and.screwdriver', title: 'الصيانة' },
       { target: 'returnFind', icon: 'arrow.left.arrow.right.circle', title: 'مرتجع أو استبدال' },
       { target: 'returns', icon: 'arrow.uturn.backward', title: 'المرتجعات' },
     ],

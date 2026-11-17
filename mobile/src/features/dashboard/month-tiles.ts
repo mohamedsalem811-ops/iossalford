@@ -65,7 +65,11 @@ export function monthTiles(
       key: 'net-profit',
       label: 'صافي الربح',
       value: s.netProfit,
-      sub: formatUsd(s.netProfitUsd),
+      // Repairs (J3) are in the net profit, apart from sales: named under it when there are some.
+      sub:
+        s.repairs > 0
+          ? `${formatUsd(s.netProfitUsd)} • دخل الصيانة ${formatDinars(s.repairIncome)}`
+          : formatUsd(s.netProfitUsd),
       tone: s.netProfit < 0 ? 'negative' : 'positive',
       trend: trend(s.netProfit, previous?.netProfit),
     },

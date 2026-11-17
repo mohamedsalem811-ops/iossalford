@@ -48,6 +48,13 @@ export function reportRows(r: ShiftReport): { label: string; value: string }[] {
           { label: 'منه نقداً', value: formatLyd(totals.cashDeposits) },
         ]
       : []),
+    // Paid towards repairs (J3), less refunds: the cash part is in the drawer.
+    ...(totals.repairs || totals.cashRepairs
+      ? [
+          { label: 'الصيانة', value: formatLyd(totals.repairs) },
+          { label: 'منها نقداً', value: formatLyd(totals.cashRepairs) },
+        ]
+      : []),
     { label: 'الخصومات', value: formatLyd(totals.discounts) },
     { label: 'موافقات المالك', value: String(totals.approvals) },
     { label: 'نقد البداية', value: formatLyd(shift.openingCash) },

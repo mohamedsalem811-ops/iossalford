@@ -96,6 +96,16 @@ function ClosingRouteScreen() {
           {p.otherIncome > 0 ? (
             <Line label="عربون احتفظ به المحل" value={formatLyd(p.otherIncome)} />
           ) : null}
+          {p.repairs > 0 ? (
+            <>
+              <Line
+                label={`دخل الصيانة (${p.repairs})`}
+                value={formatLyd(p.repairIncome)}
+                testID="closing-repairs"
+              />
+              <Line label="تكلفة ورشة الصيانة" value={formatLyd(p.repairCost)} />
+            </>
+          ) : null}
           <Line label="صافي الربح" value={formatLyd(p.netProfit)} strong testID="closing-net" />
           <Text variant="caption" tone="secondary">
             {`${p.transactions} بيعة • ${p.itemsSold} قطعة مباعة • ${p.itemsReturned} مرتجعة`}
