@@ -25,7 +25,9 @@ import { getCustomer, listCustomers, saveCustomer } from './customers';
 import { recordPayment } from './debts';
 import { getProduct, saveProduct } from './products';
 import { setRewards } from './rewards';
-import { listSales } from './sales';
+import { exchange } from './exchange';
+import { getPolicies } from './policies';
+import { addReturn, getSale, listSales } from './sales';
 import { EMPLOYEE, makeCtx, type TestCtx } from './testing/ctx';
 
 let ctx: TestCtx;
@@ -195,5 +197,35 @@ describe('the owner’s report', () => {
     ctx.setActor(EMPLOYEE);
     expect(() => customerReport(ctx)).toThrow(PermissionError);
     ctx.setActor(OWNER);
+  });
+
+  it('does not count a piece brought back, or an exchange, as coming back', () => {
+    const answers = () =>
+      Object.fromEntries(getPolicies(ctx).returnConditions.map((c) => [c, true]));
+    const back = (saleId: number) => ({
+      saleLineId: getSale(ctx, saleId)!.lines[0].id,
+      quantity: 1,
+      photo: 'p.jpg',
+      answers: answers(),
+    });
+    // هدى: a second day, but that piece came back. منى: the second day is an exchange.
+    // سارة: two real days, one of them before this year (counts once this year).
+    ctx.setNow(new Date(2025, 11, 30));
+    sellTo('سارة', '0933333333');
+    ctx.setNow(new Date(2026, 10, 1));
+    sellTo('هدى', '0911111111');
+    sellTo('منى', '0922222222');
+    sellTo('سارة', '0933333333');
+    ctx.setNow(new Date(2026, 10, 2));
+    addReturn(ctx, back(sellTo('هدى', '0911111111').saleId));
+    exchange(ctx, {
+      ret: back(listSales(ctx, { search: 'منى' })[0].id),
+      sale: { cart: cart(), paymentMethod: 'cash', customer: { name: 'منى', phone: '0922222222' } },
+    });
+    expect(customerReport(ctx)).toMatchObject({ buyers: 3, returning: 0 });
+    // A real second visit counts.
+    ctx.setNow(new Date(2026, 10, 3));
+    sellTo('سارة', '0933333333');
+    expect(customerReport(ctx)).toMatchObject({ buyers: 3, returning: 1 });
   });
 });

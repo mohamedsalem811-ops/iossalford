@@ -20,7 +20,8 @@ appId: com.salford.pos
     timeout: 30000
 - tapOn:
     id: 'set-name'
-- inputText: 'Gift Set'
+- inputText: 'Gift'
+- inputText: ' Set'
 - tapOn:
     id: 'keyboard.toolbar.done'
 - tapOn:

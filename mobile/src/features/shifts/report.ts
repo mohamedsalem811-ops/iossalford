@@ -7,6 +7,7 @@ import * as Sharing from 'expo-sharing';
 import { File, Paths } from 'expo-file-system';
 
 import { PAYMENT_LABELS, PAYMENT_METHODS } from '@/domain/checkout';
+import { REFUND_METHOD_LABELS } from '@/domain/sales';
 import { differenceText, type CashMove, type Shift, type ShiftTotals } from '@/domain/shifts';
 import { formatDate, formatTime } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
@@ -29,6 +30,13 @@ export function reportRows(r: ShiftReport): { label: string; value: string }[] {
     { label: 'عدد المبيعات', value: String(totals.sales) },
     { label: 'المرتجعات', value: `${totals.returns} • ${formatLyd(totals.refunded)}` },
     { label: 'منها نقداً', value: formatLyd(totals.cashRefunds) },
+    // The rest went back another way (J2), not out of the drawer.
+    ...(['card', 'transfer', 'balance', 'debt'] as const)
+      .filter((m) => totals.refundsBy[m] > 0)
+      .map((m) => ({
+        label: `منها ${REFUND_METHOD_LABELS[m]}`,
+        value: formatLyd(totals.refundsBy[m]),
+      })),
     { label: 'دفعات ديون نقداً', value: formatLyd(totals.cashPayments) },
     ...(totals.cashPayouts
       ? [{ label: 'رد أرصدة زبائن نقداً', value: `−${formatLyd(totals.cashPayouts)}` }]
@@ -38,6 +46,13 @@ export function reportRows(r: ShiftReport): { label: string; value: string }[] {
       ? [
           { label: 'عربون الطلبات', value: formatLyd(totals.deposits) },
           { label: 'منه نقداً', value: formatLyd(totals.cashDeposits) },
+        ]
+      : []),
+    // Paid towards repairs (J3), less refunds: the cash part is in the drawer.
+    ...(totals.repairs || totals.cashRepairs
+      ? [
+          { label: 'الصيانة', value: formatLyd(totals.repairs) },
+          { label: 'منها نقداً', value: formatLyd(totals.cashRepairs) },
         ]
       : []),
     { label: 'الخصومات', value: formatLyd(totals.discounts) },

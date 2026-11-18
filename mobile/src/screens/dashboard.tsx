@@ -20,6 +20,7 @@ import { MonthSummary } from '@/features/dashboard/month-summary';
 import { QuickActions } from '@/features/dashboard/quick-actions';
 import { GiftRemindersCard, type GiftRemindersProps } from '@/features/marketing/gift-reminders';
 import { OrderRemindersCard, type OrderRemindersProps } from '@/features/orders/reminders-card';
+import { RepairRemindersCard, type RepairRemindersProps } from '@/features/repairs/reminders-card';
 
 export type { DashboardActions };
 
@@ -35,6 +36,7 @@ export function DashboardScreen({
   data,
   actions,
   orders,
+  repairs,
   gifts,
 }: {
   system: SystemId;
@@ -42,6 +44,8 @@ export function DashboardScreen({
   actions: DashboardActions;
   /** The deposit reminders (I2). */
   orders?: OrderRemindersProps;
+  /** Repairs due, late, or ready and not collected (J3). */
+  repairs?: RepairRemindersProps;
   /** The gift reminders a week before (I4). */
   gifts?: GiftRemindersProps;
 }) {
@@ -64,12 +68,14 @@ export function DashboardScreen({
         onNewSale={actions.onNewSale}
         onNewReceipt={actions.onNewReceipt}
         onNewOrder={actions.onNewOrder}
+        onNewRepair={actions.onNewRepair}
         onReturn={actions.onReturn}
         onDebtPayment={actions.onDebtPayment}
         onCustomer={actions.onCustomer}
         onNewProduct={actions.onNewProduct}
       />
       {orders ? <OrderRemindersCard {...orders} /> : null}
+      {repairs ? <RepairRemindersCard {...repairs} /> : null}
       {gifts ? <GiftRemindersCard {...gifts} /> : null}
       <Grid columns={Math.min(columns, 2)}>
         <TodayCard data={data} piece={piece} onOpenDay={actions.onOpenDay} />

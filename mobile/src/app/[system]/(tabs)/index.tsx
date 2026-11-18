@@ -17,8 +17,10 @@ import {
 } from '@/domain/marketing';
 import { recordMessage } from '@/domain/messages';
 import { orderReminders } from '@/domain/orders';
+import { repairReminders } from '@/domain/repairs';
 import type { GiftRemindersProps } from '@/features/marketing/gift-reminders';
 import type { OrderRemindersProps } from '@/features/orders/reminders-card';
+import type { RepairRemindersProps } from '@/features/repairs/reminders-card';
 import { showError } from '@/features/products/actions';
 import { haptic } from '@/lib/haptics';
 import { sectionHref } from '@/features/management/management-menu';
@@ -87,10 +89,14 @@ function useShortcuts() {
   const ctx = useCtx();
   const system = ctx.system;
   const mayOrder = useCan('orders.take');
+  const mayRepair = useCan('repairs.take');
   const mayReturn = useCan('returns.create');
   const mayPay = useCan('payments.create');
   return {
     onNewOrder: mayOrder ? () => newOrder(system) : undefined,
+    onNewRepair: mayRepair
+      ? () => router.push({ pathname: '/[system]/repair-form', params: { system } })
+      : undefined,
     onReturn: mayReturn ? () => router.push(sectionHref('returnFind', system)) : undefined,
     onDebtPayment: mayPay ? () => router.push(sectionHref('debts', system)) : undefined,
     onCustomer: () => router.push(sectionHref('customers', system)),
@@ -117,6 +123,27 @@ function useOrderReminders(): OrderRemindersProps | undefined {
     onOpenOrder: (id) =>
       router.push({ pathname: '/[system]/more/order/[id]', params: { system, id: String(id) } }),
     onOpenOrders: () => router.push(sectionHref('orders', system)),
+  };
+}
+
+/** The repair reminders for the home screen (J3), fresh on focus and after each change. */
+function useRepairReminders(): RepairRemindersProps | undefined {
+  const ctx = useCtx();
+  const system = ctx.system;
+  const may = useCan('repairs.take');
+  const phones = useCan('customers.phones');
+  const read = useCallback(() => (may ? repairReminders(ctx) : undefined), [ctx, may]);
+  const [reminders, setReminders] = useState(read);
+  const refresh = useCallback(() => setReminders(read()), [read]);
+  useFocusEffect(refresh);
+  useOnDataChanged(refresh);
+  if (!reminders) return undefined;
+  return {
+    reminders,
+    phones,
+    onOpenRepair: (id) =>
+      router.push({ pathname: '/[system]/more/repair/[id]', params: { system, id: String(id) } }),
+    onOpenRepairs: () => router.push(sectionHref('repairs', system)),
   };
 }
 
@@ -231,6 +258,7 @@ function EmployeeHome() {
   useOnDataChanged(refresh);
   const systemMenu = useSystemMenu();
   const orders = useOrderReminders();
+  const repairs = useRepairReminders();
   const gifts = useGiftReminders();
   const shortcuts = useShortcuts();
   return (
@@ -239,6 +267,7 @@ function EmployeeHome() {
       name={actor ? actorName(actor) : ''}
       data={data}
       orders={orders}
+      repairs={repairs}
       gifts={gifts}
       actions={{
         onSystemMenu: systemMenu,
@@ -278,6 +307,7 @@ function Dashboard() {
 
   const systemMenu = useSystemMenu();
   const orders = useOrderReminders();
+  const repairs = useRepairReminders();
   const gifts = useGiftReminders();
   const shortcuts = useShortcuts();
 
@@ -286,6 +316,7 @@ function Dashboard() {
       system={system}
       data={data}
       orders={orders}
+      repairs={repairs}
       gifts={gifts}
       actions={{
         onSystemMenu: systemMenu,

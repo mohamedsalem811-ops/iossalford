@@ -2,7 +2,7 @@ import { isRunningInExpoGo } from 'expo';
 import { useState } from 'react';
 import { ActionSheetIOS, Alert, View } from 'react-native';
 
-import { Button, Card, ListGroup, ListRow, Page, Text } from '@/components';
+import { Button, Card, letScreenDraw, ListGroup, ListRow, Page, Text, Working } from '@/components';
 import { RuleError, type Ctx } from '@/domain/context';
 import { canExcludeFromBackup, isAppDataExcluded } from '@/backup/exclusion';
 import { agoText, copyReminder, KIND_LABELS, type BackupInfo } from '@/backup/model';
@@ -49,16 +49,22 @@ export function BackupScreen({
   firstBackup: Date | null;
   onChanged: () => void;
 }) {
-  const [busy, setBusy] = useState(false);
+  /** What is running, shown over the screen ("please wait"); null when nothing is. */
+  const [working, setWorking] = useState<string | null>(null);
+  const busy = working !== null;
   const now = ctx.now();
   const reminder = copyReminder(lastCopied, now, firstBackup);
   const system = SYSTEM_NAMES[ctx.system];
 
-  const saveNow = () => {
+  const saveNow = async () => {
+    setWorking('جارٍ حفظ النسخة…');
     try {
+      await letScreenDraw();
       saveBackup(ctx, 'manual');
     } catch (error) {
       return fail(error, 'لم تُحفظ النسخة');
+    } finally {
+      setWorking(null);
     }
     haptic.success();
     onChanged();
@@ -90,15 +96,16 @@ export function BackupScreen({
     );
 
   const copy = async () => {
-    setBusy(true);
+    setWorking('جارٍ تجهيز النسخة مع الصور… قد يستغرق ذلك دقيقة');
     let shared = false;
     try {
-      await shareCopy(ctx);
+      await letScreenDraw();
+      await shareCopy(ctx, () => setWorking(null));
       shared = true;
     } catch (error) {
       fail(error, 'لم تُنسخ النسخة');
     } finally {
-      setBusy(false);
+      setWorking(null);
       onChanged();
     }
     if (shared) askArrived();
@@ -122,14 +129,15 @@ export function BackupScreen({
           text: 'استعادة',
           style: 'destructive',
           onPress: async () => {
-            setBusy(true);
+            setWorking('جارٍ الاستعادة… قد يستغرق ذلك دقيقة');
             try {
+              await letScreenDraw();
               await restore(ctx, file);
             } catch (error) {
               fail(error, 'لم تتم الاستعادة');
               return;
             } finally {
-              setBusy(false);
+              setWorking(null);
             }
             haptic.success();
             notifyDataChanged();
@@ -189,6 +197,7 @@ export function BackupScreen({
 
   return (
     <Page>
+      <Working message={working} />
       {reminder ? (
         <Card>
           <Text variant="bodyStrong" tone="negative" testID="backup-reminder">
@@ -214,7 +223,7 @@ export function BackupScreen({
           icon="square.and.arrow.up"
           size="lg"
           fullWidth
-          loading={busy}
+          disabled={busy}
           onPress={copy}
           testID="backup-copy"
         />

@@ -11,7 +11,7 @@ export const KEEP_DAYS = 7;
 /** Automatic backups within this many minutes of the last one replace it (one per hour). */
 export const AUTO_EVERY_MINUTES = 60;
 /** Days without a copy off the device before the reminder shows. */
-export const REMIND_AFTER_DAYS = 7;
+export const REMIND_AFTER_DAYS = 3;
 
 /**
  * auto: on leaving the app; manual: "نسخة الآن"; safety: the data a restore replaced; upgrade:

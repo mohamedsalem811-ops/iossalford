@@ -49,7 +49,8 @@ appId: com.salford.pos
 - extendedWaitUntil:
     visible: 'قطعة يطلبها الزبون'
     timeout: 10000
-- inputText: 'سوار ذهب'
+- inputText: 'سوار'
+- inputText: ' ذهب'
 - tapOn: 'حفظ'
 - extendedWaitUntil:
     visible: '.*سوار ذهب.*'

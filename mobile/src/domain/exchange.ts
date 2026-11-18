@@ -1,12 +1,18 @@
 /**
  * An exchange (phase S4): a returned piece and a new one in one step, under the same return
  * rules. Both are saved or neither; the customer pays the difference, or gets it back.
+ *
+ * Only the difference moves, the one way chosen for the new piece (J2, fixed in the phase J
+ * check): the returned piece's money goes back that same way, so a card sale exchanged with the
+ * difference paid in cash puts only the difference in the drawer. A sale on credit stays on her
+ * account: the return comes off her debt and the new piece goes on it.
  */
 import { formatLyd } from '@/lib/money';
 
 import { logAction } from './activity';
 import { checkout, type CheckoutInput } from './checkout';
-import { allow, clean, type Ctx } from './context';
+import { allow, clean, RuleError, type Ctx } from './context';
+import { getCustomer } from './customers';
 import { moveReferral } from './marketing';
 import { addReturn, getReturn, type ReturnInput } from './sales';
 
@@ -32,10 +38,29 @@ export function exchange(
 ): ExchangeResult {
   allow(ctx, 'sales.create');
   return ctx.db.transaction(() => {
-    const returnId = addReturn(ctx, input.ret, { exchange: true });
+    const was = ctx.db.get<{
+      payment_method: CheckoutInput['paymentMethod'];
+      customer_id: number | null;
+    }>(
+      'SELECT s.payment_method, s.customer_id FROM sales s JOIN sale_lines l ON l.sale_id = s.id WHERE l.id = ?',
+      [input.ret.saleLineId],
+    );
+    if (!was) throw new RuleError('البيعة غير موجودة');
+    const onCredit = was.payment_method === 'credit';
+    const herself = onCredit && was.customer_id ? getCustomer(ctx, was.customer_id) : undefined;
+    if (!onCredit && input.sale.paymentMethod === 'credit')
+      throw new RuleError('الاستبدال بالآجل لبيعة آجل فقط');
+    const paidBy = onCredit ? 'credit' : input.sale.paymentMethod;
+    const returnId = addReturn(
+      ctx,
+      { ...input.ret, refundMethod: onCredit ? 'debt' : (paidBy as 'cash' | 'card' | 'transfer') },
+      { exchange: true },
+    );
     const refund = getReturn(ctx, returnId)!.refund;
     const { saleId, total } = checkout(ctx, {
       ...input.sale,
+      paymentMethod: paidBy,
+      ...(herself ? { customer: { name: herself.name, phone: herself.phone ?? undefined } } : {}),
       // An exchange is not a new purchase: it never uses the visit reward (G2).
       reward: false,
       birthday: false,

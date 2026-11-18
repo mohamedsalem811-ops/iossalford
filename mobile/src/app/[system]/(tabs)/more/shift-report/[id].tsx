@@ -1,8 +1,18 @@
 import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Alert, ScrollView, View } from 'react-native';
+import { Alert, View } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 
-import { Button, Card, EmptyState, ListGroup, ListRow, NumberField, Text } from '@/components';
+import {
+  Button,
+  Card,
+  EmptyState,
+  KEYBOARD_GAP,
+  ListGroup,
+  ListRow,
+  NumberField,
+  Text,
+} from '@/components';
 import { errorBoundary } from '@/components/error-screen';
 import {
   cashMoves,
@@ -130,7 +140,8 @@ function ShiftReportScreen() {
   return (
     <>
       <Stack.Title>{`تقرير الوردية ${shift.id}`}</Stack.Title>
-      <ScrollView
+      <KeyboardAwareScrollView
+        bottomOffset={KEYBOARD_GAP}
         style={{ flex: 1, backgroundColor: colors.background }}
         onLayout={readable.onLayout}
         contentContainerStyle={{
@@ -224,7 +235,7 @@ function ShiftReportScreen() {
             />
           </View>
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
     </>
   );
 }

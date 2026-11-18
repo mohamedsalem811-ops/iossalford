@@ -49,6 +49,15 @@ import {
 } from '@/domain/orders';
 import { recordMessage } from '@/domain/messages';
 import {
+  cancelRepair,
+  deliverRepair,
+  moveRepair,
+  setRepairCost,
+  setRepairDate,
+  setRepairRules,
+  takeRepair,
+} from '@/domain/repairs';
+import {
   cancelOffer,
   deleteGift,
   giveOffers,
@@ -61,6 +70,8 @@ import { addReturn, addReturnWithoutSale, deleteReturn, deleteSale, getSale } fr
 import { deleteScarfDesign, saveScarfDesign } from '@/domain/scarves';
 import { deleteSet, saveSet } from '@/domain/sets';
 import { setRate } from '@/domain/settings';
+import { setProductPrice } from '@/domain/slow-stock';
+import { setNotifyRules } from '@/domain/notify';
 import { addToCart, type CartLine } from '@/domain/cart';
 import { EMPLOYEE, makeCtx, passing, type TestCtx } from '@/domain/testing/ctx';
 import { OWNER } from './model';
@@ -105,6 +116,9 @@ type Seed = {
   /** A deposit order waiting to be bought, and one bought from the supplier. */
   waitingOrder: number;
   purchasedOrder: number;
+  /** A repair just taken in, and one ready to collect (J3). */
+  repair: number;
+  readyRepair: number;
 };
 
 function cartOf(ctx: Ctx, id: number, qty = 1): CartLine[] {
@@ -203,7 +217,21 @@ function seed(ctx: TestCtx): Seed {
   const waitingOrder = order('سوار تيفاني');
   const purchasedOrder = order('قلادة باندورا');
   markPurchased(ctx, purchasedOrder, { cost: 90_000, eta: '2026-12-01' });
+  const repairOf = () =>
+    takeRepair(ctx, {
+      customer: { name: 'منى', phone: '0912345678' },
+      description: 'خاتم ذهب',
+      work: 'resize',
+      price: 30_000,
+      readyBy: '2026-12-01',
+      deposit: { amount: 10_000, method: 'cash' },
+    }).repairId;
+  const repair = repairOf();
+  const readyRepair = repairOf();
+  moveRepair(ctx, readyRepair, 'ready');
   return {
+    repair,
+    readyRepair,
     giftDone,
     giftGone,
     offerId: offer.id,
@@ -498,6 +526,46 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
           how: 'balance',
           approval: 'ok',
         }),
+    },
+    takeRepair: {
+      permission: 'repairs.take',
+      run: (ctx) =>
+        takeRepair(ctx, {
+          customer: { name: 'هدى', phone: '0923333333' },
+          description: 'سوار',
+          work: 'solder',
+          price: 0,
+          readyBy: '2026-12-05',
+        }),
+    },
+    setRepairDate: {
+      permission: 'repairs.take',
+      run: (ctx, s) => setRepairDate(ctx, s.repair, '2026-12-10'),
+    },
+    moveRepair: {
+      permission: 'repairs.deliver',
+      run: (ctx, s) => moveRepair(ctx, s.repair, 'workshop'),
+    },
+    deliverRepair: {
+      permission: 'repairs.deliver',
+      run: (ctx, s) => deliverRepair(ctx, s.readyRepair, { method: 'card' }),
+    },
+    setNotifyRules: { permission: 'settings.edit', run: (ctx) => setNotifyRules(ctx, { hour: 8 }) },
+    setProductPrice: {
+      permission: 'products.edit',
+      run: (ctx, s) => setProductPrice(ctx, s.chain, 1_000),
+    },
+    setRepairCost: {
+      permission: 'repairs.cost',
+      run: (ctx, s) => setRepairCost(ctx, s.repair, 8_000),
+    },
+    cancelRepair: {
+      permission: 'repairs.cancel',
+      run: (ctx, s) => cancelRepair(ctx, s.repair, { how: 'refund' }),
+    },
+    setRepairRules: {
+      permission: 'settings.edit',
+      run: (ctx) => setRepairRules(ctx, { remindDays: 10 }),
     },
     recordMessage: {
       permission: 'customers.phones',

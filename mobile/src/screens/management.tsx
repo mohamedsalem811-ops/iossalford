@@ -12,6 +12,7 @@ export type ManageTarget =
   | 'daySummary'
   | 'sales'
   | 'orders'
+  | 'repairs'
   | 'returns'
   | 'returnFind'
   | 'policies'
@@ -20,6 +21,7 @@ export type ManageTarget =
   | 'marketing'
   | 'expenses'
   | 'closing'
+  | 'profits'
   | 'comparison'
   | 'brands'
   | 'sets'
@@ -41,6 +43,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
       { target: 'shift', icon: 'clock.badge.checkmark', title: 'الوردية' },
       { target: 'sales', icon: 'list.bullet.rectangle', title: 'سجل المبيعات' },
       { target: 'orders', icon: 'shippingbox', title: 'الطلبات بعربون' },
+      { target: 'repairs', icon: 'wrench.and.screwdriver', title: 'الصيانة' },
       { target: 'returnFind', icon: 'arrow.left.arrow.right.circle', title: 'مرتجع أو استبدال' },
       { target: 'returns', icon: 'arrow.uturn.backward', title: 'المرتجعات' },
     ],
@@ -59,6 +62,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
       { target: 'daySummary', icon: 'calendar', title: 'ملخص اليوم' },
       { target: 'shifts', icon: 'tray.full', title: 'الورديات وعدّ النقد' },
       { target: 'expenses', icon: 'banknote', title: 'المصروفات' },
+      { target: 'profits', icon: 'chart.pie', title: 'الأرباح' },
       { target: 'closing', icon: 'checkmark.seal', title: 'الإقفال الربع سنوي' },
       { target: 'comparison', icon: 'chart.bar', title: 'مقارنة الأشهر' },
     ],

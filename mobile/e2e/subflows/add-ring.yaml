@@ -12,7 +12,16 @@ appId: com.salford.pos
     timeout: 30000
 - tapOn:
     id: 'product-name'
-- inputText: 'Ring Zircon'
+# Run 75 (iPad, first flow on a just-booted simulator): typed in one go, the cursor jumped back
+# after «Ring» and the name was saved as «R Zirconing». Every multi-word text is now typed in
+# two parts, so the app catches up at the space; then the field must show the whole name.
+- inputText: 'Ring'
+- inputText: ' Zircon'
+- extendedWaitUntil:
+    visible:
+      id: 'product-name'
+      text: 'Ring Zircon'
+    timeout: 5000
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'

@@ -6,6 +6,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Button, Card, FilterChip, KEYBOARD_GAP, NumberField, Text, TextField } from '@/components';
 import { errorBoundary } from '@/components/error-screen';
 import { getDepositRules, setDepositRules } from '@/domain/orders';
+import { getRepairRules, setRepairRules } from '@/domain/repairs';
 import { ALERT_LIMITS, getPolicies, setPolicies, type Policies } from '@/domain/policies';
 import { showError } from '@/features/products/actions';
 import { useReadable } from '@/hooks/use-readable';
@@ -92,6 +93,9 @@ function PoliciesScreen() {
   const [minPercent, setMinPercent] = useState(String(deposits.minPercent));
   const [remindDays, setRemindDays] = useState(String(deposits.remindDays));
   const [depositPolicy, setDepositPolicy] = useState(deposits.policy);
+  const [repairs, setRepairs] = useState(() => getRepairRules(ctx));
+  const [repairDays, setRepairDays] = useState(String(repairs.remindDays));
+  const [repairNote, setRepairNote] = useState(repairs.note);
 
   const save = () => {
     const perPiece = piece.trim() ? parseThousandths(piece) : 0;
@@ -138,6 +142,14 @@ function PoliciesScreen() {
       Alert.alert('لم يتم الحفظ', 'اكتب سياسة العربون التي تُطبع على الإيصال.');
       return;
     }
+    // Repairs (J3): the note printed on each ticket and the days before a reminder.
+    const rDays = Number(latinDigits(repairDays).trim());
+    if (!Number.isInteger(rDays) || rDays < 1 || rDays > 365) {
+      haptic.error();
+      Alert.alert('لم يتم الحفظ', 'اكتب أيام تذكير الصيانة من 1 إلى 365.');
+      return;
+    }
+    const repairChanged = rDays !== repairs.remindDays || repairNote.trim() !== repairs.note;
     const depositChanged =
       pct !== deposits.minPercent ||
       days !== deposits.remindDays ||
@@ -151,6 +163,11 @@ function PoliciesScreen() {
         });
         setDeposits(d);
         setDepositPolicy(d.policy);
+      }
+      if (repairChanged) {
+        const r = setRepairRules(ctx, { remindDays: rDays, note: repairNote });
+        setRepairs(r);
+        setRepairNote(r.note);
       }
       const next = setPolicies(ctx, {
         discountPerPiece: perPiece,
@@ -285,6 +302,25 @@ function PoliciesScreen() {
             multiline
             maxLength={300}
             testID="policy-deposit-text"
+          />
+        </Card>
+        <Card>
+          <Text variant="headline">الصيانة</Text>
+          <NumberField
+            label="تذكير بقطعة جاهزة لم تُستلم"
+            value={repairDays}
+            onChangeText={setRepairDays}
+            suffix="يوم"
+            kind="integer"
+            testID="policy-repair-days"
+          />
+          <TextField
+            label="ملاحظة الصيانة (تُطبع على كل إيصال صيانة)"
+            value={repairNote}
+            onChangeText={setRepairNote}
+            multiline
+            maxLength={400}
+            testID="policy-repair-note"
           />
         </Card>
         <Card>

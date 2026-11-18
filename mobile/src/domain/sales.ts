@@ -1,5 +1,5 @@
 import { latinDigits } from '@/lib/digits';
-import { quarterKey, quarterOf, quarterTitle } from '@/lib/dates';
+import { nextDayKey, quarterKey, quarterOf, quarterTitle } from '@/lib/dates';
 import { divRound, formatDinars, formatLyd } from '@/lib/money';
 
 import type { PaymentMethod } from './checkout';
@@ -237,8 +237,9 @@ function saleFilter(ctx: Ctx, q: SaleQuery) {
     params.push(q.month);
   }
   if (q.day) {
-    where.push('substr(s.created_at, 1, 10) = ?');
-    params.push(q.day);
+    // A time range, read with the index (J1).
+    where.push('s.created_at >= ? AND s.created_at < ?');
+    params.push(q.day, nextDayKey(q.day));
   }
   if (q.paymentMethod) {
     where.push('s.payment_method = ?');
@@ -391,6 +392,48 @@ export function deleteSale(ctx: Ctx, saleId: number, opts: { deleteReceipt?: boo
 
 // ---------- Returns ----------
 
+/** How the money of a return went back (J2). Only 'cash' leaves the drawer. */
+export const REFUND_METHODS = ['cash', 'card', 'transfer', 'balance', 'debt'] as const;
+export type RefundMethod = (typeof REFUND_METHODS)[number];
+export const REFUND_METHOD_LABELS: Record<RefundMethod, string> = {
+  cash: 'كاش',
+  card: 'بطاقة',
+  transfer: 'تحويل',
+  balance: 'رصيد للزبون',
+  debt: 'خصم من الدين',
+};
+
+/**
+ * The ways a return of this sale can be paid back, the first being where it starts: how the sale
+ * was paid. A sale on credit only lowers the debt; «رصيد للزبون» needs a customer on the sale.
+ */
+export function refundChoices(
+  sale: { paymentMethod: PaymentMethod; customerId: number | null } | null,
+): RefundMethod[] {
+  if (sale?.paymentMethod === 'credit') return ['debt'];
+  const first: RefundMethod = sale?.paymentMethod ?? 'cash';
+  const all: RefundMethod[] = [
+    'cash',
+    'card',
+    'transfer',
+    ...(sale?.customerId ? ['balance' as const] : []),
+  ];
+  return [first, ...all.filter((m) => m !== first)];
+}
+
+/** Refuses a way this sale cannot be paid back, with why. */
+function checkRefundMethod(
+  sale: { paymentMethod: PaymentMethod; customerId: number | null } | null,
+  method: RefundMethod,
+) {
+  if (!REFUND_METHODS.includes(method)) throw new RuleError('طريقة الاسترداد غير صحيحة');
+  if (refundChoices(sale).includes(method)) return;
+  if (sale?.paymentMethod === 'credit')
+    throw new RuleError('بيعة آجل: يُخصم المرتجع من دين الزبون، دون استرداد مال.');
+  if (method === 'debt') throw new RuleError('الخصم من الدين لبيعة آجل فقط.');
+  throw new RuleError('«رصيد للزبون» يحتاج زبوناً مسجلاً على البيعة.');
+}
+
 export type ReturnRecord = {
   id: number;
   saleLineId: number | null;
@@ -412,6 +455,8 @@ export type ReturnRecord = {
   overrideReason: string | null;
   /** The sale it was exchanged for, if any. */
   exchangeSaleId: number | null;
+  /** How the money went back (J2); 'cash' or 'debt' for returns made before database 14. */
+  refundMethod: RefundMethod;
 };
 
 type ReturnRow = {
@@ -431,6 +476,7 @@ type ReturnRow = {
   override_reason: string | null;
   exchange_sale_id: number | null;
   shift_id?: number | null;
+  refund_method?: string | null;
 };
 
 const parseAnswers = (text: string | null) => {
@@ -457,6 +503,9 @@ const toReturn = (r: ReturnRow): ReturnRecord => ({
   conditions: parseAnswers(r.conditions),
   overrideReason: r.override_reason,
   exchangeSaleId: r.exchange_sale_id,
+  refundMethod: (REFUND_METHODS as readonly string[]).includes(r.refund_method ?? '')
+    ? (r.refund_method as RefundMethod)
+    : 'cash',
 });
 
 export function getReturn(ctx: Ctx, id: number): ReturnRecord | undefined {
@@ -489,10 +538,34 @@ export class ReturnRefused extends RuleError {
 
 /** The sale of a line, for the return rules (whoever sold it). */
 function saleOfLine(ctx: Ctx, saleId: number) {
-  return ctx.db.get<{ created_at: string; payment_method: PaymentMethod }>(
-    'SELECT created_at, payment_method FROM sales WHERE id = ?',
+  return ctx.db.get<{
+    created_at: string;
+    payment_method: PaymentMethod;
+    customer_id: number | null;
+  }>('SELECT created_at, payment_method, customer_id FROM sales WHERE id = ?', [saleId]);
+}
+
+/** For each line of a sale with returns, the ways their money went back (J2), as labels. */
+export function refundWaysOfSale(ctx: Ctx, saleId: number): Map<number, string> {
+  const ways = new Map<number, RefundMethod[]>();
+  for (const r of ctx.db.all<{ line: number; m: RefundMethod }>(
+    `SELECT DISTINCT r.sale_line_id line, r.refund_method m FROM returns r
+       JOIN sale_lines l ON l.id = r.sale_line_id WHERE l.sale_id = ? ORDER BY r.id`,
     [saleId],
+  ))
+    ways.set(r.line, [...(ways.get(r.line) ?? []), r.m]);
+  return new Map(
+    [...ways].map(([line, ms]) => [line, ms.map((m) => REFUND_METHOD_LABELS[m]).join('، ')]),
   );
+}
+
+/** The ways a return of this sale line can be paid back, the default first (J2). */
+export function refundChoicesForLine(ctx: Ctx, lineId: number): RefundMethod[] {
+  const s = ctx.db.get<{ payment_method: PaymentMethod; customer_id: number | null }>(
+    'SELECT s.payment_method, s.customer_id FROM sales s JOIN sale_lines l ON l.sale_id = s.id WHERE l.id = ?',
+    [lineId],
+  );
+  return refundChoices(s ? { paymentMethod: s.payment_method, customerId: s.customer_id } : null);
 }
 
 /** When the sale of a line was made (for the return window shown on the form). */
@@ -537,14 +610,17 @@ export type ReturnInput = {
   answers?: Record<string, boolean>;
   /** Past the rules: why, and the owner's one-time approval when an employee is signed in. */
   override?: { reason: string; approval?: string };
+  /** How the money goes back (J2); by default how the sale was paid (see refundChoices). */
+  refundMethod?: RefundMethod;
 };
 
 /**
  * Records a return against the sale line it came from (phase S4 rules): a photo of the piece,
  * within the return window, every condition "yes". Past the rules only the owner allows it, with a
  * reason. The refund is what the customer paid; only the owner may give back less. The cost comes
- * from the sale so profit stays exact; pieces go back into stock. A return of a credit sale lowers
- * what the customer owes (see debts.ts).
+ * from the sale so profit stays exact; pieces go back into stock. The money goes back the chosen
+ * way (J2): only cash leaves the drawer; «رصيد للزبون» and a sale on credit change what the
+ * customer owes (see debts.ts).
  */
 export function addReturn(
   ctx: Ctx,
@@ -576,6 +652,9 @@ export function addReturn(
       throw new RuleError('المبلغ المُعاد هو ما دفعه الزبون، ولا يغيّره إلا المالك.');
     const photo = clean(input.photo);
     if (!photo) throw new RuleError('صوّر القطعة المرتجعة قبل الحفظ.');
+    const paidBy = { paymentMethod: sale.payment_method, customerId: sale.customer_id };
+    const method = input.refundMethod ?? refundChoices(paidBy)[0];
+    checkRefundMethod(paidBy, method);
 
     const shiftId = shiftFor(ctx, actor);
     const policies = getPolicies(ctx);
@@ -595,8 +674,8 @@ export function addReturn(
     );
     const id = ctx.db.run(
       `INSERT INTO returns (sale_line_id, product_id, name, quantity, refund, cost, reason, created_at, month, by, by_name,
-         photo, conditions, override_reason, approved_by, shift_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         photo, conditions, override_reason, approved_by, shift_id, refund_method)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         line.id,
         line.productId,
@@ -613,6 +692,7 @@ export function addReturn(
         overrideReason,
         approvedBy,
         shiftId,
+        method,
       ],
     ).lastInsertRowId;
     if (getProduct(ctx, line.productId))
@@ -634,7 +714,7 @@ export function addReturn(
     logAction(
       ctx,
       'return.create',
-      `مرتجع ${input.quantity} × ${line.name} من البيعة رقم ${line.saleId}، استرداد ${formatLyd(refund)}${
+      `مرتجع ${input.quantity} × ${line.name} من البيعة رقم ${line.saleId}، استرداد ${formatLyd(refund)} (${REFUND_METHOD_LABELS[method]})${
         overrideReason ? ` (بموافقة المالك: ${overrideReason})` : ''
       }`,
       {
@@ -642,6 +722,7 @@ export function addReturn(
         saleId: line.saleId,
         quantity: input.quantity,
         refund,
+        refundMethod: method,
         ...(overrideReason ? { override: overrideReason, problems } : {}),
       },
     );
@@ -655,9 +736,19 @@ export function addReturn(
  */
 export function addReturnWithoutSale(
   ctx: Ctx,
-  input: { productId: number; quantity: number; refund: number; reason?: string; photo?: string },
+  input: {
+    productId: number;
+    quantity: number;
+    refund: number;
+    reason?: string;
+    photo?: string;
+    /** Cash (the default), card or transfer: there is no customer to hold a balance (J2). */
+    refundMethod?: RefundMethod;
+  },
 ): number {
   const actor = allow(ctx, 'returns.noSale');
+  const method = input.refundMethod ?? 'cash';
+  checkRefundMethod(null, method);
   if (!Number.isInteger(input.quantity) || input.quantity < 1)
     throw new RuleError('الكمية يجب أن تكون 1 على الأقل');
   if (!Number.isInteger(input.refund) || input.refund < 0)
@@ -668,8 +759,8 @@ export function addReturnWithoutSale(
     const p = getProduct(ctx, input.productId);
     if (!p) throw new RuleError('القطعة غير موجودة في المخزون');
     const id = ctx.db.run(
-      `INSERT INTO returns (sale_line_id, product_id, name, quantity, refund, cost, reason, created_at, month, by, by_name, photo, shift_id)
-       VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO returns (sale_line_id, product_id, name, quantity, refund, cost, reason, created_at, month, by, by_name, photo, shift_id, refund_method)
+       VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         p.id,
         p.name,
@@ -682,14 +773,15 @@ export function addReturnWithoutSale(
         ...who(ctx),
         photo,
         shiftFor(ctx, actor),
+        method,
       ],
     ).lastInsertRowId;
     moveStock(ctx, p.id, input.quantity, 'return', id);
     logAction(
       ctx,
       'return.create',
-      `مرتجع بدون فاتورة ${input.quantity} × ${p.name}، استرداد ${formatLyd(input.refund)}`,
-      { returnId: id, quantity: input.quantity, refund: input.refund },
+      `مرتجع بدون فاتورة ${input.quantity} × ${p.name}، استرداد ${formatLyd(input.refund)} (${REFUND_METHOD_LABELS[method]})`,
+      { returnId: id, quantity: input.quantity, refund: input.refund, refundMethod: method },
     );
     return id;
   });
@@ -772,26 +864,44 @@ export function deleteReturn(ctx: Ctx, returnId: number) {
   });
 }
 
-export function listReturns(ctx: Ctx, month?: string, page?: Page): ReturnRecord[] {
-  const rows = month
-    ? ctx.db.all<ReturnRow>(
-        `SELECT * FROM returns WHERE month = ? ORDER BY id DESC${pageSql(page)}`,
-        [month],
-      )
-    : ctx.db.all<ReturnRow>(`SELECT * FROM returns ORDER BY id DESC${pageSql(page)}`);
-  return rows.map(toReturn);
+/** A month and a way the money went back (J2), either or both. */
+function returnFilter(month?: string, method?: RefundMethod) {
+  const where: string[] = [];
+  const params: string[] = [];
+  if (month) {
+    where.push('month = ?');
+    params.push(month);
+  }
+  if (method) {
+    where.push('refund_method = ?');
+    params.push(method);
+  }
+  return { sql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
 }
 
-/** How many returns (in a month, or all) and the total refunded, without reading them. */
-export function returnsSummary(ctx: Ctx, month?: string): { count: number; total: number } {
-  const r = month
-    ? ctx.db.get<{ n: number; t: number }>(
-        'SELECT count(*) n, coalesce(sum(refund), 0) t FROM returns WHERE month = ?',
-        [month],
-      )
-    : ctx.db.get<{ n: number; t: number }>(
-        'SELECT count(*) n, coalesce(sum(refund), 0) t FROM returns',
-      );
+export function listReturns(
+  ctx: Ctx,
+  month?: string,
+  page?: Page,
+  method?: RefundMethod,
+): ReturnRecord[] {
+  const f = returnFilter(month, method);
+  return ctx.db
+    .all<ReturnRow>(`SELECT * FROM returns ${f.sql} ORDER BY id DESC${pageSql(page)}`, f.params)
+    .map(toReturn);
+}
+
+/** How many returns (in a month, or all; one way paid back, or all) and the total refunded. */
+export function returnsSummary(
+  ctx: Ctx,
+  month?: string,
+  method?: RefundMethod,
+): { count: number; total: number } {
+  const f = returnFilter(month, method);
+  const r = ctx.db.get<{ n: number; t: number }>(
+    `SELECT count(*) n, coalesce(sum(refund), 0) t FROM returns ${f.sql}`,
+    f.params,
+  );
   return { count: r?.n ?? 0, total: r?.t ?? 0 };
 }
 

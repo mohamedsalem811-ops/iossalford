@@ -4,7 +4,7 @@ import { Badge, Button, Card, EmptyState, ListGroup, ListRow, Page, Text } from 
 import { PAYMENT_LABELS } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
 import type { Receipt } from '@/domain/receipts';
-import { deleteSale, saleDeleteCheck, type Sale } from '@/domain/sales';
+import { deleteSale, refundWaysOfSale, saleDeleteCheck, type Sale } from '@/domain/sales';
 import { showError } from '@/features/products/actions';
 import { formatDate, formatTime } from '@/lib/dates';
 import { ThanksButton } from '@/features/marketing/thanks-button';
@@ -51,6 +51,7 @@ export function SaleDetail({
   const when = new Date(sale.createdAt);
   const profit = sale.total - sale.totalCost;
   const returned = saleReturned(sale);
+  const ways = returned ? refundWaysOfSale(ctx, sale.id) : new Map<number, string>();
 
   const run = (deleteReceipt: boolean) => {
     try {
@@ -207,7 +208,7 @@ export function SaleDetail({
               {l.returned ? (
                 <Text
                   variant="caption"
-                  tone="warning">{`أُرجع ${l.returned} من ${l.quantity}`}</Text>
+                  tone="warning">{`أُرجع ${l.returned} من ${l.quantity}${ways.get(l.id) ? ` • ${ways.get(l.id)}` : ''}`}</Text>
               ) : null}
               {left > 0 && mayReturn ? (
                 <Button

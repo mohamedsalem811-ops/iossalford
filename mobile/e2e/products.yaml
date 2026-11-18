@@ -25,7 +25,8 @@ appId: com.salford.pos
     timeout: 30000
 - tapOn:
     id: 'product-name'
-- inputText: 'Ring Zircon'
+- inputText: 'Ring'
+- inputText: ' Zircon'
 # Closes the keyboard with the app's own \"تم\" bar (Maestro's hideKeyboard can't, since 2026).
 - tapOn:
     id: 'keyboard.toolbar.done'

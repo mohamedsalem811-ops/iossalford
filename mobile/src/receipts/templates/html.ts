@@ -33,9 +33,10 @@ export type ReceiptDoc = {
   footer?: string | null;
   /**
    * A deposit receipt (I1) prints the deposit paid and what is left; a sale's receipt with a
-   * deposit prints the deposit already paid and what was paid now.
+   * deposit prints the deposit already paid and what was paid now. A repair ticket (J3) prints
+   * the work agreed, the deposit and what is left; it is shown to collect the piece.
    */
-  kind?: 'sale' | 'deposit';
+  kind?: 'sale' | 'deposit' | 'repair';
   deposit?: number;
   receiptNo: string | null;
   date: string;
@@ -85,7 +86,7 @@ export function pointsLines(
   const total = doc.items.reduce((s, i) => s + i.price * i.quantity, 0);
   const row = (label: string, amount: number) => `
     <div class="points"><span>${label}</span><span>${receiptMoney(amount)} LYD</span></div>`;
-  if (doc.kind === 'deposit')
+  if (doc.kind === 'deposit' || doc.kind === 'repair')
     return (
       row('Deposit paid / العربون المدفوع', deposit) +
       row('Remaining / الباقي', Math.max(0, total - deposit))
@@ -321,11 +322,11 @@ export function receiptHtml(
 </style></head>
 <body><div class="page"><div class="r">
   ${header}
-  <h1>${doc.showPrices ? 'OFFICIAL INVOICE / RECEIPT' : 'GIFT RECEIPT'}</h1>
+  <h1>${doc.kind === 'repair' ? 'REPAIR TICKET / إيصال صيانة' : doc.showPrices ? 'OFFICIAL INVOICE / RECEIPT' : 'GIFT RECEIPT'}</h1>
   <table class="meta">
     <tr><td>Date:</td><td>${e(doc.date)}</td></tr>
     <tr><td>Time:</td><td>${e(doc.time)}</td></tr>
-    <tr><td>Receipt No:</td><td>${e(no)}</td></tr>
+    <tr><td>${doc.kind === 'repair' ? 'Ticket No:' : 'Receipt No:'}</td><td>${e(no)}</td></tr>
     <tr><td>Store:</td><td>${e(look.store)}</td></tr>
   </table>
   <table class="items">
@@ -338,7 +339,7 @@ export function receiptHtml(
   <div class="end">
     <div class="total"><span>Total</span><span>${receiptTotal(doc)}</span></div>${pointsLines(doc)}${rewardLines(doc)}
     <div class="customer" dir="auto">Customer: ${e(doc.customer)}</div>
-    <div class="note">This is a gift receipt. Original receipt is required for returns or exchanges.<br>Returns are subject to store policy.</div>
+    ${doc.kind === 'repair' ? '' : '<div class="note">This is a gift receipt. Original receipt is required for returns or exchanges.<br>Returns are subject to store policy.</div>'}
     <div class="thanks">${look.thanks}</div>
     ${look.motto ? `<div class="motto">${look.motto}</div>` : ''}
   </div>

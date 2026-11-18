@@ -45,6 +45,10 @@ export const PERMISSIONS = {
   'orders.cancel': 'إلغاء طلب بعربون',
   'orders.purchase': 'شراء الطلب من المورد وموعد وصوله',
   'marketing.manage': 'التسويق: الرسائل والمناسبات وعروض «نفتقدك»',
+  'repairs.take': 'استلام قطعة للصيانة',
+  'repairs.deliver': 'مراحل الصيانة وتسليمها',
+  'repairs.cost': 'تكلفة الورشة',
+  'repairs.cancel': 'إلغاء صيانة',
   // Seeing (checked by the screens).
   'costs.view': 'التكلفة والربح',
   'reports.view': 'ملخص الشهر والتقارير',
@@ -107,6 +111,12 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'orders.purchase': false,
   // Marketing (I4) is the owner's: the messages, occasions, rules and the offers given.
   'marketing.manage': false,
+  // Repairs (J3): anyone takes a piece in, moves it through the stages and delivers it; the
+  // workshop's cost and cancelling (the deposit back) are the owner's.
+  'repairs.take': true,
+  'repairs.deliver': true,
+  'repairs.cost': false,
+  'repairs.cancel': false,
   'costs.view': false,
   'reports.view': false,
   'sales.viewAll': false,

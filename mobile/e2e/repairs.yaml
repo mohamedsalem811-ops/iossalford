@@ -1,0 +1,106 @@
+# Phase J3. From the home shortcut «صيانة»: Mona's gold ring taken in to be soldered (50 د.ل,
+# 20 deposit in cash). Its repair ticket opens. In Management → الصيانة the piece goes to the
+# workshop, then ready, and is delivered with the rest paid by card.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'quick-repair'
+- tapOn:
+    id: 'quick-repair'
+- extendedWaitUntil:
+    visible:
+      id: 'repair-name'
+    timeout: 30000
+- tapOn:
+    id: 'repair-name'
+- inputText: 'Mona'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- tapOn:
+    id: 'repair-phone'
+- inputText: '0912345678'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-to-field.yaml
+    env:
+      ID: 'repair-description'
+- inputText: 'Gold'
+- inputText: ' ring'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'repair-work-solder'
+- tapOn:
+    id: 'repair-work-solder'
+- runFlow:
+    file: subflows/scroll-to-field.yaml
+    env:
+      ID: 'repair-price'
+- inputText: '50'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- runFlow:
+    file: subflows/scroll-to-field.yaml
+    env:
+      ID: 'repair-deposit'
+- inputText: '20'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- takeScreenshot: ${DEVICE}-repair-form
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'repair-save'
+- tapOn:
+    id: 'repair-save'
+# The repair ticket.
+- extendedWaitUntil:
+    visible:
+      id: 'repair-ticket-print'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-repair-ticket
+- tapOn: 'تم'
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-repairs'
+- extendedWaitUntil:
+    visible:
+      id: 'repairs-held'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-repairs-list
+- tapOn: '.*Gold ring.*'
+- extendedWaitUntil:
+    visible:
+      id: 'repair-workshop'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-repair-received
+- tapOn:
+    id: 'repair-workshop'
+- extendedWaitUntil:
+    visible:
+      id: 'repair-ready'
+    timeout: 30000
+- tapOn:
+    id: 'repair-ready'
+- extendedWaitUntil:
+    visible:
+      id: 'repair-deliver'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-repair-ready
+- tapOn:
+    id: 'repair-deliver'
+- tapOn: 'بطاقة'
+- extendedWaitUntil:
+    visible:
+      id: 'repair-ticket'
+    timeout: 30000
+- assertNotVisible:
+    id: 'repair-deliver'
+- takeScreenshot: ${DEVICE}-repair-delivered

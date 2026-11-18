@@ -23,9 +23,16 @@ const quiet: DaySummary = {
   returns: 0,
   refunded: 0,
   cashRefunds: 0,
+  refundsBy: { cash: 0, card: 0, transfer: 0, balance: 0, debt: 0 },
   payments: { cash: 0, other: 0 },
   payouts: { cash: 0, other: 0 },
   deposits: { taken: { cash: 0, other: 0 }, refunded: { cash: 0, other: 0 }, used: 0, kept: 0 },
+  repairs: {
+    delivered: 0,
+    income: 0,
+    taken: { cash: 0, other: 0 },
+    refunded: { cash: 0, other: 0 },
+  },
   cashIn: 0,
   cashOut: 0,
   expenses: 0,
@@ -53,6 +60,18 @@ describe('the end-of-day page', () => {
     });
     expect(busy.map((s) => s.title)).toContain('حسب البائع');
     expect(busy.flatMap((s) => s.rows)).toContainEqual({ label: 'عجز في العدّ', value: '−5 د.ل' });
+  });
+
+  it('says how the refunds went back, only the ways used (J2)', () => {
+    const rows = daySections({
+      ...quiet,
+      returns: 2,
+      refunded: 300_000,
+      refundsBy: { cash: 0, card: 100_000, transfer: 0, balance: 200_000, debt: 0 },
+    }).flatMap((s) => s.rows);
+    expect(rows).toContainEqual({ label: '  منها بطاقة', value: '100 د.ل' });
+    expect(rows).toContainEqual({ label: '  منها رصيد للزبون', value: '200 د.ل' });
+    expect(rows.map((r) => r.label)).not.toContain('  منها كاش');
   });
 
   it('prints names safely', () => {

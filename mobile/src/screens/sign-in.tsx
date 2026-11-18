@@ -287,7 +287,7 @@ function EmergencyCode({
     }
   };
   return (
-    <Screen maxWidth={520} contentStyle={{ gap: spacing.md }}>
+    <Screen keyboard maxWidth={520} contentStyle={{ gap: spacing.md }}>
       <View style={{ alignSelf: 'stretch' }}>
         <Button title="رجوع" icon="chevron.backward" variant="ghost" size="sm" onPress={onBack} />
       </View>

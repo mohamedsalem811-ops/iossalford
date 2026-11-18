@@ -87,9 +87,9 @@ describe('which backups are kept', () => {
 });
 
 describe('the copy reminder', () => {
-  it('counts the days since a copy left the device, from the 7th day', () => {
-    expect(copyOverdueDays(at(4), at(10))).toBeNull();
-    expect(copyOverdueDays(at(3), at(10))).toBe(7);
+  it('counts the days since a copy left the device, from the 3rd day', () => {
+    expect(copyOverdueDays(at(8), at(10))).toBeNull();
+    expect(copyOverdueDays(at(7), at(10))).toBe(3);
     expect(copyOverdueDays(null, at(10))).toBeNull();
     expect(copyOverdueDays(null, at(10), at(1))).toBe(9);
     // A copy confirmed after the first backup counts, not the first backup.
@@ -98,14 +98,14 @@ describe('the copy reminder', () => {
     expect(copyReminderTitle(21)).toBe('لا نسخة خارج الجهاز منذ 21 يوماً');
   });
 
-  it('shows after 7 days without a copy off the device', () => {
-    expect(copyReminder(at(4), at(10))).toBeNull();
-    expect(copyReminder(at(3), at(10))).toBe(
-      'آخر نسخة نُسخت خارج الجهاز قبل 7 أيام. انسخ نسخة جديدة إلى الجهاز الآخر أو إلى كمبيوتر.',
+  it('shows after 3 days without a copy off the device', () => {
+    expect(copyReminder(at(8), at(10))).toBeNull();
+    expect(copyReminder(at(7), at(10))).toBe(
+      'آخر نسخة نُسخت خارج الجهاز قبل 3 أيام. انسخ نسخة جديدة إلى الجهاز الآخر أو إلى كمبيوتر.',
     );
     // Before any copy: counted from the first backup on the device, not from day one.
     expect(copyReminder(null, at(10))).toBeNull();
-    expect(copyReminder(null, at(10), at(5))).toBeNull();
+    expect(copyReminder(null, at(10), at(8))).toBeNull();
     expect(copyReminder(null, at(10), at(1))).toBe(
       'لم تُنسخ أي نسخة احتياطية خارج الجهاز منذ 9 أيام. انسخ نسخة إلى الجهاز الآخر أو إلى كمبيوتر.',
     );

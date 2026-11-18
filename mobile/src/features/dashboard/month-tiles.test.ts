@@ -13,6 +13,9 @@ const month = (o: Partial<PeriodSummary>): PeriodSummary => ({
   itemsSold: 0,
   itemsReturned: 0,
   otherIncome: 0,
+  repairIncome: 0,
+  repairCost: 0,
+  repairs: 0,
   netSales: 0,
   netProfit: 0,
   grossSalesUsd: 0,
@@ -69,4 +72,16 @@ describe('ملخص الشهر', () => {
     expect(monthTiles(month({ netProfit: -50_000 }), null, 'وشاح')[3].tone).toBe('negative');
     expect(marginPercent({ grossProfit: 0, grossSales: 0 })).toBe(0);
   });
+});
+
+it('names «دخل الصيانة» under the net profit when there were repairs', () => {
+  const tiles = monthTiles(
+    month({ repairs: 2, repairIncome: 80_000, netProfit: 80_000 }),
+    null,
+    'قطعة',
+  );
+  expect(tiles.find((t) => t.key === 'net-profit')!.sub).toContain('دخل الصيانة 80');
+  expect(
+    monthTiles(month({}), null, 'قطعة').find((t) => t.key === 'net-profit')!.sub,
+  ).not.toContain('الصيانة');
 });

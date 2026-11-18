@@ -3,7 +3,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 
 import { Card, EmptyState, ListGroup, ListRow, Page, Text } from '@/components';
 import { errorBoundary } from '@/components/error-screen';
-import { getReturn } from '@/domain/sales';
+import { getReturn, REFUND_METHOD_LABELS } from '@/domain/sales';
 import { returnCharge } from '@/domain/staff-ledger';
 import { formatDate, formatTime } from '@/lib/dates';
 import { photoUri } from '@/lib/photos';
@@ -40,6 +40,12 @@ function ReturnDetail() {
         )}
         <ListGroup header={`${r.name} × ${r.quantity}`}>
           <ListRow title="الاسترداد" value={formatLyd(r.refund)} chevron={false} />
+          <ListRow
+            title="أُعيد المبلغ"
+            value={REFUND_METHOD_LABELS[r.refundMethod]}
+            chevron={false}
+            testID="return-detail-method"
+          />
           <ListRow
             title="أخذه"
             value={`${r.byName} • ${formatDate(new Date(r.createdAt))} ${formatTime(new Date(r.createdAt))}`}

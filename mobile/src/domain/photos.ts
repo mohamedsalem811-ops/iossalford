@@ -18,7 +18,8 @@ export function photoInUse(ctx: Ctx, file: string): boolean {
   return !!ctx.db.get(
     `SELECT 1 FROM products WHERE image_file = ? UNION ALL SELECT 1 FROM brands WHERE image_file = ?
      UNION ALL SELECT 1 FROM customers WHERE image_file = ?
-     UNION ALL SELECT 1 FROM orders WHERE image_file = ? LIMIT 1`,
-    [file, file, file, file],
+     UNION ALL SELECT 1 FROM orders WHERE image_file = ?
+     UNION ALL SELECT 1 FROM repairs, json_each(repairs.photos) WHERE json_each.value = ? LIMIT 1`,
+    [file, file, file, file, file],
   );
 }

@@ -36,6 +36,9 @@ export const TABLES = [
   'receipts',
   'receipt_items',
   'order_payments',
+  // Database 15 (J3): a repair points at its customer, shift and balance payment.
+  'repairs',
+  'repair_payments',
   'closings',
   'activity',
   'staff_ledger',

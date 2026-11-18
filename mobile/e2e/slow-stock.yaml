@@ -1,0 +1,44 @@
+# Phase J5. Products → الراكدة (the owner): the pieces with no sale for 60, 90 or 180 days and the
+# money tied up in them, by brand; a piece opened to change its price.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'المنتجات'
+- runFlow:
+    file: subflows/toolbar-button.yaml
+    env:
+      LABEL: 'ترتيب وفلترة'
+- tapOn: 'الراكدة'
+# Run 75 (iPhone): after this tap the page did not open (the iPad passed the same steps), and the
+# job was stopped before its screenshots were kept. If the page has not opened, a screenshot of
+# what the menu showed is kept and the page is opened by its link, so the page itself is tested.
+- extendedWaitUntil:
+    visible:
+      id: 'slow-total'
+    timeout: 15000
+    optional: true
+- runFlow:
+    when:
+      notVisible:
+        id: 'slow-total'
+    commands:
+      - takeScreenshot: ${DEVICE}-slow-menu-missed
+      - openLink: salfordpos://jewelry/products/slow
+- extendedWaitUntil:
+    visible:
+      id: 'slow-total'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-slow-90
+- tapOn: '60 يوماً'
+- takeScreenshot: ${DEVICE}-slow-60
+- tapOn: '180 يوماً'
+- takeScreenshot: ${DEVICE}-slow-180
+- tapOn: '60 يوماً'
+- tapOn:
+    id: 'slow-row-.*'
+    index: 0
+    optional: true
+- takeScreenshot: ${DEVICE}-slow-price

@@ -9,6 +9,7 @@ import { formatLyd } from '@/lib/money';
 import { logAction } from './activity';
 import { allow, allowView, clean, nowMonth, nowStamp, RuleError, type Ctx, who } from './context';
 import {
+  customersById,
   getCustomer,
   HEARD,
   listCustomers,
@@ -17,7 +18,7 @@ import {
   type Heard,
 } from './customers';
 import { nextWindow, type BirthdayWindow } from './birthday';
-import { customerSales, spendingByCustomer } from './customer-stats';
+import { spendingByCustomer } from './customer-stats';
 import { DEFAULT_TEMPLATES, fill } from './templates';
 
 // ---------------------------------------------------------------- WhatsApp
@@ -53,9 +54,10 @@ export const birthdayMessage = (
 export function birthdaysThisWeek(
   ctx: Ctx,
 ): { customer: Customer; days: number; window: BirthdayWindow }[] {
-  return ctx.db
+  const ids = ctx.db
     .all<{ id: number }>('SELECT id FROM customers WHERE birth_month IS NOT NULL')
-    .map((r) => getCustomer(ctx, r.id)!)
+    .map((r) => r.id);
+  return [...customersById(ctx, ids).values()]
     .map((customer) => ({ customer, window: nextWindow(customer, ctx.now()) }))
     .filter((x): x is { customer: Customer; window: BirthdayWindow } => !!x.window)
     .map((x) => ({ ...x, days: x.window.days }))
@@ -68,14 +70,19 @@ export function notBack(ctx: Ctx, days = 90): { customer: Customer; last: string
   const cutoff = new Date(ctx.now());
   cutoff.setDate(cutoff.getDate() - days);
   const since = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, '0')}-${String(cutoff.getDate()).padStart(2, '0')}`;
-  return ctx.db
-    .all<{ id: number; last: string }>(
-      `SELECT customer_id id, max(created_at) last FROM sales WHERE customer_id IS NOT NULL
-       GROUP BY customer_id HAVING max(created_at) < ? ORDER BY last`,
-      [since],
-    )
-    .map((r) => ({ customer: getCustomer(ctx, r.id)!, last: r.last }))
-    .filter((x) => !!x.customer);
+  const rows = ctx.db.all<{ id: number; last: string }>(
+    `SELECT customer_id id, max(created_at) last FROM sales WHERE customer_id IS NOT NULL
+     GROUP BY customer_id HAVING max(created_at) < ? ORDER BY last`,
+    [since],
+  );
+  const people = customersById(
+    ctx,
+    rows.map((r) => r.id),
+  );
+  return rows.flatMap((r) => {
+    const customer = people.get(r.id);
+    return customer ? [{ customer, last: r.last }] : [];
+  });
 }
 
 // ---------------------------------------------------------------- wanted pieces
@@ -194,11 +201,13 @@ export function duplicateCustomers(ctx: Ctx): Customer[][] {
     `SELECT name_key k FROM customers WHERE name_key IS NOT NULL
      GROUP BY name_key HAVING count(*) > 1 AND count(DISTINCT coalesce(phone_key, '')) > 1`,
   );
-  return keys.map((r) =>
-    ctx.db
+  return keys.map((r) => {
+    const ids = ctx.db
       .all<{ id: number }>('SELECT id FROM customers WHERE name_key = ? ORDER BY id', [r.k])
-      .map((x) => getCustomer(ctx, x.id)!),
-  );
+      .map((x) => x.id);
+    const people = customersById(ctx, ids);
+    return ids.flatMap((id) => people.get(id) ?? []);
+  });
 }
 
 /**
@@ -224,6 +233,8 @@ export function mergeCustomers(ctx: Ctx, keepId: number, dropId: number) {
       'gifts',
       'offers',
       'message_log',
+      // Database 15 (J3): her repairs.
+      'repairs',
     ])
       ctx.db.run(`UPDATE ${table} SET customer_id = ? WHERE customer_id = ?`, [keepId, dropId]);
     // Bring a friend: the one who was sent keeps one record (the kept one's, if both have one);
@@ -343,14 +354,24 @@ export function customerReport(ctx: Ctx): CustomerReport {
     'SELECT DISTINCT customer_id id FROM sales WHERE customer_id IS NOT NULL AND created_at >= ?',
     [yearStart],
   );
-  const returning = yearBuyers.filter(
-    (b) =>
-      new Set(
-        customerSales(ctx, b.id)
-          .filter((s) => s.createdAt >= yearStart && !s.exchange && !s.fullyReturned)
-          .map((s) => s.day),
-      ).size >= 2,
-  ).length;
+  // Came back: bought on 2 days or more this year, not counting an exchange or a sale whose every
+  // piece came back. One query for everyone (J1: one query per customer took 5 s with 10,000).
+  const returning =
+    ctx.db.get<{ n: number }>(
+      `SELECT count(*) n FROM (
+         SELECT s.customer_id FROM sales s
+          WHERE s.customer_id IS NOT NULL AND s.created_at >= ?
+            AND s.id NOT IN (SELECT exchange_sale_id FROM returns WHERE exchange_sale_id IS NOT NULL)
+            AND NOT (
+              coalesce((SELECT sum(quantity) FROM sale_lines WHERE sale_id = s.id), 0) > 0
+              AND coalesce((SELECT sum(r.quantity) FROM returns r
+                              JOIN sale_lines sl ON sl.id = r.sale_line_id
+                             WHERE sl.sale_id = s.id), 0)
+                  >= coalesce((SELECT sum(quantity) FROM sale_lines WHERE sale_id = s.id), 0)
+            )
+          GROUP BY s.customer_id HAVING count(DISTINCT substr(s.created_at, 1, 10)) >= 2)`,
+      [yearStart],
+    )?.n ?? 0;
   const rewards = ctx.db.get<{
     n: number;
     t: number;

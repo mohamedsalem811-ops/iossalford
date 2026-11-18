@@ -16,14 +16,16 @@ appId: com.salford.pos
     timeout: 30000
 - tapOn:
     id: 'product-name'
-- inputText: 'Ring Swarovski'
+- inputText: 'Ring'
+- inputText: ' Swarovski'
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
     file: subflows/scroll-to-field.yaml
     env:
       ID: 'product-specs'
-- inputText: 'Silver 925 rhodium'
+- inputText: 'Silver'
+- inputText: ' 925 rhodium'
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:

@@ -12,6 +12,8 @@ export type QuickActionsProps = {
   onNewProduct?: () => void;
   /** Each one absent for someone who may not do it. */
   onNewOrder?: () => void;
+  /** A repair taken in (J3), on the second row. */
+  onNewRepair?: () => void;
   onReturn?: () => void;
   onDebtPayment?: () => void;
   onCustomer?: () => void;
@@ -19,8 +21,8 @@ export type QuickActionsProps = {
 
 /**
  * The home screen's shortcuts (I3): a new sale across the top, then طلب بعربون, مرتجع, دفعة دين
- * and زبون (each only for someone who may), and for the owner a second row with إيصال جديد and
- * قطعة جديدة (تصميم جديد for scarves).
+ * and زبون (each only for someone who may), and a second row with إيصال جديد and قطعة جديدة
+ * (تصميم جديد for scarves) for the owner, and صيانة (J3) for whoever takes repairs.
  */
 export function QuickActions({
   system,
@@ -28,6 +30,7 @@ export function QuickActions({
   onNewReceipt,
   onNewProduct,
   onNewOrder,
+  onNewRepair,
   onReturn,
   onDebtPayment,
   onCustomer,
@@ -52,6 +55,7 @@ export function QuickActions({
       'plus.square.fill',
       'quick-product',
     ),
+    ...item(onNewRepair, 'صيانة', 'wrench.and.screwdriver.fill', 'quick-repair'),
   ];
   return (
     <View style={{ gap: spacing.sm }} testID="quick-actions">

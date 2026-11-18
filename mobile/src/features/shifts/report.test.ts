@@ -26,6 +26,7 @@ const totals: ShiftTotals = {
   returns: 1,
   refunded: 0,
   cashRefunds: 0,
+  refundsBy: { cash: 0, card: 0, transfer: 0, balance: 0, debt: 0 },
   cashPayments: 0,
   cashIn: 0,
   cashOut: 20_000,
@@ -43,6 +44,15 @@ describe('the shift report', () => {
     expect(rows['المعدود']).toMatch(/425/);
     expect(rows['الفرق']).toMatch(/عجز 5/);
     expect(rows['موافقات المالك']).toBe('1');
+  });
+
+  it('lists the refunds that went back another way than cash (J2)', () => {
+    const rows = reportRows({
+      ...report,
+      totals: { ...totals, refundsBy: { ...totals.refundsBy, transfer: 50_000 } },
+    });
+    expect(rows).toContainEqual({ label: 'منها تحويل', value: '50 د.ل' });
+    expect(reportRows(report).map((r) => r.label)).not.toContain('منها بطاقة');
   });
 
   it('is an Arabic right-to-left page, with names escaped', () => {

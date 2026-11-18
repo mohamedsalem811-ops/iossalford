@@ -61,7 +61,13 @@ describe('the end-of-day summary', () => {
     // Sara takes back the chain (refunded from the drawer) and takes 20 out for coffee.
     ctx.setActor(EMPLOYEE);
     ctx.setNow(at(13, 14));
-    addReturn(ctx, { ...passing(ctx), saleLineId: getSale(ctx, card)!.lines[0].id, quantity: 1 });
+    // Paid by card, given back in cash: out of the drawer (J2: the default is back on the card).
+    addReturn(ctx, {
+      ...passing(ctx),
+      saleLineId: getSale(ctx, card)!.lines[0].id,
+      quantity: 1,
+      refundMethod: 'cash',
+    });
     addCashMove(ctx, 'out', 20_000, 'قهوة');
     // She counts 170; the drawer should hold 50 + 350 − 200 − 20 = 180: 10 short.
     ctx.setNow(at(13, 18));

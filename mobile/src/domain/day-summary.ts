@@ -4,9 +4,11 @@
  * returns, debt payments, customer credit paid back, cash moved in and out, expenses, and each
  * shift that ran that day with its count. Owner only (it shows every person's sales).
  */
+import { nextDayKey } from '@/lib/dates';
 import { PAYMENT_METHODS, type PaymentMethod } from './checkout';
 import { allowView, type Ctx } from './context';
 import { listShiftsOn, shiftTotals, type Shift, type ShiftTotals } from './shifts';
+import type { RefundMethod } from './sales';
 
 export type DayShift = { shift: Shift; totals: ShiftTotals };
 
@@ -33,8 +35,10 @@ export type DaySummary = {
   approvals: number;
   returns: number;
   refunded: number;
-  /** Refunds paid in cash (a return on a credit sale lowers the debt instead). */
+  /** Refunds paid in cash: only those leave the drawer (J2). */
   cashRefunds: number;
+  /** What went back each way: cash, card, transfer, to a balance, off a debt. */
+  refundsBy: Record<RefundMethod, number>;
   /** Debt payments in money (a deposit moved to a balance, method 'order', is not money). */
   payments: { cash: number; other: number };
   payouts: { cash: number; other: number };
@@ -47,6 +51,16 @@ export type DaySummary = {
     refunded: { cash: number; other: number };
     used: number;
     kept: number;
+  };
+  /**
+   * Repairs (J3): delivered that day and their income (the agreed prices), and the money paid
+   * towards repairs and refunded, by cash or not (credit is not money).
+   */
+  repairs: {
+    delivered: number;
+    income: number;
+    taken: { cash: number; other: number };
+    refunded: { cash: number; other: number };
   };
   cashIn: number;
   cashOut: number;
@@ -65,11 +79,7 @@ export type DaySummary = {
 };
 
 /** "2026-11-14" for "2026-11-13". */
-export function nextDay(day: string): string {
-  const [y, m, d] = day.split('-').map(Number);
-  const next = new Date(y, m - 1, d + 1);
-  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
-}
+export const nextDay = nextDayKey;
 
 /** "2026-11-12" for "2026-11-13". */
 export function previousDay(day: string): string {
@@ -120,17 +130,22 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
     .map((r) => ({ name: r.name ?? 'المالك', sales: r.n, total: r.t }));
   const ret = one(
     `SELECT count(*) n, coalesce(sum(r.refund), 0) t,
-            coalesce(sum(CASE WHEN s.payment_method = 'credit' THEN 0 ELSE r.refund END), 0) cash,
+            coalesce(sum(CASE WHEN r.refund_method = 'cash' THEN r.refund ELSE 0 END), 0) cash,
             count(r.approved_by) a
-       FROM returns r LEFT JOIN sale_lines l ON l.id = r.sale_line_id
-       LEFT JOIN sales s ON s.id = l.sale_id
-      WHERE r.created_at >= ? AND r.created_at < ?`,
+       FROM returns r WHERE r.created_at >= ? AND r.created_at < ?`,
     { n: 0, t: 0, cash: 0, a: 0 },
   );
-  const split = (table: 'payments' | 'payouts' | 'order_payments', kind = '') =>
+  const refundsBy = { cash: 0, card: 0, transfer: 0, balance: 0, debt: 0 };
+  for (const r of ctx.db.all<{ m: RefundMethod; t: number }>(
+    `SELECT refund_method m, sum(refund) t FROM returns
+      WHERE created_at >= ? AND created_at < ? GROUP BY refund_method`,
+    range,
+  ))
+    refundsBy[r.m] = r.t;
+  const split = (table: 'payments' | 'payouts' | 'order_payments' | 'repair_payments', kind = '') =>
     one(
       `SELECT coalesce(sum(CASE WHEN method = 'cash' THEN amount END), 0) cash,
-              coalesce(sum(CASE WHEN method NOT IN ('cash', 'order') THEN amount END), 0) other
+              coalesce(sum(CASE WHEN method NOT IN ('cash', 'order', 'repair', 'credit') THEN amount END), 0) other
          FROM ${table} WHERE created_at >= ? AND created_at < ?${kind ? ` AND kind = '${kind}'` : ''}`,
       { cash: 0, other: 0 },
     );
@@ -138,6 +153,13 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
   const payouts = split('payouts');
   const taken = split('order_payments', 'pay');
   const refundedDeposits = split('order_payments', 'refund');
+  const repairsTaken = split('repair_payments', 'pay');
+  const repairsRefunded = split('repair_payments', 'refund');
+  const delivered = one(
+    `SELECT count(*) n, coalesce(sum(price), 0) t FROM repairs
+      WHERE status = 'delivered' AND delivered_at >= ? AND delivered_at < ?`,
+    { n: 0, t: 0 },
+  );
   const orders = one(
     `SELECT coalesce((SELECT sum(settled) FROM orders WHERE cancel_how = 'keep'
                        AND cancelled_at >= ?1 AND cancelled_at < ?2), 0) kept,
@@ -190,9 +212,16 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
     returns: ret.n,
     refunded: ret.t,
     cashRefunds: ret.cash,
+    refundsBy,
     payments,
     payouts,
     deposits: { taken, refunded: refundedDeposits, used: sales.du, kept: orders.kept },
+    repairs: {
+      delivered: delivered.n,
+      income: delivered.t,
+      taken: repairsTaken,
+      refunded: repairsRefunded,
+    },
     cashIn: moves.i,
     cashOut: moves.o,
     expenses,
@@ -200,7 +229,9 @@ export function daySummary(ctx: Ctx, day: string): DaySummary {
       byMethod.cash +
       payments.cash +
       taken.cash -
-      refundedDeposits.cash -
+      refundedDeposits.cash +
+      repairsTaken.cash -
+      repairsRefunded.cash -
       ret.cash -
       payouts.cash +
       moves.i -

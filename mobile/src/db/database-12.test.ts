@@ -43,7 +43,7 @@ describe.each([10, 11])('the upgrade from database %i', (from) => {
     );
     migrate(db, migrations);
     expect(schemaVersion(db)).toBe(LATEST_VERSION);
-    expect(LATEST_VERSION).toBe(12);
+    expect(LATEST_VERSION).toBeGreaterThanOrEqual(12);
     expect(db.all('SELECT * FROM customers')).toMatchObject(
       before.customers.map((c) => ({ ...(c as object), referred_by: null })),
     );

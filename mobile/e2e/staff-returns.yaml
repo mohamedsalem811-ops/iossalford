@@ -91,6 +91,13 @@ appId: com.salford.pos
     index: 0
 - assertVisible:
     id: 'return-refund-fixed'
+# How the money goes back (J2): the choice is on the form, starting on how the sale was paid.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'return-method'
+- assertVisible:
+    id: 'return-method'
 - runFlow: subflows/return-photo.yaml
 - takeScreenshot: ${DEVICE}-return-form
 - runFlow: subflows/save-return.yaml

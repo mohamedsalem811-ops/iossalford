@@ -164,11 +164,15 @@ describe('copying off the device', () => {
     const sharing = jest.requireMock('expo-sharing');
     let shared = '';
     let photos: Record<string, number[]> = {};
+    const steps: string[] = [];
     sharing.shareAsync.mockImplementationOnce(async (uri: string) => {
+      steps.push('share sheet');
       shared = uri;
       engine.eachPhoto(openFileDb, uri, (n, b) => (photos[n] = [...b]));
     });
-    await shareCopy(ctx);
+    // The screen's "please wait" closes once the file is ready, before the share sheet opens.
+    await shareCopy(ctx, () => steps.push('ready'));
+    expect(steps).toEqual(['ready', 'share sheet']);
     expect(shared).toMatch(/\/jewelry_\d{4}-\d{2}-\d{2}_\d{2}\.\d{2}\.db$/);
     expect(photos).toEqual({ 'r.jpg': [1, 2, 3] });
     // iOS reports a cancelled share sheet like a sent one: only the owner's "yes" counts as a copy

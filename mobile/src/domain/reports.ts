@@ -1,4 +1,4 @@
-import { dayKey, daysInMonth, monthRange } from '@/lib/dates';
+import { dayKey, daysInMonth, monthRange, nextDayKey } from '@/lib/dates';
 import { lydToUsd } from '@/lib/money';
 
 import type { PaymentMethod } from './checkout';
@@ -24,7 +24,11 @@ export type PeriodSummary = {
   netSales: number;
   /** Deposits the shop kept on orders cancelled after the piece was bought (I1). */
   otherIncome: number;
-  /** grossProfit − (refunds − returnedCost) − expenses + otherIncome. */
+  /** «دخل الصيانة» (J3): the agreed prices of the repairs delivered, and the workshop's cost. */
+  repairIncome: number;
+  repairCost: number;
+  repairs: number;
+  /** grossProfit − (refunds − returnedCost) − expenses + otherIncome + repairIncome − repairCost. */
   netProfit: number;
   /** Sales and gross profit in US cents, each sale at its own rate. */
   grossSalesUsd: number;
@@ -73,8 +77,14 @@ export function summary(ctx: Ctx, months: string[]): PeriodSummary {
       WHERE cancel_how = 'keep' AND substr(cancelled_at, 1, 7) IN (${m.sql})`,
     m.params,
   )!.t;
+  const rep = ctx.db.get<{ n: number; income: number; cost: number }>(
+    `SELECT count(*) n, coalesce(sum(price), 0) income, coalesce(sum(cost), 0) cost FROM repairs
+      WHERE status = 'delivered' AND substr(delivered_at, 1, 7) IN (${m.sql})`,
+    m.params,
+  )!;
   const grossProfit = s.sales - s.cost;
-  const netProfit = grossProfit - (r.refunds - r.cost) - expenses + otherIncome;
+  const netProfit =
+    grossProfit - (r.refunds - r.cost) - expenses + otherIncome + rep.income - rep.cost;
   return {
     grossSales: s.sales,
     costOfSales: s.cost,
@@ -86,6 +96,9 @@ export function summary(ctx: Ctx, months: string[]): PeriodSummary {
     itemsSold: items,
     itemsReturned: r.q,
     otherIncome,
+    repairIncome: rep.income,
+    repairCost: rep.cost,
+    repairs: rep.n,
     netSales: s.sales - r.refunds,
     netProfit,
     grossSalesUsd: usd.sales,
@@ -177,20 +190,25 @@ export type Today = {
 /** Today's sales, profit, number of sales and pieces, and money by payment method. */
 export function today(ctx: Ctx): Today {
   allowView(ctx, 'reports.view');
+  // From midnight up to the next: read with the index on the sale time (J1), not every sale.
   const day = dayKey(ctx.now());
+  const range = [day, nextDayKey(day)];
   const s = ctx.db.get<{ total: number; profit: number; n: number }>(
-    `SELECT coalesce(sum(total), 0) total, coalesce(sum(total - total_cost), 0) profit, count(*) n FROM sales WHERE substr(created_at, 1, 10) = ?`,
-    [day],
+    `SELECT coalesce(sum(total), 0) total, coalesce(sum(total - total_cost), 0) profit, count(*) n
+       FROM sales WHERE created_at >= ? AND created_at < ?`,
+    range,
   )!;
   const pieces = ctx.db.get<{ q: number }>(
-    `SELECT coalesce(sum(l.quantity), 0) q FROM sale_lines l JOIN sales s ON s.id = l.sale_id WHERE substr(s.created_at, 1, 10) = ?`,
-    [day],
+    `SELECT coalesce(sum(l.quantity), 0) q FROM sale_lines l JOIN sales s ON s.id = l.sale_id
+      WHERE s.created_at >= ? AND s.created_at < ?`,
+    range,
   )!.q;
   const byMethod: Record<PaymentMethod, number> = { cash: 0, card: 0, transfer: 0, credit: 0 };
   for (const r of ctx.db.all<{ m: PaymentMethod; t: number }>(
     // Money taken today: the part paid with points or by an earlier deposit is not.
-    `SELECT payment_method m, sum(total - points_paid - deposit_used) t FROM sales WHERE substr(created_at, 1, 10) = ? GROUP BY payment_method`,
-    [day],
+    `SELECT payment_method m, sum(total - points_paid - deposit_used) t FROM sales
+      WHERE created_at >= ? AND created_at < ? GROUP BY payment_method`,
+    range,
   )) {
     byMethod[r.m] = r.t;
   }

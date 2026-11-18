@@ -40,6 +40,7 @@ export type DashboardActions = {
   onNewProduct: () => void;
   /** A deposit order (I2); a return, a debt payment, a customer (I3). */
   onNewOrder?: () => void;
+  onNewRepair?: () => void;
   onReturn?: () => void;
   onDebtPayment?: () => void;
   onCustomer?: () => void;

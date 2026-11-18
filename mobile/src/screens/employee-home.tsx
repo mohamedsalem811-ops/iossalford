@@ -8,6 +8,7 @@ import { QuickActions } from '@/features/dashboard/quick-actions';
 import { ShiftBar } from '@/features/dashboard/shift-bar';
 import { GiftRemindersCard, type GiftRemindersProps } from '@/features/marketing/gift-reminders';
 import { OrderRemindersCard, type OrderRemindersProps } from '@/features/orders/reminders-card';
+import { RepairRemindersCard, type RepairRemindersProps } from '@/features/repairs/reminders-card';
 import { useLayout } from '@/hooks/use-layout';
 import { formatLyd } from '@/lib/money';
 import { spacing, type SystemId } from '@/theme';
@@ -24,6 +25,7 @@ export function EmployeeHomeScreen({
   data,
   actions,
   orders,
+  repairs,
   gifts,
 }: {
   system: SystemId;
@@ -31,6 +33,8 @@ export function EmployeeHomeScreen({
   data: MySales;
   /** The deposit reminders (I2). */
   orders?: OrderRemindersProps;
+  /** Repairs due, late, or ready and not collected (J3). */
+  repairs?: RepairRemindersProps;
   /** The gift reminders a week before (I4). */
   gifts?: GiftRemindersProps;
   actions: {
@@ -38,6 +42,7 @@ export function EmployeeHomeScreen({
     onOpenSale: (id: number) => void;
     onNewSale: () => void;
     onNewOrder?: () => void;
+    onNewRepair?: () => void;
     onReturn?: () => void;
     onDebtPayment?: () => void;
     onCustomer?: () => void;
@@ -60,11 +65,13 @@ export function EmployeeHomeScreen({
         system={system}
         onNewSale={actions.onNewSale}
         onNewOrder={actions.onNewOrder}
+        onNewRepair={actions.onNewRepair}
         onReturn={actions.onReturn}
         onDebtPayment={actions.onDebtPayment}
         onCustomer={actions.onCustomer}
       />
       {orders ? <OrderRemindersCard {...orders} /> : null}
+      {repairs ? <RepairRemindersCard {...repairs} /> : null}
       {gifts ? <GiftRemindersCard {...gifts} /> : null}
       <Grid columns={Math.min(dashboardColumns, 2)}>
         <HeroCard style={{ flex: 1 }}>

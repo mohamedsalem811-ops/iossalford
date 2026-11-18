@@ -16,7 +16,8 @@ export type MessageKind =
   | 'occasion'
   | 'vip'
   | 'miss-you'
-  | 'gift';
+  | 'gift'
+  | 'repair-ready';
 
 export const MESSAGE_LABELS: Record<MessageKind, string> = {
   'order-eta': 'موعد وصول الطلب',
@@ -27,6 +28,7 @@ export const MESSAGE_LABELS: Record<MessageKind, string> = {
   vip: 'VIP: أول من يرى',
   'miss-you': 'نفتقدك',
   gift: 'تذكير هدية',
+  'repair-ready': 'الصيانة جاهزة',
 };
 
 /** Remembers that a message was opened in WhatsApp for this customer. */

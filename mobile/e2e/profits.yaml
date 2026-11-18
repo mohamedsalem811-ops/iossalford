@@ -1,0 +1,33 @@
+# Phase J4. Management → المال → الأرباح (the owner): the month's brands with their profit, the
+# sort by margin, a quarter and a year, a brand opened into its categories, and its PDF button.
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-profits'
+- extendedWaitUntil:
+    visible:
+      id: 'profits-total'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-profits-month
+- tapOn: 'حسب الهامش'
+- takeScreenshot: ${DEVICE}-profits-margin
+- tapOn: 'ربع'
+- assertVisible:
+    id: 'profits-period'
+- takeScreenshot: ${DEVICE}-profits-quarter
+- tapOn: 'سنة'
+- takeScreenshot: ${DEVICE}-profits-year
+- tapOn:
+    id: 'profits-row-.*'
+    index: 0
+    optional: true
+- takeScreenshot: ${DEVICE}-profits-brand
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'profits-share'
+- assertVisible:
+    id: 'profits-share'

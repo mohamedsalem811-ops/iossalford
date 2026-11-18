@@ -19,6 +19,14 @@ import { errorBoundary } from '@/components/error-screen';
 import { useSearchShortcut, useShortcut } from '@/lib/key-commands';
 import { useCan } from '@/staff/use-can';
 
+/** Opens الراكدة, for the owner (who sees costs). */
+function useSlowStock(system: SystemId) {
+  const mayView = useCan('costs.view');
+  return mayView
+    ? () => router.push({ pathname: '/[system]/products/slow', params: { system } })
+    : undefined;
+}
+
 /** Jewelry lists pieces; scarves list designs with all their sizes. */
 export default function ProductsRoute() {
   const ctx = useCtx();
@@ -38,6 +46,7 @@ function Header<Q extends Filters>({
   query,
   setQuery,
   onAdd,
+  onSlow,
   searchRef,
 }: {
   title: string;
@@ -47,6 +56,8 @@ function Header<Q extends Filters>({
   setQuery: Dispatch<SetStateAction<Q>>;
   /** Absent for someone who may not add pieces (no + button). */
   onAdd?: () => void;
+  /** The owner's الراكدة (J5); absent for someone who may not see costs. */
+  onSlow?: () => void;
   searchRef: ReturnType<typeof useSearchShortcut>;
 }) {
   return (
@@ -89,6 +100,13 @@ function Header<Q extends Filters>({
               </Stack.Toolbar.MenuAction>
             ))}
           </Stack.Toolbar.Menu>
+          {onSlow ? (
+            <Stack.Toolbar.Menu inline title="التقارير">
+              <Stack.Toolbar.MenuAction icon="hourglass" onPress={onSlow}>
+                الراكدة
+              </Stack.Toolbar.MenuAction>
+            </Stack.Toolbar.Menu>
+          ) : null}
         </Stack.Toolbar.Menu>
         {onAdd ? (
           <Stack.Toolbar.Button icon="plus" accessibilityLabel={addLabel} onPress={onAdd}>
@@ -112,6 +130,7 @@ function JewelryProducts({ ctx }: { ctx: Ctx }) {
   const add = mayAdd
     ? () => router.push({ pathname: '/[system]/product/[id]', params: { system, id: 'new' } })
     : undefined;
+  const slow = useSlowStock(system);
   const searchRef = useSearchShortcut();
   useShortcut('new', () => add?.());
 
@@ -124,6 +143,7 @@ function JewelryProducts({ ctx }: { ctx: Ctx }) {
         query={query}
         setQuery={setQuery}
         onAdd={add}
+        onSlow={slow}
         searchRef={searchRef}
       />
       <BelowHeader>
@@ -166,6 +186,7 @@ function ScarvesProducts({ ctx }: { ctx: Ctx }) {
   const add = mayAdd
     ? () => router.push({ pathname: '/[system]/design/[id]', params: { system, id: 'new' } })
     : undefined;
+  const slow = useSlowStock(system);
   const searchRef = useSearchShortcut();
   useShortcut('new', () => add?.());
 
@@ -178,6 +199,7 @@ function ScarvesProducts({ ctx }: { ctx: Ctx }) {
         query={query}
         setQuery={setQuery}
         onAdd={add}
+        onSlow={slow}
         searchRef={searchRef}
       />
       <BelowHeader>

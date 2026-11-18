@@ -46,6 +46,12 @@ export function dayKey(date: Date = new Date()): string {
   return `${monthKey(date)}-${pad(date.getDate())}`;
 }
 
+/** The day after a "YYYY-MM-DD" key: a day's sales are those from it up to (not with) the next. */
+export function nextDayKey(key: string): string {
+  const [y, m, d] = key.split('-').map(Number);
+  return dayKey(new Date(y, m - 1, d + 1));
+}
+
 /** Reads a "YYYY-MM" key. Returns null for anything else. */
 export function parseMonthKey(key: string): { year: number; month: number } | null {
   const m = /^(\d{4})-(\d{2})$/.exec(key);

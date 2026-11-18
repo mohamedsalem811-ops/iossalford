@@ -960,6 +960,122 @@ CREATE TRIGGER message_log_new_uid AFTER INSERT ON message_log WHEN NEW.uid IS N
 END;
 `,
   },
+  {
+    version: 13,
+    name: 'an index under every link',
+    sql: `
+-- Deleting a row makes SQLite look for the rows that point at it; without an index under the
+-- link it reads the whole table each time (J1, from the full check: restoring a backup with
+-- 10,000 customers took 10 s, each customer deleted reading every customer for referred_by).
+-- Indexes only: no row changes.
+CREATE INDEX customers_referred_by ON customers(referred_by);
+CREATE INDEX set_items_product ON set_items(product_id);
+CREATE INDEX staff_ledger_shift ON staff_ledger(shift_id);
+CREATE INDEX stock_count_lines_product ON stock_count_lines(product_id);
+CREATE INDEX returns_exchange_sale ON returns(exchange_sale_id);
+CREATE INDEX orders_shift ON orders(shift_id);
+CREATE INDEX orders_payment ON orders(payment_id);
+CREATE INDEX order_payments_receipt ON order_payments(receipt_id);
+CREATE INDEX gifts_sale ON gifts(sale_id);
+CREATE INDEX referrals_move ON referrals(move_id);
+`,
+  },
+  {
+    version: 14,
+    name: 'how a refund was paid back',
+    sql: `
+-- How the money of a return went back (J2): cash (out of the drawer), card, transfer, to her
+-- balance (له رصيد), or off her debt (a sale on credit). Until now the app took every refund of
+-- a credit sale off the debt and every other one out of the drawer: the upgrade says so, so no
+-- past figure changes.
+ALTER TABLE returns ADD COLUMN refund_method TEXT NOT NULL DEFAULT 'cash'
+  CHECK (refund_method IN ('cash', 'card', 'transfer', 'balance', 'debt'));
+UPDATE returns SET refund_method = 'debt'
+ WHERE sale_line_id IN (SELECT l.id FROM sale_lines l JOIN sales s ON s.id = l.sale_id
+                         WHERE s.payment_method = 'credit');
+`,
+  },
+  {
+    version: 15,
+    name: 'repairs',
+    sql: `
+-- Repairs (J3, صيانة): a customer's piece taken in for work, its photos (a JSON list of file
+-- names), the work, the agreed price (0: free), the date it will be ready, and its stages
+-- استُلمت → في الورشة → جاهزة → سُلّمت, or ملغاة. The ticket number R-2026-0001 never repeats
+-- (it is the record's number). The workshop's cost is the owner's. No stock moves.
+CREATE TABLE repairs (
+  id           INTEGER PRIMARY KEY AUTOINCREMENT,
+  ticket_no    TEXT NOT NULL UNIQUE,
+  status       TEXT NOT NULL DEFAULT 'received'
+    CHECK (status IN ('received', 'workshop', 'ready', 'delivered', 'cancelled')),
+  customer_id  INTEGER NOT NULL REFERENCES customers(id) ON DELETE RESTRICT,
+  description  TEXT NOT NULL CHECK (length(trim(description)) > 0),
+  work         TEXT NOT NULL
+    CHECK (work IN ('resize', 'solder', 'polish', 'clasp', 'stone', 'other')),
+  photos       TEXT NOT NULL DEFAULT '[]',
+  note         TEXT,
+  price        INTEGER NOT NULL CHECK (price >= 0),
+  ready_by     TEXT NOT NULL,
+  cost         INTEGER CHECK (cost >= 0),
+  workshop_at  TEXT,
+  ready_at     TEXT,
+  delivered_at TEXT,
+  cancelled_at TEXT,
+  -- On cancelling: the deposit back the way she paid, or to her balance (a payment 'repair').
+  cancel_how   TEXT CHECK (cancel_how IN ('balance', 'refund')),
+  settled      INTEGER NOT NULL DEFAULT 0 CHECK (settled >= 0),
+  payment_id   INTEGER REFERENCES payments(id) ON DELETE SET NULL,
+  created_at   TEXT NOT NULL,
+  month        TEXT NOT NULL,
+  updated_at   TEXT,
+  by           TEXT,
+  by_name      TEXT,
+  shift_id     INTEGER REFERENCES shifts(id) ON DELETE SET NULL,
+  uid          TEXT,
+  device       TEXT
+);
+CREATE INDEX repairs_customer ON repairs(customer_id);
+CREATE INDEX repairs_status ON repairs(status);
+CREATE INDEX repairs_delivered ON repairs(delivered_at);
+CREATE INDEX repairs_shift ON repairs(shift_id);
+CREATE INDEX repairs_payment ON repairs(payment_id);
+CREATE UNIQUE INDEX repairs_uid ON repairs(uid);
+CREATE TRIGGER repairs_new_uid AFTER INSERT ON repairs WHEN NEW.uid IS NULL BEGIN
+  UPDATE repairs SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+-- Money paid towards a repair (a deposit, the rest at delivery) or refunded on cancelling, by the
+-- way it was paid; 'credit': the rest put on her account at delivery. Cash counts in the drawer.
+CREATE TABLE repair_payments (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  repair_id   INTEGER NOT NULL REFERENCES repairs(id) ON DELETE CASCADE,
+  kind        TEXT NOT NULL CHECK (kind IN ('pay', 'refund')),
+  amount      INTEGER NOT NULL CHECK (amount > 0),
+  method      TEXT NOT NULL CHECK (method IN ('cash', 'card', 'transfer', 'credit')),
+  note        TEXT,
+  created_at  TEXT NOT NULL,
+  month       TEXT NOT NULL,
+  by          TEXT,
+  by_name     TEXT,
+  shift_id    INTEGER REFERENCES shifts(id) ON DELETE SET NULL,
+  uid         TEXT,
+  device      TEXT
+);
+CREATE INDEX repair_payments_repair ON repair_payments(repair_id);
+CREATE INDEX repair_payments_shift ON repair_payments(shift_id);
+CREATE INDEX repair_payments_created ON repair_payments(created_at);
+CREATE UNIQUE INDEX repair_payments_uid ON repair_payments(uid);
+CREATE TRIGGER repair_payments_new_uid AFTER INSERT ON repair_payments WHEN NEW.uid IS NULL BEGIN
+  UPDATE repair_payments SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+-- The quarterly closing keeps the repairs' income and the workshop's cost apart from sales.
+ALTER TABLE closings ADD COLUMN repair_income INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE closings ADD COLUMN repair_cost INTEGER NOT NULL DEFAULT 0;
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

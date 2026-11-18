@@ -80,7 +80,7 @@ function ClosingRouteScreen() {
   return (
     <>
       <Stack.Title>الإقفال الربع سنوي</Stack.Title>
-      <Page>
+      <Page keyboard>
         <ChipRow
           options={quarters.map((x) => ({ value: quarterKey(x), label: quarterTitle(x) }))}
           value={quarterKey(q)}
@@ -95,6 +95,16 @@ function ClosingRouteScreen() {
           <Line label="المصروفات" value={formatLyd(p.expenses)} />
           {p.otherIncome > 0 ? (
             <Line label="عربون احتفظ به المحل" value={formatLyd(p.otherIncome)} />
+          ) : null}
+          {p.repairs > 0 ? (
+            <>
+              <Line
+                label={`دخل الصيانة (${p.repairs})`}
+                value={formatLyd(p.repairIncome)}
+                testID="closing-repairs"
+              />
+              <Line label="تكلفة ورشة الصيانة" value={formatLyd(p.repairCost)} />
+            </>
           ) : null}
           <Line label="صافي الربح" value={formatLyd(p.netProfit)} strong testID="closing-net" />
           <Text variant="caption" tone="secondary">

@@ -8,8 +8,11 @@ import {
   deleteReturn,
   getSaleLine,
   listReturns,
+  REFUND_METHOD_LABELS,
+  REFUND_METHODS,
   returnMonths,
   returnsSummary,
+  type RefundMethod,
   type ReturnRecord,
 } from '@/domain/sales';
 import { chargeReturn, returnCharge, waiveCharge } from '@/domain/staff-ledger';
@@ -27,22 +30,26 @@ import { errorBoundary } from '@/components/error-screen';
 import { haptic } from '@/lib/haptics';
 import { Allowed } from '@/staff/allowed';
 
-/** Management → Returns: every return by month; a return without a sale; delete one by mistake. */
+/**
+ * Management → Returns: every return by month and by how the money went back (J2); a return
+ * without a sale; delete one by mistake.
+ */
 function ReturnsRouteScreen() {
   const ctx = useCtx();
   const readable = useReadable();
   const { colors } = useTheme();
   const system = ctx.system;
   const [month, setMonth] = useState<string | undefined>();
+  const [method, setMethod] = useState<RefundMethod | undefined>();
   const shown = usePaged(
     useCallback(
-      (limit: number, offset: number) => listReturns(ctx, month, { limit, offset }),
-      [ctx, month],
+      (limit: number, offset: number) => listReturns(ctx, month, { limit, offset }, method),
+      [ctx, month, method],
     ),
   );
   const readFacts = useCallback(
-    () => ({ months: returnMonths(ctx), summary: returnsSummary(ctx, month) }),
-    [ctx, month],
+    () => ({ months: returnMonths(ctx), summary: returnsSummary(ctx, month, method) }),
+    [ctx, month, method],
   );
   const [facts, setFacts] = useState(readFacts);
   const refreshFacts = useCallback(() => setFacts(readFacts()), [readFacts]);
@@ -169,6 +176,19 @@ function ReturnsRouteScreen() {
             </Stack.Toolbar.MenuAction>
           ))}
         </Stack.Toolbar.Menu>
+        <Stack.Toolbar.Menu
+          icon={method ? 'banknote.fill' : 'banknote'}
+          title="طريقة الاسترداد"
+          accessibilityLabel="طريقة الاسترداد">
+          <Stack.Toolbar.MenuAction isOn={!method} onPress={() => setMethod(undefined)}>
+            كل الطرق
+          </Stack.Toolbar.MenuAction>
+          {REFUND_METHODS.map((m) => (
+            <Stack.Toolbar.MenuAction key={m} isOn={method === m} onPress={() => setMethod(m)}>
+              {REFUND_METHOD_LABELS[m]}
+            </Stack.Toolbar.MenuAction>
+          ))}
+        </Stack.Toolbar.Menu>
         <Stack.Toolbar.Button
           icon="plus"
           accessibilityLabel="مرتجع بدون فاتورة"
@@ -189,8 +209,10 @@ function ReturnsRouteScreen() {
         ListHeaderComponent={
           <Text variant="caption" tone="secondary" style={{ paddingBottom: spacing.sm }}>
             {data.shown.length
-              ? `${facts.summary.count} مرتجع • ${formatLyd(facts.summary.total)}${month ? ` • ${monthTitle(month)}` : ''}`
-              : 'لإرجاع قطعة من بيعة، افتح البيعة من سجل المبيعات. زر + لقطعة بيعت قبل التطبيق.'}
+              ? `${facts.summary.count} مرتجع • ${formatLyd(facts.summary.total)}${month ? ` • ${monthTitle(month)}` : ''}${method ? ` • ${REFUND_METHOD_LABELS[method]}` : ''}`
+              : method
+                ? `لا مرتجعات أُعيد مبلغها بطريقة «${REFUND_METHOD_LABELS[method]}».`
+                : 'لإرجاع قطعة من بيعة، افتح البيعة من سجل المبيعات. زر + لقطعة بيعت قبل التطبيق.'}
           </Text>
         }
         ListEmptyComponent={<EmptyState icon="arrow.uturn.backward" title="لا توجد مرتجعات" />}
@@ -219,6 +241,7 @@ function ReturnsRouteScreen() {
             </Text>
             <View style={{ flexDirection: 'row' }}>
               <Badge label={r.saleLineId ? 'من بيعة' : 'بدون فاتورة'} />
+              <Badge label={REFUND_METHOD_LABELS[r.refundMethod]} />
               {r.overrideReason ? <Badge label="بموافقة المالك" /> : null}
               {r.exchangeSaleId ? <Badge label="استبدال" /> : null}
             </View>
