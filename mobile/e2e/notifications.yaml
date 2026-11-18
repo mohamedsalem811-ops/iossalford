@@ -33,3 +33,14 @@ appId: com.salford.pos
 - assertVisible:
     id: 'notify-morning'
 - takeScreenshot: ${DEVICE}-notify-times
+# 2026-11-18, found by the owner: the keyboard covered the time fields. A tapped time now scrolls
+# above the keyboard and its «تم» bar; the screenshot shows it.
+- tapOn:
+    id: 'notify-closing'
+- extendedWaitUntil:
+    visible:
+      id: 'keyboard.toolbar.done'
+    timeout: 5000
+- takeScreenshot: ${DEVICE}-notify-time-keyboard
+- tapOn:
+    id: 'keyboard.toolbar.done'

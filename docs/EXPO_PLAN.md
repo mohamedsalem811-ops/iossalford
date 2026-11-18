@@ -1016,7 +1016,9 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 
 Also: a speed-test line for planning the week's reminders. Not done in the check: every new screen at iPad width, upright and sideways, waits for the simulator run (the owner's word).
 
-**The keyboard over a field (2026-11-18)**, found by the owner on التنبيهات: tapping a time put the keyboard over it. Five screens used the plain page scroll, which does not move a field clear of the keyboard: التنبيهات, الراكدة (the new price), الإغلاق الربعي (the note), تقرير الوردية (the counted cash) and the emergency code at sign-in. All five now scroll the field above the keyboard, as the forms do. A test reads every screen with a typing field and fails if one does not (the stock count's search, at the top of its page, is left as it is).
+**The keyboard over a field (2026-11-18)**, found by the owner on التنبيهات: tapping a time put the keyboard over it. Five screens used the plain page scroll, which does not move a field clear of the keyboard: التنبيهات, الراكدة (the new price), الإغلاق الربعي (the note), تقرير الوردية (the counted cash) and the emergency code at sign-in. All five now scroll the field above the keyboard, as the forms do. A test reads every screen with a typing field and fails if one does not (the stock count's search, at the top of its page, is left as it is). The simulator run now taps a time on التنبيهات and takes a screenshot with the keyboard open.
+
+Before the simulator run, the tap-through tests were checked against the app: every id and every fixed text they tap or look for exists on its screen; nothing in the app's layout is fixed to the left or right (for Arabic) apart from the logo artwork; no list sits inside another scrolling page.
 
 ### Phase 10: switching over
 
