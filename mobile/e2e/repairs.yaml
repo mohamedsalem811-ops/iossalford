@@ -28,7 +28,8 @@ appId: com.salford.pos
     file: subflows/scroll-to-field.yaml
     env:
       ID: 'repair-description'
-- inputText: 'Gold ring'
+- inputText: 'Gold'
+- inputText: ' ring'
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:

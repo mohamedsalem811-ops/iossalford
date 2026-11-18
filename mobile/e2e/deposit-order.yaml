@@ -25,7 +25,8 @@ appId: com.salford.pos
     file: subflows/scroll-to-field.yaml
     env:
       ID: 'order-description'
-- inputText: 'Tiffany bracelet'
+- inputText: 'Tiffany'
+- inputText: ' bracelet'
 - tapOn:
     id: 'keyboard.toolbar.done'
 - runFlow:
