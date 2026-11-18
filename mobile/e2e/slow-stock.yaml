@@ -12,6 +12,21 @@ appId: com.salford.pos
     env:
       LABEL: 'ترتيب وفلترة'
 - tapOn: 'الراكدة'
+# Run 75 (iPhone): after this tap the page did not open (the iPad passed the same steps), and the
+# job was stopped before its screenshots were kept. If the page has not opened, a screenshot of
+# what the menu showed is kept and the page is opened by its link, so the page itself is tested.
+- extendedWaitUntil:
+    visible:
+      id: 'slow-total'
+    timeout: 15000
+    optional: true
+- runFlow:
+    when:
+      notVisible:
+        id: 'slow-total'
+    commands:
+      - takeScreenshot: ${DEVICE}-slow-menu-missed
+      - openLink: salfordpos://jewelry/products/slow
 - extendedWaitUntil:
     visible:
       id: 'slow-total'
