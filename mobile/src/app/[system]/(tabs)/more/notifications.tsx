@@ -92,7 +92,7 @@ function NotificationsScreen() {
   return (
     <>
       <Stack.Title>التنبيهات</Stack.Title>
-      <Page>
+      <Page keyboard>
         <Card>
           <Text variant="body" testID="notify-status">
             {scheduledText(count, permission)}

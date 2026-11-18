@@ -1,16 +1,20 @@
 import type { ReactNode } from 'react';
 import { ScrollView, View, type StyleProp, type ViewStyle } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useReadable } from '@/hooks/use-readable';
 import { spacing, useTheme } from '@/theme';
+
+import { KEYBOARD_GAP } from './keyboard-bar';
 
 /** Height kept clear at the bottom for the floating glass tab bar. */
 export const TAB_BAR_CLEARANCE = 96;
 
 /**
  * Page background with safe-area padding and the standard 16 pt edge. Scrolls by default.
- * `maxWidth` keeps text lines readable on a wide iPad.
+ * `maxWidth` keeps text lines readable on a wide iPad. With `keyboard`, a field typed in scrolls
+ * clear of the keyboard.
  */
 export function Screen({
   children,
@@ -18,6 +22,7 @@ export function Screen({
   tabBar = false,
   maxWidth = 760,
   contentStyle,
+  keyboard = false,
 }: {
   children: ReactNode;
   scroll?: boolean;
@@ -25,6 +30,7 @@ export function Screen({
   tabBar?: boolean;
   maxWidth?: number;
   contentStyle?: StyleProp<ViewStyle>;
+  keyboard?: boolean;
 }) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
@@ -43,16 +49,20 @@ export function Screen({
       </View>
     );
   }
+  const Scroll = keyboard ? KeyboardAwareScrollView : ScrollView;
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <ScrollView
+      <Scroll
+        {...(keyboard
+          ? { bottomOffset: KEYBOARD_GAP, keyboardShouldPersistTaps: 'handled' as const }
+          : {})}
         style={{ flex: 1 }}
         onLayout={readable.onLayout}
         contentContainerStyle={[inner, contentStyle]}
         contentInsetAdjustmentBehavior="never"
         keyboardDismissMode="interactive">
         {children}
-      </ScrollView>
+      </Scroll>
       {/* Content scrolls under the clock and battery: a band of the page colour keeps them readable. */}
       <View
         pointerEvents="none"

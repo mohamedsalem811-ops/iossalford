@@ -80,7 +80,7 @@ function ClosingRouteScreen() {
   return (
     <>
       <Stack.Title>الإقفال الربع سنوي</Stack.Title>
-      <Page>
+      <Page keyboard>
         <ChipRow
           options={quarters.map((x) => ({ value: quarterKey(x), label: quarterTitle(x) }))}
           value={quarterKey(q)}

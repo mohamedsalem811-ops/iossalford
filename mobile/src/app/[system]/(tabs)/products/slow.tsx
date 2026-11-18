@@ -70,7 +70,7 @@ function SlowStockScreen() {
   return (
     <>
       <Stack.Title>الراكدة</Stack.Title>
-      <Page>
+      <Page keyboard>
         <Segmented<`${SlowDays}`>
           options={SLOW_DAYS.map((d) => ({ value: `${d}` as const, label: `${d} يوماً` }))}
           value={choice}
