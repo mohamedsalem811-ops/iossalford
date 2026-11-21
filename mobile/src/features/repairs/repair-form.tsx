@@ -23,6 +23,7 @@ import {
   type Customer,
 } from '@/domain/customers';
 import { getRepairRules, REPAIR_WORKS, takeRepair, WORK_LABELS } from '@/domain/repairs';
+import { listRepairServices, servicePriceText } from '@/domain/repair-services';
 import { PAYMENT_WAYS } from '@/features/customers/model';
 import { PhotoPicker } from '@/features/products/photo-picker';
 import { ProductPhoto } from '@/features/products/product-photo';
@@ -36,7 +37,13 @@ import { useCan } from '@/staff/use-can';
 import { notifyDataChanged } from '@/state/data-events';
 import { radius, spacing, useTheme } from '@/theme';
 
-import { emptyRepairForm, repairFormProblem, type RepairForm } from './model';
+import {
+  emptyRepairForm,
+  repairFormProblem,
+  servicesInput,
+  servicesTotal,
+  type RepairForm,
+} from './model';
 
 const MAX_PHOTOS = 6;
 
@@ -61,6 +68,10 @@ export function RepairFormView({
   const bottomSpace = useSheetBottomSpace();
   const phones = useCan('customers.phones');
   const rules = getRepairRules(ctx);
+  const owner = ctx.actor?.kind === 'owner';
+  // The owner's services (rule D): with a list, the work is ticked and its price is the owner's.
+  const [services] = useState(() => listRepairServices(ctx));
+  const withServices = services.length > 0;
   const [picked, setPicked] = useState<Customer | null>(() =>
     customerId ? (getCustomer(ctx, customerId) ?? null) : null,
   );
@@ -87,7 +98,15 @@ export function RepairFormView({
 
   const suggestions = form.name && !picked ? customerSuggestions(ctx, form.name, 4, phones) : [];
   const customer = picked && picked.name === form.name.trim() ? picked : null;
-  const price = parseThousandths(form.price);
+  const total = servicesTotal(form, services, owner);
+  const price = withServices ? total.price : parseThousandths(form.price);
+  const toggle = (id: number) => {
+    haptic.tap();
+    setForm((f) => ({
+      ...f,
+      picked: f.picked.includes(id) ? f.picked.filter((x) => x !== id) : [...f.picked, id],
+    }));
+  };
   const deposit = parseThousandths(form.deposit) ?? 0;
 
   const pick = (c: Customer) => {
@@ -98,7 +117,7 @@ export function RepairFormView({
 
   const save = () => {
     const phone = form.phone.trim() || customer?.phone || '';
-    const problem = repairFormProblem({ ...form, phone });
+    const problem = repairFormProblem({ ...form, phone }, services, owner);
     if (problem) {
       haptic.error();
       Alert.alert('لم تُحفظ الصيانة', problem);
@@ -108,10 +127,11 @@ export function RepairFormView({
       const r = takeRepair(ctx, {
         customer: { name: form.name.trim(), phone },
         description: form.description,
-        work: form.work,
+        ...(withServices
+          ? { services: servicesInput(form, services, owner) }
+          : { work: form.work, price: price! }),
         photos,
         note: form.note,
-        price: price!,
         readyBy: form.readyBy,
         ...(deposit > 0 ? { deposit: { amount: deposit, method: form.method } } : {}),
       });
@@ -224,19 +244,48 @@ export function RepairFormView({
             testID="repair-description"
           />
           <Text variant="subhead" tone="secondary">
-            العمل المطلوب
+            {withServices ? 'الخدمات المطلوبة (أسعار المالك)' : 'العمل المطلوب'}
           </Text>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-            {REPAIR_WORKS.map((w) => (
-              <FilterChip
-                key={w}
-                label={WORK_LABELS[w]}
-                selected={form.work === w}
-                onPress={() => set('work', w)}
-                testID={`repair-work-${w}`}
-              />
-            ))}
-          </View>
+          {withServices ? (
+            <View style={{ gap: spacing.sm }} testID="repair-services">
+              {services.map((sv) => {
+                const on = form.picked.includes(sv.id);
+                return (
+                  <View key={sv.id} style={{ gap: spacing.xs }}>
+                    <FilterChip
+                      label={`${on ? '✓ ' : ''}${sv.name} • ${servicePriceText(sv.price)}`}
+                      selected={on}
+                      onPress={() => toggle(sv.id)}
+                      testID={`repair-service-${sv.id}`}
+                    />
+                    {on && sv.price === null && owner ? (
+                      <NumberField
+                        label={`سعر «${sv.name}» (أو اتركه لاحقاً)`}
+                        value={form.ownerPrices[sv.id] ?? ''}
+                        onChangeText={(t) =>
+                          setForm((f) => ({ ...f, ownerPrices: { ...f.ownerPrices, [sv.id]: t } }))
+                        }
+                        suffix="د.ل"
+                        testID={`repair-service-price-${sv.id}`}
+                      />
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+              {REPAIR_WORKS.map((w) => (
+                <FilterChip
+                  key={w}
+                  label={WORK_LABELS[w]}
+                  selected={form.work === w}
+                  onPress={() => set('work', w)}
+                  testID={`repair-work-${w}`}
+                />
+              ))}
+            </View>
+          )}
           <TextField
             label="ملاحظات"
             value={form.note}
@@ -247,13 +296,19 @@ export function RepairFormView({
         </Card>
 
         <Card>
-          <NumberField
-            label="السعر المتفق عليه (0 للمجانية)"
-            value={form.price}
-            onChangeText={(t) => set('price', t)}
-            suffix="د.ل"
-            testID="repair-price"
-          />
+          {withServices ? (
+            <Text variant="bodyStrong" testID="repair-total">
+              {`المجموع: ${formatLyd(total.price)}${total.pending ? ` + ${total.pending} بسعر يحدده المالك` : ''}`}
+            </Text>
+          ) : (
+            <NumberField
+              label="السعر المتفق عليه (0 للمجانية)"
+              value={form.price}
+              onChangeText={(t) => set('price', t)}
+              suffix="د.ل"
+              testID="repair-price"
+            />
+          )}
           <TextField
             label="تاريخ الجاهزية"
             value={form.readyBy}

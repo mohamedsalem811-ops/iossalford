@@ -23,6 +23,8 @@ const repair = (o: Partial<Repair> = {}): Repair => ({
   photos: [],
   note: null,
   price: 50_000,
+  services: null,
+  unpriced: 0,
   paid: 20_000,
   remaining: 30_000,
   readyBy: '2026-11-20',
@@ -75,8 +77,9 @@ describe('the lines shown', () => {
       dueToday: [repair()],
       late: [repair({ id: 2 })],
       waiting: [],
+      needPrice: [repair({ id: 3, unpriced: 1 })],
     });
-    expect(rows.map((r) => r.key)).toEqual(['late', 'dueToday']);
+    expect(rows.map((r) => r.key)).toEqual(['late', 'needPrice', 'dueToday']);
   });
 });
 

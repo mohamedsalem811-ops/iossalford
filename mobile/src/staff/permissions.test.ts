@@ -54,9 +54,11 @@ import {
   moveRepair,
   setRepairCost,
   setRepairDate,
+  setRepairLinePrice,
   setRepairRules,
   takeRepair,
 } from '@/domain/repairs';
+import { removeRepairService, saveRepairService } from '@/domain/repair-services';
 import {
   cancelOffer,
   deleteGift,
@@ -119,6 +121,10 @@ type Seed = {
   /** A repair just taken in, and one ready to collect (J3). */
   repair: number;
   readyRepair: number;
+  /** The owner's services (rule D): one priced, one «السعر يحدده المالك», and its repair line. */
+  service: number;
+  ownerPriced: number;
+  unpricedLine: number;
 };
 
 function cartOf(ctx: Ctx, id: number, qty = 1): CartLine[] {
@@ -229,7 +235,22 @@ function seed(ctx: TestCtx): Seed {
   const repair = repairOf();
   const readyRepair = repairOf();
   moveRepair(ctx, readyRepair, 'ready');
+  const service = saveRepairService(ctx, { name: 'تلميع', price: 20_000 });
+  const ownerPriced = saveRepairService(ctx, { name: 'تصميم', price: null });
+  const pricedLater = takeRepair(ctx, {
+    customer: { name: 'منى', phone: '0912345678' },
+    description: 'قلادة',
+    services: [{ serviceId: ownerPriced }],
+    readyBy: '2026-12-01',
+  }).repairId;
+  const unpricedLine = ctx.db.get<{ id: number }>(
+    'SELECT id FROM repair_lines WHERE repair_id = ?',
+    [pricedLater],
+  )!.id;
   return {
+    service,
+    ownerPriced,
+    unpricedLine,
     repair,
     readyRepair,
     giftDone,
@@ -537,14 +558,25 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     },
     takeRepair: {
       permission: 'repairs.take',
-      run: (ctx) =>
+      run: (ctx, s) =>
         takeRepair(ctx, {
           customer: { name: 'هدى', phone: '0923333333' },
           description: 'سوار',
-          work: 'solder',
-          price: 0,
+          services: [{ serviceId: s.service }],
           readyBy: '2026-12-05',
         }),
+    },
+    saveRepairService: {
+      permission: 'settings.edit',
+      run: (ctx, s) => saveRepairService(ctx, { id: s.service, name: 'تلميع', price: 25_000 }),
+    },
+    removeRepairService: {
+      permission: 'settings.edit',
+      run: (ctx, s) => removeRepairService(ctx, s.ownerPriced),
+    },
+    setRepairLinePrice: {
+      permission: 'repairs.price',
+      run: (ctx, s) => setRepairLinePrice(ctx, s.unpricedLine, 40_000),
     },
     setRepairDate: {
       permission: 'repairs.take',

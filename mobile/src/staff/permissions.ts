@@ -49,6 +49,7 @@ export const PERMISSIONS = {
   'repairs.deliver': 'مراحل الصيانة وتسليمها',
   'repairs.cost': 'تكلفة الورشة',
   'repairs.cancel': 'إلغاء صيانة',
+  'repairs.price': 'تحديد سعر خدمات الصيانة',
   // Seeing (checked by the screens).
   'costs.view': 'التكلفة والربح',
   'reports.view': 'ملخص الشهر والتقارير',
@@ -117,6 +118,8 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'repairs.deliver': true,
   'repairs.cost': false,
   'repairs.cancel': false,
+  // The price of a service «السعر يحدده المالك» on a repair is the owner's (rule D).
+  'repairs.price': false,
   'costs.view': false,
   'reports.view': false,
   'sales.viewAll': false,

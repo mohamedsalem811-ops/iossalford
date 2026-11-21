@@ -35,6 +35,7 @@ import {
   who,
 } from './context';
 import { ensureCustomer, phoneKey } from './customers';
+import { getRepairService, listRepairServices, servicePriceText } from './repair-services';
 import { getSetting, setSetting } from './settings';
 import { shiftFor } from './shifts';
 import { DEFAULT_TEMPLATES, fill } from './templates';
@@ -127,8 +128,12 @@ export type Repair = {
   work: RepairWork;
   photos: string[];
   note: string | null;
-  /** The agreed price, in dirhams (0: free). */
+  /** The agreed price, in dirhams (0: free); with services, the sum of those priced. */
   price: number;
+  /** The owner's services ticked (rule D), «تلميع، لحام»; null for a repair taken before them. */
+  services: string | null;
+  /** Services still waiting for the owner's price: it cannot be delivered until then. */
+  unpriced: number;
   /** Paid towards it so far, less refunds (a delivery on credit counts as paid). */
   paid: number;
   /** What is left to pay at delivery. */
@@ -160,6 +165,8 @@ type RepairRow = {
   photos: string;
   note: string | null;
   price: number;
+  services: string | null;
+  unpriced: number;
   paid: number;
   ready_by: string;
   cost: number | null;
@@ -175,7 +182,9 @@ type RepairRow = {
 
 const PAID_SQL = `coalesce((SELECT sum(CASE p.kind WHEN 'pay' THEN p.amount ELSE -p.amount END)
                               FROM repair_payments p WHERE p.repair_id = r.id), 0)`;
-const SELECT = `SELECT r.*, c.name customer_name, c.phone customer_phone, ${PAID_SQL} paid
+const LINES_SQL = `(SELECT group_concat(l.name, '، ') FROM repair_lines l WHERE l.repair_id = r.id) services,
+  (SELECT count(*) FROM repair_lines l WHERE l.repair_id = r.id AND l.price IS NULL) unpriced`;
+const SELECT = `SELECT r.*, c.name customer_name, c.phone customer_phone, ${PAID_SQL} paid, ${LINES_SQL}
                   FROM repairs r JOIN customers c ON c.id = r.customer_id`;
 
 const photosOf = (json: string): string[] => {
@@ -200,6 +209,8 @@ function toRepair(r: RepairRow): Repair {
     photos: photosOf(r.photos),
     note: r.note,
     price: r.price,
+    services: r.services,
+    unpriced: r.unpriced,
     paid: r.paid,
     remaining: Math.max(0, r.price - r.paid),
     readyBy: r.ready_by,
@@ -218,6 +229,27 @@ function toRepair(r: RepairRow): Repair {
 export function getRepair(ctx: Ctx, id: number): Repair | undefined {
   const r = ctx.db.get<RepairRow>(`${SELECT} WHERE r.id = ?`, [id]);
   return r ? toRepair(r) : undefined;
+}
+
+/** What is done to it: the services ticked, or the kind of work of an older repair. */
+export const workText = (r: Pick<Repair, 'services' | 'work'>) => r.services ?? WORK_LABELS[r.work];
+
+export type RepairLine = {
+  id: number;
+  serviceId: number | null;
+  name: string;
+  /** Null: the owner has not priced it yet. */
+  price: number | null;
+};
+
+/** The services ticked on a repair, with the name and price they had then. */
+export function repairLines(ctx: Ctx, repairId: number): RepairLine[] {
+  return ctx.db
+    .all<{ id: number; service_id: number | null; name: string; price: number | null }>(
+      'SELECT id, service_id, name, price FROM repair_lines WHERE repair_id = ? ORDER BY id',
+      [repairId],
+    )
+    .map((l) => ({ id: l.id, serviceId: l.service_id, name: l.name, price: l.price }));
 }
 
 function requireRepair(ctx: Ctx, id: number): Repair {
@@ -316,6 +348,8 @@ export type RepairReminders = {
   late: Repair[];
   /** Ready and not collected after the owner's days. */
   waiting: Repair[];
+  /** Open, with a service waiting for the owner's price (rule D). */
+  needPrice: Repair[];
 };
 
 /** What the home screen reminds about. */
@@ -332,6 +366,10 @@ export function repairReminders(ctx: Ctx): RepairReminders {
     dueToday: all("r.status IN ('received', 'workshop') AND r.ready_by = ?", [today]),
     late: all("r.status IN ('received', 'workshop') AND r.ready_by < ?", [today]),
     waiting: all("r.status = 'ready' AND substr(r.ready_at, 1, 10) <= ?", [since]),
+    needPrice: all(
+      `r.status IN ${OPEN_SQL} AND EXISTS (SELECT 1 FROM repair_lines l WHERE l.repair_id = r.id AND l.price IS NULL)`,
+      [],
+    ),
   };
 }
 
@@ -373,11 +411,17 @@ function checkPayMethod(method: string) {
 export type TakeRepairInput = {
   customer: { name: string; phone: string };
   description: string;
-  work: RepairWork;
+  /** The kind of work, when no services are ticked (a repair taken before the owner's list). */
+  work?: RepairWork;
+  /**
+   * The owner's services ticked (rule D): the price is theirs. `price` is for a service with no
+   * price («السعر يحدده المالك»), and only the owner gives it; otherwise she prices it later.
+   */
+  services?: { serviceId: number; price?: number }[];
   photos?: string[];
   note?: string;
-  /** The agreed price in dirhams; 0 for a free repair. */
-  price: number;
+  /** The agreed price in dirhams; 0 for a free repair. Ignored when services are ticked. */
+  price?: number;
   /** "2026-11-20". */
   readyBy: string;
   deposit?: { amount: number; method: RepairPayMethod };
@@ -410,6 +454,68 @@ function addPayment(
   );
 }
 
+type ServiceLine = { serviceId: number; name: string; price: number | null };
+
+/** The services ticked, checked against the owner's list, with their prices. */
+function serviceLines(
+  ctx: Ctx,
+  owner: boolean,
+  picked: { serviceId: number; price?: number }[],
+): ServiceLine[] {
+  if (picked.length > 12) throw new RuleError('12 خدمة على الأكثر');
+  const seen = new Set<number>();
+  return picked.map((p) => {
+    const service = getRepairService(ctx, p.serviceId);
+    if (!service || !service.active) throw new RuleError('خدمة غير موجودة في قائمة المالك');
+    if (seen.has(service.id)) throw new RuleError(`«${service.name}» مختارة مرتين`);
+    seen.add(service.id);
+    if (service.price !== null)
+      return { serviceId: service.id, name: service.name, price: service.price };
+    // «السعر يحدده المالك»: only the owner gives it, now or later.
+    if (p.price === undefined || !owner)
+      return { serviceId: service.id, name: service.name, price: null };
+    if (!Number.isInteger(p.price) || p.price < 0)
+      throw new RuleError(`اكتب سعر «${service.name}»`);
+    return { serviceId: service.id, name: service.name, price: p.price };
+  });
+}
+
+/** The owner prices a service left «السعر يحدده المالك» on an open repair. */
+export function setRepairLinePrice(ctx: Ctx, lineId: number, price: number) {
+  allow(ctx, 'repairs.price');
+  if (!Number.isInteger(price) || price < 0) throw new RuleError('اكتب السعر');
+  return ctx.db.transaction(() => {
+    const line = ctx.db.get<{ repair_id: number; name: string; price: number | null }>(
+      'SELECT repair_id, name, price FROM repair_lines WHERE id = ?',
+      [lineId],
+    );
+    if (!line) throw new RuleError('الخدمة غير موجودة');
+    const r = requireRepair(ctx, line.repair_id);
+    if (!OPEN_REPAIR_STATUSES.includes(r.status))
+      throw new RuleError('لا يتغيّر سعر صيانة سُلّمت أو أُلغيت');
+    const total = r.price - (line.price ?? 0) + price;
+    if (total < r.paid)
+      throw new RuleError(
+        `المدفوع (${formatLyd(r.paid)}) أكبر من السعر الجديد (${formatLyd(total)})`,
+      );
+    const stamp = nowStamp(ctx);
+    ctx.db.run('UPDATE repair_lines SET price = ?, priced_at = ?, priced_by = ? WHERE id = ?', [
+      price,
+      stamp,
+      who(ctx)[0],
+      lineId,
+    ]);
+    ctx.db.run('UPDATE repairs SET price = ?, updated_at = ? WHERE id = ?', [total, stamp, r.id]);
+    logAction(
+      ctx,
+      'repair.price',
+      `سعر «${line.name}» في الصيانة ${r.ticketNo}: ${formatLyd(price)}${line.price !== null ? ` (كان ${formatLyd(line.price)})` : ''}، المجموع ${formatLyd(total)}`,
+      { repairId: r.id, lineId, price, was: line.price, total },
+    );
+    return total;
+  });
+}
+
 /** Takes a piece in for repair, with its deposit if any. Returns its ticket number. */
 export function takeRepair(
   ctx: Ctx,
@@ -423,9 +529,19 @@ export function takeRepair(
   const description = clean(input.description) ?? '';
   if (!description) throw new RuleError('اكتب وصف القطعة');
   if (description.length > 200) throw new RuleError('وصف القطعة طويل (200 حرف على الأكثر)');
-  if (!REPAIR_WORKS.includes(input.work)) throw new RuleError('اختر نوع العمل');
-  if (!Number.isInteger(input.price) || input.price < 0)
-    throw new RuleError('اكتب السعر المتفق عليه (0 للصيانة المجانية)');
+  const lines = serviceLines(ctx, actor.kind === 'owner', input.services ?? []);
+  const work: RepairWork = input.work ?? 'other';
+  let price: number;
+  if (lines.length) price = lines.reduce((sum, l) => sum + (l.price ?? 0), 0);
+  else {
+    // With the owner's list, staff tick services: they never type a price (rule D).
+    if (actor.kind !== 'owner' && listRepairServices(ctx).length)
+      throw new RuleError('اختر الخدمات من قائمة المالك');
+    if (!REPAIR_WORKS.includes(work) || !input.work) throw new RuleError('اختر نوع العمل');
+    if (input.price === undefined || !Number.isInteger(input.price) || input.price < 0)
+      throw new RuleError('اكتب السعر المتفق عليه (0 للصيانة المجانية)');
+    price = input.price;
+  }
   const readyBy = readyDate(ctx, input.readyBy);
   const photos = (input.photos ?? []).filter((p) => typeof p === 'string' && p.trim());
   if (photos.length > 6) throw new RuleError('6 صور على الأكثر');
@@ -433,8 +549,8 @@ export function takeRepair(
   if (deposit) {
     if (!Number.isInteger(deposit.amount)) throw new RuleError('اكتب مبلغ العربون');
     checkPayMethod(deposit.method);
-    if (deposit.amount > input.price)
-      throw new RuleError(`العربون أكبر من السعر المتفق عليه (${formatLyd(input.price)})`);
+    if (deposit.amount > price)
+      throw new RuleError(`العربون أكبر من السعر المتفق عليه (${formatLyd(price)})`);
   }
   return ctx.db.transaction(() => {
     const shiftId = shiftFor(ctx, actor);
@@ -449,10 +565,10 @@ export function takeRepair(
         `new-${stamp}-${Math.random()}`,
         customerId,
         description,
-        input.work,
+        work,
         JSON.stringify(photos),
         clean(input.note),
-        input.price,
+        price,
         readyBy,
         stamp,
         nowMonth(ctx),
@@ -462,16 +578,25 @@ export function takeRepair(
     ).lastInsertRowId;
     const ticketNo = `R-${ctx.now().getFullYear()}-${String(id).padStart(4, '0')}`;
     ctx.db.run('UPDATE repairs SET ticket_no = ? WHERE id = ?', [ticketNo, id]);
+    for (const l of lines)
+      ctx.db.run(
+        'INSERT INTO repair_lines (repair_id, service_id, name, price, priced_at, priced_by) VALUES (?, ?, ?, ?, ?, ?)',
+        [id, l.serviceId, l.name, l.price, l.price === null ? null : stamp, who(ctx)[0]],
+      );
     if (deposit) addPayment(ctx, id, 'pay', deposit.amount, deposit.method, shiftId);
+    const what = lines.length
+      ? lines.map((l) => `${l.name} ${servicePriceText(l.price)}`).join('، ')
+      : WORK_LABELS[work];
     logAction(
       ctx,
       'repair.take',
-      `صيانة ${ticketNo} لـ «${name}»: «${description}» (${WORK_LABELS[input.work]}) بـ ${formatLyd(input.price)}${deposit ? `، عربون ${formatLyd(deposit.amount)} (${REPAIR_METHOD_LABELS[deposit.method]})` : ''}، جاهزة ${readyBy}`,
+      `صيانة ${ticketNo} لـ «${name}»: «${description}» (${what}) بـ ${formatLyd(price)}${deposit ? `، عربون ${formatLyd(deposit.amount)} (${REPAIR_METHOD_LABELS[deposit.method]})` : ''}، جاهزة ${readyBy}`,
       {
         repairId: id,
         ticketNo,
         customerId,
-        price: input.price,
+        price,
+        ...(lines.length ? { services: lines.map((l) => l.serviceId) } : {}),
         readyBy,
         ...(deposit ? { deposit: deposit.amount, method: deposit.method } : {}),
       },
@@ -571,6 +696,8 @@ export function deliverRepair(
       throw new RuleError(
         r.status === 'delivered' ? 'سُلّمت هذه الصيانة من قبل' : 'تُسلّم الصيانة عندما تكون جاهزة',
       );
+    if (r.unpriced > 0)
+      throw new RuleError('في هذه الصيانة خدمة لم يحدد المالك سعرها بعد: تُسلّم بعد تحديده');
     const rest = r.remaining;
     if (rest > 0 && input.method === 'credit' && !creditAllowed(ctx, input.creditApproval))
       throw new CreditCodeNeeded();

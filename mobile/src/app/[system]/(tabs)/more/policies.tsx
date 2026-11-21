@@ -9,6 +9,7 @@ import { getDepositRules, setDepositRules } from '@/domain/orders';
 import { getRepairRules, setRepairRules } from '@/domain/repairs';
 import { ALERT_LIMITS, getPolicies, setPolicies, type Policies } from '@/domain/policies';
 import { showError } from '@/features/products/actions';
+import { RepairServicesCard } from '@/features/repairs/services-card';
 import { useReadable } from '@/hooks/use-readable';
 import { useSaveOnce } from '@/hooks/use-save-once';
 import { latinDigits, parseThousandths } from '@/lib/digits';
@@ -322,6 +323,7 @@ function PoliciesScreen() {
             maxLength={400}
             testID="policy-repair-note"
           />
+          <RepairServicesCard ctx={ctx} />
         </Card>
         <Card>
           <Text variant="headline">التنبيهات</Text>
