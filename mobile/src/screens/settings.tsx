@@ -26,6 +26,7 @@ export function SettingsScreen({
   loyalty,
   notifications,
   onChangePin,
+  faceId,
   onAppearance,
 }: {
   system: SystemId;
@@ -43,6 +44,8 @@ export function SettingsScreen({
   /** Reminders on the device while the app is closed (J6), for the owner. */
   notifications?: { onOpen: () => void };
   onChangePin: () => void;
+  /** The owner's Face ID switch (jewelry, audit 1). */
+  faceId?: { on: boolean; onToggle: () => void };
   onAppearance: (a: Appearance) => void;
 }) {
   return (
@@ -72,7 +75,7 @@ export function SettingsScreen({
         header="الأمان"
         footer={
           system === 'jewelry'
-            ? 'لكل نظام رمزه. Face ID يفتح نظام المجوهرات، والرمز يعمل دائماً.'
+            ? 'لكل نظام رمزه. Face ID، إذا شغّله المالك، يفتح نظام المجوهرات كمالك، والرمز يعمل دائماً.'
             : 'لكل نظام رمزه.'
         }>
         <ListRow
@@ -81,6 +84,15 @@ export function SettingsScreen({
           onPress={onChangePin}
           testID="settings-pin"
         />
+        {faceId ? (
+          <ListRow
+            icon="faceid"
+            title="الدخول بـ Face ID"
+            value={faceId.on ? 'يعمل' : 'متوقف'}
+            onPress={faceId.onToggle}
+            testID="settings-faceid"
+          />
+        ) : null}
       </ListGroup>
       {notifications ? (
         <ListGroup

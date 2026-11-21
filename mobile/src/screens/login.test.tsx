@@ -239,4 +239,18 @@ describe('LoginScreen', () => {
     await fireEvent.press(screen.getByRole('button', { name: 'تغيير النظام' }));
     expect(onBack).toHaveBeenCalled();
   });
+
+  it('neither asks for Face ID nor offers it while the PIN is locked out (audit 12)', async () => {
+    const { deps } = makeDeps({
+      faceIdStatus: jest.fn(async (): Promise<FaceIdStatus> => 'ready'),
+      lockedUntil: jest.fn(async () => 1_000_000 + 60_000),
+    });
+    await renderScreen(
+      <LoginScreen system="jewelry" deps={deps} onUnlock={jest.fn()} onBack={() => {}} />,
+    );
+    await act(async () => {});
+    expect(deps.askFaceId).not.toHaveBeenCalled();
+    expect(screen.queryByText('الدخول بـ Face ID')).toBeNull();
+    expect(deps.clearFailures).not.toHaveBeenCalled();
+  });
 });

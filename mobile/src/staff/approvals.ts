@@ -52,7 +52,8 @@ export async function askOwner(
   purpose: ApprovalPurpose,
   what: string,
 ): Promise<string | null> {
-  if ((await faceIdStatus(system)) === 'ready') {
+  // Face ID only when the owner switched it on, and never during the owner's PIN lockout.
+  if ((await faceIdStatus(system)) === 'ready' && !(await pinVault.lockedUntil(system))) {
     const r = await askFaceId();
     if (r.ok) return grant(purpose);
   }

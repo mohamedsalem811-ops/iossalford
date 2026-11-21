@@ -69,7 +69,7 @@ import {
 import { addReturn, addReturnWithoutSale, deleteReturn, deleteSale, getSale } from '@/domain/sales';
 import { deleteScarfDesign, saveScarfDesign } from '@/domain/scarves';
 import { deleteSet, saveSet } from '@/domain/sets';
-import { setRate } from '@/domain/settings';
+import { recordFaceIdChoice, setRate } from '@/domain/settings';
 import { setProductPrice } from '@/domain/slow-stock';
 import { setNotifyRules } from '@/domain/notify';
 import { addToCart, type CartLine } from '@/domain/cart';
@@ -377,6 +377,10 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     },
     deleteClosing: { permission: 'closing.edit', run: (ctx, s) => deleteClosing(ctx, s.closing) },
     setRate: { permission: 'settings.edit', run: (ctx) => setRate(ctx, 7_000) },
+    recordFaceIdChoice: {
+      permission: 'settings.edit',
+      run: (ctx) => recordFaceIdChoice(ctx, true),
+    },
     setLoyalty: {
       permission: 'settings.edit',
       run: (ctx) => setLoyalty(ctx, { enabled: true }),
