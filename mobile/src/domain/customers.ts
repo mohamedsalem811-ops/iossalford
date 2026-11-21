@@ -2,6 +2,7 @@ import { nameKey } from '@/lib/names';
 import { latinDigits, sanitize } from '@/lib/digits';
 import { MONTH_NAMES } from '@/lib/dates';
 
+import { can } from '@/staff/permissions';
 import { allow, clean, nowStamp, RuleError, type Ctx } from './context';
 import { logAction } from './activity';
 
@@ -295,8 +296,13 @@ export function saveCustomer(ctx: Ctx, input: CustomerInput): number {
       'SELECT id, name FROM customers WHERE phone_key = ?',
       [key],
     );
+    // Whose number it is stays hidden from someone who may not see phones (audit 16).
     if (other && other.id !== input.id)
-      throw new RuleError(`رقم الهاتف مسجل مسبقاً للزبون «${other.name}»`);
+      throw new RuleError(
+        can(ctx.actor, 'customers.phones')
+          ? `رقم الهاتف مسجل مسبقاً للزبون «${other.name}»`
+          : 'رقم الهاتف مسجل مسبقاً لزبون آخر',
+      );
   }
   return ctx.db.transaction(() => {
     if (input.id) {

@@ -16,6 +16,7 @@ import { useCan } from '@/staff/use-can';
 import { spacing } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
 import { useSearchShortcut } from '@/lib/key-commands';
+import { typed } from '@/lib/typing';
 
 type Show = 'open' | 'done';
 
@@ -56,7 +57,7 @@ export default function OrdersRoute() {
         placeholder="الزبون أو القطعة"
         cancelButtonText="إلغاء"
         hideWhenScrolling={false}
-        onChangeText={(e) => setQuery((q) => ({ ...q, search: e.nativeEvent.text }))}
+        onChangeText={typed((e) => setQuery((q) => ({ ...q, search: e.nativeEvent.text })))}
         onCancelButtonPress={() => setQuery((q) => ({ ...q, search: '' }))}
       />
       <Stack.Toolbar placement="right">

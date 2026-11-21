@@ -16,6 +16,7 @@ import { useReadable } from '@/hooks/use-readable';
 import { spacing } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
 import { useSearchShortcut, useShortcut } from '@/lib/key-commands';
+import { typed } from '@/lib/typing';
 
 /** Management → Customers: search by name, phone or area; add; open for details and debts. */
 export default function CustomersRoute() {
@@ -56,7 +57,7 @@ export default function CustomersRoute() {
         placeholder={fullPhones ? 'الاسم أو الهاتف أو المنطقة' : 'الاسم أو الرقم كاملاً أو المنطقة'}
         cancelButtonText="إلغاء"
         hideWhenScrolling={false}
-        onChangeText={(e) => setSearch(e.nativeEvent.text)}
+        onChangeText={typed((e) => setSearch(e.nativeEvent.text))}
         onCancelButtonPress={() => setSearch('')}
       />
       <Stack.Toolbar placement="right">

@@ -17,7 +17,14 @@ const esc = (t: string) =>
 
 const when = (stamp: string) => `${formatDate(new Date(stamp))} ${formatTime(new Date(stamp))}`;
 
-export type ShiftReport = { shift: Shift; totals: ShiftTotals; moves: CashMove[]; shop: string };
+export type ShiftReport = {
+  shift: Shift;
+  totals: ShiftTotals;
+  moves: CashMove[];
+  shop: string;
+  /** An employee reading their own open shift: the count is blind, the expected cash hidden. */
+  blind?: boolean;
+};
 
 /** The rows of the report, shared by the screen and the PDF. */
 export function reportRows(r: ShiftReport): { label: string; value: string }[] {
@@ -60,10 +67,10 @@ export function reportRows(r: ShiftReport): { label: string; value: string }[] {
     { label: 'نقد البداية', value: formatLyd(shift.openingCash) },
     { label: 'إدخال نقد', value: formatLyd(totals.cashIn) },
     { label: 'إخراج نقد', value: formatLyd(totals.cashOut) },
-    {
-      label: 'المتوقع في الدرج',
-      value: formatLyd(shift.expectedCash ?? totals.expected),
-    },
+    // Hidden from an employee until the shift is closed (audit 7): the count stays blind.
+    ...(r.blind && !shift.closedAt
+      ? []
+      : [{ label: 'المتوقع في الدرج', value: formatLyd(shift.expectedCash ?? totals.expected) }]),
     ...(shift.countedCash !== null
       ? [
           { label: 'المعدود', value: formatLyd(shift.countedCash) },

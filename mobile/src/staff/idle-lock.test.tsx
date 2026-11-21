@@ -1,6 +1,7 @@
 import { act, fireEvent, screen } from '@testing-library/react-native';
 import { Text } from 'react-native';
 
+import { TextField } from '@/components';
 import { renderScreen } from '@/testing/render';
 
 import { IdleLock } from './idle-lock';
@@ -56,6 +57,21 @@ describe('the automatic lock of an employee', () => {
     await pass(6);
     expect(screen.getByTestId('idle-warning')).toBeOnTheScreen();
     await fireEvent(screen.getByText('البيع'), 'touchStart');
+    expect(screen.queryByTestId('idle-warning')).toBeNull();
+    await pass(6);
+    expect(onLock).not.toHaveBeenCalled();
+  });
+
+  it('starts again from zero when typing on a keyboard, with no touch (audit 14)', async () => {
+    const onLock = jest.fn();
+    await renderScreen(
+      <IdleLock enabled lock={lock} onLock={onLock} now={now}>
+        <TextField label="الاسم" value="" onChangeText={() => {}} testID="name" />
+      </IdleLock>,
+    );
+    await pass(6);
+    expect(screen.getByTestId('idle-warning')).toBeOnTheScreen();
+    await act(() => screen.getByTestId('name').props.onChangeText('س'));
     expect(screen.queryByTestId('idle-warning')).toBeNull();
     await pass(6);
     expect(onLock).not.toHaveBeenCalled();

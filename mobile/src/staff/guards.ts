@@ -180,6 +180,8 @@ export function takeWaiting<C>(system: SystemId): ((ctx: C) => void)[] {
 let open: {
   system: SystemId;
   write: (summary: string, details?: Record<string, unknown>) => void;
+  /** Who is signed in, for the line the other system writes later. */
+  person?: () => { key: string; name: string } | null;
 } | null = null;
 
 /** Set by LogGuard while a system is open: staff changes (shared by both systems) go to its log. */
@@ -187,7 +189,44 @@ export function setOpenLog(o: typeof open) {
   open = o;
 }
 
-/** A log line for a staff change, in the open system's log. */
+/** A staff change waiting for the other system's log (kept in the Keychain until it opens). */
+export type StaffLine = {
+  person: { key: string; name: string };
+  summary: string;
+  details?: Record<string, unknown>;
+  at: string;
+  from: SystemId;
+};
+const PENDING_MAX = 100;
+const pendingKey = (s: SystemId) => `log.staff.${s}`;
+
+function pendingOf(system: SystemId): StaffLine[] {
+  try {
+    const v: unknown = JSON.parse(read(pendingKey(system)) ?? '[]');
+    return Array.isArray(v) ? (v as StaffLine[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** The staff changes made in the other system, to write now; the list is emptied. */
+export function takeStaffLines(system: SystemId): StaffLine[] {
+  const lines = pendingOf(system);
+  if (lines.length) write(pendingKey(system), '[]');
+  return lines;
+}
+
+/**
+ * A log line for a staff change, in the open system's log, and kept for the other system's log
+ * (audit 15: the staff list is shared, so both logs show who changed it).
+ */
 export function logStaffChange(summary: string, details?: Record<string, unknown>) {
-  open?.write(summary, details);
+  if (!open) return;
+  open.write(summary, details);
+  const person = open.person?.();
+  if (!person) return;
+  const other: SystemId = open.system === 'jewelry' ? 'scarves' : 'jewelry';
+  const line: StaffLine = { person, summary, at: new Date().toISOString(), from: open.system };
+  if (details) line.details = details;
+  write(pendingKey(other), JSON.stringify([...pendingOf(other), line].slice(-PENDING_MAX)));
 }

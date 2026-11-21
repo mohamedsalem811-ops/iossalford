@@ -32,7 +32,7 @@ import {
 } from './receipts';
 import { availableSets, deleteSet, getSet, saveSet, setForCart, setPrice } from './sets';
 import { setRate } from './settings';
-import { makeCtx, type TestCtx } from './testing/ctx';
+import { EMPLOYEE, makeCtx, type TestCtx } from './testing/ctx';
 
 let ctx: TestCtx;
 beforeEach(() => {
@@ -65,6 +65,18 @@ describe('customers', () => {
       'مسجل مسبقاً للزبون «سارة»',
     );
     expect(() => saveCustomer(ctx, { name: ' ' })).toThrow('اسم الزبون');
+  });
+
+  it('does not tell an employee whose number it is when phones are hidden (audit 16)', () => {
+    saveCustomer(ctx, { name: 'سارة', phone: '0912345678' });
+    ctx.setActor(EMPLOYEE);
+    let message = '';
+    try {
+      saveCustomer(ctx, { name: 'منى', phone: '0912345678' });
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toBe('رقم الهاتف مسجل مسبقاً لزبون آخر');
   });
 
   it('matches a sale to a customer by phone first, then by a non-conflicting name', () => {

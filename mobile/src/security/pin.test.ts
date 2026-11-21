@@ -158,6 +158,21 @@ describe('PinVault', () => {
     kv.data.set('pin-lock.jewelry', '{broken');
     expect(await v.lockedUntil('jewelry')).toBe(now.t + 30_000);
   });
+
+  it('treats a damaged PIN record as a wrong PIN (audit 17): counted, never opened', async () => {
+    const { kv, v } = vault();
+    for (const broken of ['{broken', 'null', '"text"', '{"salt":1}']) {
+      kv.data.set('pin.jewelry', broken);
+      kv.data.delete('pin-lock.jewelry');
+      await expect(v.verify('jewelry', '25801470')).resolves.toEqual({
+        ok: false,
+        attemptsLeft: FREE_ATTEMPTS - 1,
+        lockedUntil: 0,
+      });
+    }
+    kv.data.set('emergency.owner', '{broken');
+    await expect(v.checkEmergencyCode('1234-5678-9012')).resolves.toMatchObject({ ok: false });
+  });
 });
 
 describe('the slow PIN hash (PBKDF2)', () => {

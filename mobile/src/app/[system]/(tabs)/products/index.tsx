@@ -19,6 +19,7 @@ import { errorBoundary } from '@/components/error-screen';
 import { useSearchShortcut, useShortcut } from '@/lib/key-commands';
 import { invoicesOf } from '@/domain/original-invoices';
 import { useCan } from '@/staff/use-can';
+import { typed } from '@/lib/typing';
 
 /** Opens الراكدة, for the owner (who sees costs). */
 function useSlowStock(system: SystemId) {
@@ -69,7 +70,7 @@ function Header<Q extends Filters>({
         placeholder={placeholder}
         cancelButtonText="إلغاء"
         hideWhenScrolling={false}
-        onChangeText={(e) => setQuery((q) => ({ ...q, search: e.nativeEvent.text }))}
+        onChangeText={typed((e) => setQuery((q) => ({ ...q, search: e.nativeEvent.text })))}
         onCancelButtonPress={() => setQuery((q) => ({ ...q, search: '' }))}
       />
       <Stack.Toolbar placement="right">

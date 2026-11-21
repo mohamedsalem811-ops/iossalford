@@ -902,7 +902,7 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 
 - **Wording:** a cap reads «بحد أقصى 250 د.ل للخصم» everywhere (the rewards card, the rules lines, «نفتقدك», the birthday message, the customer's page); a saved «نفتقدك» message the owner never changed follows the new wording.
 - **Every message is the owner's to word:** «رسائل» now also has the birthday wishes ({عزيزتنا}, {الهدية}) and the three deposit-order messages: the expected date ({القطعة}, {رقم}, {الموعد}), ready to collect and the reminder ({طلبك}, {الباقي}). A customer typed by phone only is greeted «أهلاً،» without the made-up name «زبون 09…».
-- **WhatsApp keeps your place:** when SALFORD itself opens WhatsApp (the sender, a reminder, a thank-you, an order message), coming back within 2 minutes finds the same screen; leaving any other way still locks at once.
+- **WhatsApp keeps your place:** when SALFORD itself opens WhatsApp (the sender, a reminder, a thank-you, an order message), coming back within 1 minute finds the same screen (2 minutes until phase K); leaving any other way still locks at once.
 - **Bring a friend:** the sender's points come with the friend's first purchase of any kind (a deposit order collected counts); on credit they wait until the friend has paid her debt (the customer's page says so); an exchange keeps them (the new piece becomes the purchase); «من أرسلك؟» is asked only for a typed phone that matches nobody (a name alone may be an existing customer).
 - **Checkout:** the «unused reward» question now includes the friend's gift and «نفتقدك», and is not asked once any reward is on.
 - **«نفتقدك»:** only customers who accept offers are suggested; the ticks clear after the offers are given; counts in correct Arabic («لـ5 زبائن», «3 زيارات»); dates as «1 ديسمبر 2026»; a cancelled offer shows «أُلغي». Customer care's old «لم يعودوا» tab opens Marketing → «نفتقدك».
@@ -1021,6 +1021,42 @@ Also: a speed-test line for planning the week's reminders. Not done in the check
 **The keyboard over a field (2026-11-18)**, found by the owner on التنبيهات: tapping a time put the keyboard over it. Five screens used the plain page scroll, which does not move a field clear of the keyboard: التنبيهات, الراكدة (the new price), الإغلاق الربعي (the note), تقرير الوردية (the counted cash) and the emergency code at sign-in. All five now scroll the field above the keyboard, as the forms do. A test reads every screen with a typing field and fails if one does not (the stock count's search, at the top of its page, is left as it is). The simulator run now taps a time on التنبيهات and takes a screenshot with the keyboard open.
 
 Before the simulator run, the tap-through tests were checked against the app: every id and every fixed text they tap or look for exists on its screen; nothing in the app's layout is fixed to the left or right (for Arabic) apart from the logo artwork; no list sits inside another scrolling page.
+
+### Phase K: fixes and owner rules from the full check (2026-11-19 to 2026-11-21, owner approved)
+
+Each fix has a test written first, which failed before the change.
+
+- **K1 (fix 11):** a sale's receipt keeps the sale's pieces, prices and customer for employees; only the design and «hide prices» can change.
+- **K2 (fixes 1, 12, 13):** Face ID stays off until the owner switches it on. It never opens a system during a PIN lockout, and an employee's first sign-in on this device never asks for it.
+- **K3 (fix 3):** reminders hide customer names on the lock screen until the owner shows them.
+- **K4 (rule A):** each employee signs in only to the systems the owner ticks.
+- **K5 (rule B):** credit (آجل) needs the owner's 4-digit credit code, for employees only. It covers sales, exchanges, delivering a repair and delivering a deposit order. The code is set and changed by hand in Settings (`code.credit`; hashed, with the PIN lockout). Every use is logged.
+- **K6 (rule D):** fixed repair prices, database 16 (`repair_services`, `repair_lines`).
+  - The owner lists the services with a price, or «السعر يحدده المالك».
+  - Employees tick services and cannot type a price once the list exists.
+  - The owner prices the open lines (`repairs.price`). A repair can't be delivered while a line has no price.
+  - New A4 repair ticket design (`receipts/templates/repair-ticket.ts`, tested). **Waiting:** the owner's approval of the preview, then it is wired in place of the old ticket.
+- **K7:** original invoices, jewelry only (`original_invoices`, `original_invoice_products`).
+  - The owner adds a photo or PDF and links it to several pieces.
+  - Staff open it with the owner's 4-digit invoice code (`code.invoice`).
+  - It can be shown and printed only (an image is fitted on A4), never shared or saved.
+  - Every opening is logged and alerts the owner. The files are in the private folder and in backups.
+- **K8 (fix 2):** backups are sealed with the owner's backup password.
+  - The key is PBKDF2-SHA256 with 100,000 rounds, from a password of at least 8 characters, typed twice.
+  - Encryption is AES-256-GCM in 1 MB chunks, each tied to the header, its number and whether it is last. The device's own AES (expo-crypto) does the work, and it is already in the installed build.
+  - Files keep their `.db` name. Copies leave the device only sealed. Restore asks for the password.
+  - Changing the password seals the existing backups again.
+  - Measured: sealing and opening 40 MB takes about 2 s in the tests.
+- **K9 small fixes:**
+  - 6: the WhatsApp grace is now 1 minute. It is only given to leaving within 5 s of SALFORD opening the other app, and only once.
+  - 7: an employee's open shift report hides the expected cash, on the screen and in the PDF.
+  - 14: typing (an iPad keyboard) counts as activity for the idle lock (`lib/typing.ts`).
+  - 15: a staff change is written in both systems' logs. The other system writes it when it next opens, under the person who made it.
+  - 16: an employee who may not see phones is told «مسجل مسبقاً لزبون آخر», without the name.
+  - 17: a damaged PIN record counts as a wrong PIN.
+- Rule C (cash out): kept as it is (owner's decision).
+- **Still to do:** wire the new repair ticket once approved. Then an instant update (no new `.ipa` is needed; no new native module). The simulator run waits for the owner's word.
+- **For the owner:** set the credit code, the invoice code and the backup password, and list the repair services. The backup password can't be recovered: a sealed backup can't be opened without it.
 
 ### Phase 10: switching over
 

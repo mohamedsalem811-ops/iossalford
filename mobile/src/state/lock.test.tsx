@@ -72,7 +72,7 @@ describe('LockProvider', () => {
     }
   });
 
-  it('keeps its place when SALFORD itself opened WhatsApp and the person is back in 2 minutes', async () => {
+  it('keeps its place when SALFORD itself opened WhatsApp and the person is back in a minute', async () => {
     jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
     let now = 1_000_000;
     jest.spyOn(Date, 'now').mockImplementation(() => now);
@@ -86,7 +86,7 @@ describe('LockProvider', () => {
       await openOutside('https://wa.me/218912345678');
     });
     await act(async () => emit('background'));
-    now += 60_000;
+    now += 50_000;
     await act(async () => emit('active'));
     expect(screen.getByTestId('state')).toHaveTextContent('jewelry shown');
 
@@ -101,6 +101,40 @@ describe('LockProvider', () => {
 
     // Leaving any other way still locks at once.
     await act(async () => api.unlock('jewelry'));
+    await act(async () => emit('background'));
+    expect(screen.getByTestId('state')).toHaveTextContent('locked hidden');
+  });
+
+  it('gives the grace only to leaving right after SALFORD opened WhatsApp, for 1 minute (audit 6)', async () => {
+    jest.spyOn(Linking, 'openURL').mockResolvedValue(undefined);
+    let now = 1_000_000;
+    jest.spyOn(Date, 'now').mockImplementation(() => now);
+    await render(
+      <LockProvider>
+        <Probe />
+      </LockProvider>,
+    );
+    expect(OUTSIDE_GRACE_MS).toBe(60_000);
+    await act(async () => api.unlock('jewelry'));
+    await act(async () => {
+      await openOutside('https://wa.me/218912345678');
+    });
+    // Still in SALFORD 30 s later, then leaving by the home button: locks at once.
+    now += 30_000;
+    await act(async () => emit('background'));
+    expect(screen.getByTestId('state')).toHaveTextContent('locked hidden');
+
+    // The grace is used once: back from WhatsApp, a later leaving locks.
+    await act(async () => emit('active'));
+    await act(async () => api.unlock('jewelry'));
+    await act(async () => {
+      await openOutside('https://wa.me/218912345678');
+    });
+    await act(async () => emit('background'));
+    now += 10_000;
+    await act(async () => emit('active'));
+    expect(screen.getByTestId('state')).toHaveTextContent('jewelry shown');
+    now += 5_000;
     await act(async () => emit('background'));
     expect(screen.getByTestId('state')).toHaveTextContent('locked hidden');
   });

@@ -12,6 +12,8 @@ import { OWNER } from '@/staff/model';
 import {
   acknowledgeBreaks,
   forgetLog,
+  logStaffChange,
+  setOpenLog,
   readAnchor,
   readVerified,
   saveAnchor,
@@ -20,7 +22,7 @@ import {
   useLogAlerts,
   whenOpen,
 } from './guards';
-import { checkLog, FULL_CHECK_MS } from './log-guard';
+import { checkLog, FULL_CHECK_MS, writeStaffLines } from './log-guard';
 
 const mockKeychain = new Map<string, string>();
 jest.mock('expo-secure-store', () => ({
@@ -48,6 +50,28 @@ it('writes the sign-ins and wrong PINs that waited for the database, once', () =
   expect(takeWaiting(ctx.system)).toEqual([]);
   // The other system's line waits for that system.
   expect(takeWaiting('scarves')).toHaveLength(1);
+});
+
+it('writes a staff change in both systems’ logs, under who made it (audit 15)', () => {
+  const lines: string[] = [];
+  setOpenLog({
+    system: 'scarves',
+    write: (summary) => void lines.push(summary),
+    person: () => ({ key: 'owner', name: 'المالك' }),
+  });
+  logStaffChange('موظف جديد: سارة', { id: 'e1' });
+  setOpenLog(null);
+  expect(lines).toEqual(['موظف جديد: سارة']);
+  // Jewelry (ctx) opens later, with an employee signed in: the line is still the owner's.
+  ctx.setActor({ kind: 'employee', id: 'e9', name: 'هدى' });
+  writeStaffLines(ctx);
+  ctx.setActor(OWNER);
+  const line = listActivity(ctx)[0];
+  expect(line).toMatchObject({ action: 'staff.change', summary: 'موظف جديد: سارة' });
+  expect(line).toMatchObject({ actor: 'owner', details: { from: 'scarves', id: 'e1' } });
+  // Written once.
+  writeStaffLines(ctx);
+  expect(listActivity(ctx).filter((l) => l.action === 'staff.change')).toHaveLength(1);
 });
 
 it('finds nothing in an untouched log and remembers its last line', () => {

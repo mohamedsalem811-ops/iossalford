@@ -56,6 +56,18 @@ type PinRecord = { salt: string; hash: string; v?: 2 };
 type LockRecord = { failures: number; lockedUntil: number };
 
 const EMERGENCY = 'emergency.owner';
+
+/** A saved PIN record, or null when it is missing or damaged (then no PIN can match it). */
+function parseRecord(raw: string | null): PinRecord | null {
+  if (!raw) return null;
+  try {
+    const r = JSON.parse(raw) as Partial<PinRecord> | null;
+    if (!r || typeof r.salt !== 'string' || typeof r.hash !== 'string') return null;
+    return { salt: r.salt, hash: r.hash, ...(r.v === 2 ? { v: 2 as const } : {}) };
+  } catch {
+    return null;
+  }
+}
 const pinKey = (a: PinAccount) => `pin.${a}`;
 const lockKey = (a: PinAccount) => `pin-lock.${a}`;
 
@@ -148,9 +160,9 @@ export class PinVault {
     const state = await this.lockState(system);
     if (state.lockedUntil > this.now())
       return { ok: false, locked: true, lockedUntil: state.lockedUntil };
-    const raw = await this.kv.get(pinKey(system));
-    if (raw) {
-      const record = JSON.parse(raw) as PinRecord;
+    // A damaged record counts as a wrong PIN (audit 17), never as an error or an opening.
+    const record = parseRecord(await this.kv.get(pinKey(system)));
+    if (record) {
       if (await this.matches(pin, record)) {
         // A PIN saved in the first format is saved again with PBKDF2, now that it is known.
         if (record.v !== 2 && this.derive)
@@ -195,8 +207,8 @@ export class PinVault {
     const state = await this.lockState(account);
     if (state.lockedUntil > this.now())
       return { ok: false, locked: true, lockedUntil: state.lockedUntil };
-    const raw = await this.kv.get(EMERGENCY);
-    if (raw && digits.length === 12 && (await this.matches(digits, JSON.parse(raw) as PinRecord))) {
+    const record = parseRecord(await this.kv.get(EMERGENCY));
+    if (record && digits.length === 12 && (await this.matches(digits, record))) {
       await this.kv.remove(lockKey(account));
       return { ok: true };
     }

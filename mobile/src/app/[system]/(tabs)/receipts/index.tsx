@@ -25,6 +25,7 @@ import { notifyDataChanged, useOnDataChanged } from '@/state/data-events';
 import { useCtx } from '@/state/system-db';
 import { errorBoundary } from '@/components/error-screen';
 import { useSearchShortcut, useShortcut } from '@/lib/key-commands';
+import { typed } from '@/lib/typing';
 
 /**
  * The receipts tab: every receipt, newest first. Search by number, customer or piece; filter by
@@ -71,7 +72,7 @@ export default function ReceiptsRoute() {
         placeholder="رقم الإيصال أو الزبون أو القطعة"
         cancelButtonText="إلغاء"
         hideWhenScrolling={false}
-        onChangeText={(e) => setQuery((q) => ({ ...q, search: e.nativeEvent.text }))}
+        onChangeText={typed((e) => setQuery((q) => ({ ...q, search: e.nativeEvent.text })))}
         onCancelButtonPress={() => setQuery((q) => ({ ...q, search: '' }))}
       />
       <Stack.Toolbar placement="right">
