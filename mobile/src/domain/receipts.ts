@@ -224,14 +224,21 @@ export function updateReceipt(
   id: number,
   input: Omit<IssueInput, 'saleId' | 'kind' | 'orderId' | 'deposit'>,
 ): Receipt {
-  allow(ctx, 'receipts.edit');
+  const by = allow(ctx, 'receipts.edit');
   const items = cleanItems(input.items);
   return ctx.db.transaction(() => {
     const old = getReceipt(ctx, id);
     if (!old) throw new RuleError('الإيصال غير موجود');
-    if (old.kind === 'deposit' && depositChanged(old, input, items))
+    if (old.kind === 'deposit' && recordChanged(old, input, items))
       throw new RuleError(
         'إيصال العربون سجلّ لمبلغ مدفوع: لا تتغير قطعه ولا اسم الزبون، ويمكن تغيير التصميم فقط.',
+      );
+    // A sale's receipt is the record of that sale (audit 11): an employee changes how it looks,
+    // never its pieces, prices or customer. The owner may still correct it.
+    const locked = old.saleId !== null && by.kind !== 'owner';
+    if (locked && recordChanged(old, input, items))
+      throw new RuleError(
+        'إيصال البيعة يطابق البيعة: لا تتغير قطعه وأسعاره واسم الزبون، ويمكن تغيير التصميم وإخفاء الأسعار فقط.',
       );
     const template = input.template ?? old.template;
     if (TEMPLATES[template]?.system !== ctx.system)
@@ -247,7 +254,7 @@ export function updateReceipt(
         id,
       ],
     );
-    writeItems(ctx, id, items);
+    writeItems(ctx, id, locked ? old.items : items);
     logAction(ctx, 'receipt.edit', `تعديل الإيصال ${old.receiptNo}`, { receiptId: id });
     return getReceipt(ctx, id)!;
   });
@@ -430,7 +437,8 @@ export function deleteReceipt(ctx: Ctx, id: number) {
 }
 
 /** True when an edit of a deposit receipt would change what it records (its pieces or customer). */
-function depositChanged(
+/** The pieces, quantities, prices or customer differ from the receipt as saved. */
+function recordChanged(
   old: Receipt,
   input: Pick<IssueInput, 'customer'>,
   items: ReceiptItem[],

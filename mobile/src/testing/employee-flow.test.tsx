@@ -32,12 +32,14 @@ import Products from '@/app/[system]/(tabs)/products/index';
 import SaleStack from '@/app/[system]/(tabs)/sale/_layout';
 import SaleTab from '@/app/[system]/(tabs)/sale/index';
 import ProductRoute from '@/app/[system]/product/[id]';
+import ReceiptRoute from '@/app/[system]/receipt/[id]';
 import { listActivity, recordWrongPin } from '@/domain/activity';
 import { ownerAlerts } from '@/domain/alerts';
 import { addToCart, type CartLine } from '@/domain/cart';
 import { checkout } from '@/domain/checkout';
 import type { Ctx } from '@/domain/context';
 import { getProduct, saveProduct } from '@/domain/products';
+import { receiptForSale } from '@/domain/receipts';
 import { getSale } from '@/domain/sales';
 import { setPolicies } from '@/domain/policies';
 import { openShift, openShiftOf, shiftTotals } from '@/domain/shifts';
@@ -152,6 +154,7 @@ const routes = {
   '[system]/(tabs)/products/_layout': ProductsStack,
   '[system]/(tabs)/products/index': Products,
   '[system]/product/[id]': ProductRoute,
+  '[system]/receipt/[id]': ReceiptRoute,
   '[system]/(tabs)/sale/_layout': SaleStack,
   '[system]/(tabs)/sale/index': SaleTab,
 };
@@ -249,6 +252,18 @@ describe('as an employee', () => {
     expect(screen.queryByTestId('sale-delete')).toBeNull();
     // She may take a return within the rules (phase S4).
     expect(screen.getByText('إرجاع')).toBeOnTheScreen();
+  });
+
+  it('opens her sale’s receipt with its pieces and customer fixed (audit 11)', async () => {
+    const r = receiptForSale(ctxAs(SARA), herSale)!;
+    await renderRouter(routes, { initialUrl: `/jewelry/receipt/${r.id}` });
+    expect(await screen.findByTestId('studio-items-fixed')).toBeOnTheScreen();
+    expect(screen.getByTestId('studio-fixed-0')).toHaveTextContent(/Ring × 1/);
+    expect(screen.getByTestId('studio-customer-fixed')).toBeOnTheScreen();
+    for (const editable of ['studio-customer', 'studio-name-0', 'studio-price-0', 'studio-add'])
+      expect(screen.queryByTestId(editable)).toBeNull();
+    // How it looks is still hers to choose.
+    expect(screen.getByTestId('studio-type')).toBeOnTheScreen();
   });
 
   it('cannot open the owner’s sale', async () => {
