@@ -10,6 +10,9 @@ import {
   setActive,
   transferText,
   OWNER,
+  employeesOf,
+  setWorksIn,
+  worksIn,
 } from './model';
 
 const now = new Date(2026, 10, 13, 10);
@@ -69,5 +72,32 @@ describe('the idle timer', () => {
     expect(idlePhase(5 * 60_000, lock)).toEqual({ phase: 'warn', leftMs: 120_000 });
     expect(idlePhase(6.5 * 60_000, lock)).toEqual({ phase: 'warn', leftMs: 30_000 });
     expect(idlePhase(7 * 60_000, lock).phase).toBe('lock');
+  });
+});
+
+describe('which systems an employee works in (rule A)', () => {
+  const base = addEmployee(EMPTY_STAFF, 'سارة', 's1', new Date(2026, 10, 21));
+
+  it('works in both systems until the owner unticks one', () => {
+    const s = base.employees[0];
+    expect(worksIn(s, 'jewelry')).toBe(true);
+    expect(worksIn(s, 'scarves')).toBe(true);
+    expect(employeesOf(base, 'jewelry').map((e) => e.name)).toEqual(['سارة']);
+  });
+
+  it('leaves a system out of the sign-in once unticked, and keeps at least one', () => {
+    const scarvesOnly = setWorksIn(base, 's1', 'jewelry', false);
+    expect(employeesOf(scarvesOnly, 'jewelry')).toEqual([]);
+    expect(employeesOf(scarvesOnly, 'scarves').map((e) => e.name)).toEqual(['سارة']);
+    expect(() => setWorksIn(scarvesOnly, 's1', 'scarves', false)).toThrow('نظام واحد على الأقل');
+    const both = setWorksIn(scarvesOnly, 's1', 'jewelry', true);
+    expect(worksIn(both.employees[0], 'jewelry')).toBe(true);
+  });
+
+  it('reads the choice back from the saved file, and an old file as both systems', () => {
+    const saved = JSON.stringify(setWorksIn(base, 's1', 'scarves', false));
+    expect(worksIn(parseStaff(saved).employees[0], 'scarves')).toBe(false);
+    const old = JSON.stringify({ employees: [{ id: 'x', name: 'هدى', active: true }] });
+    expect(worksIn(parseStaff(old).employees[0], 'scarves')).toBe(true);
   });
 });

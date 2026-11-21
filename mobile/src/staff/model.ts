@@ -17,6 +17,8 @@ export type Employee = {
   mustChangePin: boolean;
   /** What the owner gave this person beyond an employee's permissions (GRANTABLE only). */
   grants?: Permission[];
+  /** The systems this person signs in to (rule A); absent means both. */
+  systems?: SystemId[];
 };
 
 /** Who is using the app now. */
@@ -107,6 +109,31 @@ export const sortedStaff = (staff: Staff) =>
 
 export const activeEmployees = (staff: Staff) => sortedStaff(staff).filter((e) => e.active);
 
+const SYSTEMS: SystemId[] = ['jewelry', 'scarves'];
+
+/** Whether this person works in the system (rule A): both until the owner unticks one. */
+export const worksIn = (e: Employee, system: SystemId) => (e.systems ?? SYSTEMS).includes(system);
+
+/** The people shown on a system's sign-in screen: active, and working in it. */
+export const employeesOf = (staff: Staff, system: SystemId) =>
+  activeEmployees(staff).filter((e) => worksIn(e, system));
+
+/** Ticks or unticks a system for someone; at least one stays ticked. */
+export function setWorksIn(staff: Staff, id: string, system: SystemId, on: boolean): Staff {
+  const e = staff.employees.find((x) => x.id === id);
+  if (!e) return staff;
+  const systems = SYSTEMS.filter((s) => (s === system ? on : worksIn(e, s)));
+  if (systems.length === 0) throw new Error('يعمل الموظف في نظام واحد على الأقل');
+  return update(staff, id, { systems: systems.length === SYSTEMS.length ? undefined : systems });
+}
+
+/** The saved systems of a person; anything unreadable or empty is both (never locked out). */
+function readSystems(v: unknown): SystemId[] | undefined {
+  if (!Array.isArray(v)) return undefined;
+  const systems = SYSTEMS.filter((s) => v.includes(s));
+  return systems.length && systems.length < SYSTEMS.length ? systems : undefined;
+}
+
 /** Reads a saved staff file; anything unreadable gives an empty list (the owner still opens). */
 export function parseStaff(text: string | null): Staff {
   if (!text) return EMPTY_STAFF;
@@ -130,6 +157,7 @@ export function parseStaff(text: string | null): Staff {
         ...e,
         mustChangePin: e.mustChangePin !== false,
         grants: (Array.isArray(e.grants) ? e.grants : []).filter((g) => GRANTABLE[g] === true),
+        systems: readSystems(e.systems),
       })),
       lock,
     };
