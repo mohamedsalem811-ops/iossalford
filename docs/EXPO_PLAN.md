@@ -1055,7 +1055,7 @@ Each fix has a test written first, which failed before the change.
   - 16: an employee who may not see phones is told «مسجل مسبقاً لزبون آخر», without the name.
   - 17: a damaged PIN record counts as a wrong PIN.
 - Rule C (cash out): kept as it is (owner's decision).
-- **Still to do:** an instant update (no new `.ipa` is needed; no new native module). The simulator run waits for the owner's word.
+- **Still to do:** a new `.ipa`. No new native module is added, but database 16 always ships in a new `.ipa`, never as an instant update. The build is CI run 189. After it, install with Sideloadly and run `npm run update:record`. The simulator run waits for the owner's word.
 - **For the owner:** set the credit code, the invoice code and the backup password, and list the repair services. The backup password can't be recovered: a sealed backup can't be opened without it.
 
 ### Phase 10: switching over
