@@ -13,17 +13,23 @@ import { attemptsLeftText, countdown, LoginScreen, type LoginDeps } from './logi
 export type SignInDeps = LoginDeps & {
   hasPin: (account: PinAccount) => Promise<boolean>;
   setPin: (account: PinAccount, pin: string) => Promise<void>;
-  hasEmergencyCode: () => Promise<boolean>;
+  /** The owner's emergency password (K10), the old 12-digit code, or neither. */
+  emergencyKind: () => Promise<'password' | 'code' | null>;
   checkEmergencyCode: (code: string) => Promise<VerifyResult>;
   /** An employee chose their own PIN: no longer a temporary one. */
   pinChanged: (employeeId: string) => void;
+  /** The owner approved a forgotten employee PIN's reset at the counter (logged, point 4). */
+  pinReset: (who: Actor) => void;
 };
 
 type Step =
   | { kind: 'pick' }
   | { kind: 'pin'; who: Actor }
-  /** An employee new on this device (transferred): the owner approves, then they choose a PIN. */
-  | { kind: 'approve'; who: Employee }
+  /**
+   * The owner approves, then the employee chooses a PIN: one new on this device (transferred), or
+   * one who forgot their PIN (`reset`, point 3).
+   */
+  | { kind: 'approve'; who: Employee; reset?: boolean }
   | { kind: 'new-pin'; who: Actor }
   | { kind: 'emergency' };
 
@@ -52,10 +58,10 @@ export function SignInScreen({
   const [step, setStep] = useState<Step>(
     employees.length ? { kind: 'pick' } : { kind: 'pin', who: OWNER },
   );
-  const [emergency, setEmergency] = useState(false);
+  const [emergency, setEmergency] = useState<'password' | 'code' | null>(null);
   useEffect(() => {
     let cancelled = false;
-    deps.hasEmergencyCode().then((has) => !cancelled && setEmergency(has));
+    deps.emergencyKind().then((kind) => !cancelled && setEmergency(kind));
     return () => {
       cancelled = true;
     };
@@ -71,6 +77,27 @@ export function SignInScreen({
     if (who.kind === 'employee' && employees.find((e) => e.id === who.id)?.mustChangePin)
       setStep({ kind: 'new-pin', who });
     else onUnlock(who);
+  };
+
+  /** «نسيت الرمز؟»: the owner's emergency password, or the owner resets an employee's PIN. */
+  const forgotOf = (who: Actor) => {
+    if (who.kind === 'owner')
+      return emergency
+        ? {
+            onForgot: () => setStep({ kind: 'emergency' }),
+            forgotHint:
+              emergency === 'password'
+                ? 'نسيت الرمز؟ افتح بكلمة سر الطوارئ واختر رمزاً جديداً.'
+                : 'نسيت الرمز؟ افتح برمز الطوارئ واختر رمزاً جديداً.',
+          }
+        : { forgotHint: undefined };
+    const e = employees.find((x) => x.id === who.id);
+    return e
+      ? {
+          onForgot: () => setStep({ kind: 'approve', who: e, reset: true }),
+          forgotHint: 'نسيت رمزك؟ اطلب من المالك أن يوافق برمزه، ثم اختر رمزاً جديداً.',
+        }
+      : {};
   };
 
   if (step.kind === 'pick')
@@ -98,9 +125,7 @@ export function SignInScreen({
         onUnlock={() => signedIn(step.who)}
         onBack={employees.length ? toPicker : onBack}
         backLabel={employees.length ? 'الأسماء' : 'تغيير النظام'}
-        onForgot={
-          step.who.kind === 'owner' && emergency ? () => setStep({ kind: 'emergency' }) : undefined
-        }
+        {...forgotOf(step.who)}
       />
     );
 
@@ -109,15 +134,18 @@ export function SignInScreen({
       <LoginScreen
         key="approve"
         system={system}
-        person={`موافقة المالك لدخول ${step.who.name} أول مرة`}
+        person={
+          step.reset
+            ? `موافقة المالك لإعادة رمز ${step.who.name}`
+            : `موافقة المالك لدخول ${step.who.name} أول مرة`
+        }
         deps={deps}
         active={active}
-        onUnlock={() =>
-          setStep({
-            kind: 'new-pin',
-            who: { kind: 'employee', id: step.who.id, name: step.who.name },
-          })
-        }
+        onUnlock={() => {
+          const who: Actor = { kind: 'employee', id: step.who.id, name: step.who.name };
+          if (step.reset) deps.pinReset(who);
+          setStep({ kind: 'new-pin', who });
+        }}
         onBack={toPicker}
         backLabel="الأسماء"
       />
@@ -126,6 +154,7 @@ export function SignInScreen({
   if (step.kind === 'emergency')
     return (
       <EmergencyCode
+        kind={emergency ?? 'code'}
         deps={deps}
         onOk={() => setStep({ kind: 'new-pin', who: OWNER })}
         onBack={toPicker}
@@ -257,12 +286,14 @@ function PersonCard({
   );
 }
 
-/** The owner forgot the PIN: the 12-digit emergency code kept off the device. */
+/** The owner forgot the PIN: the emergency password the owner chose (K10), or the old code. */
 function EmergencyCode({
+  kind,
   deps,
   onOk,
   onBack,
 }: {
+  kind: 'password' | 'code';
   deps: SignInDeps;
   onOk: () => void;
   onBack: () => void;
@@ -270,6 +301,8 @@ function EmergencyCode({
   const [code, setCode] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const password = kind === 'password';
+  const name = password ? 'كلمة سر الطوارئ' : 'رمز الطوارئ';
   const check = async () => {
     setBusy(true);
     try {
@@ -280,7 +313,7 @@ function EmergencyCode({
       setMessage(
         'locked' in r || r.lockedUntil
           ? `محاولات خاطئة كثيرة — حاول بعد ${countdown(r.lockedUntil - now)}`
-          : `رمز الطوارئ غير صحيح، بقيت ${attemptsLeftText(r.attemptsLeft)}`,
+          : `${name} ${password ? 'غير صحيحة' : 'غير صحيح'}، بقيت ${attemptsLeftText(r.attemptsLeft)}`,
       );
     } finally {
       setBusy(false);
@@ -292,23 +325,40 @@ function EmergencyCode({
         <Button title="رجوع" icon="chevron.backward" variant="ghost" size="sm" onPress={onBack} />
       </View>
       <Text variant="title" center>
-        رمز الطوارئ
+        {name}
       </Text>
       <Text
         variant="subhead"
         tone={message ? 'warning' : 'secondary'}
         center
         testID="emergency-message">
-        {message ?? 'أدخل رمز الطوارئ المحفوظ عندك (12 رقماً)، ثم اختر رمزاً جديداً.'}
+        {message ??
+          (password
+            ? 'اكتب كلمة سر الطوارئ التي اخترتها (الحروف الكبيرة والصغيرة سواء)، ثم اختر رمزاً جديداً.'
+            : 'أدخل رمز الطوارئ المحفوظ عندك (12 رقماً)، ثم اختر رمزاً جديداً.')}
       </Text>
-      <TextField
-        label="رمز الطوارئ"
-        value={code}
-        onChangeText={setCode}
-        placeholder="1234-5678-9012"
-        keyboardType="number-pad"
-        testID="emergency-code"
-      />
+      {password ? (
+        <TextField
+          label={name}
+          value={code}
+          onChangeText={setCode}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          autoComplete="off"
+          textContentType="none"
+          testID="emergency-code"
+        />
+      ) : (
+        <TextField
+          label={name}
+          value={code}
+          onChangeText={setCode}
+          placeholder="1234-5678-9012"
+          keyboardType="number-pad"
+          testID="emergency-code"
+        />
+      )}
       <Button title="تحقق" onPress={check} loading={busy} fullWidth testID="emergency-check" />
     </Screen>
   );

@@ -2,6 +2,7 @@
  * @jest-environment node
  */
 import {
+  emergencyPasswordProblem,
   FREE_ATTEMPTS,
   lockDelayMs,
   pinLengthOf,
@@ -234,6 +235,44 @@ describe('accounts and the emergency code', () => {
     // A new code replaces the old one.
     const next = await v.newEmergencyCode();
     if (next !== code) expect((await v.checkEmergencyCode(code)).ok).toBe(false);
+  });
+});
+
+describe("the owner's emergency password (K10)", () => {
+  it('takes letters and digits the owner chooses, and refuses easy ones', () => {
+    expect(emergencyPasswordProblem('Mona2026salem')).toBeNull();
+    expect(emergencyPasswordProblem('منى2026سالم')).toBeNull();
+    expect(emergencyPasswordProblem('mona2026')).toContain('10');
+    expect(emergencyPasswordProblem('monasalemxx')).toContain('رقم');
+    expect(emergencyPasswordProblem('0912345678123')).toContain('حرف');
+    expect(emergencyPasswordProblem('mona 2026 salem')).toContain('حروف وأرقام فقط');
+    expect(emergencyPasswordProblem('abcdef123456')).toContain('سهلة');
+    expect(emergencyPasswordProblem('aaaaaa111111')).toContain('سهلة');
+    expect(emergencyPasswordProblem('salford12345')).toContain('سهلة');
+    expect(emergencyPasswordProblem('Password2026')).toContain('سهلة');
+  });
+
+  it('opens with the password, whatever the case and the digits, and locks out like a PIN', async () => {
+    const { v, kv } = vault();
+    await expect(v.setEmergencyPassword('short1')).rejects.toThrow('10');
+    await v.setEmergencyPassword('  Mona2026Salem ');
+    expect(await v.hasEmergencyCode()).toBe(true);
+    expect(await v.emergencyKind()).toBe('password');
+    expect([...kv.data.values()].join()).not.toMatch(/mona/i);
+    expect(await v.checkEmergencyCode('mona٢٠٢٦SALEM')).toEqual({ ok: true });
+    expect((await v.checkEmergencyCode('mona2026salen')).ok).toBe(false);
+    for (let i = 0; i < FREE_ATTEMPTS; i++) await v.checkEmergencyCode('wrong12345x');
+    expect(await v.checkEmergencyCode('mona2026salem')).toMatchObject({ ok: false, locked: true });
+  });
+
+  it('keeps the old 12-digit code working until the password is set, then removes it', async () => {
+    const { v } = vault();
+    const code = await v.newEmergencyCode();
+    expect(await v.emergencyKind()).toBe('code');
+    expect(await v.checkEmergencyCode(code)).toEqual({ ok: true });
+    await v.setEmergencyPassword('Mona2026Salem');
+    expect((await v.checkEmergencyCode(code)).ok).toBe(false);
+    expect(await v.checkEmergencyCode('mona2026salem')).toEqual({ ok: true });
   });
 });
 

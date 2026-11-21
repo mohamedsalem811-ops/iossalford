@@ -14,7 +14,12 @@ import { EMPLOYEE, makeCtx, type TestCtx } from '@/domain/testing/ctx';
 import { getCart, putCart } from '@/state/cart';
 
 import * as engine from './engine';
-import { backupKey, BackupPasswordNeeded, setBackupPassword } from './password';
+import {
+  backupKey,
+  BackupPasswordNeeded,
+  setBackupPassword,
+  setRecoveryPassword,
+} from './password';
 import { isSealed, unseal } from './seal';
 import { nodeAes } from './testing/node-aes';
 import {
@@ -95,6 +100,7 @@ afterEach(() => {
   ctx.close();
   // No backup password between tests.
   jest.requireMock('expo-secure-store').setItem('backup.key', '');
+  jest.requireMock('expo-secure-store').setItem('backup.recovery', '');
 });
 
 const PASSWORD = 'salford-2026';
@@ -415,6 +421,48 @@ describe('the backup password (audit 2)', () => {
     await expect(readBackupFile(ctx, uri, PASSWORD)).rejects.toThrow('غير صحيحة');
     expect((await readBackupFile(ctx, uri, 'new-password-1')).contents.products).toBe(1);
   });
+
+  it('opens with the owner’s emergency password when the backup password is forgotten (K10)', async () => {
+    ring();
+    await setBackupPassword(ctx, PASSWORD);
+    const b = saveBackup(ctx, 'manual')!;
+    await sealBackups('jewelry');
+    const uri = savedBackupUri('jewelry', b.name);
+    // Setting the emergency password adds the second lock to the backups already sealed.
+    await setRecoveryPassword('Mona2026Salem');
+    await sealBackups('jewelry');
+    tick();
+    const next = saveBackup(ctx, 'manual')!;
+    await sealBackups('jewelry');
+    // Another device, the backup password forgotten: the emergency password opens both.
+    const secure = jest.requireMock('expo-secure-store');
+    secure.setItem('backup.key', '');
+    secure.setItem('backup.recovery', '');
+    expect((await readBackupFile(ctx, uri, 'mona٢٠٢٦SALEM')).contents.products).toBe(1);
+    const second = savedBackupUri('jewelry', next.name);
+    expect((await readBackupFile(ctx, second, ' Mona2026Salem')).contents.products).toBe(1);
+    // The backup password still opens them; anything else doesn't.
+    expect((await readBackupFile(ctx, second, PASSWORD)).contents.products).toBe(1);
+    await expect(readBackupFile(ctx, second, 'Mona2026Salen')).rejects.toThrow('غير صحيحة');
+    // Each password typed is made into a key slowly (PBKDF2, on purpose).
+  }, 30_000);
+
+  it('a new emergency password replaces the old one on the backups (K10)', async () => {
+    ring();
+    await setBackupPassword(ctx, PASSWORD);
+    await setRecoveryPassword('Mona2026Salem');
+    const b = saveBackup(ctx, 'manual')!;
+    await sealBackups('jewelry');
+    await setRecoveryPassword('Huda1990Tripoli');
+    await sealBackups('jewelry');
+    const secure = jest.requireMock('expo-secure-store');
+    secure.setItem('backup.key', '');
+    secure.setItem('backup.recovery', '');
+    const uri = savedBackupUri('jewelry', b.name);
+    await expect(readBackupFile(ctx, uri, 'Mona2026Salem')).rejects.toThrow('غير صحيحة');
+    expect((await readBackupFile(ctx, uri, 'huda1990tripoli')).contents.products).toBe(1);
+    // Each password typed is made into a key slowly (PBKDF2, on purpose).
+  }, 30_000);
 
   it('refuses an easy password, and is the owner’s', async () => {
     await expect(setBackupPassword(ctx, '1234')).rejects.toThrow('8');

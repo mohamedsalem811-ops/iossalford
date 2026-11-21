@@ -289,14 +289,22 @@ export const recordWrongPin = (ctx: Ctx, a: Actor, lockedFor?: number) =>
       : `رمز خاطئ لـ ${actorName(a)}`,
   );
 
-/** The emergency code was used to set a new owner PIN. */
+/** The emergency password (or the old code) was used to set a new owner PIN. */
 export const recordEmergency = (ctx: Ctx) =>
   logAs(
     ctx,
     { key: 'owner', name: 'المالك' },
     'pin.emergency',
-    'استُخدم رمز الطوارئ لتعيين رمز جديد',
+    'استُخدمت كلمة سر الطوارئ لتعيين رمز جديد للمالك',
   );
+
+/** A wrong emergency password at sign-in (K10, point 4). */
+export const recordEmergencyWrong = (ctx: Ctx) =>
+  logAs(ctx, { key: 'owner', name: 'المالك' }, 'pin.emergency.wrong', 'كلمة سر طوارئ خاطئة');
+
+/** The owner approved, at the counter, a new PIN for an employee who forgot theirs (point 3). */
+export const recordPinReset = (ctx: Ctx, a: Actor) =>
+  logAs(ctx, personOf(a), 'pin.reset', `أعاد المالك رمز ${actorName(a)} بموافقته`);
 
 /** Staff changes (the list is shared by both systems; the line goes to the open one). */
 export const recordStaff = (ctx: Ctx, summary: string, details?: Record<string, unknown>) =>

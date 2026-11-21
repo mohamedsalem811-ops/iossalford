@@ -9,7 +9,13 @@ import { SignInScreen, type SignInDeps } from '@/screens/sign-in';
 import { employeesOf, OWNER, setMustChangePin, type Actor } from '@/staff/model';
 import { whenOpen } from '@/staff/guards';
 import { LogGuard } from '@/staff/log-guard';
-import { recordEmergency, recordSignIn, recordWrongPin } from '@/domain/activity';
+import {
+  recordEmergency,
+  recordEmergencyWrong,
+  recordPinReset,
+  recordSignIn,
+  recordWrongPin,
+} from '@/domain/activity';
 import type { Ctx } from '@/domain/context';
 import type { PinAccount } from '@/security/pin';
 import { IdleLock } from '@/staff/idle-lock';
@@ -49,13 +55,15 @@ const depsOf = (system: SystemId): SignInDeps => ({
   askFaceId,
   hasPin: (account) => pinVault.hasPin(account),
   setPin: (account, pin) => pinVault.setPin(account, pin),
-  hasEmergencyCode: () => pinVault.hasEmergencyCode(),
+  emergencyKind: () => pinVault.emergencyKind(),
   checkEmergencyCode: async (code) => {
     const r = await pinVault.checkEmergencyCode(code);
     if (r.ok) whenOpen<Ctx>(system, (ctx) => recordEmergency(ctx));
+    else if (!('locked' in r)) whenOpen<Ctx>(system, (ctx) => recordEmergencyWrong(ctx));
     return r;
   },
   pinChanged: (id) => saveStaff(setMustChangePin(getStaff(), id, false)),
+  pinReset: (who) => whenOpen<Ctx>(system, (ctx) => recordPinReset(ctx, who)),
 });
 const signInDeps = { jewelry: depsOf('jewelry'), scarves: depsOf('scarves') };
 

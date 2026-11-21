@@ -49,12 +49,13 @@ import {
   type BackupKind,
 } from './model';
 import { deviceAes } from './device-aes';
-import { backupKey, keyFor, type BackupKey } from './password';
+import { backupKey, keyFor, knownKey, recoveryKey, type BackupKey } from './password';
 import {
   CHUNK,
   HEADER_BYTES,
   isSealed,
   readHeader,
+  wrapKey,
   seal,
   unseal,
   WrongBackupPassword,
@@ -162,10 +163,20 @@ async function stream(
   r.close();
 }
 
-const sealFile = (from: File, to: File, k: BackupKey) =>
-  stream(from, to, (r, w) =>
-    seal(deviceAes, k.key, { salt: k.salt, rounds: k.rounds, chunk: CHUNK }, r, w),
+/** Sealed with the backup password, and the second lock of the emergency password when set (K10). */
+const sealFile = async (from: File, to: File, k: BackupKey) => {
+  const r = recoveryKey();
+  const recovery = r
+    ? {
+        salt: r.salt,
+        rounds: r.rounds,
+        wrapped: await wrapKey(deviceAes, r.key, k.key, { salt: k.salt, rounds: k.rounds }),
+      }
+    : undefined;
+  return stream(from, to, (rd, w) =>
+    seal(deviceAes, k.key, { salt: k.salt, rounds: k.rounds, chunk: CHUNK, recovery }, rd, w),
   );
+};
 const unsealFile = (from: File, to: File, key: Uint8Array) =>
   stream(from, to, (r, w) => unseal(deviceAes, key, r, w));
 
@@ -200,11 +211,15 @@ async function sealAll(system: SystemId, old: BackupKey | null) {
     let opened: File | null = null;
     if (isSealed(first)) {
       const h = readHeader(first);
-      if (sameBytes(h.salt, k.salt)) continue;
-      // Sealed with an older password: sealed again only when its key is known (just changed).
-      if (!old || !sameBytes(h.salt, old.salt)) continue;
+      const r = recoveryKey();
+      const secondLock = r ? !!h.recovery && sameBytes(h.recovery.salt, r.salt) : !h.recovery;
+      if (sameBytes(h.salt, k.salt) && secondLock) continue;
+      // Sealed with an older password, or without the emergency password's current lock: sealed
+      // again when its key is known here (the current or old password, or the second lock).
+      const key = await knownKey(h, [old]);
+      if (!key) continue;
       opened = new File(Paths.cache, `reseal-${system}-${b.name}`);
-      await unsealFile(f, opened, old.key);
+      await unsealFile(f, opened, key);
       source = opened;
     }
     const part = new File(folder(system), `${b.name}${PART}`);

@@ -4,10 +4,13 @@
 import {
   CHUNK,
   HEADER_BYTES,
+  headerLength,
   isSealed,
   readHeader,
   seal,
   unseal,
+  unwrapKey,
+  wrapKey,
   WrongBackupPassword,
 } from './seal';
 import { nodeAes as aes } from './testing/node-aes';
@@ -41,6 +44,7 @@ const sink = () => {
 const key = new Uint8Array(32).fill(7);
 const other = new Uint8Array(32).fill(8);
 const header = { salt: new Uint8Array(16).fill(1), rounds: 1000, chunk: 64 };
+const H1 = headerLength(header);
 const data = (n: number) => Uint8Array.from({ length: n }, (_, i) => (i * 31) % 251);
 
 async function sealed(bytes: Uint8Array, h = header) {
@@ -48,7 +52,7 @@ async function sealed(bytes: Uint8Array, h = header) {
   await seal(aes, key, h, reader(bytes), out);
   return out.bytes();
 }
-async function opened(bytes: Uint8Array, k = key) {
+async function opened(bytes: Uint8Array, k: Uint8Array = key) {
   const out = sink();
   await unseal(aes, k, reader(bytes), out);
   return out.bytes();
@@ -84,14 +88,42 @@ describe('sealed backups', () => {
     await expect(opened(salt)).rejects.toThrow(WrongBackupPassword);
     // Cut after a whole chunk: the last one is missing, and that is noticed.
     const len = 4 + 12 + 64 + 16;
-    await expect(opened(s.slice(0, HEADER_BYTES + len))).rejects.toThrow(WrongBackupPassword);
+    await expect(opened(s.slice(0, H1 + len))).rejects.toThrow(WrongBackupPassword);
     // Two chunks swapped.
-    const a = s.slice(HEADER_BYTES, HEADER_BYTES + len);
-    const b = s.slice(HEADER_BYTES + len, HEADER_BYTES + 2 * len);
+    const a = s.slice(H1, H1 + len);
+    const b = s.slice(H1 + len, H1 + 2 * len);
     const swapped = s.slice();
-    swapped.set(b, HEADER_BYTES);
-    swapped.set(a, HEADER_BYTES + len);
+    swapped.set(b, H1);
+    swapped.set(a, H1 + len);
     await expect(opened(swapped)).rejects.toThrow(WrongBackupPassword);
+  });
+
+  it('has a second lock the emergency password opens, tied to the file (K10)', async () => {
+    const rkey = new Uint8Array(32).fill(9);
+    const base = { salt: header.salt, rounds: header.rounds };
+    const recovery = {
+      salt: new Uint8Array(16).fill(3),
+      rounds: 2000,
+      wrapped: await wrapKey(aes, rkey, key, base),
+    };
+    const h = { ...header, recovery };
+    const plain = data(300);
+    const s = await sealed(plain, h);
+    const read = readHeader(s.slice(0, HEADER_BYTES));
+    expect(read).toEqual(h);
+    // The emergency password's key gives the file's key, which opens it.
+    const fileKey = await unwrapKey(aes, rkey, read);
+    expect(fileKey).toEqual(key);
+    expect(await opened(s, fileKey)).toEqual(plain);
+    await expect(unwrapKey(aes, other, read)).rejects.toThrow(WrongBackupPassword);
+    // The second lock can't be moved to another file (it is tied to the file's salt).
+    await expect(
+      unwrapKey(aes, rkey, { ...read, salt: new Uint8Array(16).fill(2) }),
+    ).rejects.toThrow(WrongBackupPassword);
+    // Changing it is noticed by every chunk.
+    const changed = s.slice();
+    changed[headerLength(h) - 5] ^= 1;
+    await expect(opened(changed)).rejects.toThrow(WrongBackupPassword);
   });
 
   it('seals a 40 MB backup in 1 MB chunks quickly (the framing; the device does the AES natively)', async () => {
@@ -102,7 +134,7 @@ describe('sealed backups', () => {
     const back = await opened(s);
     const ms = Date.now() - started;
     expect(back.length).toBe(big.length);
-    expect(s.length - big.length).toBe(HEADER_BYTES + 40 * 32);
+    expect(s.length - big.length).toBe(H1 + 40 * 32);
     expect(ms).toBeLessThan(20_000);
   });
 });

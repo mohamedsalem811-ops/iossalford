@@ -11,10 +11,14 @@ import * as SecureStore from 'expo-secure-store';
 import { logAction } from '@/domain/activity';
 import { allow, RuleError, type Ctx } from '@/domain/context';
 
-import { randomBytes } from './device-aes';
-import { BACKUP_ROUNDS, SALT_BYTES, type SealHeader } from './seal';
+import { normalizeEmergency } from '@/security/pin';
+
+import { deviceAes, randomBytes } from './device-aes';
+import { BACKUP_ROUNDS, SALT_BYTES, unwrapKey, WrongBackupPassword, type SealHeader } from './seal';
 
 const KEY = 'backup.key';
+/** The key of the owner's emergency password, for the backups' second lock (K10). */
+const RECOVERY = 'backup.recovery';
 const OPTIONS = { keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY };
 
 export type BackupKey = { salt: Uint8Array; rounds: number; key: Uint8Array };
@@ -24,10 +28,9 @@ const unhex = (s: string) => Uint8Array.from(s.match(/../g) ?? [], (h) => parseI
 const same = (a: Uint8Array, b: Uint8Array) =>
   a.length === b.length && a.every((x, i) => x === b[i]);
 
-/** The key of the backup password on this device, or null when none is set. */
-export function backupKey(): BackupKey | null {
+function readKey(name: string): BackupKey | null {
   try {
-    const raw = SecureStore.getItem(KEY, OPTIONS);
+    const raw = SecureStore.getItem(name, OPTIONS);
     if (!raw) return null;
     const v = JSON.parse(raw) as { salt: string; rounds: number; key: string };
     const key = unhex(v.key);
@@ -38,7 +41,26 @@ export function backupKey(): BackupKey | null {
   }
 }
 
+/** The key of the backup password on this device, or null when none is set. */
+export const backupKey = () => readKey(KEY);
+/** The key of the owner's emergency password on this device (K10), or null. */
+export const recoveryKey = () => readKey(RECOVERY);
+
 export const hasBackupPassword = () => backupKey() !== null;
+
+/**
+ * The owner set (or changed) the emergency password (K10): its key is kept here, so every backup
+ * sealed from now on, and the ones sealed again, carry a second lock it opens.
+ */
+export async function setRecoveryPassword(password: string): Promise<void> {
+  const salt = randomBytes(SALT_BYTES);
+  const key = await deriveKey(normalizeEmergency(password), salt, BACKUP_ROUNDS);
+  SecureStore.setItem(
+    RECOVERY,
+    JSON.stringify({ salt: hex(salt), rounds: BACKUP_ROUNDS, key: hex(key) }),
+    OPTIONS,
+  );
+}
 
 export async function deriveKey(password: string, salt: Uint8Array, rounds: number) {
   return pbkdf2Async(sha256, password.normalize('NFC'), salt, { c: rounds, dkLen: 32 });
@@ -79,19 +101,50 @@ export async function setBackupPassword(ctx: Ctx, password: string): Promise<Bac
 /** A sealed file needs the backup password typed (another device, or an older password). */
 export class BackupPasswordNeeded extends RuleError {
   constructor() {
-    super('هذه النسخة مقفلة بكلمة سر النسخ الاحتياطي: اكتبها لفتحها.');
+    super(
+      'هذه النسخة مقفلة بكلمة سر النسخ الاحتياطي: اكتبها لفتحها. إن نسيتها، اكتب كلمة سر الطوارئ.',
+    );
     this.name = 'BackupPasswordNeeded';
   }
 }
 
-/** The key that opens a file sealed with this header: this device's, or the password typed. */
+/** The key that opens a file sealed with this header, from a key this device knows, or null. */
+export async function knownKey(
+  h: SealHeader,
+  extra: (BackupKey | null)[] = [],
+): Promise<Uint8Array | null> {
+  for (const k of [backupKey(), ...extra])
+    if (k && same(k.salt, h.salt) && k.rounds === h.rounds) return k.key;
+  const r = recoveryKey();
+  if (r && h.recovery && same(r.salt, h.recovery.salt) && r.rounds === h.recovery.rounds)
+    try {
+      return await unwrapKey(deviceAes, r.key, h);
+    } catch {
+      return null;
+    }
+  return null;
+}
+
+/**
+ * The key that opens a file sealed with this header: this device's, or the password typed. The
+ * password typed may be the backup password or the owner's emergency password (K10).
+ */
 export async function keyFor(
   h: SealHeader,
   password?: string,
   extra: (BackupKey | null)[] = [],
 ): Promise<Uint8Array> {
-  for (const k of [backupKey(), ...extra])
-    if (k && same(k.salt, h.salt) && k.rounds === h.rounds) return k.key;
+  const known = await knownKey(h, extra);
+  if (known) return known;
   if (password === undefined) throw new BackupPasswordNeeded();
+  if (h.recovery) {
+    const typed = normalizeEmergency(password);
+    try {
+      const rkey = await deriveKey(typed, h.recovery.salt, h.recovery.rounds);
+      return await unwrapKey(deviceAes, rkey, h);
+    } catch (error) {
+      if (!(error instanceof WrongBackupPassword)) throw error;
+    }
+  }
   return deriveKey(password, h.salt, h.rounds);
 }

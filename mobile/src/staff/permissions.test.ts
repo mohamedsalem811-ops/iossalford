@@ -773,6 +773,8 @@ const EVENTS = [
   'recordSignIn',
   'recordWrongPin',
   'recordEmergency',
+  'recordEmergencyWrong',
+  'recordPinReset',
   'recordStaff',
   'recordStaffFrom',
   'recordClockBack',

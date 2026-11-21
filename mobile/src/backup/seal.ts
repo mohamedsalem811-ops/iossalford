@@ -7,6 +7,10 @@
  *   "SALFORDENC" · version 1 · salt (16 bytes) · PBKDF2 rounds (4) · chunk size (4)
  *   then chunks: length (4) · AES-256-GCM sealed bytes (nonce 12 · data · tag 16)
  *
+ * Version 2 (K10) adds a second lock after the chunk size: a flag (1) · the emergency password's
+ * salt (16) · its rounds (4) · the file's key sealed with the emergency password's key (60). So the
+ * owner's emergency password also opens the backup when the backup password is forgotten.
+ *
  * The key is PBKDF2-SHA256 of the password with the file's salt. Each chunk is authenticated with
  * the header, its number and whether it is the last, so a chunk changed, moved, or cut off at the
  * end is refused. Large files are read and written one chunk at a time (memory stays small).
@@ -16,11 +20,14 @@
  */
 export const MAGIC = 'SALFORDENC';
 const VERSION = 1;
+const VERSION_2 = 2;
+const WRAPPED_BYTES = 12 + 32 + 16;
 export const SALT_BYTES = 16;
 /** PBKDF2 rounds for the backup password: typed only when it is set and on another device. */
 export const BACKUP_ROUNDS = 100_000;
 export const CHUNK = 1 << 20;
 const HEADER = MAGIC.length + 1 + SALT_BYTES + 4 + 4;
+const HEADER_2 = HEADER + 1 + SALT_BYTES + 4 + WRAPPED_BYTES;
 
 /** AES-256-GCM: `encrypt` returns nonce · ciphertext · tag; `decrypt` throws when it doesn't match. */
 export type Aes = {
@@ -32,7 +39,9 @@ export type Aes = {
 export type Reader = { size: number; read(n: number): Uint8Array | Promise<Uint8Array> };
 export type Writer = { write(bytes: Uint8Array): void | Promise<void> };
 
-export type SealHeader = { salt: Uint8Array; rounds: number; chunk: number };
+/** The second lock (K10): the file's key, sealed with the emergency password's key. */
+export type Recovery = { salt: Uint8Array; rounds: number; wrapped: Uint8Array };
+export type SealHeader = { salt: Uint8Array; rounds: number; chunk: number; recovery?: Recovery };
 
 export class WrongBackupPassword extends Error {
   constructor() {
@@ -60,8 +69,47 @@ const concat = (...parts: Uint8Array[]) => {
 };
 
 export function headerBytes(h: SealHeader): Uint8Array {
-  return concat(ascii(MAGIC), Uint8Array.of(VERSION), h.salt, u32(h.rounds), u32(h.chunk));
+  if (!h.recovery)
+    return concat(ascii(MAGIC), Uint8Array.of(VERSION), h.salt, u32(h.rounds), u32(h.chunk));
+  const r = h.recovery;
+  return concat(
+    ascii(MAGIC),
+    Uint8Array.of(VERSION_2),
+    h.salt,
+    u32(h.rounds),
+    u32(h.chunk),
+    Uint8Array.of(1),
+    r.salt,
+    u32(r.rounds),
+    r.wrapped,
+  );
 }
+
+/** What the second lock is tied to: the file's own salt and rounds. */
+const wrapAad = (salt: Uint8Array, rounds: number) =>
+  concat(ascii(MAGIC), Uint8Array.of(VERSION_2), salt, u32(rounds));
+
+/** Seals the file's key with the emergency password's key, for a version 2 header. */
+export async function wrapKey(
+  aes: Aes,
+  recoveryKey: Uint8Array,
+  fileKey: Uint8Array,
+  h: { salt: Uint8Array; rounds: number },
+): Promise<Uint8Array> {
+  return aes.encrypt(recoveryKey, fileKey, wrapAad(h.salt, h.rounds));
+}
+
+/** The file's key from its second lock; throws WrongBackupPassword when it doesn't open. */
+export async function unwrapKey(aes: Aes, recoveryKey: Uint8Array, h: SealHeader) {
+  if (!h.recovery) throw new WrongBackupPassword();
+  try {
+    return await aes.decrypt(recoveryKey, h.recovery.wrapped, wrapAad(h.salt, h.rounds));
+  } catch {
+    throw new WrongBackupPassword();
+  }
+}
+
+const lengthOf = (version: number) => (version === VERSION_2 ? HEADER_2 : HEADER);
 
 /** True when these first bytes are a sealed backup's. */
 export function isSealed(first: Uint8Array): boolean {
@@ -71,18 +119,32 @@ export function isSealed(first: Uint8Array): boolean {
 
 /** The header of a sealed file, from its first bytes. */
 export function readHeader(first: Uint8Array): SealHeader {
-  if (!isSealed(first) || first.length < HEADER || first[MAGIC.length] !== VERSION)
+  const version = first[MAGIC.length];
+  if (!isSealed(first) || (version !== VERSION && version !== VERSION_2))
     throw new WrongBackupPassword();
+  if (first.length < lengthOf(version)) throw new WrongBackupPassword();
   const at = MAGIC.length + 1;
   const rounds = readU32(first, at + SALT_BYTES);
   const chunk = readU32(first, at + SALT_BYTES + 4);
   // Bounded: a damaged or made-up file must not make the device work for minutes.
   if (rounds < 1 || rounds > 2_000_000 || chunk < 1 || chunk > 64 << 20)
     throw new WrongBackupPassword();
-  return { salt: first.slice(at, at + SALT_BYTES), rounds, chunk };
+  const salt = first.slice(at, at + SALT_BYTES);
+  if (version === VERSION) return { salt, rounds, chunk };
+  let r = at + SALT_BYTES + 8;
+  if (first[r] !== 1) throw new WrongBackupPassword();
+  r += 1;
+  const rsalt = first.slice(r, r + SALT_BYTES);
+  const rrounds = readU32(first, r + SALT_BYTES);
+  if (rrounds < 1 || rrounds > 2_000_000) throw new WrongBackupPassword();
+  const wrapped = first.slice(r + SALT_BYTES + 4, r + SALT_BYTES + 4 + WRAPPED_BYTES);
+  return { salt, rounds, chunk, recovery: { salt: rsalt, rounds: rrounds, wrapped } };
 }
 
-export const HEADER_BYTES = HEADER;
+/** Enough first bytes to read any header (version 1 or 2). */
+export const HEADER_BYTES = HEADER_2;
+/** The length of this header in the file. */
+export const headerLength = (h: SealHeader) => (h.recovery ? HEADER_2 : HEADER);
 
 /** What each chunk is tied to: the header, its number, and whether it is the last one. */
 const aadOf = (header: Uint8Array, index: number, last: boolean) =>
@@ -119,10 +181,12 @@ export async function seal(aes: Aes, key: Uint8Array, h: SealHeader, from: Reade
 
 /** Decrypts a sealed file into `to`; throws WrongBackupPassword when anything doesn't match. */
 export async function unseal(aes: Aes, key: Uint8Array, from: Reader, to: Writer) {
-  const first = await readFull(from, HEADER);
+  let first = await readFull(from, HEADER);
+  if (first[MAGIC.length] === VERSION_2)
+    first = concat(first, await readFull(from, HEADER_2 - HEADER));
   const h = readHeader(first);
   const header = headerBytes(h);
-  let left = from.size - HEADER;
+  let left = from.size - header.length;
   for (let i = 0; left > 0; i++) {
     const len = readU32(await readFull(from, 4), 0);
     left -= 4;

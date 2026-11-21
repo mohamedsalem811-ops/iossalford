@@ -14,7 +14,7 @@ const actions = (): StaffActions => ({
   onRename: jest.fn(),
   onToggleActive: jest.fn(),
   onLock: jest.fn(),
-  onEmergencyCode: jest.fn(),
+  onEmergencyPassword: jest.fn(),
   onSendList: jest.fn(),
   onReceiveList: jest.fn(),
 });
@@ -23,18 +23,27 @@ const now = new Date(2026, 10, 13);
 describe('the staff screen', () => {
   it('starts empty with a button to add the first employee, and asks for the emergency code', async () => {
     const a = actions();
-    await renderScreen(<StaffScreen staff={EMPTY_STAFF} hasEmergencyCode={false} actions={a} />);
+    await renderScreen(<StaffScreen staff={EMPTY_STAFF} emergency={null} actions={a} />);
     expect(screen.getByText('لا يوجد موظفون بعد')).toBeOnTheScreen();
-    expect(screen.getByText(/أنشئ رمز الطوارئ/)).toBeOnTheScreen();
+    expect(screen.getByText(/اختر كلمة سر الطوارئ/)).toBeOnTheScreen();
     await fireEvent.press(screen.getByText('إضافة موظف'));
     expect(a.onAdd).toHaveBeenCalled();
+  });
+
+  it('shows whether the emergency password is set, and asks to replace the old code (K10)', async () => {
+    const a = actions();
+    await renderScreen(<StaffScreen staff={EMPTY_STAFF} emergency="code" actions={a} />);
+    expect(screen.getByTestId('staff-emergency')).toHaveTextContent(/الرمز القديم/);
+    expect(screen.getByText(/اختر كلمة سر الطوارئ/)).toBeOnTheScreen();
+    await fireEvent.press(screen.getByTestId('staff-emergency'));
+    expect(a.onEmergencyPassword).toHaveBeenCalled();
   });
 
   it('lists people with their state; a tap offers a new PIN, rename or suspend', async () => {
     let staff = addEmployee(EMPTY_STAFF, 'سارة', 'a', now);
     staff = setActive(addEmployee(staff, 'علي', 'b', now), 'b', false);
     const a = actions();
-    await renderScreen(<StaffScreen staff={staff} hasEmergencyCode actions={a} />);
+    await renderScreen(<StaffScreen staff={staff} emergency="password" actions={a} />);
     expect(screen.getByTestId('staff-سارة')).toHaveTextContent(/نشط • لم يختر رمزه بعد/);
     expect(screen.getByTestId('staff-علي')).toHaveTextContent(/موقوف/);
     const sheet = jest
@@ -47,7 +56,7 @@ describe('the staff screen', () => {
 
   it('changes the lock time and sets the owner lock', async () => {
     const a = actions();
-    await renderScreen(<StaffScreen staff={EMPTY_STAFF} hasEmergencyCode actions={a} />);
+    await renderScreen(<StaffScreen staff={EMPTY_STAFF} emergency="password" actions={a} />);
     expect(screen.getByTestId('staff-lock-minutes')).toHaveTextContent(/7 دقائق/);
     expect(screen.getByTestId('staff-warn-minutes')).toHaveTextContent(/دقيقتان/);
     const sheet = jest

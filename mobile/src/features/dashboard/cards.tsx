@@ -111,6 +111,7 @@ const ALERT_ICONS: Record<AlertKind, SymbolViewProps['name']> = {
   clock: 'clock.badge.exclamationmark',
   log: 'list.bullet.clipboard',
   invoice: 'doc.text.magnifyingglass',
+  reset: 'key.horizontal',
 };
 
 export function AttentionCard({

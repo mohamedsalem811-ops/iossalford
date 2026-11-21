@@ -25,7 +25,7 @@ export type StaffActions = {
   /** Which systems the person signs in to (rule A). */
   onToggleSystem?: (e: Employee, system: SystemId) => void;
   onLock: (lock: LockSettings) => void;
-  onEmergencyCode: () => void;
+  onEmergencyPassword: () => void;
   onSendList: () => void;
   onReceiveList: () => void;
   /** The employee's account: charges for returns and repayments (phase S4). */
@@ -53,12 +53,13 @@ function pick<T>(title: string, items: { label: string; value: T }[], onPick: (v
  */
 export function StaffScreen({
   staff,
-  hasEmergencyCode,
+  emergency,
   actions,
   balances,
 }: {
   staff: Staff;
-  hasEmergencyCode: boolean;
+  /** The owner's emergency password (K10), the old 12-digit code, or neither. */
+  emergency: 'password' | 'code' | null;
   actions: StaffActions;
   /** What each employee owes ("emp-<id>" → dirhams). */
   balances?: Map<string, number>;
@@ -186,13 +187,19 @@ export function StaffScreen({
       </ListGroup>
 
       <ListGroup
-        header="رمز الطوارئ للمالك"
-        footer="يفتح لك النظام ويختار رمزاً جديداً إن نسيت رمزك. يظهر مرة واحدة: احفظه خارج الجهاز.">
+        header="كلمة سر الطوارئ للمالك"
+        footer="تختارها أنت من حروف وأرقام. تفتح لك النظام لتختار رمزاً جديداً إن نسيت رمزك، وتفتح النسخ الاحتياطية إن نسيت كلمة سرها. احفظها خارج الجهاز.">
         <ListRow
           icon="key"
-          title={hasEmergencyCode ? 'إنشاء رمز طوارئ جديد' : 'إنشاء رمز الطوارئ'}
-          value={hasEmergencyCode ? 'محفوظ' : 'غير موجود'}
-          onPress={actions.onEmergencyCode}
+          title={emergency === 'password' ? 'تغيير كلمة سر الطوارئ' : 'اختيار كلمة سر الطوارئ'}
+          value={
+            emergency === 'password'
+              ? 'محفوظة'
+              : emergency === 'code'
+                ? 'الرمز القديم'
+                : 'غير موجودة'
+          }
+          onPress={actions.onEmergencyPassword}
           testID="staff-emergency"
         />
       </ListGroup>
@@ -213,10 +220,12 @@ export function StaffScreen({
           testID="staff-receive"
         />
       </ListGroup>
-      {!hasEmergencyCode ? (
+      {emergency !== 'password' ? (
         <Card>
           <Text variant="subhead" tone="warning">
-            أنشئ رمز الطوارئ واحفظه، حتى لا تُقفل خارج النظام إن نسيت رمزك.
+            {emergency === 'code'
+              ? 'اختر كلمة سر الطوارئ بدل الرمز القديم: تفتح النسخ الاحتياطية أيضاً.'
+              : 'اختر كلمة سر الطوارئ واحفظها، حتى لا تُقفل خارج النظام إن نسيت رمزك.'}
           </Text>
         </Card>
       ) : null}

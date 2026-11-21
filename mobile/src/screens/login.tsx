@@ -13,6 +13,9 @@ import { pinLengthOf, type PinAccount, type VerifyResult } from '@/security/pin'
 import { spacing, type SystemId } from '@/theme';
 import { haptic } from '@/lib/haptics';
 
+/** After this many wrong PINs, «نسيت الرمز؟» stands out with what to do (point 1). */
+export const FORGOT_AFTER = 3;
+
 const NAMES: Record<SystemId, string> = { jewelry: 'نظام المجوهرات', scarves: 'نظام الأوشحة' };
 
 /** "0:30", "2:00": minutes and seconds left, digits 0-9. */
@@ -51,6 +54,7 @@ export function LoginScreen({
   onBack,
   backLabel = 'تغيير النظام',
   onForgot,
+  forgotHint,
   active = true,
 }: {
   system: SystemId;
@@ -62,8 +66,10 @@ export function LoginScreen({
   onUnlock: () => void;
   onBack: () => void;
   backLabel?: string;
-  /** The owner forgot the PIN: the emergency code. */
+  /** Forgot the PIN: the owner's emergency password, or the owner resets an employee's. */
   onForgot?: () => void;
+  /** Shown under «نسيت الرمز؟» after 3 wrong PINs (point 1): what to do now. */
+  forgotHint?: string;
   /** False while the app is hidden (background, app switcher). */
   active?: boolean;
 }) {
@@ -77,6 +83,8 @@ export function LoginScreen({
   const [faceId, setFaceId] = useState<FaceIdStatus>('none');
   const [faceMessage, setFaceMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** Wrong PINs on this screen: after 3, «نسيت الرمز؟» stands out (point 1). */
+  const [wrong, setWrong] = useState(0);
   /** The lockout has been read: Face ID is asked only after, and only when not locked. */
   const [lockRead, setLockRead] = useState(false);
 
@@ -142,6 +150,7 @@ export function LoginScreen({
         return;
       }
       haptic.error();
+      setWrong((n) => n + 1);
       if (r.lockedUntil) {
         setUntil(r.lockedUntil);
         setMessage('محاولات خاطئة كثيرة');
@@ -200,13 +209,20 @@ export function LoginScreen({
         <Button title="الدخول بـ Face ID" icon="faceid" variant="secondary" onPress={tryFaceId} />
       ) : null}
       {onForgot ? (
-        <Button
-          title="نسيت الرمز؟"
-          variant="ghost"
-          size="sm"
-          onPress={onForgot}
-          testID="login-forgot"
-        />
+        <View style={{ alignItems: 'center', gap: spacing.xs, alignSelf: 'stretch' }}>
+          {wrong >= FORGOT_AFTER || locked ? (
+            <Text variant="subhead" tone="secondary" center testID="login-forgot-hint">
+              {forgotHint ?? 'نسيت الرمز؟'}
+            </Text>
+          ) : null}
+          <Button
+            title="نسيت الرمز؟"
+            variant={wrong >= FORGOT_AFTER || locked ? 'secondary' : 'ghost'}
+            size="sm"
+            onPress={onForgot}
+            testID="login-forgot"
+          />
+        </View>
       ) : null}
       {faceLine ? (
         <Text variant="subhead" tone="secondary" center testID="face-id-message">

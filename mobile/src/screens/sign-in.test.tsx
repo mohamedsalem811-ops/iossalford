@@ -36,9 +36,10 @@ function setup(employees: Employee[]) {
     askFaceId: async () => ({ ok: false, error: 'not_available' }),
     hasPin: (a) => vault.hasPin(a),
     setPin: (a, p) => vault.setPin(a, p),
-    hasEmergencyCode: () => vault.hasEmergencyCode(),
+    emergencyKind: () => vault.emergencyKind(),
     checkEmergencyCode: (c) => vault.checkEmergencyCode(c),
     pinChanged,
+    pinReset: jest.fn(),
   };
   return { vault, deps, pinChanged };
 }
@@ -174,5 +175,86 @@ describe('signing in', () => {
     await enter('36925814');
     await waitFor(() => expect(onUnlock).toHaveBeenCalledWith({ kind: 'owner' }));
     expect(await vault.verify('jewelry', '36925814')).toEqual({ ok: true });
+  });
+
+  it('opens with the emergency password the owner chose, and sets a new PIN (K10)', async () => {
+    const { vault, deps } = setup([]);
+    await vault.setPin('jewelry', '25801470');
+    await vault.setEmergencyPassword('Mona2026Salem');
+    const onUnlock = jest.fn();
+    await renderScreen(
+      <SignInScreen
+        system="jewelry"
+        employees={[]}
+        deps={deps}
+        onUnlock={onUnlock}
+        onBack={jest.fn()}
+      />,
+    );
+    await fireEvent.press(await screen.findByTestId('login-forgot'));
+    expect(await screen.findByTestId('emergency-message')).toHaveTextContent(/كلمة سر الطوارئ/);
+    await fireEvent.changeText(screen.getByTestId('emergency-code'), 'Mona2026Salen');
+    await fireEvent.press(screen.getByTestId('emergency-check'));
+    expect(await screen.findByTestId('emergency-message')).toHaveTextContent(/غير صحيحة/);
+    await fireEvent.changeText(screen.getByTestId('emergency-code'), 'mona2026salem');
+    await fireEvent.press(screen.getByTestId('emergency-check'));
+    expect(await screen.findByText('رمز جديد للمالك')).toBeOnTheScreen();
+    await enter('36925814');
+    await enter('36925814');
+    await waitFor(() => expect(onUnlock).toHaveBeenCalledWith({ kind: 'owner' }));
+  });
+
+  it('shows «نسيت الرمز؟» clearly after 3 wrong PINs (point 1)', async () => {
+    const { vault, deps } = setup([]);
+    await vault.setPin('jewelry', '25801470');
+    await vault.setEmergencyPassword('Mona2026Salem');
+    await renderScreen(
+      <SignInScreen
+        system="jewelry"
+        employees={[]}
+        deps={deps}
+        onUnlock={jest.fn()}
+        onBack={jest.fn()}
+      />,
+    );
+    await screen.findByTestId('login-forgot');
+    expect(screen.queryByTestId('login-forgot-hint')).toBeNull();
+    for (let i = 0; i < 3; i++) await enter('11223344');
+    expect(await screen.findByTestId('login-forgot-hint')).toHaveTextContent(/كلمة سر الطوارئ/);
+  });
+
+  it('lets the owner reset a forgotten employee PIN at the counter, logged (points 3, 4)', async () => {
+    const { vault, deps, pinChanged } = setup([]);
+    await vault.setPin('jewelry', '25801470');
+    await vault.setPin('user.a', '963258');
+    const onUnlock = jest.fn();
+    await renderScreen(
+      <SignInScreen
+        system="jewelry"
+        employees={[sara()]}
+        deps={deps}
+        onUnlock={onUnlock}
+        onBack={jest.fn()}
+      />,
+    );
+    await fireEvent.press(screen.getByTestId('person-سارة'));
+    // The employee's own way is always there; after 3 wrong PINs it says to ask the owner.
+    for (let i = 0; i < 3; i++) await enter('111222');
+    expect(await screen.findByTestId('login-forgot-hint')).toHaveTextContent(/المالك/);
+    await fireEvent.press(screen.getByTestId('login-forgot'));
+    expect(await screen.findByText(/موافقة المالك لإعادة رمز سارة/)).toBeOnTheScreen();
+    // An employee can't approve it with their own PIN.
+    await enter('96325811');
+    expect(screen.queryByText('سارة: اختر رمزك')).toBeNull();
+    await enter('25801470');
+    expect(await screen.findByText('سارة: اختر رمزك')).toBeOnTheScreen();
+    expect(deps.pinReset).toHaveBeenCalledWith({ kind: 'employee', id: 'a', name: 'سارة' });
+    await enter('741852');
+    await enter('741852');
+    await waitFor(() =>
+      expect(onUnlock).toHaveBeenCalledWith({ kind: 'employee', id: 'a', name: 'سارة' }),
+    );
+    expect(pinChanged).toHaveBeenCalledWith('a');
+    expect(await vault.verify('user.a', '741852')).toEqual({ ok: true });
   });
 });

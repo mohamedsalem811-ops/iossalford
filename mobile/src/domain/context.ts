@@ -35,7 +35,16 @@ export type Ctx = {
  * employee, credit (rule B).
  */
 export type ApprovalPurpose =
-  'discount' | 'return' | 'birthday' | 'deposit' | 'orderCancel' | 'credit' | 'invoice';
+  | 'discount'
+  | 'return'
+  | 'birthday'
+  | 'deposit'
+  | 'orderCancel'
+  | 'credit'
+  | 'invoice'
+  /** The owner confirms setting the emergency password (K10), or an employee's PIN reset. */
+  | 'emergency'
+  | 'pinReset';
 
 /**
  * Credit (آجل) by an employee needs the owner's credit code (rule B): the screen asks for it and

@@ -9,7 +9,8 @@
  * - repeated wrong PINs by one person in a day (`alertWrongPins`);
  * - a shift closed short (`alertShortage`);
  * - the device clock went back; the activity log was changed outside the app;
- * - an employee opened an original invoice with the invoice code (every opening).
+ * - an employee opened an original invoice with the invoice code (every opening);
+ * - the emergency password was used, or the owner reset an employee's PIN (every one).
  *
  * The owner's own discounts, approvals and returns raise no alert. An alert the owner has seen
  * ("اطلعت") is hidden; the activity log keeps who saw it and when.
@@ -30,7 +31,9 @@ export type AlertKind =
   | 'shortage'
   | 'clock'
   | 'log'
-  | 'invoice';
+  | 'invoice'
+  /** The emergency password used, or an employee's PIN reset by the owner (point 4). */
+  | 'reset';
 
 /** Where an alert leads: the shift's report, the return, or the activity log. */
 export type AlertTarget = { screen: 'shift' | 'return'; id: number } | { screen: 'log' };
@@ -140,7 +143,7 @@ export function allAlerts(ctx: Ctx): OwnerAlert[] {
   if (p.alertWrongPins > 0)
     for (const r of ctx.db.all<{ actor: string; name: string; day: string; n: number }>(
       `SELECT actor, max(actor_name) name, day, count(*) n FROM activity
-        WHERE action IN ('pin.wrong', 'pin.locked') AND day >= ?
+        WHERE action IN ('pin.wrong', 'pin.locked', 'pin.emergency.wrong') AND day >= ?
         GROUP BY actor, day HAVING n >= ?`,
       [since, p.alertWrongPins],
     ))
@@ -192,6 +195,22 @@ export function allAlerts(ctx: Ctx): OwnerAlert[] {
       kind: 'invoice',
       title: `${r.name} فتح فاتورة أصلية`,
       detail: r.summary,
+      at: r.at,
+      target: { screen: 'log' },
+    });
+
+  // Every PIN reset (point 4): the emergency password, or an employee's PIN reset by the owner.
+  for (const r of ctx.db.all<{ id: number; action: string; name: string; at: string }>(
+    `SELECT id, action, actor_name name, at FROM activity
+      WHERE action IN ('pin.emergency', 'pin.reset') AND day >= ?`,
+    [since],
+  ))
+    out.push({
+      key: `reset:${r.id}`,
+      kind: 'reset',
+      title:
+        r.action === 'pin.emergency' ? 'استُخدمت كلمة سر الطوارئ' : `أعاد المالك رمز ${r.name}`,
+      detail: r.at.slice(0, 16).replace('T', ' '),
       at: r.at,
       target: { screen: 'log' },
     });
