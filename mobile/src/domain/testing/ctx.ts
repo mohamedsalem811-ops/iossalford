@@ -16,6 +16,9 @@ export type TestCtx = Ctx & {
 
 export const EMPLOYEE: Actor = { kind: 'employee', id: 'e1', name: 'سارة' };
 
+/** A credit-code token the test context accepts (rule B), for tests not about the code. */
+export const CREDIT_OK = 'credit-ok';
+
 export function makeCtx(
   system: SystemId = 'jewelry',
   start = new Date(2026, 10, 9, 10, 0, 0),
@@ -33,6 +36,8 @@ export function makeCtx(
     get actor() {
       return actor;
     },
+    // Only the credit code (rule B); every other approval is absent unless a test gives it.
+    approvals: { take: (token, purpose) => purpose === 'credit' && token === CREDIT_OK },
     setNow: (d) => {
       current = d;
     },

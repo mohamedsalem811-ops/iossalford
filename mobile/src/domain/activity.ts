@@ -330,3 +330,20 @@ export const recordLogBroken = (ctx: Ctx, brokenAt: number) =>
 
 /** The newest line (to remember outside the database), without walking the chain. */
 export const lastLine = (ctx: Ctx) => lastHash(ctx);
+
+const CODE_NAMES = { credit: 'رمز الآجل', invoice: 'رمز الفواتير' } as const;
+
+/** An employee typed one of the owner's codes (rule B, invoices): right or wrong, and for what. */
+export const recordCodeUse = (
+  ctx: Ctx,
+  a: Actor,
+  code: keyof typeof CODE_NAMES,
+  ok: boolean,
+  what: string,
+) =>
+  logAs(
+    ctx,
+    personOf(a),
+    ok ? `code.${code}` : `code.${code}.wrong`,
+    `${ok ? '' : 'خطأ في '}${CODE_NAMES[code]} من ${actorName(a)}: ${what}`,
+  );

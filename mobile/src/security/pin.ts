@@ -13,13 +13,24 @@ import type { SystemId } from '@/theme';
  * Whose PIN: the owner's PIN of a system ("jewelry", "scarves", as since Phase 3) or an
  * employee's ("user.<id>"), one PIN for both systems.
  */
-export type PinAccount = SystemId | `user.${string}`;
+export type PinAccount = SystemId | `user.${string}` | `code.${OwnerCode}`;
+
+/**
+ * The owner's 4-digit codes, given to an employee when needed and changed by the owner at will:
+ * credit (rule B) and the original invoices. Kept like the PINs (hashed, with the lockout).
+ */
+export type OwnerCode = 'credit' | 'invoice';
+export const CODE_LENGTH = 4;
 
 /** An employee's PIN is shorter: quick at the counter. */
 export const EMPLOYEE_PIN_LENGTH = 6;
 
 export const pinLengthOf = (account: PinAccount) =>
-  account.startsWith('user.') ? EMPLOYEE_PIN_LENGTH : PIN_LENGTH;
+  account.startsWith('code.')
+    ? CODE_LENGTH
+    : account.startsWith('user.')
+      ? EMPLOYEE_PIN_LENGTH
+      : PIN_LENGTH;
 
 export const PIN_LENGTH = 8;
 export const FREE_ATTEMPTS = 5;

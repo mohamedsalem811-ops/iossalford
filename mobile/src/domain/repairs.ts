@@ -24,6 +24,8 @@ import { logAction } from './activity';
 import {
   allow,
   clean,
+  creditAllowed,
+  CreditCodeNeeded,
   nowMonth,
   nowStamp,
   pageSql,
@@ -555,7 +557,11 @@ export function setRepairCost(ctx: Ctx, repairId: number, cost: number | null) {
 export function deliverRepair(
   ctx: Ctx,
   repairId: number,
-  input: { method: RepairDeliverMethod },
+  input: {
+    method: RepairDeliverMethod;
+    /** An employee leaving the rest on credit: the token of the owner's credit code (rule B). */
+    creditApproval?: string;
+  },
 ): { paidNow: number } {
   const actor = allow(ctx, 'repairs.deliver');
   if (input.method !== 'credit') checkPayMethod(input.method);
@@ -566,6 +572,8 @@ export function deliverRepair(
         r.status === 'delivered' ? 'سُلّمت هذه الصيانة من قبل' : 'تُسلّم الصيانة عندما تكون جاهزة',
       );
     const rest = r.remaining;
+    if (rest > 0 && input.method === 'credit' && !creditAllowed(ctx, input.creditApproval))
+      throw new CreditCodeNeeded();
     if (rest > 0) addPayment(ctx, repairId, 'pay', rest, input.method, shiftFor(ctx, actor));
     const stamp = nowStamp(ctx);
     ctx.db.run(

@@ -26,6 +26,7 @@ import { dayKey, formatDate, formatTime } from '@/lib/dates';
 import { parseThousandths } from '@/lib/digits';
 import { haptic } from '@/lib/haptics';
 import { formatLyd } from '@/lib/money';
+import { askCode } from '@/staff/approvals';
 import { useCan } from '@/staff/use-can';
 import { notifyDataChanged } from '@/state/data-events';
 import { openOutside } from '@/state/lock';
@@ -100,8 +101,15 @@ export function RepairDetail({
 
   const deliver = () => {
     haptic.medium();
-    const go = (method: RepairDeliverMethod) =>
-      attempt('لم تُسلّم', () => deliverRepair(ctx, r.id, { method }));
+    const go = async (method: RepairDeliverMethod) => {
+      // The rest left on her account (آجل): an employee needs the owner's credit code (rule B).
+      let creditApproval: string | undefined;
+      if (method === 'credit' && ctx.actor?.kind !== 'owner') {
+        creditApproval = (await askCode(ctx, 'credit', `تسليم ${r.ticketNo} بالآجل`)) ?? undefined;
+        if (!creditApproval) return;
+      }
+      attempt('لم تُسلّم', () => deliverRepair(ctx, r.id, { method, creditApproval }));
+    };
     if (r.remaining === 0)
       return Alert.alert(`تسليم ${r.ticketNo}؟`, 'لا باقي عليها.', [
         { text: 'رجوع', style: 'cancel' },

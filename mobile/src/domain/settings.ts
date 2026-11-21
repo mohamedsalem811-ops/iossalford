@@ -48,3 +48,12 @@ export function recordFaceIdChoice(ctx: Ctx, on: boolean) {
     }),
   );
 }
+
+/** The owner set or changed one of the codes given to employees (logged; never the code). */
+export function recordCodeChange(ctx: Ctx, code: 'credit' | 'invoice', first: boolean) {
+  allow(ctx, 'settings.edit');
+  const name = code === 'credit' ? 'رمز الآجل' : 'رمز الفواتير';
+  ctx.db.transaction(() =>
+    logAction(ctx, 'settings.code', `${first ? 'ضبط' : 'تغيير'} ${name}`, { code }),
+  );
+}

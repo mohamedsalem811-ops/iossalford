@@ -69,11 +69,11 @@ import {
 import { addReturn, addReturnWithoutSale, deleteReturn, deleteSale, getSale } from '@/domain/sales';
 import { deleteScarfDesign, saveScarfDesign } from '@/domain/scarves';
 import { deleteSet, saveSet } from '@/domain/sets';
-import { recordFaceIdChoice, setRate } from '@/domain/settings';
+import { recordCodeChange, recordFaceIdChoice, setRate } from '@/domain/settings';
 import { setProductPrice } from '@/domain/slow-stock';
 import { setNotifyRules } from '@/domain/notify';
 import { addToCart, type CartLine } from '@/domain/cart';
-import { EMPLOYEE, makeCtx, passing, type TestCtx } from '@/domain/testing/ctx';
+import { CREDIT_OK, EMPLOYEE, makeCtx, passing, type TestCtx } from '@/domain/testing/ctx';
 import { OWNER } from './model';
 import { ALL_PERMISSIONS, can, EMPLOYEE_MAY, PERMISSIONS, type Permission } from './permissions';
 import { scanActions } from './testing/scan-actions';
@@ -381,6 +381,10 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
       permission: 'settings.edit',
       run: (ctx) => recordFaceIdChoice(ctx, true),
     },
+    recordCodeChange: {
+      permission: 'settings.edit',
+      run: (ctx) => recordCodeChange(ctx, 'credit', true),
+    },
     setLoyalty: {
       permission: 'settings.edit',
       run: (ctx) => setLoyalty(ctx, { enabled: true }),
@@ -441,7 +445,7 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
       run: (ctx, s) =>
         exchange(ctx, {
           ret: { ...passing(ctx), saleLineId: s.saleLine, quantity: 1 },
-          sale: { cart: cartOf(ctx, s.chain), paymentMethod: 'cash' },
+          sale: { cart: cartOf(ctx, s.chain), paymentMethod: 'cash', creditApproval: CREDIT_OK },
         }),
     },
     chargeReturn: {

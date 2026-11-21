@@ -43,7 +43,7 @@ import { summary } from './reports';
 import { addReturn, deleteSale, getSale, ReturnRefused } from './sales';
 import { openShiftOf, shiftTotals } from './shifts';
 import { reservedCounts } from './reserved';
-import { EMPLOYEE, makeCtx, passing, type TestCtx } from './testing/ctx';
+import { CREDIT_OK, EMPLOYEE, makeCtx, passing, type TestCtx } from './testing/ctx';
 
 let ctx: TestCtx;
 let ring: number;
@@ -348,6 +348,7 @@ describe('delivery', () => {
       paymentMethod: 'credit',
       customer: MONA,
       orderId,
+      creditApproval: CREDIT_OK,
     });
     const line = getSale(ctx, sold.saleId)!.lines[0].id;
     ctx.setNow(new Date(2026, 10, 10, 11, 0, 0));

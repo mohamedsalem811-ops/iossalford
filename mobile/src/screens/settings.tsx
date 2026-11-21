@@ -27,6 +27,7 @@ export function SettingsScreen({
   notifications,
   onChangePin,
   faceId,
+  codes,
   onAppearance,
 }: {
   system: SystemId;
@@ -46,6 +47,8 @@ export function SettingsScreen({
   onChangePin: () => void;
   /** The owner's Face ID switch (jewelry, audit 1). */
   faceId?: { on: boolean; onToggle: () => void };
+  /** The owner's 4-digit codes given to employees (credit, invoices): set or changed by hand. */
+  codes?: { code: string; title: string; set: boolean; onPress: () => void }[];
   onAppearance: (a: Appearance) => void;
 }) {
   return (
@@ -93,6 +96,17 @@ export function SettingsScreen({
             testID="settings-faceid"
           />
         ) : null}
+        {codes?.map((c) => (
+          <ListRow
+            key={c.code}
+            icon="key"
+            title={c.title}
+            value={c.set ? 'مضبوط' : 'غير مضبوط'}
+            tone={c.set ? undefined : 'warning'}
+            onPress={c.onPress}
+            testID={`settings-code-${c.code}`}
+          />
+        ))}
       </ListGroup>
       {notifications ? (
         <ListGroup

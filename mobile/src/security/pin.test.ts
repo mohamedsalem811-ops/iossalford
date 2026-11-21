@@ -1,7 +1,14 @@
 /**
  * @jest-environment node
  */
-import { lockDelayMs, PinVault, pinProblem, type SecureKv } from './pin';
+import {
+  FREE_ATTEMPTS,
+  lockDelayMs,
+  pinLengthOf,
+  PinVault,
+  pinProblem,
+  type SecureKv,
+} from './pin';
 
 // Node's crypto stands in for expo-crypto in tests (loaded with require: the app has no Node types).
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -212,5 +219,22 @@ describe('accounts and the emergency code', () => {
     // A new code replaces the old one.
     const next = await v.newEmergencyCode();
     if (next !== code) expect((await v.checkEmergencyCode(code)).ok).toBe(false);
+  });
+});
+
+describe("the owner's 4-digit codes (rule B, invoices)", () => {
+  it('takes 4 digits, refuses easy ones, and locks out like a PIN', async () => {
+    const { v } = vault();
+    expect(pinLengthOf('code.credit')).toBe(4);
+    await expect(v.setPin('code.credit', '1234')).rejects.toThrow('متتالية');
+    await expect(v.setPin('code.credit', '12345')).rejects.toThrow('4 أرقام');
+    await v.setPin('code.credit', '4071');
+    expect(await v.verify('code.credit', '4071')).toEqual({ ok: true });
+    for (let i = 0; i < FREE_ATTEMPTS; i++) await v.verify('code.credit', '9999');
+    expect(await v.verify('code.credit', '4071')).toMatchObject({ ok: false, locked: true });
+    // A new code from the owner clears the lockout, and the old one stops working.
+    await v.setPin('code.credit', '5820');
+    expect((await v.verify('code.credit', '4071')).ok).toBe(false);
+    expect(await v.verify('code.credit', '5820')).toEqual({ ok: true });
   });
 });

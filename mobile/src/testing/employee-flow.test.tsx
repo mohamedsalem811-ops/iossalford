@@ -63,6 +63,34 @@ jest.mock('expo-haptics', () => ({
 jest.mock('expo-symbols', () => ({ SymbolView: () => null }));
 jest.mock('react-native-webview', () => ({ WebView: () => null }));
 jest.mock('@expo/ui/swift-ui', () => ({ Host: () => null, Chart: () => null }));
+// The native segmented control is replaced by plain buttons so the test can switch it.
+jest.mock('@expo/ui/community/segmented-control', () => ({
+  __esModule: true,
+  default: ({
+    values,
+    onChange,
+    testID,
+  }: {
+    testID?: string;
+    values: string[];
+    onChange: (e: { nativeEvent: { selectedSegmentIndex: number; value: string } }) => void;
+  }) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories cannot use imports
+    const { Pressable, Text: RNText, View } = require('react-native');
+    return (
+      <View testID={testID}>
+        {values.map((v, i) => (
+          <Pressable
+            key={v}
+            accessibilityRole="button"
+            onPress={() => onChange({ nativeEvent: { selectedSegmentIndex: i, value: v } })}>
+            <RNText>{v}</RNText>
+          </Pressable>
+        ))}
+      </View>
+    );
+  },
+}));
 jest.mock('expo-router/native-tabs', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories cannot use imports
   const { Slot } = require('expo-router');
@@ -317,6 +345,37 @@ describe('as an employee, the S4 rules', () => {
     for (const m of [sheet, verify, prompt]) m.mockRestore();
   });
 
+  it('sells on credit only with the owner’s credit code (rule B)', async () => {
+    const owner = ctxAs(OWNER);
+    const p = getProduct(owner, ring)!;
+    putCart('jewelry', (addToCart([], p, p.name, 1) as { cart: CartLine[] }).cart);
+    const has = jest.spyOn(device.pinVault, 'hasPin').mockResolvedValue(true);
+    const verify = jest.spyOn(device.pinVault, 'verify').mockResolvedValue({ ok: true });
+    const prompt = jest.spyOn(Alert, 'prompt').mockImplementation((_t, _m, buttons) => {
+      if (Array.isArray(buttons)) buttons.find((b) => b.text === 'موافقة')?.onPress?.('4071');
+    });
+    const before = owner.db.get<{ n: number }>('SELECT COUNT(*) AS n FROM sales')!.n;
+    await renderRouter(routes, { initialUrl: '/jewelry/checkout' });
+    await fireEvent.press(await screen.findByText('آجل'));
+    await fireEvent.changeText(screen.getByTestId('checkout-name'), 'منى');
+    await fireEvent.changeText(screen.getByTestId('checkout-phone'), '0912345678');
+    await fireEvent.press(screen.getByTestId('checkout-confirm'));
+    await waitFor(() => expect(verify).toHaveBeenCalledWith('code.credit', '4071'));
+    await waitFor(() =>
+      expect(owner.db.get<{ n: number }>('SELECT COUNT(*) AS n FROM sales')!.n).toBe(before + 1),
+    );
+    const last = owner.db.get<{ payment_method: string }>(
+      'SELECT payment_method FROM sales ORDER BY id DESC LIMIT 1',
+    );
+    expect(last?.payment_method).toBe('credit');
+    // The use of the code is in the owner's log, never the code itself.
+    const logged = owner.db.get<{ n: number }>(
+      "SELECT COUNT(*) AS n FROM activity WHERE action = 'code.credit'",
+    )!.n;
+    expect(logged).toBe(1);
+    for (const m of [has, verify, prompt]) m.mockRestore();
+  });
+
   it('finds the owner’s sale by its number for a return, with the refund fixed', async () => {
     await renderRouter(routes, { initialUrl: '/jewelry/more/return-find' });
     await fireEvent.changeText(await screen.findByTestId('return-find-text'), String(ownerSale));
@@ -359,8 +418,9 @@ describe('as the owner', () => {
       await screen.findByText(`بيعة رقم ${herSale}: 1 قطعة بـ 350 د.ل (كاش)`),
     ).toBeOnTheScreen();
     expect(screen.getByText(`بيعة رقم ${ownerSale}: 2 قطعة بـ 700 د.ل (كاش)`)).toBeOnTheScreen();
-    // Her shift opening and her two sales (one with the owner's approval).
-    expect(screen.getAllByText(/^سارة • /)).toHaveLength(3);
+    // Her shift opening, her three sales (one with the owner's approval, one on credit) and the
+    // credit code she used.
+    expect(screen.getAllByText(/^سارة • /)).toHaveLength(5);
   });
 
   it('is told when the device clock went back, and can accept the device time', async () => {
