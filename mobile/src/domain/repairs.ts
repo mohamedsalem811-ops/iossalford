@@ -182,7 +182,7 @@ type RepairRow = {
 
 const PAID_SQL = `coalesce((SELECT sum(CASE p.kind WHEN 'pay' THEN p.amount ELSE -p.amount END)
                               FROM repair_payments p WHERE p.repair_id = r.id), 0)`;
-const LINES_SQL = `(SELECT group_concat(l.name, '، ') FROM repair_lines l WHERE l.repair_id = r.id) services,
+const LINES_SQL = `(SELECT group_concat(l.name, '، ' ORDER BY l.id) FROM repair_lines l WHERE l.repair_id = r.id) services,
   (SELECT count(*) FROM repair_lines l WHERE l.repair_id = r.id AND l.price IS NULL) unpriced`;
 const SELECT = `SELECT r.*, c.name customer_name, c.phone customer_phone, ${PAID_SQL} paid, ${LINES_SQL}
                   FROM repairs r JOIN customers c ON c.id = r.customer_id`;
@@ -549,7 +549,10 @@ export function takeRepair(
   if (deposit) {
     if (!Number.isInteger(deposit.amount)) throw new RuleError('اكتب مبلغ العربون');
     checkPayMethod(deposit.method);
-    if (deposit.amount > price)
+    // While a service waits for the owner's price, the price isn't known yet: the deposit is
+    // taken, and the owner's price can't go under what was paid (setRepairLinePrice).
+    const waiting = lines.some((l) => l.price === null);
+    if (!waiting && deposit.amount > price)
       throw new RuleError(`العربون أكبر من السعر المتفق عليه (${formatLyd(price)})`);
   }
   return ctx.db.transaction(() => {

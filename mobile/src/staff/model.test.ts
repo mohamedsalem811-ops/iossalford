@@ -63,6 +63,29 @@ describe('the staff list', () => {
     });
     expect(() => mergeTransfer(there, '{"kind":"other"}', now)).toThrow('ليس قائمة موظفين');
   });
+
+  it('keeps the systems ticked for each person on the other device (rule A)', () => {
+    let here = addEmployee(EMPTY_STAFF, 'سارة', 'a', now);
+    here = addEmployee(here, 'علي', 'b', now);
+    here = addEmployee(here, 'هدى', 'c', now);
+    here = setWorksIn(here, 'a', 'jewelry', false);
+    here = setWorksIn(here, 'c', 'scarves', false);
+    // On the other device: Huda is already there in both systems, and Ali in the scarves only.
+    let there = addEmployee(EMPTY_STAFF, 'هدى', 'c', now);
+    there = addEmployee(there, 'علي', 'b', now);
+    there = setWorksIn(there, 'b', 'jewelry', false);
+    const r = mergeTransfer(there, transferText(here), now);
+    expect(r.added).toBe(1);
+    expect(r.updated).toBe(2);
+    const of = (id: string) => r.staff.employees.find((e) => e.id === id)!;
+    expect(worksIn(of('a'), 'jewelry')).toBe(false);
+    expect(worksIn(of('a'), 'scarves')).toBe(true);
+    expect(worksIn(of('b'), 'jewelry')).toBe(true);
+    expect(worksIn(of('c'), 'scarves')).toBe(false);
+    // A list from an older app (no systems) changes nothing for people already here.
+    const old = JSON.stringify({ kind: 'salford-staff', employees: [{ id: 'c', name: 'هدى' }] });
+    expect(mergeTransfer(r.staff, old, now)).toMatchObject({ added: 0, updated: 0 });
+  });
 });
 
 describe('the idle timer', () => {

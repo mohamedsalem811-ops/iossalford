@@ -170,20 +170,31 @@ export function parseStaff(text: string | null): Staff {
 export function transferText(staff: Staff): string {
   return JSON.stringify({
     kind: 'salford-staff',
-    employees: staff.employees.map(({ id, name, active }) => ({ id, name, active })),
+    // The systems ticked for each person go too (rule A): both is written as both.
+    employees: staff.employees.map((e) => ({
+      id: e.id,
+      name: e.name,
+      active: e.active,
+      systems: SYSTEMS.filter((s) => worksIn(e, s)),
+    })),
   });
 }
 
 /**
  * Adds the people of a transferred list who are not on this device yet (same id), each with no
- * PIN here: their first sign-in needs the owner's approval, then they choose their PIN.
+ * PIN here: their first sign-in needs the owner's approval, then they choose their PIN. The
+ * systems ticked for each person (rule A) come with the list, also for people already here; a
+ * list from an older app, without them, changes no one's systems.
  */
 export function mergeTransfer(
   staff: Staff,
   text: string,
   now: Date,
-): { staff: Staff; added: number } {
-  let v: { kind?: string; employees?: { id?: unknown; name?: unknown; active?: unknown }[] };
+): { staff: Staff; added: number; updated: number } {
+  let v: {
+    kind?: string;
+    employees?: { id?: unknown; name?: unknown; active?: unknown; systems?: unknown }[];
+  };
   try {
     v = JSON.parse(text);
   } catch {
@@ -193,9 +204,21 @@ export function mergeTransfer(
     throw new Error('هذا الملف ليس قائمة موظفين من SALFORD POS');
   let next = staff;
   let added = 0;
+  let updated = 0;
   for (const e of v.employees) {
     if (typeof e.id !== 'string' || typeof e.name !== 'string') continue;
-    if (next.employees.some((x) => x.id === e.id)) continue;
+    const systems = Array.isArray(e.systems) ? readSystems(e.systems) : null;
+    const here = next.employees.find((x) => x.id === e.id);
+    if (here) {
+      if (
+        systems !== null &&
+        SYSTEMS.some((s) => worksIn(here, s) !== worksIn({ ...here, systems }, s))
+      ) {
+        next = update(next, here.id, { systems });
+        updated++;
+      }
+      continue;
+    }
     const name = nameProblem(next, e.name) ? `${clean(e.name)} (2)` : clean(e.name);
     next = {
       ...next,
@@ -207,12 +230,13 @@ export function mergeTransfer(
           active: e.active !== false,
           createdAt: now.toISOString(),
           mustChangePin: true,
+          ...(systems ? { systems } : {}),
         },
       ],
     };
     added++;
   }
-  return { staff: next, added };
+  return { staff: next, added, updated };
 }
 
 /** What the idle timer says: keep going, warn (with the time left) or lock. */

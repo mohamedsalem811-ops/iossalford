@@ -5,6 +5,7 @@
  * the chain against the line remembered outside it, and the owner's alert.
  */
 import { countActivity, listActivity, recordSignIn, walkLog } from '@/domain/activity';
+import { ownerAlerts } from '@/domain/alerts';
 import { saveProduct } from '@/domain/products';
 import { makeCtx, type TestCtx } from '@/domain/testing/ctx';
 import { OWNER } from '@/staff/model';
@@ -14,6 +15,7 @@ import {
   forgetLog,
   logStaffChange,
   setOpenLog,
+  shareWithOther,
   readAnchor,
   readVerified,
   saveAnchor,
@@ -70,6 +72,45 @@ it('writes a staff change in both systems’ logs, under who made it (audit 15)'
   expect(line).toMatchObject({ action: 'staff.change', summary: 'موظف جديد: سارة' });
   expect(line).toMatchObject({ actor: 'owner', details: { from: 'scarves', id: 'e1' } });
   // Written once.
+  writeStaffLines(ctx);
+  expect(listActivity(ctx).filter((l) => l.action === 'staff.change')).toHaveLength(1);
+});
+
+it('shows the emergency password and a PIN reset in the other system too (K10)', () => {
+  shareWithOther('scarves', {
+    event: 'pin.emergency',
+    person: { key: 'owner', name: 'المالك' },
+    summary: 'استُخدمت كلمة سر الطوارئ (في نظام الأوشحة)',
+  });
+  shareWithOther('scarves', {
+    event: 'pin.reset',
+    person: { key: 'emp-e1', name: 'سارة' },
+    summary: 'أعاد المالك رمز سارة بموافقته (في نظام الأوشحة)',
+  });
+  writeStaffLines(ctx);
+  const lines = listActivity(ctx);
+  expect(lines.map((l) => l.action)).toEqual(
+    expect.arrayContaining(['pin.emergency', 'pin.reset']),
+  );
+  expect(lines.find((l) => l.action === 'pin.reset')).toMatchObject({
+    actor: 'emp-e1',
+    details: { from: 'scarves' },
+  });
+  expect(
+    ownerAlerts(ctx)
+      .filter((a) => a.kind === 'reset')
+      .map((a) => a.title),
+  ).toEqual(expect.arrayContaining(['استُخدمت كلمة سر الطوارئ', 'أعاد المالك رمز سارة']));
+});
+
+it('keeps the waiting lines when the log cannot be written', () => {
+  shareWithOther('scarves', { person: { key: 'owner', name: 'المالك' }, summary: 'موظف جديد' });
+  const transaction = jest.spyOn(ctx.db, 'transaction').mockImplementationOnce(() => {
+    throw new Error('disk full');
+  });
+  writeStaffLines(ctx);
+  transaction.mockRestore();
+  expect(listActivity(ctx).some((l) => l.action === 'staff.change')).toBe(false);
   writeStaffLines(ctx);
   expect(listActivity(ctx).filter((l) => l.action === 'staff.change')).toHaveLength(1);
 });

@@ -9,7 +9,7 @@ import { create } from 'zustand';
 
 import type { Db } from '@/db/types';
 import { recordClockAccepted } from '@/domain/activity';
-import type { Ctx } from '@/domain/context';
+import { timestamp, type Ctx } from '@/domain/context';
 import type { SystemId } from '@/theme';
 
 import { ClockGuard } from './clock';
@@ -189,16 +189,25 @@ export function setOpenLog(o: typeof open) {
   open = o;
 }
 
-/** A staff change waiting for the other system's log (kept in the Keychain until it opens). */
+/**
+ * A line waiting for the other system's log (kept in the Keychain until it opens): a staff change
+ * (the list is shared by both systems), or the emergency password used or a PIN reset (K10: the
+ * owner sees them in either system).
+ */
 export type StaffLine = {
+  /** Absent: a staff change. */
+  event?: SharedEvent;
   person: { key: string; name: string };
   summary: string;
   details?: Record<string, unknown>;
+  /** When it happened, local time like every log line. */
   at: string;
   from: SystemId;
 };
+export type SharedEvent = 'staff.change' | 'pin.emergency' | 'pin.emergency.wrong' | 'pin.reset';
 const PENDING_MAX = 100;
 const pendingKey = (s: SystemId) => `log.staff.${s}`;
+const otherOf = (s: SystemId): SystemId => (s === 'jewelry' ? 'scarves' : 'jewelry');
 
 function pendingOf(system: SystemId): StaffLine[] {
   try {
@@ -209,11 +218,25 @@ function pendingOf(system: SystemId): StaffLine[] {
   }
 }
 
-/** The staff changes made in the other system, to write now; the list is emptied. */
+/** The lines made in the other system, to write now; the list is emptied. */
 export function takeStaffLines(system: SystemId): StaffLine[] {
   const lines = pendingOf(system);
   if (lines.length) write(pendingKey(system), '[]');
   return lines;
+}
+
+/** Lines taken but not written (the log could not be written): they wait for the next opening. */
+export function keepStaffLines(system: SystemId, lines: StaffLine[]) {
+  if (lines.length)
+    write(pendingKey(system), JSON.stringify([...lines, ...pendingOf(system)].slice(-PENDING_MAX)));
+}
+
+/** Keeps a line for the other system's log, made in `system`. */
+export function shareWithOther(system: SystemId, line: Omit<StaffLine, 'at' | 'from'>) {
+  const other = otherOf(system);
+  const full: StaffLine = { ...line, at: timestamp(new Date()), from: system };
+  if (!full.details) delete full.details;
+  write(pendingKey(other), JSON.stringify([...pendingOf(other), full].slice(-PENDING_MAX)));
 }
 
 /**
@@ -225,8 +248,5 @@ export function logStaffChange(summary: string, details?: Record<string, unknown
   open.write(summary, details);
   const person = open.person?.();
   if (!person) return;
-  const other: SystemId = open.system === 'jewelry' ? 'scarves' : 'jewelry';
-  const line: StaffLine = { person, summary, at: new Date().toISOString(), from: open.system };
-  if (details) line.details = details;
-  write(pendingKey(other), JSON.stringify([...pendingOf(other), line].slice(-PENDING_MAX)));
+  shareWithOther(open.system, { person, summary, ...(details ? { details } : {}) });
 }

@@ -103,6 +103,18 @@ it('opens for an employee only with the invoice code, used once, and alerts the 
   expect(ownerAlerts(ctx).filter((a) => a.kind === 'invoice')).toHaveLength(1);
 });
 
+it('opens while the device clock is behind: opening only reads (K review)', () => {
+  const id = addOriginalInvoice(ctx, { file, kind: 'image', productIds: [ring] });
+  ctx.clock = { check: () => 'ساعة الجهاز متأخرة' };
+  ctx.setActor(EMPLOYEE);
+  expect(openOriginalInvoice(ctx, id, { approval: grant() })).toEqual({ file, kind: 'image' });
+  // Adding one is still a change, refused until the clock is right.
+  ctx.setActor(OWNER);
+  expect(() => addOriginalInvoice(ctx, { file, kind: 'image', productIds: [chain] })).toThrow(
+    'ساعة الجهاز متأخرة',
+  );
+});
+
 it('belongs to the jewelry system only', () => {
   const scarves = makeCtx('scarves');
   scarves.setActor(OWNER);

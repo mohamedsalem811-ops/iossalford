@@ -82,7 +82,7 @@ import { setProductPrice } from '@/domain/slow-stock';
 import { setNotifyRules } from '@/domain/notify';
 import { addToCart, type CartLine } from '@/domain/cart';
 import { CREDIT_OK, EMPLOYEE, makeCtx, passing, type TestCtx } from '@/domain/testing/ctx';
-import { OWNER } from './model';
+import { actorKey, actorName, OWNER } from './model';
 import { ALL_PERMISSIONS, can, EMPLOYEE_MAY, PERMISSIONS, type Permission } from './permissions';
 import { scanActions } from './testing/scan-actions';
 import { screenFilesCalling } from './testing/screen-calls';
@@ -200,8 +200,14 @@ function seed(ctx: TestCtx): Seed {
     ],
   });
   const brand = addBrand(ctx, 'تيفاني');
-  ctx.setActor(EMPLOYEE);
+  // Her receipt (a receipt by hand is the owner's, so it is marked as hers).
   const herReceipt = issueReceipt(ctx, { items: [{ name: 'قطعة', quantity: 1, price: 5 }] }).id;
+  ctx.db.run('UPDATE receipts SET issued_by = ?, issued_by_name = ? WHERE id = ?', [
+    actorKey(EMPLOYEE),
+    actorName(EMPLOYEE),
+    herReceipt,
+  ]);
+  ctx.setActor(EMPLOYEE);
   // Her shift, closed 5 د.ل short (for charging the shortage).
   addCashMove(ctx, 'in', 5_000, 'فكة');
   const shortShift = closeShift(ctx, 0).shiftId;
@@ -317,14 +323,20 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     },
     deleteReturn: { permission: 'returns.delete', run: (ctx, s) => deleteReturn(ctx, s.ret) },
     issueReceipt: {
+      // A sale's receipt; one made by hand also needs receipts.manual (the owner's, receipts tests).
       permission: 'receipts.create',
-      run: (ctx) => issueReceipt(ctx, { items: [{ name: 'قطعة', quantity: 1, price: 10 }] }),
+      run: (ctx, s) =>
+        issueReceipt(ctx, {
+          items: [{ name: 'قطعة', quantity: 1, price: 10 }],
+          saleId: s.plainSale,
+        }),
     },
     updateReceipt: {
       permission: 'receipts.edit',
       run: (ctx, s) =>
         updateReceipt(ctx, s.herReceipt, {
-          items: [{ name: 'قطعة', quantity: 1, price: 10 }],
+          // Her receipt's own pieces: an employee changes only how it looks.
+          items: [{ name: 'قطعة', quantity: 1, price: 5 }],
           showPrices: false,
         }),
     },

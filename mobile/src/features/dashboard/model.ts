@@ -97,6 +97,11 @@ export type DashboardData = {
     birthdays: string[];
     /** The owner's settings still to do (H2); 0 for anyone else. */
     setup?: number;
+    /**
+     * The owner has no emergency password on this device yet (K review): without it, a forgotten
+     * PIN can't be reset. Read from the Keychain by the screen, not from the database.
+     */
+    noEmergency?: boolean;
   };
   byCategory: RankedRow[];
   byBrand: RankedRow[];

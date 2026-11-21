@@ -1070,10 +1070,27 @@ Each fix has a test written first, which failed before the change.
     - Setting or changing the emergency password seals the backups already on the device again with the new lock, in both systems. The old emergency password no longer opens them.
     - At restore, the password typed may be either the backup password or the emergency password. Version 1 files still open as before.
   - **Tests:** the vault, the seal format, the store (another device, a new emergency password), the staff flow and screen, sign-in (password, point 1, point 3), and the alerts. The Maestro flow `e2e/emergency-password.yaml` is ready and not run.
-  - Ships as an instant update after the phase K `.ipa` (JavaScript only; database 16 is already in that `.ipa`).
+  - Ships in the phase K `.ipa`, with the rest of phase K (not as an instant update).
+- **Phase K check (owner's decision, 2026-11-21; done):** a read-only check of K1 to K10 found the points below; the owner asked for all of them.
+  - **Names on the lock screen:** the app before phase K saved «show names» with every reminder setting, even when only the time was changed. Database 16 hides names once on every device; the owner can show them again in التنبيهات.
+  - **Rule A on the other device:** the staff list sent by AirDrop now carries the systems ticked for each person, also for people already on the other device. A list from an older app changes no one's systems.
+  - **Both logs:** a use of the emergency password, a wrong emergency password and an employee's PIN reset are written in both systems' logs and alerts, like staff changes («... (في نظام المجوهرات)»).
+  - **Manual receipts are the owner's** (`receipts.manual`, not given to employees). An employee prints and restyles the receipts of sales and deposits, and can't make a receipt by hand or change the pieces, prices or customer of any receipt. «إيصال جديد» is hidden for employees.
+  - **The emergency password reminder:** «اختر كلمة سر الطوارئ» on the owner's dashboard until it is chosen on this device.
+  - **Small fixes:**
+    - Opening an original invoice is reading: it works while the device clock is behind. Adding or changing one is still refused then.
+    - The repair ticket lists the services in the order they were ticked, and reads the repair once, not on every redraw.
+    - A staff or emergency line waiting for the other system's log is kept if writing it fails, and written at the next opening.
+    - If the emergency password is saved but the backups' second lock can't be added, the owner is told the password works and to choose it again later.
+    - A deposit is taken while a service waits for the owner's price. The owner's price can't be under what was paid.
 - Rule C (cash out): kept as it is (owner's decision).
-- **Still to do:** a new `.ipa`. No new native module is added, but database 16 always ships in a new `.ipa`, never as an instant update. The build is CI run 189. After it, install with Sideloadly and run `npm run update:record`. The simulator run waits for the owner's word.
-- **For the owner:** set the credit code, the invoice code and the backup password, and list the repair services. The backup password can't be recovered: a sealed backup can't be opened without it.
+- **Still to do:** a new `.ipa`. No new native module is added, but database 16 always ships in a new `.ipa`, never as an instant update. The build is a CI run after the phase K check (run 193 was before it). After it, install with Sideloadly on both devices and run `npm run update:record`. The simulator run waits for the owner's word.
+- **For the owner:**
+  - Install the new `.ipa` on both devices first: an older app can't open the new backups (version 2).
+  - The codes and passwords are kept on each device, never copied: set the credit code, the invoice code, the backup password and the emergency password on both devices. A device without the emergency password has no way back if the PIN is forgotten.
+  - List the repair services.
+  - After choosing the emergency password, copy a new backup off the device: backups made before it have no second lock and open only with the backup password.
+  - The backup password and the emergency password can't be recovered. A sealed backup opens with either one; without both, it can't be opened.
 
 ### Phase 10: switching over
 

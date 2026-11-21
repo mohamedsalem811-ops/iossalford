@@ -289,22 +289,22 @@ export const recordWrongPin = (ctx: Ctx, a: Actor, lockedFor?: number) =>
       : `رمز خاطئ لـ ${actorName(a)}`,
   );
 
+/** What the log says for the emergency password and PIN resets (also kept for the other system). */
+export const EMERGENCY_USED = 'استُخدمت كلمة سر الطوارئ لتعيين رمز جديد للمالك';
+export const EMERGENCY_WRONG = 'كلمة سر طوارئ خاطئة';
+export const pinResetText = (a: Actor) => `أعاد المالك رمز ${actorName(a)} بموافقته`;
+
 /** The emergency password (or the old code) was used to set a new owner PIN. */
 export const recordEmergency = (ctx: Ctx) =>
-  logAs(
-    ctx,
-    { key: 'owner', name: 'المالك' },
-    'pin.emergency',
-    'استُخدمت كلمة سر الطوارئ لتعيين رمز جديد للمالك',
-  );
+  logAs(ctx, { key: 'owner', name: 'المالك' }, 'pin.emergency', EMERGENCY_USED);
 
 /** A wrong emergency password at sign-in (K10, point 4). */
 export const recordEmergencyWrong = (ctx: Ctx) =>
-  logAs(ctx, { key: 'owner', name: 'المالك' }, 'pin.emergency.wrong', 'كلمة سر طوارئ خاطئة');
+  logAs(ctx, { key: 'owner', name: 'المالك' }, 'pin.emergency.wrong', EMERGENCY_WRONG);
 
 /** The owner approved, at the counter, a new PIN for an employee who forgot theirs (point 3). */
 export const recordPinReset = (ctx: Ctx, a: Actor) =>
-  logAs(ctx, personOf(a), 'pin.reset', `أعاد المالك رمز ${actorName(a)} بموافقته`);
+  logAs(ctx, personOf(a), 'pin.reset', pinResetText(a));
 
 /** Staff changes (the list is shared by both systems; the line goes to the open one). */
 export const recordStaff = (ctx: Ctx, summary: string, details?: Record<string, unknown>) =>
@@ -317,6 +317,8 @@ export const recordStaff = (ctx: Ctx, summary: string, details?: Record<string, 
 export const recordStaffFrom = (
   ctx: Ctx,
   line: {
+    /** A staff change when absent; or the emergency password or a PIN reset (K10). */
+    event?: 'staff.change' | 'pin.emergency' | 'pin.emergency.wrong' | 'pin.reset';
     person: { key: string; name: string };
     summary: string;
     details?: Record<string, unknown>;
@@ -324,7 +326,7 @@ export const recordStaffFrom = (
     from: SystemId;
   },
 ) =>
-  logAs(ctx, line.person, 'staff.change', line.summary, {
+  logAs(ctx, line.person, line.event ?? 'staff.change', line.summary, {
     ...line.details,
     at: line.at,
     from: line.from,

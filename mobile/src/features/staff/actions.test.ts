@@ -186,6 +186,23 @@ it('sets the emergency password the owner chooses, typed twice, after the owner�
   expect(JSON.stringify(logStaffChange.mock.calls)).not.toMatch(/mona/i);
 });
 
+it('says the password was saved when only the backups’ second lock failed (K review)', async () => {
+  const { setRecoveryPassword } = jest.requireMock('@/backup/password');
+  setRecoveryPassword.mockRejectedValueOnce(new Error('keychain'));
+  const onMade = jest.fn();
+  const flush = () => new Promise<void>((r) => setImmediate(r));
+  const run = emergencyPasswordFlow('jewelry', false, onMade);
+  await flush();
+  await answer(prompt, 'التالي', 'Mona2026Salem');
+  await answer(prompt, 'حفظ', 'Mona2026Salem');
+  await run;
+  expect(pinVault.setEmergencyPassword).toHaveBeenCalled();
+  expect(onMade).toHaveBeenCalled();
+  expect(logStaffChange).toHaveBeenCalledWith('وضع كلمة سر الطوارئ');
+  expect(alert.mock.lastCall![0]).toBe('حُفظت كلمة سر الطوارئ');
+  expect(alert.mock.lastCall![1]).toContain('النسخ الاحتياطية');
+});
+
 it('does nothing when the owner does not confirm with their PIN', async () => {
   const { askOwner } = jest.requireMock('@/staff/approvals');
   askOwner.mockResolvedValueOnce(null);
@@ -202,7 +219,7 @@ it('sends the list without PINs and adds the people of a received list', async (
   await sendStaffList();
   expect(JSON.parse(sent)).toEqual({
     kind: 'salford-staff',
-    employees: [{ id: 'id-1', name: 'سارة', active: true }],
+    employees: [{ id: 'id-1', name: 'سارة', active: true, systems: ['jewelry', 'scarves'] }],
   });
   expect(sent).not.toContain('963258');
   // The temporary file is gone after sharing.

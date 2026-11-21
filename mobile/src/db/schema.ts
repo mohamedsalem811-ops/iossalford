@@ -1133,6 +1133,10 @@ CREATE TABLE original_invoice_products (
   PRIMARY KEY (invoice_id, product_id)
 );
 CREATE INDEX original_invoice_products_product ON original_invoice_products(product_id);
+-- Names leave the lock screen once (audit 3): the app before saved «show names» with every
+-- reminder setting, chosen or not. The owner can show them again in التنبيهات.
+UPDATE settings SET value = json_set(value, '$.hideNames', json('true'))
+  WHERE key = 'notify' AND json_valid(value);
 `,
   },
 ];

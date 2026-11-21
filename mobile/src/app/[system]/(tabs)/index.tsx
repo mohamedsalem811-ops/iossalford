@@ -33,6 +33,7 @@ import { openOutside, useLock } from '@/state/lock';
 import { useCtx } from '@/state/system-db';
 import { readMySales } from '@/features/dashboard/my-sales';
 import { EmployeeHomeScreen } from '@/screens/employee-home';
+import { pinVault } from '@/security/device';
 import { actorName } from '@/staff/model';
 import { useActor, useCan } from '@/staff/use-can';
 
@@ -300,7 +301,15 @@ function Dashboard() {
     [ctx, month, system],
   );
   const [data, setData] = useState(read);
-  const refresh = useCallback(() => setData(read()), [read]);
+  // The emergency password is in the Keychain (K review): read with the figures, kept apart.
+  const [noEmergency, setNoEmergency] = useState(false);
+  const refresh = useCallback(() => {
+    setData(read());
+    pinVault
+      .emergencyKind()
+      .then((kind) => setNoEmergency(kind !== 'password'))
+      .catch(() => setNoEmergency(false));
+  }, [read]);
   // Fresh figures each time the tab comes back into view (after a sale, a return...).
   useFocusEffect(refresh);
   useOnDataChanged(refresh);
@@ -314,7 +323,7 @@ function Dashboard() {
   return (
     <DashboardScreen
       system={system}
-      data={data}
+      data={{ ...data, attention: { ...data.attention, noEmergency } }}
       orders={orders}
       repairs={repairs}
       gifts={gifts}
@@ -327,6 +336,7 @@ function Dashboard() {
         onOpenBirthdays: () =>
           router.push({ pathname: '/[system]/more/customer-care', params: { system } }),
         onOpenSetup: () => router.push({ pathname: '/[system]/more/loyalty', params: { system } }),
+        onOpenStaff: () => router.push({ pathname: '/[system]/more/staff', params: { system } }),
         onOpenBackup: () => router.push(sectionHref('backup', system)),
         onOpenDay: () => router.push(sectionHref('daySummary', system)),
         onOpenProducts: () => router.push({ pathname: '/[system]/products', params: { system } }),

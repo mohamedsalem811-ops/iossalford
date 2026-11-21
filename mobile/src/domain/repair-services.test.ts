@@ -112,17 +112,27 @@ describe('taking a repair', () => {
     expect(repairReminders(ctx).needPrice.map((r) => r.id)).toEqual([later.repairId]);
   });
 
-  it('keeps the deposit within the price known', () => {
+  it('takes a deposit while a service waits for the owner’s price (K review)', () => {
     ctx.setActor(EMPLOYEE);
+    // Every price known: the deposit stays within it.
     expect(() =>
       takeRepair(
         ctx,
-        piece({
-          services: [{ serviceId: polish }, { serviceId: design }],
-          deposit: { amount: 30_000, method: 'cash' },
-        }),
+        piece({ services: [{ serviceId: polish }], deposit: { amount: 30_000, method: 'cash' } }),
       ),
     ).toThrow('العربون أكبر');
+    // Only «السعر يحدده المالك»: the price is 0 until the owner sets it, and a deposit is taken.
+    const { repairId } = takeRepair(
+      ctx,
+      piece({ services: [{ serviceId: design }], deposit: { amount: 30_000, method: 'cash' } }),
+    );
+    expect(getRepair(ctx, repairId)).toMatchObject({ price: 0, paid: 30_000, unpriced: 1 });
+    // The owner's price can't be under what she paid.
+    ctx.setActor(OWNER);
+    const line = repairLines(ctx, repairId)[0];
+    expect(() => setRepairLinePrice(ctx, line.id, 20_000)).toThrow('المدفوع');
+    expect(setRepairLinePrice(ctx, line.id, 90_000)).toBe(90_000);
+    expect(getRepair(ctx, repairId)!.remaining).toBe(60_000);
   });
 });
 

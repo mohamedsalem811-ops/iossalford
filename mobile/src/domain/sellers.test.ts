@@ -30,7 +30,6 @@ import { displayName, getProduct, saveProduct } from './products';
 import {
   countReceipts,
   getReceipt,
-  issueReceipt,
   listReceipts,
   receiptForSale,
   receiptMonths,
@@ -113,7 +112,8 @@ describe('the seller of a sale', () => {
     const ownerReceipt = receiptForSale(ctx, ownerSale)!;
     ctx.setActor(EMPLOYEE);
     const herSale = sell(ctx, ring);
-    const hers = issueReceipt(ctx, { items: [{ name: 'قطعة', quantity: 1, price: 5 }] });
+    // A second sale of hers (a receipt by hand is the owner's).
+    const hers = receiptForSale(ctx, sell(ctx, ring))!;
     expect(getReceipt(ctx, hers.id)).toMatchObject({ id: hers.id });
     expect(receiptForSale(ctx, herSale)).toBeDefined();
     expect(listReceipts(ctx).map((r) => r.id)).toHaveLength(2);

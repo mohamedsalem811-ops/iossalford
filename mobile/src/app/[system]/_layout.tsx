@@ -7,9 +7,13 @@ import { KeyboardBar } from '@/components/keyboard-bar';
 import { DbErrorScreen } from '@/screens/db-error';
 import { SignInScreen, type SignInDeps } from '@/screens/sign-in';
 import { employeesOf, OWNER, setMustChangePin, type Actor } from '@/staff/model';
-import { whenOpen } from '@/staff/guards';
+import { shareWithOther, whenOpen, type SharedEvent } from '@/staff/guards';
 import { LogGuard } from '@/staff/log-guard';
 import {
+  EMERGENCY_USED,
+  EMERGENCY_WRONG,
+  personOf,
+  pinResetText,
   recordEmergency,
   recordEmergencyWrong,
   recordPinReset,
@@ -38,6 +42,24 @@ function actorOf(account: PinAccount): Actor {
  * The PIN checks of one system. Wrong PINs and the emergency code happen before its database is
  * open: their log lines wait and are written when it opens (phase S3).
  */
+const SYSTEM_NAMES = { jewelry: 'المجوهرات', scarves: 'الأوشحة' } as const;
+
+/** A line for this system's log, and kept for the other's (K10: the owner sees it in either). */
+function bothLogs(
+  system: SystemId,
+  write: (ctx: Ctx) => void,
+  event: SharedEvent,
+  who: Actor,
+  summary: string,
+) {
+  whenOpen<Ctx>(system, write);
+  shareWithOther(system, {
+    event,
+    person: personOf(who),
+    summary: `${summary} (في نظام ${SYSTEM_NAMES[system]})`,
+  });
+}
+
 const depsOf = (system: SystemId): SignInDeps => ({
   verify: async (account, pin) => {
     const r = await pinVault.verify(account, pin);
@@ -58,12 +80,14 @@ const depsOf = (system: SystemId): SignInDeps => ({
   emergencyKind: () => pinVault.emergencyKind(),
   checkEmergencyCode: async (code) => {
     const r = await pinVault.checkEmergencyCode(code);
-    if (r.ok) whenOpen<Ctx>(system, (ctx) => recordEmergency(ctx));
-    else if (!('locked' in r)) whenOpen<Ctx>(system, (ctx) => recordEmergencyWrong(ctx));
+    if (r.ok) bothLogs(system, recordEmergency, 'pin.emergency', OWNER, EMERGENCY_USED);
+    else if (!('locked' in r))
+      bothLogs(system, recordEmergencyWrong, 'pin.emergency.wrong', OWNER, EMERGENCY_WRONG);
     return r;
   },
   pinChanged: (id) => saveStaff(setMustChangePin(getStaff(), id, false)),
-  pinReset: (who) => whenOpen<Ctx>(system, (ctx) => recordPinReset(ctx, who)),
+  pinReset: (who) =>
+    bothLogs(system, (ctx) => recordPinReset(ctx, who), 'pin.reset', who, pinResetText(who)),
 });
 const signInDeps = { jewelry: depsOf('jewelry'), scarves: depsOf('scarves') };
 

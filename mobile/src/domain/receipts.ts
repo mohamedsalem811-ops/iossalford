@@ -169,6 +169,8 @@ export type IssueInput = {
 /** Saves a new receipt with the next number. Used by checkout and for receipts made by hand. */
 export function issueReceipt(ctx: Ctx, input: IssueInput): Receipt {
   const by = allow(ctx, 'receipts.create');
+  // A sale's or a deposit's receipt comes with it; one made by hand is the owner's.
+  if (!input.saleId && !input.orderId) allow(ctx, 'receipts.manual');
   const items = cleanItems(input.items);
   const template = input.template ?? DEFAULT_TEMPLATE[ctx.system];
   if (TEMPLATES[template]?.system !== ctx.system)
@@ -233,12 +235,15 @@ export function updateReceipt(
       throw new RuleError(
         'إيصال العربون سجلّ لمبلغ مدفوع: لا تتغير قطعه ولا اسم الزبون، ويمكن تغيير التصميم فقط.',
       );
-    // A sale's receipt is the record of that sale (audit 11): an employee changes how it looks,
-    // never its pieces, prices or customer. The owner may still correct it.
-    const locked = old.saleId !== null && by.kind !== 'owner';
+    // A sale's receipt is the record of that sale (audit 11), and one made by hand is the
+    // owner's (K review): an employee changes how it looks, never its pieces, prices or customer.
+    // The owner may still correct it.
+    const locked = by.kind !== 'owner';
     if (locked && recordChanged(old, input, items))
       throw new RuleError(
-        'إيصال البيعة يطابق البيعة: لا تتغير قطعه وأسعاره واسم الزبون، ويمكن تغيير التصميم وإخفاء الأسعار فقط.',
+        old.saleId !== null
+          ? 'إيصال البيعة يطابق البيعة: لا تتغير قطعه وأسعاره واسم الزبون، ويمكن تغيير التصميم وإخفاء الأسعار فقط.'
+          : 'الإيصال اليدوي للمالك: لا تتغير قطعه وأسعاره واسم الزبون، ويمكن تغيير التصميم وإخفاء الأسعار فقط.',
       );
     const template = input.template ?? old.template;
     if (TEMPLATES[template]?.system !== ctx.system)

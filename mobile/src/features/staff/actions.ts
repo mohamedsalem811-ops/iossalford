@@ -212,19 +212,27 @@ export async function emergencyPasswordFlow(system: SystemId, hasOne: boolean, o
     return refuse('كلمتا السر غير متطابقتين، لم يتغير شيء.');
   try {
     await pinVault.setEmergencyPassword(first);
-    await setRecoveryPassword(first);
   } catch {
-    return refuse('تعذّر حفظ كلمة سر الطوارئ');
+    return refuse('تعذّر حفظ كلمة سر الطوارئ، لم يتغير شيء.');
   }
-  // The backups already on the device get the second lock (in the background).
-  void sealBackups('jewelry');
-  void sealBackups('scarves');
+  // Saved: it opens the system now. The backups' second lock is a step of its own.
+  let locked = true;
+  try {
+    await setRecoveryPassword(first);
+    // The backups already on the device get the second lock (in the background).
+    void sealBackups('jewelry');
+    void sealBackups('scarves');
+  } catch {
+    locked = false;
+  }
   logStaffChange(what);
   haptic.success();
   onMade();
   Alert.alert(
     'حُفظت كلمة سر الطوارئ',
-    'لن تظهر مرة أخرى. احفظها في مكان آمن خارج الجهاز. الحروف الكبيرة والصغيرة سواء.',
+    locked
+      ? 'لن تظهر مرة أخرى. احفظها في مكان آمن خارج الجهاز. الحروف الكبيرة والصغيرة سواء.'
+      : 'تفتح لك النظام إن نسيت رمزك، لكن تعذّر إضافتها قفلاً ثانياً على النسخ الاحتياطية. اخترها مرة أخرى من هنا لاحقاً. احفظها خارج الجهاز.',
     [{ text: 'حسناً' }],
   );
 }
@@ -250,15 +258,21 @@ export async function receiveStaffList() {
   if (r.canceled || !r.assets[0]) return;
   try {
     const text = await new File(r.assets[0].uri).text();
-    const { staff, added } = mergeTransfer(getStaff(), text, new Date());
+    const { staff, added, updated } = mergeTransfer(getStaff(), text, new Date());
     saveStaff(staff);
-    if (added) logStaffChange(`استلام قائمة الموظفين: أُضيف ${added}`);
+    const parts = [
+      ...(added ? [`أُضيف ${added}`] : []),
+      ...(updated ? [`تغيّرت أنظمة ${updated}`] : []),
+    ];
+    if (parts.length) logStaffChange(`استلام قائمة الموظفين: ${parts.join('، ')}`);
     haptic.success();
+    const lines = [
+      ...(added ? [`أُضيف ${added} موظف. يدخل كل واحد أول مرة بموافقتك، ثم يختار رمزه.`] : []),
+      ...(updated ? [`تغيّرت الأنظمة التي يدخلها ${updated} موظف كما في الجهاز الآخر.`] : []),
+    ];
     Alert.alert(
       'تم استلام القائمة',
-      added
-        ? `أُضيف ${added} موظف. يدخل كل واحد أول مرة بموافقتك، ثم يختار رمزه.`
-        : 'كل الموظفين في القائمة موجودون على هذا الجهاز.',
+      lines.length ? lines.join('\n') : 'كل الموظفين في القائمة موجودون على هذا الجهاز.',
     );
   } catch (error) {
     refuse(error instanceof Error ? error.message : 'تعذّر قراءة الملف');

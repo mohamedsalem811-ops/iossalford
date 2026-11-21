@@ -23,6 +23,7 @@ import {
   saveVerified,
   setOpenLog,
   showBreaks,
+  keepStaffLines,
   takeStaffLines,
   takeWaiting,
 } from './guards';
@@ -99,6 +100,8 @@ export function writeStaffLines(ctx: Ctx) {
       for (const l of lines) recordStaffFrom(ctx, l);
     });
   } catch (error) {
+    // Nothing was written (one transaction): the lines wait for the next opening.
+    keepStaffLines(ctx.system, lines);
     logError('سجل النشاط', error);
   }
 }

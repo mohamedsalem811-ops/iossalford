@@ -3,7 +3,7 @@
  *
  * A sale's receipt is a record of that sale (audit 11): an employee changes its design, hides
  * the prices or the specs, but never its pieces, prices or customer, which come from the sale.
- * A manual receipt stays the employee's to edit; the owner may still correct a sale's receipt.
+ * A receipt made by hand is the owner's (K review); the owner may still correct a sale's receipt.
  */
 import { OWNER } from '@/staff/model';
 
@@ -57,17 +57,33 @@ describe("a sale's receipt", () => {
     expect(saved.items[0].price).toBe(500);
   });
 
-  it('lets the owner correct it, and an employee edit a manual receipt', () => {
+  it('lets the owner correct it', () => {
     const r = receiptForSale(ctx, sell(ctx, ring))!;
     ctx.setActor(OWNER);
     expect(updateReceipt(ctx, r.id, { items: r.items, customer: 'منى علي' }).customer).toBe(
       'منى علي',
     );
+  });
+});
+
+describe('a receipt made by hand', () => {
+  let ctx: TestCtx;
+  beforeEach(() => (ctx = makeCtx()));
+  afterEach(() => ctx.close());
+
+  it("is the owner's: an employee can't make one, nor change its pieces (K review)", () => {
     ctx.setActor(EMPLOYEE);
+    expect(() => issueReceipt(ctx, { items: [{ name: 'قطعة', quantity: 1, price: 5 }] })).toThrow(
+      'إيصال يدوي: للمالك فقط.',
+    );
+    ctx.setActor(OWNER);
     const manual = issueReceipt(ctx, { items: [{ name: 'قطعة', quantity: 1, price: 5 }] });
-    expect(
-      updateReceipt(ctx, manual.id, { items: [{ name: 'قطعة', quantity: 2, price: 5 }] }).items[0]
-        .quantity,
-    ).toBe(2);
+    ctx.setActor(EMPLOYEE);
+    expect(() =>
+      updateReceipt(ctx, manual.id, { items: [{ name: 'قطعة', quantity: 2, price: 5 }] }),
+    ).toThrow(RuleError);
+    expect(getReceipt(ctx, manual.id)).toBeUndefined();
+    ctx.setActor(OWNER);
+    expect(getReceipt(ctx, manual.id)!.items[0].quantity).toBe(1);
   });
 });

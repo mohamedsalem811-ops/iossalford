@@ -18,6 +18,8 @@ export const PERMISSIONS = {
   'returns.charge': 'تحميل المرتجع على الموظف',
   'staff.ledger': 'حساب الموظف',
   'receipts.create': 'إصدار إيصال',
+  /** A receipt made by hand (not a sale's or a deposit's): the owner only (K review). */
+  'receipts.manual': 'إيصال يدوي',
   'receipts.edit': 'تعديل إيصال',
   'receipts.delete': 'حذف إيصال',
   'customers.edit': 'إضافة وتعديل الزبائن',
@@ -51,9 +53,10 @@ export const PERMISSIONS = {
   'repairs.cancel': 'إلغاء صيانة',
   'repairs.price': 'تحديد سعر خدمات الصيانة',
   'invoices.manage': 'الفواتير الأصلية: إضافتها وربطها بالقطع',
-  'invoices.open': 'فتح الفاتورة الأصلية (برمز الفواتير)',
   // Seeing (checked by the screens).
   'costs.view': 'التكلفة والربح',
+  // Opening an original invoice only reads it: never blocked by the clock (K review).
+  'invoices.open': 'فتح الفاتورة الأصلية (برمز الفواتير)',
   'reports.view': 'ملخص الشهر والتقارير',
   'sales.viewAll': 'مبيعات الآخرين',
   'expenses.view': 'عرض المصروفات',
@@ -79,6 +82,8 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'returns.charge': false,
   'staff.ledger': false,
   'receipts.create': true,
+  // Any items at any price: a receipt by hand is the owner's.
+  'receipts.manual': false,
   // Choosing the design and hiding prices after a sale edits its receipt.
   'receipts.edit': true,
   'receipts.delete': false,

@@ -22,7 +22,8 @@ export default function RepairTicketRoute() {
   const { colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const phones = useCan('customers.phones');
-  const repair = getRepair(ctx, Number(id));
+  // Read once for this ticket (not on every redraw: the photo and the font arrive later).
+  const repair = useMemo(() => getRepair(ctx, Number(id)), [ctx, id]);
   const [busy, setBusy] = useState(false);
   const [width, setWidth] = useState(0);
   const [fontCss, setFontCss] = useState('');

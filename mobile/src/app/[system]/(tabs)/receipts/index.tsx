@@ -26,6 +26,7 @@ import { useCtx } from '@/state/system-db';
 import { errorBoundary } from '@/components/error-screen';
 import { useSearchShortcut, useShortcut } from '@/lib/key-commands';
 import { typed } from '@/lib/typing';
+import { useCan } from '@/staff/use-can';
 
 /**
  * The receipts tab: every receipt, newest first. Search by number, customer or piece; filter by
@@ -55,7 +56,10 @@ export default function ReceiptsRoute() {
 
   const open = (id: number | 'new') =>
     router.push({ pathname: '/[system]/receipt/[id]', params: { system, id: String(id) } });
-  useShortcut('new', () => open('new'));
+  // A receipt by hand is the owner's (K review): a sale's receipt comes with the sale.
+  const manual = useCan('receipts.manual');
+  const newReceipt = manual ? () => open('new') : undefined;
+  useShortcut('new', () => newReceipt?.());
   const fail = () => Alert.alert('تعذّر إنشاء ملف الإيصال', 'حاول مرة أخرى.');
   // iPad: the receipt shown beside the list (read again with the list, so edits show at once).
   const { split } = useLayout();
@@ -115,12 +119,11 @@ export default function ReceiptsRoute() {
             ))}
           </Stack.Toolbar.Menu>
         </Stack.Toolbar.Menu>
-        <Stack.Toolbar.Button
-          icon="plus"
-          accessibilityLabel="إيصال جديد"
-          onPress={() => open('new')}>
-          إيصال جديد
-        </Stack.Toolbar.Button>
+        {newReceipt ? (
+          <Stack.Toolbar.Button icon="plus" accessibilityLabel="إيصال جديد" onPress={newReceipt}>
+            إيصال جديد
+          </Stack.Toolbar.Button>
+        ) : null}
       </Stack.Toolbar>
       {split ? (
         <BelowHeader>
@@ -131,7 +134,7 @@ export default function ReceiptsRoute() {
                 total={facts.count}
                 onEndReached={shown.loadMore}
                 filtered={filtered}
-                onNew={() => open('new')}
+                onNew={newReceipt}
                 actions={{
                   onOpen: (r) => (split ? setSelectedId(r.id) : open(r.id)),
                   onPrint: (r) => printReceipt(receiptDoc(r)).catch(fail),
@@ -179,7 +182,7 @@ export default function ReceiptsRoute() {
           total={facts.count}
           onEndReached={shown.loadMore}
           filtered={filtered}
-          onNew={() => open('new')}
+          onNew={newReceipt}
           actions={{
             onOpen: (r) => open(r.id),
             onPrint: (r) => printReceipt(receiptDoc(r)).catch(fail),
