@@ -15,6 +15,7 @@ import { useReadable } from '@/hooks/use-readable';
 import { spacing } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
 import { useSearchShortcut } from '@/lib/key-commands';
+import { typed } from '@/lib/typing';
 
 /** Management → Sales history: every checkout as one sale, by month and payment, searchable. */
 export default function SalesRoute() {
@@ -47,7 +48,7 @@ export default function SalesRoute() {
         placeholder="القطعة أو الكود أو الزبون"
         cancelButtonText="إلغاء"
         hideWhenScrolling={false}
-        onChangeText={(e) => setQuery((q) => ({ ...q, search: e.nativeEvent.text }))}
+        onChangeText={typed((e) => setQuery((q) => ({ ...q, search: e.nativeEvent.text })))}
         onCancelButtonPress={() => setQuery((q) => ({ ...q, search: '' }))}
       />
       <Stack.Toolbar placement="right">

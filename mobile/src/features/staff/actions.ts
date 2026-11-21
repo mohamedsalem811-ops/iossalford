@@ -20,12 +20,15 @@ import {
   setActive,
   setGrant,
   setMustChangePin,
+  setWorksIn,
   transferText,
+  worksIn,
   type Employee,
   type LockSettings,
 } from '@/staff/model';
 import { logStaffChange } from '@/staff/guards';
 import { getStaff, saveStaff } from '@/staff/store';
+import type { SystemId } from '@/theme';
 
 const refuse = (message: string) => {
   haptic.error();
@@ -224,4 +227,23 @@ export async function receiveStaffList() {
   } catch (error) {
     refuse(error instanceof Error ? error.message : 'تعذّر قراءة الملف');
   }
+}
+
+const SYSTEM_NAMES = { jewelry: 'المجوهرات', scarves: 'الأوشحة' } as const;
+
+/** Ticks or unticks a system for an employee (rule A). Logged; at least one stays ticked. */
+export function toggleSystemFlow(e: Employee, system: SystemId) {
+  const on = !worksIn(e, system);
+  try {
+    saveStaff(setWorksIn(getStaff(), e.id, system, on));
+  } catch (error) {
+    return refuse(error instanceof Error ? error.message : 'تعذّر الحفظ');
+  }
+  logStaffChange(
+    on
+      ? `${e.name} يعمل في نظام ${SYSTEM_NAMES[system]}`
+      : `${e.name} لا يعمل في نظام ${SYSTEM_NAMES[system]}`,
+    { id: e.id, system, on },
+  );
+  haptic.success();
 }

@@ -7,10 +7,12 @@ import {
   LOCK_CHOICES,
   sortedStaff,
   WARN_CHOICES,
+  worksIn,
   type Employee,
   type LockSettings,
   type Staff,
 } from '@/staff/model';
+import type { SystemId } from '@/theme';
 
 export type StaffActions = {
   onAdd: () => void;
@@ -20,6 +22,8 @@ export type StaffActions = {
   /** Seeing customers' phone numbers in full (feature 26). */
   onTogglePhones?: (e: Employee) => void;
   onToggleSpend?: (e: Employee) => void;
+  /** Which systems the person signs in to (rule A). */
+  onToggleSystem?: (e: Employee, system: SystemId) => void;
   onLock: (lock: LockSettings) => void;
   onEmergencyCode: () => void;
   onSendList: () => void;
@@ -27,6 +31,9 @@ export type StaffActions = {
   /** The employee's account: charges for returns and repayments (phase S4). */
   onAccount?: (e: Employee) => void;
 };
+
+const SYSTEMS: SystemId[] = ['jewelry', 'scarves'];
+const SYSTEM_NAMES: Record<SystemId, string> = { jewelry: 'المجوهرات', scarves: 'الأوشحة' };
 
 const seesPhones = (e: Employee) => (e.grants ?? []).includes('customers.phones');
 const seesSpend = (e: Employee) => (e.grants ?? []).includes('customers.spend');
@@ -85,6 +92,12 @@ export function StaffScreen({
               },
             ]
           : []),
+        ...(actions.onToggleSystem
+          ? SYSTEMS.map((system) => ({
+              label: `${worksIn(e, system) ? '✓ ' : ''}يعمل في ${SYSTEM_NAMES[system]}`,
+              value: () => actions.onToggleSystem!(e, system),
+            }))
+          : []),
         {
           label: e.active ? 'إيقاف الموظف' : 'تفعيل الموظف',
           value: () => actions.onToggleActive(e),
@@ -115,6 +128,9 @@ export function StaffScreen({
                 e.mustChangePin ? 'لم يختر رمزه بعد' : null,
                 seesPhones(e) ? 'يرى أرقام الزبائن' : null,
                 seesSpend(e) ? 'يرى مجموع المشتريات' : null,
+                SYSTEMS.every((x) => worksIn(e, x))
+                  ? null
+                  : `${SYSTEM_NAMES[SYSTEMS.find((x) => worksIn(e, x))!]} فقط`,
               ]
                 .filter(Boolean)
                 .join(' • ')}

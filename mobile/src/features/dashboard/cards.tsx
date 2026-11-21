@@ -110,6 +110,7 @@ const ALERT_ICONS: Record<AlertKind, SymbolViewProps['name']> = {
   shortage: 'banknote',
   clock: 'clock.badge.exclamationmark',
   log: 'list.bullet.clipboard',
+  invoice: 'doc.text.magnifyingglass',
 };
 
 export function AttentionCard({

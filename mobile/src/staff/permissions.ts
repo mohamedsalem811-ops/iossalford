@@ -49,6 +49,9 @@ export const PERMISSIONS = {
   'repairs.deliver': 'مراحل الصيانة وتسليمها',
   'repairs.cost': 'تكلفة الورشة',
   'repairs.cancel': 'إلغاء صيانة',
+  'repairs.price': 'تحديد سعر خدمات الصيانة',
+  'invoices.manage': 'الفواتير الأصلية: إضافتها وربطها بالقطع',
+  'invoices.open': 'فتح الفاتورة الأصلية (برمز الفواتير)',
   // Seeing (checked by the screens).
   'costs.view': 'التكلفة والربح',
   'reports.view': 'ملخص الشهر والتقارير',
@@ -117,6 +120,12 @@ export const EMPLOYEE_MAY: Record<Permission, boolean> = {
   'repairs.deliver': true,
   'repairs.cost': false,
   'repairs.cancel': false,
+  // The price of a service «السعر يحدده المالك» on a repair is the owner's (rule D).
+  'repairs.price': false,
+  // The original invoices (jewelry): the owner adds them; an employee opens one only with the
+  // owner's invoice code, and every opening is logged and alerts the owner.
+  'invoices.manage': false,
+  'invoices.open': true,
   'costs.view': false,
   'reports.view': false,
   'sales.viewAll': false,

@@ -26,6 +26,13 @@ jest.mock('@/backup/store', () => ({
   saveBackup: jest.fn(),
   savedBackupUri: jest.fn(),
   shareCopy: jest.fn(() => Promise.resolve()),
+  sealBackups: jest.fn(() => Promise.resolve()),
+  BackupPasswordNotSet: class BackupPasswordNotSet extends Error {},
+}));
+jest.mock('@/backup/password', () => ({
+  ...jest.requireActual('@/backup/password'),
+  hasBackupPassword: jest.fn(() => false),
+  setBackupPassword: jest.fn(() => Promise.resolve(null)),
 }));
 
 const store = jest.requireMock('@/backup/store') as Record<string, jest.Mock>;
@@ -144,5 +151,40 @@ describe('restoring a backup', () => {
     await act(async () => done());
     await waitFor(() => expect(screen.queryByTestId('working')).toBeNull());
     expect(alert).toHaveBeenLastCalledWith('تمت الاستعادة', expect.any(String));
+  });
+});
+
+describe('the backup password', () => {
+  let ctx: TestCtx;
+  beforeEach(() => {
+    ctx = makeCtx();
+    jest.clearAllMocks();
+  });
+  afterEach(() => ctx.close());
+
+  it('is typed twice, then every backup of both systems is sealed with it', async () => {
+    const password = jest.requireMock('@/backup/password') as Record<string, jest.Mock>;
+    const prompt = jest.spyOn(Alert, 'prompt').mockImplementation((_t, _m, buttons) => {
+      if (Array.isArray(buttons))
+        buttons.find((b) => b.text === 'التالي')?.onPress?.('salford-2026');
+    });
+    await renderScreen(
+      <BackupScreen
+        ctx={ctx}
+        backups={[]}
+        lastCopied={null}
+        firstBackup={null}
+        onChanged={jest.fn()}
+      />,
+    );
+    expect(screen.getByTestId('backup-password')).toHaveTextContent(/غير مضبوطة/);
+    await fireEvent.press(screen.getByTestId('backup-password'));
+    await waitFor(() =>
+      expect(password.setBackupPassword).toHaveBeenCalledWith(ctx, 'salford-2026'),
+    );
+    await waitFor(() => expect(store.sealBackups).toHaveBeenCalledTimes(2));
+    expect(store.sealBackups.mock.calls.map((c) => c[0])).toEqual(['jewelry', 'scarves']);
+    expect(await screen.findByText('مضبوطة')).toBeOnTheScreen();
+    prompt.mockRestore();
   });
 });

@@ -75,4 +75,21 @@ describe('the shift report', () => {
     expect(labels).not.toContain('الفرق');
     expect(shiftReportHtml({ ...report, shift: open })).toContain('مفتوحة');
   });
+
+  it('hides the expected cash from an employee while the shift is open (audit 7)', () => {
+    const open: Shift = {
+      ...shift,
+      closedAt: null,
+      countedCash: null,
+      expectedCash: null,
+      difference: null,
+    };
+    const blind = { ...report, shift: open, blind: true };
+    expect(reportRows(blind).map((r) => r.label)).not.toContain('المتوقع في الدرج');
+    expect(shiftReportHtml(blind)).not.toContain('430');
+    // The owner still sees it.
+    expect(reportRows({ ...report, shift: open }).map((r) => r.label)).toContain(
+      'المتوقع في الدرج',
+    );
+  });
 });

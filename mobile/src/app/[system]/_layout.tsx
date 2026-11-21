@@ -6,7 +6,7 @@ import { AutoBackup } from '@/backup/auto-backup';
 import { KeyboardBar } from '@/components/keyboard-bar';
 import { DbErrorScreen } from '@/screens/db-error';
 import { SignInScreen, type SignInDeps } from '@/screens/sign-in';
-import { activeEmployees, OWNER, setMustChangePin, type Actor } from '@/staff/model';
+import { employeesOf, OWNER, setMustChangePin, type Actor } from '@/staff/model';
 import { whenOpen } from '@/staff/guards';
 import { LogGuard } from '@/staff/log-guard';
 import { recordEmergency, recordSignIn, recordWrongPin } from '@/domain/activity';
@@ -94,7 +94,7 @@ function SystemGate({ system }: { system: SystemId }) {
     return (
       <SignInScreen
         system={system}
-        employees={activeEmployees(staff)}
+        employees={employeesOf(staff, system)}
         deps={signInDeps[system]}
         onUnlock={onUnlock}
         onBack={toChooser}
@@ -188,6 +188,7 @@ function SystemStack() {
       }>
       <Stack.Screen name="product/[id]" options={sheet} />
       <Stack.Screen name="photo/[id]" options={sheet} />
+      <Stack.Screen name="invoices/[id]" options={sheet} />
       <Stack.Screen name="design/[id]" options={sheet} />
       <Stack.Screen name="stock/[id]" options={halfSheet} />
       <Stack.Screen name="customer-form/[id]" options={sheet} />

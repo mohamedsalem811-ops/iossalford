@@ -16,14 +16,35 @@ import {
   savedBackupUri,
   shareCopy,
   discardPicked,
+  BackupPasswordNotSet,
+  sealBackups,
   type PickedBackup,
 } from '@/backup/store';
+import {
+  backupPasswordProblem,
+  BackupPasswordNeeded,
+  hasBackupPassword,
+  setBackupPassword,
+} from '@/backup/password';
 import { formatDate, formatTime } from '@/lib/dates';
 import { notifyDataChanged } from '@/state/data-events';
 import { spacing } from '@/theme';
 import { haptic } from '@/lib/haptics';
 
 const SYSTEM_NAMES = { jewelry: 'المجوهرات', scarves: 'الأوشحة' } as const;
+
+const askText = (title: string, message: string) =>
+  new Promise<string | null>((resolve) =>
+    Alert.prompt(
+      title,
+      message,
+      [
+        { text: 'إلغاء', style: 'cancel', onPress: () => resolve(null) },
+        { text: 'التالي', onPress: (v?: string) => resolve(v ?? '') },
+      ],
+      'secure-text',
+    ),
+  );
 
 const fail = (error: unknown, title = 'تعذّرت العملية') =>
   Alert.alert(
@@ -55,6 +76,46 @@ export function BackupScreen({
   const now = ctx.now();
   const reminder = copyReminder(lastCopied, now, firstBackup);
   const system = SYSTEM_NAMES[ctx.system];
+  const [hasPassword, setHasPassword] = useState(hasBackupPassword);
+
+  /**
+   * The backup password (audit 2): typed twice; every backup on the device is then sealed with it
+   * (both systems), and every copy off the device leaves sealed.
+   */
+  const setPassword = async (): Promise<boolean> => {
+    const first = await askText(
+      hasPassword ? 'كلمة سر جديدة للنسخ' : 'كلمة سر النسخ الاحتياطي',
+      'تُقفل بها كل النسخ. احفظها في مكان آمن: لا تُفتح النسخة على جهاز آخر بدونها، ولا يمكن استرجاعها.',
+    );
+    if (first === null) return false;
+    const problem = backupPasswordProblem(first);
+    if (problem) {
+      fail(new RuleError(problem), 'لم تُحفظ كلمة السر');
+      return false;
+    }
+    const again = await askText('كلمة سر النسخ الاحتياطي', 'اكتبها مرة أخرى للتأكيد.');
+    if (again === null) return false;
+    if (again !== first) {
+      fail(new RuleError('الكلمتان غير متطابقتين.'), 'لم تُحفظ كلمة السر');
+      return false;
+    }
+    setWorking('جارٍ قفل النسخ بكلمة السر…');
+    try {
+      await letScreenDraw();
+      const old = await setBackupPassword(ctx, first);
+      await sealBackups('jewelry', old);
+      await sealBackups('scarves', old);
+    } catch (error) {
+      fail(error, 'لم تُحفظ كلمة السر');
+      return false;
+    } finally {
+      setWorking(null);
+    }
+    haptic.success();
+    setHasPassword(true);
+    onChanged();
+    return true;
+  };
 
   const saveNow = async () => {
     setWorking('جارٍ حفظ النسخة…');
@@ -103,7 +164,19 @@ export function BackupScreen({
       await shareCopy(ctx, () => setWorking(null));
       shared = true;
     } catch (error) {
-      fail(error, 'لم تُنسخ النسخة');
+      if (error instanceof BackupPasswordNotSet) {
+        setWorking(null);
+        Alert.alert('كلمة سر النسخ الاحتياطي', error.message, [
+          { text: 'إلغاء', style: 'cancel' },
+          {
+            text: 'وضع كلمة السر',
+            onPress: () =>
+              void setPassword().then((ok) => {
+                if (ok) void copy();
+              }),
+          },
+        ]);
+      } else fail(error, 'لم تُنسخ النسخة');
     } finally {
       setWorking(null);
       onChanged();
@@ -152,10 +225,22 @@ export function BackupScreen({
     );
   };
 
-  const restoreFrom = async (uri: string) => {
+  const restoreFrom = async (uri: string, password?: string) => {
     try {
-      confirmRestore(await readBackupFile(ctx, uri));
+      confirmRestore(await readBackupFile(ctx, uri, password));
     } catch (error) {
+      // Sealed with a password this device doesn't hold (another device, or an older password).
+      if (
+        error instanceof BackupPasswordNeeded ||
+        (password !== undefined && error instanceof RuleError && /كلمة سر/.test(error.message))
+      ) {
+        const typed = await askText(
+          'كلمة سر النسخ الاحتياطي',
+          password === undefined ? error.message : 'كلمة السر غير صحيحة. جرّب مرة أخرى.',
+        );
+        if (typed !== null) await restoreFrom(uri, typed);
+        return;
+      }
       fail(error, 'لا يمكن استعادة هذا الملف');
     }
   };
@@ -241,6 +326,23 @@ export function BackupScreen({
           testID="backup-now"
         />
       </Card>
+
+      <ListGroup
+        header="الأمان"
+        footer={
+          hasPassword
+            ? 'كل النسخ على الجهاز وكل نسخة تخرج منه مقفلة بكلمة السر. تُفتح على هذا الجهاز دون كتابتها، وعلى جهاز آخر بها.'
+            : 'النسخ غير مقفلة بعد: ضع كلمة سر فتُقفل بها كل النسخ.'
+        }>
+        <ListRow
+          icon="lock.doc"
+          title="كلمة سر النسخ الاحتياطي"
+          value={hasPassword ? 'مضبوطة' : 'غير مضبوطة'}
+          tone={hasPassword ? undefined : 'warning'}
+          onPress={busy ? undefined : () => void setPassword()}
+          testID="backup-password"
+        />
+      </ListGroup>
 
       <ListGroup
         header={`النسخ على هذا الجهاز (${backups.length})`}

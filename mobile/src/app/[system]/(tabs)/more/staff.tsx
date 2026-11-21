@@ -16,6 +16,7 @@ import {
   toggleActiveFlow,
   togglePhonesFlow,
   toggleSpendFlow,
+  toggleSystemFlow,
 } from '@/features/staff/actions';
 import { StaffScreen } from '@/features/staff/staff-screen';
 import { pinVault } from '@/security/device';
@@ -55,6 +56,7 @@ function StaffRouteScreen() {
           onToggleActive: toggleActiveFlow,
           onTogglePhones: togglePhonesFlow,
           onToggleSpend: toggleSpendFlow,
+          onToggleSystem: toggleSystemFlow,
           onLock: saveLock,
           onEmergencyCode: () => emergencyCodeFlow(hasCode, readCode),
           onSendList: sendStaffList,

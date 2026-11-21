@@ -10,6 +10,7 @@ import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
 
 import { dayKey } from '@/lib/dates';
 import { actorKey, actorName, type Actor } from '@/staff/model';
+import type { SystemId } from '@/theme';
 
 import { allowView, nowStamp, pageSql, PermissionError, type Ctx, type Page } from './context';
 
@@ -301,6 +302,26 @@ export const recordEmergency = (ctx: Ctx) =>
 export const recordStaff = (ctx: Ctx, summary: string, details?: Record<string, unknown>) =>
   logAction(ctx, 'staff.change', summary, details);
 
+/**
+ * A staff change made while the other system was open (audit 15), written here under the person
+ * who made it, with when and where.
+ */
+export const recordStaffFrom = (
+  ctx: Ctx,
+  line: {
+    person: { key: string; name: string };
+    summary: string;
+    details?: Record<string, unknown>;
+    at: string;
+    from: SystemId;
+  },
+) =>
+  logAs(ctx, line.person, 'staff.change', line.summary, {
+    ...line.details,
+    at: line.at,
+    from: line.from,
+  });
+
 /** The device clock went back before the latest time seen (S3.4). */
 export const recordClockBack = (ctx: Ctx, latest: Date, now: Date) =>
   logAs(
@@ -330,3 +351,20 @@ export const recordLogBroken = (ctx: Ctx, brokenAt: number) =>
 
 /** The newest line (to remember outside the database), without walking the chain. */
 export const lastLine = (ctx: Ctx) => lastHash(ctx);
+
+const CODE_NAMES = { credit: 'رمز الآجل', invoice: 'رمز الفواتير' } as const;
+
+/** An employee typed one of the owner's codes (rule B, invoices): right or wrong, and for what. */
+export const recordCodeUse = (
+  ctx: Ctx,
+  a: Actor,
+  code: keyof typeof CODE_NAMES,
+  ok: boolean,
+  what: string,
+) =>
+  logAs(
+    ctx,
+    personOf(a),
+    ok ? `code.${code}` : `code.${code}.wrong`,
+    `${ok ? '' : 'خطأ في '}${CODE_NAMES[code]} من ${actorName(a)}: ${what}`,
+  );

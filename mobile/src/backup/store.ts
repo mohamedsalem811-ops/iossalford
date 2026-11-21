@@ -7,9 +7,14 @@
  * and with no memory spike, however many years of sales there are. Every file is written under a
  * temporary name and renamed only when complete, so a half-written backup can't exist. Backups
  * made before Phase 8 (.json) are still listed and still restore.
+ *
+ * Once the owner sets a backup password (audit 2), every backup is sealed with it (seal.ts): each
+ * new one right after it is written, the ones already there once, and every copy shared off the
+ * device before it leaves. A sealed backup opens on this device without the password; elsewhere,
+ * or one sealed with an older password, asks for it.
  */
 import * as DocumentPicker from 'expo-document-picker';
-import { Directory, File, Paths } from 'expo-file-system';
+import { Directory, File, FileMode, Paths } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import * as Sharing from 'expo-sharing';
 
@@ -43,6 +48,25 @@ import {
   type BackupInfo,
   type BackupKind,
 } from './model';
+import { deviceAes } from './device-aes';
+import { backupKey, keyFor, type BackupKey } from './password';
+import {
+  CHUNK,
+  HEADER_BYTES,
+  isSealed,
+  readHeader,
+  seal,
+  unseal,
+  WrongBackupPassword,
+} from './seal';
+
+/** Sharing a copy off the device needs the backup password set first (it leaves sealed). */
+export class BackupPasswordNotSet extends RuleError {
+  constructor() {
+    super('ضع كلمة سر للنسخ الاحتياطي أولاً: كل نسخة تخرج من الجهاز تُقفل بها.');
+    this.name = 'BackupPasswordNotSet';
+  }
+}
 
 /** A backup copied off the device before Phase 8 also carried the system's photos, by name. */
 export type BackupFile = Backup & { photos?: Record<string, string> };
@@ -93,6 +117,111 @@ const removeQuietly = (f: File) => {
     // A leftover temporary file only takes space; it is never listed.
   }
 };
+
+/** The first bytes of a file: enough to tell a sealed backup. */
+function firstBytes(f: File): Uint8Array {
+  const h = f.open(FileMode.ReadOnly);
+  try {
+    return h.readBytesSync(HEADER_BYTES);
+  } finally {
+    h.close();
+  }
+}
+
+/** True when the file is a sealed backup (needs the backup password, or this device's key). */
+export function isSealedFile(uri: string): boolean {
+  const f = new File(uri);
+  return f.exists && isSealed(firstBytes(f));
+}
+
+/** Runs `step` with a reader on `from` and a writer on a new `to`, closing both. */
+async function stream(
+  from: File,
+  to: File,
+  step: (
+    r: { size: number; read: (n: number) => Promise<Uint8Array> },
+    w: { write: (b: Uint8Array) => Promise<void> },
+  ) => Promise<void>,
+) {
+  removeQuietly(to);
+  to.create();
+  const r = from.open(FileMode.ReadOnly);
+  const w = to.open(FileMode.WriteOnly);
+  try {
+    await step(
+      { size: from.size ?? 0, read: (n) => r.readBytes(n) },
+      { write: (b) => w.writeBytes(b) },
+    );
+  } catch (error) {
+    w.close();
+    r.close();
+    removeQuietly(to);
+    throw error;
+  }
+  w.close();
+  r.close();
+}
+
+const sealFile = (from: File, to: File, k: BackupKey) =>
+  stream(from, to, (r, w) =>
+    seal(deviceAes, k.key, { salt: k.salt, rounds: k.rounds, chunk: CHUNK }, r, w),
+  );
+const unsealFile = (from: File, to: File, key: Uint8Array) =>
+  stream(from, to, (r, w) => unseal(deviceAes, key, r, w));
+
+const sameBytes = (a: Uint8Array, b: Uint8Array) =>
+  a.length === b.length && a.every((x, i) => x === b[i]);
+
+/** One sealing at a time, in order. */
+let sealing: Promise<void> = Promise.resolve();
+
+/**
+ * Seals the system's backups that are not sealed with the current password yet: the new ones,
+ * the ones from before a password was set, and (with the old key, when the password changed) the
+ * ones sealed with the old password. Nothing happens while no password is set. Each file is
+ * sealed under a temporary name and only then takes the place of the plain one.
+ */
+export function sealBackups(system: SystemId, old?: BackupKey | null): Promise<void> {
+  sealing = sealing
+    .then(() => sealAll(system, old ?? null))
+    .catch((error: unknown) => console.error('[backup] sealing failed', error));
+  return sealing;
+}
+
+async function sealAll(system: SystemId, old: BackupKey | null) {
+  const k = backupKey();
+  if (!k) return;
+  for (const b of listBackups(system)) {
+    if (b.format !== 'db') continue;
+    const f = new File(folder(system), b.name);
+    if (!f.exists) continue;
+    const first = firstBytes(f);
+    let source = f;
+    let opened: File | null = null;
+    if (isSealed(first)) {
+      const h = readHeader(first);
+      if (sameBytes(h.salt, k.salt)) continue;
+      // Sealed with an older password: sealed again only when its key is known (just changed).
+      if (!old || !sameBytes(h.salt, old.salt)) continue;
+      opened = new File(Paths.cache, `reseal-${system}-${b.name}`);
+      await unsealFile(f, opened, old.key);
+      source = opened;
+    }
+    const part = new File(folder(system), `${b.name}${PART}`);
+    try {
+      await sealFile(source, part, k);
+    } finally {
+      if (opened) removeQuietly(opened);
+    }
+    // The plain file may have been pruned meanwhile: then the sealed copy goes too.
+    if (!f.exists) {
+      removeQuietly(part);
+      continue;
+    }
+    f.delete();
+    part.rename(b.name);
+  }
+}
 
 /** The system's backups on the device, newest first (files still being written are left out). */
 export function listBackups(system: SystemId): BackupInfo[] {
@@ -162,6 +291,7 @@ export function saveBackup(ctx: Ctx, kind: BackupKind): BackupInfo | null {
   }
   if (!read(key('first', system))) write(key('first', system), ctx.now().toISOString());
   prune(system);
+  void sealBackups(system);
   return parseBackupName(name);
 }
 
@@ -176,6 +306,7 @@ export function saveUpgradeCopy(system: SystemId, db: Db, at: Date = new Date())
   const { part } = writeCopy(db, system, folder(system), name, timestamp(at));
   part.rename(name);
   prune(system);
+  void sealBackups(system);
 }
 
 export function deleteBackup(ctx: Ctx, name: string) {
@@ -196,7 +327,7 @@ export const lastCopied = (system: SystemId) => readDate(key('copied', system));
 /** When the first backup of this system was saved on this device (kept even after pruning). */
 export const firstBackup = (system: SystemId) => readDate(key('first', system));
 
-/** Photo file names the system uses (products, brands and customers). */
+/** Photo file names the system uses (products, brands, customers, repairs) and its invoices. */
 function photoNames(ctx: Ctx): string[] {
   return ctx.db
     .all<{ f: string }>(
@@ -204,7 +335,8 @@ function photoNames(ctx: Ctx): string[] {
        UNION SELECT image_file FROM brands WHERE image_file IS NOT NULL
        UNION SELECT image_file FROM customers WHERE image_file IS NOT NULL
        UNION SELECT image_file FROM orders WHERE image_file IS NOT NULL
-       UNION SELECT json_each.value FROM repairs, json_each(repairs.photos)`,
+       UNION SELECT json_each.value FROM repairs, json_each(repairs.photos)
+       UNION SELECT file FROM original_invoices`,
     )
     .map((r) => r.f);
 }
@@ -217,6 +349,9 @@ function photoNames(ctx: Ctx): string[] {
  */
 export async function shareCopy(ctx: Ctx, onReady?: () => void): Promise<void> {
   allow(ctx, 'backup.manage');
+  // A copy leaves the device sealed, always (audit 2).
+  const k = backupKey();
+  if (!k) throw new BackupPasswordNotSet();
   logAction(ctx, 'backup.share', 'فتح مشاركة نسخة احتياطية إلى خارج الجهاز');
   saveBackup(ctx, 'manual');
   const name = copyFileName(ctx.system, ctx.now());
@@ -234,8 +369,11 @@ export async function shareCopy(ctx: Ctx, onReady?: () => void): Promise<void> {
     })),
   );
   const file = new File(cache, name);
-  removeQuietly(file);
-  part.rename(name);
+  try {
+    await sealFile(part, file, k);
+  } finally {
+    removeQuietly(part);
+  }
   onReady?.();
   try {
     await Sharing.shareAsync(file.uri, {
@@ -282,7 +420,11 @@ export function savedBackupUri(system: SystemId, name: string) {
  * Reads and checks a backup file without changing it. A database copy is checked on a working
  * copy (the chosen file itself is never touched). Throws a RuleError explaining what is wrong.
  */
-export async function readBackupFile(ctx: Ctx, uri: string): Promise<PickedBackup> {
+export async function readBackupFile(
+  ctx: Ctx,
+  uri: string,
+  password?: string,
+): Promise<PickedBackup> {
   const source = new File(uri);
   if (source.name.endsWith('.json')) {
     let parsed: unknown;
@@ -301,9 +443,22 @@ export async function readBackupFile(ctx: Ctx, uri: string): Promise<PickedBacku
     };
   }
   if (!source.exists) throw new RuleError('لم يُعثر على ملف النسخة الاحتياطية');
-  const work = new File(Paths.cache, `restore-${ctx.system}-${ctx.now().getTime()}.db`);
+  let work = new File(Paths.cache, `restore-${ctx.system}-${ctx.now().getTime()}.db`);
   removeQuietly(work);
   source.copySync(work);
+  if (isSealed(firstBytes(work))) {
+    const sealed = work;
+    work = new File(Paths.cache, `restore-${ctx.system}-${ctx.now().getTime()}-open.db`);
+    try {
+      const key = await keyFor(readHeader(firstBytes(sealed)), password);
+      await unsealFile(sealed, work, key);
+    } catch (error) {
+      if (error instanceof WrongBackupPassword) throw new RuleError(error.message);
+      throw error;
+    } finally {
+      removeQuietly(sealed);
+    }
+  }
   try {
     const info = checkSnapshot(open, work.uri, ctx.system);
     return {

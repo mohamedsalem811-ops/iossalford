@@ -7,8 +7,12 @@
 import * as Crypto from 'expo-crypto';
 import { ActionSheetIOS, Alert } from 'react-native';
 
-import type { ApprovalPurpose } from '@/domain/context';
+import { recordCodeUse } from '@/domain/activity';
+import type { ApprovalPurpose, Ctx } from '@/domain/context';
+import { latinDigits } from '@/lib/digits';
 import { askFaceId, faceIdStatus, pinVault } from '@/security/device';
+import type { OwnerCode } from '@/security/pin';
+import { CODE_TITLES } from '@/features/settings/owner-codes';
 import type { SystemId } from '@/theme';
 
 const LIFETIME_MS = 2 * 60_000;
@@ -52,7 +56,8 @@ export async function askOwner(
   purpose: ApprovalPurpose,
   what: string,
 ): Promise<string | null> {
-  if ((await faceIdStatus(system)) === 'ready') {
+  // Face ID only when the owner switched it on, and never during the owner's PIN lockout.
+  if ((await faceIdStatus(system)) === 'ready' && !(await pinVault.lockedUntil(system))) {
     const r = await askFaceId();
     if (r.ok) return grant(purpose);
   }
@@ -91,4 +96,33 @@ export function chooseReason(title: string, reasons: string[]): Promise<string |
       },
     );
   });
+}
+
+/**
+ * Asks the employee for one of the owner's 4-digit codes (rule B, the original invoices): the
+ * owner gives it when needed. Returns a one-time token for that purpose, or null. Every try is
+ * logged; wrong codes count toward the code's lockout, like a PIN.
+ */
+export async function askCode(ctx: Ctx, code: OwnerCode, what: string): Promise<string | null> {
+  const account = `code.${code}` as const;
+  if (!(await pinVault.hasPin(account))) {
+    Alert.alert(CODE_TITLES[code], 'لم يضبط المالك هذا الرمز بعد. يضبطه من الإعدادات.');
+    return null;
+  }
+  const typed = await prompt(CODE_TITLES[code], `${what}\nاكتب الرمز الذي أعطاك إياه المالك.`);
+  if (typed === null) return null;
+  const r = await pinVault.verify(account, latinDigits(typed).trim());
+  const who = ctx.actor;
+  if (who && !('locked' in r))
+    try {
+      recordCodeUse(ctx, who, code, r.ok, what);
+    } catch {
+      // The log line must never stop the counter.
+    }
+  if (r.ok) return grant(code);
+  Alert.alert(
+    'لم يُقبل الرمز',
+    'lockedUntil' in r && r.lockedUntil ? 'محاولات خاطئة كثيرة، جرّب لاحقاً.' : 'الرمز خاطئ.',
+  );
+  return null;
 }

@@ -52,7 +52,8 @@ export const DEFAULT_NOTIFY: NotifyRules = {
   minute: 0,
   closeHour: 21,
   closeMinute: 30,
-  hideNames: false,
+  // Names stay off the lock screen until the owner chooses to show them (audit 3).
+  hideNames: true,
 };
 
 const KEY = 'notify';

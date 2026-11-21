@@ -54,9 +54,17 @@ import {
   moveRepair,
   setRepairCost,
   setRepairDate,
+  setRepairLinePrice,
   setRepairRules,
   takeRepair,
 } from '@/domain/repairs';
+import { removeRepairService, saveRepairService } from '@/domain/repair-services';
+import {
+  addOriginalInvoice,
+  openOriginalInvoice,
+  removeOriginalInvoice,
+  setInvoiceProducts,
+} from '@/domain/original-invoices';
 import {
   cancelOffer,
   deleteGift,
@@ -69,11 +77,11 @@ import {
 import { addReturn, addReturnWithoutSale, deleteReturn, deleteSale, getSale } from '@/domain/sales';
 import { deleteScarfDesign, saveScarfDesign } from '@/domain/scarves';
 import { deleteSet, saveSet } from '@/domain/sets';
-import { setRate } from '@/domain/settings';
+import { recordCodeChange, recordFaceIdChoice, setRate } from '@/domain/settings';
 import { setProductPrice } from '@/domain/slow-stock';
 import { setNotifyRules } from '@/domain/notify';
 import { addToCart, type CartLine } from '@/domain/cart';
-import { EMPLOYEE, makeCtx, passing, type TestCtx } from '@/domain/testing/ctx';
+import { CREDIT_OK, EMPLOYEE, makeCtx, passing, type TestCtx } from '@/domain/testing/ctx';
 import { OWNER } from './model';
 import { ALL_PERMISSIONS, can, EMPLOYEE_MAY, PERMISSIONS, type Permission } from './permissions';
 import { scanActions } from './testing/scan-actions';
@@ -119,6 +127,12 @@ type Seed = {
   /** A repair just taken in, and one ready to collect (J3). */
   repair: number;
   readyRepair: number;
+  /** The owner's services (rule D): one priced, one «السعر يحدده المالك», and its repair line. */
+  service: number;
+  ownerPriced: number;
+  unpricedLine: number;
+  /** An original invoice linked to the ring (jewelry). */
+  invoice: number;
 };
 
 function cartOf(ctx: Ctx, id: number, qty = 1): CartLine[] {
@@ -229,7 +243,28 @@ function seed(ctx: TestCtx): Seed {
   const repair = repairOf();
   const readyRepair = repairOf();
   moveRepair(ctx, readyRepair, 'ready');
+  const service = saveRepairService(ctx, { name: 'تلميع', price: 20_000 });
+  const ownerPriced = saveRepairService(ctx, { name: 'تصميم', price: null });
+  const pricedLater = takeRepair(ctx, {
+    customer: { name: 'منى', phone: '0912345678' },
+    description: 'قلادة',
+    services: [{ serviceId: ownerPriced }],
+    readyBy: '2026-12-01',
+  }).repairId;
+  const unpricedLine = ctx.db.get<{ id: number }>(
+    'SELECT id FROM repair_lines WHERE repair_id = ?',
+    [pricedLater],
+  )!.id;
+  const invoice = addOriginalInvoice(ctx, {
+    file: 'invoice-abc123def456.jpg',
+    kind: 'image',
+    productIds: [ring],
+  });
   return {
+    invoice,
+    service,
+    ownerPriced,
+    unpricedLine,
     repair,
     readyRepair,
     giftDone,
@@ -377,6 +412,14 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     },
     deleteClosing: { permission: 'closing.edit', run: (ctx, s) => deleteClosing(ctx, s.closing) },
     setRate: { permission: 'settings.edit', run: (ctx) => setRate(ctx, 7_000) },
+    recordFaceIdChoice: {
+      permission: 'settings.edit',
+      run: (ctx) => recordFaceIdChoice(ctx, true),
+    },
+    recordCodeChange: {
+      permission: 'settings.edit',
+      run: (ctx) => recordCodeChange(ctx, 'credit', true),
+    },
     setLoyalty: {
       permission: 'settings.edit',
       run: (ctx) => setLoyalty(ctx, { enabled: true }),
@@ -437,7 +480,7 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
       run: (ctx, s) =>
         exchange(ctx, {
           ret: { ...passing(ctx), saleLineId: s.saleLine, quantity: 1 },
-          sale: { cart: cartOf(ctx, s.chain), paymentMethod: 'cash' },
+          sale: { cart: cartOf(ctx, s.chain), paymentMethod: 'cash', creditApproval: CREDIT_OK },
         }),
     },
     chargeReturn: {
@@ -529,14 +572,51 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     },
     takeRepair: {
       permission: 'repairs.take',
-      run: (ctx) =>
+      run: (ctx, s) =>
         takeRepair(ctx, {
           customer: { name: 'هدى', phone: '0923333333' },
           description: 'سوار',
-          work: 'solder',
-          price: 0,
+          services: [{ serviceId: s.service }],
           readyBy: '2026-12-05',
         }),
+    },
+    saveRepairService: {
+      permission: 'settings.edit',
+      run: (ctx, s) => saveRepairService(ctx, { id: s.service, name: 'تلميع', price: 25_000 }),
+    },
+    removeRepairService: {
+      permission: 'settings.edit',
+      run: (ctx, s) => removeRepairService(ctx, s.ownerPriced),
+    },
+    addOriginalInvoice: {
+      permission: 'invoices.manage',
+      run: (ctx, s) =>
+        addOriginalInvoice(ctx, {
+          file: 'invoice-fff111222333.pdf',
+          kind: 'pdf',
+          productIds: [s.ring, s.chain],
+        }),
+    },
+    setInvoiceProducts: {
+      permission: 'invoices.manage',
+      run: (ctx, s) => setInvoiceProducts(ctx, s.invoice, [s.chain]),
+    },
+    removeOriginalInvoice: {
+      permission: 'invoices.manage',
+      run: (ctx, s) => removeOriginalInvoice(ctx, s.invoice),
+    },
+    openOriginalInvoice: {
+      permission: 'invoices.open',
+      run: (ctx, s) =>
+        openOriginalInvoice(
+          { ...ctx, actor: ctx.actor, approvals: { take: () => true } },
+          s.invoice,
+          { approval: 'ok' },
+        ),
+    },
+    setRepairLinePrice: {
+      permission: 'repairs.price',
+      run: (ctx, s) => setRepairLinePrice(ctx, s.unpricedLine, 40_000),
     },
     setRepairDate: {
       permission: 'repairs.take',
@@ -694,6 +774,7 @@ const EVENTS = [
   'recordWrongPin',
   'recordEmergency',
   'recordStaff',
+  'recordStaffFrom',
   'recordClockBack',
   'recordClockAccepted',
   'recordLogBroken',

@@ -21,6 +21,8 @@ import { useCtx } from '@/state/system-db';
 import { errorBoundary } from '@/components/error-screen';
 import { useCan } from '@/staff/use-can';
 import { useSetup } from '@/features/setup/use-setup';
+import { useFaceIdSetting } from '@/features/settings/face-id';
+import { useOwnerCodes } from '@/features/settings/owner-codes';
 
 /** "1.0.0 (1)", or "… — Expo Go" while testing there. */
 function versionText() {
@@ -46,6 +48,9 @@ export default function SettingsRoute() {
   useFocusEffect(refresh);
   useOnDataChanged(refresh);
   const update = useAppUpdate();
+  const faceId = useFaceIdSetting(ctx);
+  const codes = useOwnerCodes(ctx);
+  const owner = ctx.actor?.kind === 'owner';
   const [errorCount, setErrorCount] = useState(() => readLog().length);
   useFocusEffect(useCallback(() => setErrorCount(readLog().length), []));
   const openLog = () =>
@@ -102,6 +107,10 @@ export default function SettingsRoute() {
         }}
         errors={{ count: errorCount, onOpen: openLog }}
         onEditRate={mayEditRate ? () => promptRate(ctx, refresh) : undefined}
+        codes={owner ? codes : undefined}
+        faceId={
+          owner && ctx.system === 'jewelry' ? { on: faceId.on, onToggle: faceId.toggle } : undefined
+        }
         loyalty={
           mayEditRate
             ? {

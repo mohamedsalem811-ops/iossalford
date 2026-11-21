@@ -35,3 +35,25 @@ export function setRate(ctx: Ctx, rate: number) {
     });
   });
 }
+
+/**
+ * The owner switched Face ID on or off for the jewelry system (audit 1). The choice itself is
+ * kept in the Keychain (security/device.ts); this checks who and writes the log line.
+ */
+export function recordFaceIdChoice(ctx: Ctx, on: boolean) {
+  allow(ctx, 'settings.edit');
+  ctx.db.transaction(() =>
+    logAction(ctx, 'settings.faceid', on ? 'تشغيل الدخول بـ Face ID' : 'إيقاف الدخول بـ Face ID', {
+      on,
+    }),
+  );
+}
+
+/** The owner set or changed one of the codes given to employees (logged; never the code). */
+export function recordCodeChange(ctx: Ctx, code: 'credit' | 'invoice', first: boolean) {
+  allow(ctx, 'settings.edit');
+  const name = code === 'credit' ? 'رمز الآجل' : 'رمز الفواتير';
+  ctx.db.transaction(() =>
+    logAction(ctx, 'settings.code', `${first ? 'ضبط' : 'تغيير'} ${name}`, { code }),
+  );
+}

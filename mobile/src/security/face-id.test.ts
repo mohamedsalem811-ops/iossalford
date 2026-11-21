@@ -1,4 +1,4 @@
-import { faceIdFailure, faceIdNote } from './face-id';
+import { faceIdFailure, faceIdFor, faceIdNote } from './face-id';
 
 describe('Face ID messages', () => {
   it('stays quiet when the owner chose the PIN', () => {
@@ -22,5 +22,15 @@ describe('Face ID messages', () => {
     expect(faceIdNote('not-enrolled')).toContain('إعدادات الجهاز');
     expect(faceIdNote('ready')).toBeNull();
     expect(faceIdNote('none')).toBeNull();
+  });
+});
+
+describe('Face ID for a system (audit 1)', () => {
+  it('is off unless the owner switched it on, and only for the jewelry system', () => {
+    expect(faceIdFor('jewelry', false, 'ready')).toBe('off');
+    expect(faceIdFor('jewelry', true, 'ready')).toBe('ready');
+    expect(faceIdFor('jewelry', true, 'not-enrolled')).toBe('not-enrolled');
+    expect(faceIdFor('scarves', true, 'ready')).toBe('none');
+    expect(faceIdNote('off')).toBeNull();
   });
 });

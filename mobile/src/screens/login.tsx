@@ -77,6 +77,8 @@ export function LoginScreen({
   const [faceId, setFaceId] = useState<FaceIdStatus>('none');
   const [faceMessage, setFaceMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  /** The lockout has been read: Face ID is asked only after, and only when not locked. */
+  const [lockRead, setLockRead] = useState(false);
 
   const tryFaceId = useCallback(async () => {
     setFaceMessage(null);
@@ -94,6 +96,7 @@ export function LoginScreen({
       const lockedUntil = await deps.lockedUntil(account);
       if (cancelled) return;
       setUntil(lockedUntil);
+      setLockRead(true);
       const status = ownerAccount ? await deps.faceIdStatus(system) : 'none';
       if (!cancelled) setFaceId(status);
     })();
@@ -105,11 +108,12 @@ export function LoginScreen({
   // Offer Face ID once, as soon as the app is on screen (the login appears while the app is in
   // the background after an auto-lock; asking then would fail). Never again on a re-render.
   const asked = useRef(false);
+  // Never during a PIN lockout (audit 12): Face ID waits like the keypad.
   useEffect(() => {
-    if (faceId !== 'ready' || !active || asked.current) return;
+    if (faceId !== 'ready' || !active || asked.current || !lockRead || until > 0) return;
     asked.current = true;
     tryFaceId();
-  }, [faceId, active, tryFaceId]);
+  }, [faceId, active, tryFaceId, lockRead, until]);
 
   // Count the lockout down every second; the keypad comes back when it reaches zero.
   useEffect(() => {

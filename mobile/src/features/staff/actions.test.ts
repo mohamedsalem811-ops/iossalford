@@ -5,7 +5,7 @@
 import { Alert } from 'react-native';
 
 import { getStaff, saveStaff } from '@/staff/store';
-import { EMPTY_STAFF } from '@/staff/model';
+import { EMPTY_STAFF, worksIn } from '@/staff/model';
 
 import {
   addEmployeeFlow,
@@ -16,6 +16,7 @@ import {
   saveLock,
   sendStaffList,
   toggleActiveFlow,
+  toggleSystemFlow,
 } from './actions';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- jest.mock factories cannot use imports
@@ -116,6 +117,23 @@ it('gives a new temporary PIN, renames, suspends and reactivates', async () => {
   toggleActiveFlow(sara());
   expect(sara().active).toBe(true);
   expect(logStaffChange).toHaveBeenCalledWith('إيقاف سارة علي', { id: 'id-1' });
+});
+
+it('ticks and unticks a system for an employee, logged, keeping one (rule A)', async () => {
+  await addSara();
+  const sara = () => getStaff().employees[0];
+  toggleSystemFlow(sara(), 'jewelry');
+  expect(worksIn(sara(), 'jewelry')).toBe(false);
+  expect(logStaffChange).toHaveBeenLastCalledWith('سارة لا يعمل في نظام المجوهرات', {
+    id: sara().id,
+    system: 'jewelry',
+    on: false,
+  });
+  toggleSystemFlow(sara(), 'scarves');
+  expect(alert.mock.lastCall![0]).toBe('لم يتم الحفظ');
+  expect(worksIn(sara(), 'scarves')).toBe(true);
+  toggleSystemFlow(sara(), 'jewelry');
+  expect(worksIn(sara(), 'jewelry')).toBe(true);
 });
 
 it('saves the auto-lock settings', () => {

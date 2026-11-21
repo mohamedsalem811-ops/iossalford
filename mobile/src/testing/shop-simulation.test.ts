@@ -74,6 +74,7 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
     get actor() {
       return t.actor;
     },
+    // The owner's approvals and the credit code (rule B), given whenever asked.
     approvals: { take: (token) => token === 'ok' },
   };
   const problems: string[] = [];
@@ -224,7 +225,7 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
               openRepairs.splice(openRepairs.indexOf(o), 1);
             } else {
               const method = pick<RepairDeliverMethod>(['cash', 'cash', 'card', 'credit']);
-              deliverRepair(ctx, o.repairId, { method });
+              deliverRepair(ctx, o.repairId, { method, creditApproval: 'ok' });
               if (method === 'cash') drawer += r.remaining;
               if (method === 'credit')
                 owed.set(o.customerId, (owed.get(o.customerId) ?? 0) + r.remaining);
@@ -297,6 +298,7 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
             paymentMethod: method,
             customer: person,
             points,
+            creditApproval: 'ok',
             ...(discounted ? { discountReason: 'زبونة دائمة', approval: 'ok' } : {}),
           });
           sales++;
@@ -428,6 +430,7 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
               paymentMethod: method,
               customer: c,
               orderId: o.orderId,
+              creditApproval: 'ok',
             });
             const sale = getSale(ctx, res.saleId)!;
             for (const l of cart) stock.set(l.productId, stock.get(l.productId)! - l.quantity);
@@ -466,7 +469,7 @@ it(`${DAYS} days of use: the app agrees with an independent record`, () => {
               refundMethod: how,
               ...passing(ctx),
             },
-            sale: { cart: r.cart, paymentMethod: method, customer: person },
+            sale: { cart: r.cart, paymentMethod: method, customer: person, creditApproval: 'ok' },
           });
           exchanges++;
           const refund = t.db.get<{ refund: number }>('SELECT refund FROM returns WHERE id = ?', [

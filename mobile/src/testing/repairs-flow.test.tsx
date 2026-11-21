@@ -18,7 +18,8 @@ import RepairsRoute from '@/app/[system]/(tabs)/more/repairs';
 import RepairFormRoute from '@/app/[system]/repair-form';
 import RepairTicketRoute from '@/app/[system]/repair-ticket/[id]';
 import type { Ctx } from '@/domain/context';
-import { getRepair, listRepairs } from '@/domain/repairs';
+import { getRepair, listRepairs, repairLines } from '@/domain/repairs';
+import { saveRepairService } from '@/domain/repair-services';
 import { routeStubs } from '@/testing/route-stubs';
 
 jest.mock('expo-haptics', () => ({
@@ -163,4 +164,34 @@ it("shows the repairs in the list by stage and on the customer's page", async ()
   await renderRouter(routes, { initialUrl: `/jewelry/more/customer/${repair.customerId}` });
   expect(await screen.findByTestId(`customer-repair-${repair.id}`)).toBeOnTheScreen();
   expect(screen.getByTestId('customer-new-repair')).toBeOnTheScreen();
+});
+
+it('takes a piece with the owner’s services and prices, and the owner prices the rest (rule D)', async () => {
+  const polish = saveRepairService(ctx(), { name: 'تلميع', price: 20_000 });
+  const design = saveRepairService(ctx(), { name: 'تصميم خاص', price: null });
+  const alert = jest.spyOn(Alert, 'alert').mockImplementation(() => {});
+  await renderRouter(routes, { initialUrl: '/jewelry/repair-form' });
+  await fireEvent.changeText(await screen.findByTestId('repair-name'), 'سلمى');
+  await fireEvent.changeText(screen.getByTestId('repair-phone'), '0917777777');
+  await fireEvent.changeText(screen.getByTestId('repair-description'), 'سوار فضة');
+  // No price to type: the services are ticked.
+  expect(screen.queryByTestId('repair-price')).toBeNull();
+  await fireEvent.press(screen.getByTestId(`repair-service-${polish}`));
+  await fireEvent.press(screen.getByTestId(`repair-service-${design}`));
+  expect(screen.getByTestId('repair-total')).toHaveTextContent(
+    'المجموع: 20 د.ل + 1 بسعر يحدده المالك',
+  );
+  await fireEvent.press(screen.getByTestId('repair-save'));
+  expect(alert).not.toHaveBeenCalled();
+  const repair = listRepairs(ctx(), { search: 'سوار فضة' })[0];
+  expect(repair).toMatchObject({ price: 20_000, unpriced: 1, services: 'تلميع، تصميم خاص' });
+
+  const line = repairLines(ctx(), repair.id).find((l) => l.price === null)!;
+  const prompt = jest.spyOn(Alert, 'prompt').mockImplementation((_t, _m, onPress) => {
+    if (typeof onPress === 'function') onPress('45');
+  });
+  await act(async () => router.push(`/jewelry/more/repair/${repair.id}`));
+  await fireEvent.press(await screen.findByTestId(`repair-line-${line.id}`));
+  expect(prompt).toHaveBeenCalled();
+  expect(getRepair(ctx(), repair.id)).toMatchObject({ price: 65_000, unpriced: 0 });
 });

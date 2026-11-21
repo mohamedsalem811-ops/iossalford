@@ -6,8 +6,21 @@
  * does nothing.
  */
 
-/** ready: offer it. expo-go: explain it works in the installed app. not-enrolled: set it up first. */
-export type FaceIdStatus = 'ready' | 'expo-go' | 'not-enrolled' | 'none';
+/**
+ * ready: offer it. expo-go: explain it works in the installed app. not-enrolled: set it up
+ * first. off: the owner has not switched it on (audit 1). none: not on this system or device.
+ */
+export type FaceIdStatus = 'ready' | 'expo-go' | 'not-enrolled' | 'off' | 'none';
+
+/**
+ * Face ID of a system: the jewelry system only, and only once the owner switched it on in
+ * Settings (anyone whose face is saved on the device would open it as the owner).
+ */
+export function faceIdFor(system: string, switchedOn: boolean, device: FaceIdStatus): FaceIdStatus {
+  if (system !== 'jewelry') return 'none';
+  if (!switchedOn) return 'off';
+  return device;
+}
 
 export type FaceIdResult = { ok: true } | { ok: false; error: string };
 
