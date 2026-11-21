@@ -1,5 +1,4 @@
-import type { Repair } from '@/domain/repairs';
-import { pointsLines } from '@/receipts/templates/html';
+import { workText, type Repair } from '@/domain/repairs';
 
 import {
   emptyRepairForm,
@@ -7,7 +6,7 @@ import {
   needsAttention,
   reminderRows,
   repairFormProblem,
-  repairTicketDoc,
+  repairTicketData,
   statusLine,
 } from './model';
 
@@ -83,16 +82,32 @@ describe('the lines shown', () => {
   });
 });
 
-it('prints a ticket with its number, the work, the deposit and the shop note', () => {
-  const doc = repairTicketDoc(repair(), 'jewelry', 'أحضري الإيصال');
-  expect(doc).toMatchObject({
-    kind: 'repair',
-    receiptNo: 'R-2026-0001',
-    deposit: 20_000,
+it('prints the new ticket: the services, the money, the ready date and the shop note', () => {
+  const lines = [
+    { id: 1, serviceId: 3, name: 'تلميع', price: 20_000 },
+    { id: 2, serviceId: 4, name: 'تبديل حجر', price: null },
+  ];
+  const t = repairTicketData(repair({ price: 20_000 }), lines, 'jewelry', 'أحضري الإيصال', true);
+  expect(t).toMatchObject({
+    system: 'jewelry',
+    ticketNo: 'R-2026-0001',
+    date: '17/11/2026',
     customer: 'منى',
-    items: [{ name: 'خاتم ذهب', quantity: 1, price: 50_000 }],
+    phone: '0912345678',
+    description: 'خاتم ذهب',
+    services: [
+      { name: 'تلميع', price: 20_000 },
+      { name: 'تبديل حجر', price: null },
+    ],
+    total: 20_000,
+    paid: 20_000,
+    readyBy: '2026-11-20',
+    terms: 'أحضري الإيصال',
+    takenBy: 'سارة',
   });
-  expect(doc.footer).toContain('أحضري الإيصال');
-  expect(doc.footer).toContain('2026-11-20');
-  expect(pointsLines(doc)).toContain('Remaining');
+  // Someone who may not see phones prints it masked; a repair from before the services shows
+  // its kind of work at its price.
+  const old = repairTicketData(repair(), [], 'jewelry', '', false);
+  expect(old.phone).toBe('091•••5678');
+  expect(old.services).toEqual([{ name: workText(repair()), price: 50_000 }]);
 });

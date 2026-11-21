@@ -1035,7 +1035,7 @@ Each fix has a test written first, which failed before the change.
   - The owner lists the services with a price, or «السعر يحدده المالك».
   - Employees tick services and cannot type a price once the list exists.
   - The owner prices the open lines (`repairs.price`). A repair can't be delivered while a line has no price.
-  - New A4 repair ticket design (`receipts/templates/repair-ticket.ts`, tested). **Waiting:** the owner's approval of the preview, then it is wired in place of the old ticket.
+  - New A4 repair ticket design (`receipts/templates/repair-ticket.ts`), approved by the owner on 2026-11-21 and now the only ticket. It has the services with their prices, the phone masked for staff, the first photo of the piece and the shop's note. It prints through AirPrint and shares as a PDF (`receipts/repair-ticket-output.ts`).
 - **K7:** original invoices, jewelry only (`original_invoices`, `original_invoice_products`).
   - The owner adds a photo or PDF and links it to several pieces.
   - Staff open it with the owner's 4-digit invoice code (`code.invoice`).
@@ -1055,7 +1055,7 @@ Each fix has a test written first, which failed before the change.
   - 16: an employee who may not see phones is told «مسجل مسبقاً لزبون آخر», without the name.
   - 17: a damaged PIN record counts as a wrong PIN.
 - Rule C (cash out): kept as it is (owner's decision).
-- **Still to do:** wire the new repair ticket once approved. Then an instant update (no new `.ipa` is needed; no new native module). The simulator run waits for the owner's word.
+- **Still to do:** an instant update (no new `.ipa` is needed; no new native module). The simulator run waits for the owner's word.
 - **For the owner:** set the credit code, the invoice code and the backup password, and list the repair services. The backup password can't be recovered: a sealed backup can't be opened without it.
 
 ### Phase 10: switching over

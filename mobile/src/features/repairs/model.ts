@@ -1,12 +1,13 @@
 /**
  * What the repair screens show and check (J3), apart from the screens so it can be tested.
  */
-import { DEFAULT_TEMPLATE } from '@/domain/receipts';
+import { maskPhone } from '@/domain/customers';
 import type { RepairService } from '@/domain/repair-services';
 import {
   REPAIR_STATUS_LABELS,
   workText,
   type Repair,
+  type RepairLine,
   type RepairPayMethod,
   type RepairReminders,
   type RepairWork,
@@ -15,7 +16,7 @@ import { etaText } from '@/domain/orders';
 import { formatTime } from '@/lib/dates';
 import { parseThousandths } from '@/lib/digits';
 import { formatLyd } from '@/lib/money';
-import type { ReceiptDoc } from '@/receipts/templates/html';
+import type { RepairTicket } from '@/receipts/templates/repair-ticket';
 import type { SystemId } from '@/theme';
 
 /** "20/11/2026" */
@@ -181,19 +182,35 @@ export function reminderRows(r: RepairReminders): RepairReminderRow[] {
   ).filter((row) => row.repairs.length > 0);
 }
 
-/** The printed repair ticket: its number, the piece and the work, the money and the shop note. */
-export function repairTicketDoc(r: Repair, system: SystemId, note: string): ReceiptDoc {
+/**
+ * What the printed repair ticket shows (the new design): the services ticked with their prices
+ * (a repair from before them: its kind of work), the money, the ready date and the shop's note.
+ * The phone is masked for someone who may not see it.
+ */
+export function repairTicketData(
+  r: Repair,
+  lines: RepairLine[],
+  system: SystemId,
+  terms: string,
+  fullPhone: boolean,
+): RepairTicket {
   const made = new Date(r.createdAt);
   return {
-    template: DEFAULT_TEMPLATE[system],
-    showPrices: true,
-    kind: 'repair',
-    deposit: r.paid,
-    receiptNo: r.ticketNo,
+    system,
+    ticketNo: r.ticketNo,
     date: `${made.getDate()}/${made.getMonth() + 1}/${made.getFullYear()}`,
     time: formatTime(made),
     customer: r.customerName,
-    footer: [workText(r), `Ready / جاهزة: ${r.readyBy}`, r.note, note].filter(Boolean).join('\n'),
-    items: [{ name: r.description, quantity: 1, price: r.price }],
+    phone: fullPhone ? r.customerPhone : maskPhone(r.customerPhone),
+    description: r.description,
+    note: r.note,
+    services: lines.length
+      ? lines.map((l) => ({ name: l.name, price: l.price }))
+      : [{ name: workText(r), price: r.price }],
+    total: r.price,
+    paid: r.paid,
+    readyBy: r.readyBy,
+    terms,
+    takenBy: r.byName,
   };
 }
