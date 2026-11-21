@@ -23,6 +23,8 @@ let ctx: TestCtx;
 // Tuesday 17 November 2026, 8 in the morning.
 beforeEach(() => {
   ctx = makeCtx('jewelry', new Date(2026, 10, 17, 8));
+  // These tests read the names; hidden is the default (audit 3), tested below.
+  setNotifyRules(ctx, { hideNames: false });
 });
 afterEach(() => ctx.close());
 
@@ -198,11 +200,14 @@ describe('the owner’s choices', () => {
     expect(at(of(list, 'repairs')[0])).toBe('11/19 10:15');
   });
 
-  it('hides names on the lock screen when asked', () => {
+  it('hides names on the lock screen until the owner shows them (audit 3)', () => {
     repair('2026-11-18');
     repair('2026-11-18', { name: 'سلمى', phone: '0941111111' });
-    setNotifyRules(ctx, { hideNames: true });
+    ctx.db.run("DELETE FROM settings WHERE key = 'notify'");
+    expect(getNotifyRules(ctx).hideNames).toBe(true);
     expect(of(planReminders(ctx, noBackup), 'repairs')[0].body).toBe('موعدها اليوم: 2');
+    setNotifyRules(ctx, { hideNames: false });
+    expect(of(planReminders(ctx, noBackup), 'repairs')[0].body).toContain('سلمى');
   });
 
   it('says which system, and counts plainly when names are hidden', () => {
@@ -240,7 +245,7 @@ describe('the owner’s choices', () => {
   });
 
   it('checks the times, and only the owner changes them (logged)', () => {
-    expect(getNotifyRules(ctx)).toEqual(DEFAULT_NOTIFY);
+    expect(getNotifyRules(ctx)).toEqual({ ...DEFAULT_NOTIFY, hideNames: false });
     expect(() => setNotifyRules(ctx, { hour: 24 })).toThrow(RuleError);
     expect(() => setNotifyRules(ctx, { closeMinute: 60 })).toThrow(RuleError);
     ctx.setActor(EMPLOYEE);
