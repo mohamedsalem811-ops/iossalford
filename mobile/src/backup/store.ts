@@ -196,7 +196,7 @@ export const lastCopied = (system: SystemId) => readDate(key('copied', system));
 /** When the first backup of this system was saved on this device (kept even after pruning). */
 export const firstBackup = (system: SystemId) => readDate(key('first', system));
 
-/** Photo file names the system uses (products, brands and customers). */
+/** Photo file names the system uses (products, brands, customers, repairs) and its invoices. */
 function photoNames(ctx: Ctx): string[] {
   return ctx.db
     .all<{ f: string }>(
@@ -204,7 +204,8 @@ function photoNames(ctx: Ctx): string[] {
        UNION SELECT image_file FROM brands WHERE image_file IS NOT NULL
        UNION SELECT image_file FROM customers WHERE image_file IS NOT NULL
        UNION SELECT image_file FROM orders WHERE image_file IS NOT NULL
-       UNION SELECT json_each.value FROM repairs, json_each(repairs.photos)`,
+       UNION SELECT json_each.value FROM repairs, json_each(repairs.photos)
+       UNION SELECT file FROM original_invoices`,
     )
     .map((r) => r.f);
 }

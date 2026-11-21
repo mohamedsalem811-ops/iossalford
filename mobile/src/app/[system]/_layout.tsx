@@ -188,6 +188,7 @@ function SystemStack() {
       }>
       <Stack.Screen name="product/[id]" options={sheet} />
       <Stack.Screen name="photo/[id]" options={sheet} />
+      <Stack.Screen name="invoices/[id]" options={sheet} />
       <Stack.Screen name="design/[id]" options={sheet} />
       <Stack.Screen name="stock/[id]" options={halfSheet} />
       <Stack.Screen name="customer-form/[id]" options={sheet} />

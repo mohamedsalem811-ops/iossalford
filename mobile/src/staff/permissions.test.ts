@@ -60,6 +60,12 @@ import {
 } from '@/domain/repairs';
 import { removeRepairService, saveRepairService } from '@/domain/repair-services';
 import {
+  addOriginalInvoice,
+  openOriginalInvoice,
+  removeOriginalInvoice,
+  setInvoiceProducts,
+} from '@/domain/original-invoices';
+import {
   cancelOffer,
   deleteGift,
   giveOffers,
@@ -125,6 +131,8 @@ type Seed = {
   service: number;
   ownerPriced: number;
   unpricedLine: number;
+  /** An original invoice linked to the ring (jewelry). */
+  invoice: number;
 };
 
 function cartOf(ctx: Ctx, id: number, qty = 1): CartLine[] {
@@ -247,7 +255,13 @@ function seed(ctx: TestCtx): Seed {
     'SELECT id FROM repair_lines WHERE repair_id = ?',
     [pricedLater],
   )!.id;
+  const invoice = addOriginalInvoice(ctx, {
+    file: 'invoice-abc123def456.jpg',
+    kind: 'image',
+    productIds: [ring],
+  });
   return {
+    invoice,
     service,
     ownerPriced,
     unpricedLine,
@@ -573,6 +587,32 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     removeRepairService: {
       permission: 'settings.edit',
       run: (ctx, s) => removeRepairService(ctx, s.ownerPriced),
+    },
+    addOriginalInvoice: {
+      permission: 'invoices.manage',
+      run: (ctx, s) =>
+        addOriginalInvoice(ctx, {
+          file: 'invoice-fff111222333.pdf',
+          kind: 'pdf',
+          productIds: [s.ring, s.chain],
+        }),
+    },
+    setInvoiceProducts: {
+      permission: 'invoices.manage',
+      run: (ctx, s) => setInvoiceProducts(ctx, s.invoice, [s.chain]),
+    },
+    removeOriginalInvoice: {
+      permission: 'invoices.manage',
+      run: (ctx, s) => removeOriginalInvoice(ctx, s.invoice),
+    },
+    openOriginalInvoice: {
+      permission: 'invoices.open',
+      run: (ctx, s) =>
+        openOriginalInvoice(
+          { ...ctx, actor: ctx.actor, approvals: { take: () => true } },
+          s.invoice,
+          { approval: 'ok' },
+        ),
     },
     setRepairLinePrice: {
       permission: 'repairs.price',

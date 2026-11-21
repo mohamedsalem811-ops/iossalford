@@ -6,6 +6,7 @@
  * off the device with its photos, checking a file, restoring with the safety copy saved first,
  * and old (.json) backups still restoring.
  */
+import { addOriginalInvoice } from '@/domain/original-invoices';
 import { openFileDb } from '@/db/testing/node-db';
 import { exportBackup } from '@/domain/backup';
 import { getProduct, listProducts, saveProduct } from '@/domain/products';
@@ -160,6 +161,10 @@ describe('copying off the device', () => {
   it('shares one file with the data and the photos, and remembers when', async () => {
     saveProduct(ctx, { name: 'Ring', category: 'خواتم', price: 1, stock: 1, imageFile: 'r.jpg' });
     new File(photosDir(), 'r.jpg').writeSync(new Uint8Array([1, 2, 3]));
+    // The original invoices (jewelry) go with it.
+    const ring = ctx.db.get<{ id: number }>('SELECT id FROM products LIMIT 1')!.id;
+    addOriginalInvoice(ctx, { file: 'invoice-aaa111bbb222.pdf', kind: 'pdf', productIds: [ring] });
+    new File(photosDir(), 'invoice-aaa111bbb222.pdf').writeSync(new Uint8Array([4, 5]));
     expect(lastCopied('jewelry')).toBeNull();
     const sharing = jest.requireMock('expo-sharing');
     let shared = '';
@@ -174,7 +179,7 @@ describe('copying off the device', () => {
     await shareCopy(ctx, () => steps.push('ready'));
     expect(steps).toEqual(['ready', 'share sheet']);
     expect(shared).toMatch(/\/jewelry_\d{4}-\d{2}-\d{2}_\d{2}\.\d{2}\.db$/);
-    expect(photos).toEqual({ 'r.jpg': [1, 2, 3] });
+    expect(photos).toEqual({ 'r.jpg': [1, 2, 3], 'invoice-aaa111bbb222.pdf': [4, 5] });
     // iOS reports a cancelled share sheet like a sent one: only the owner's "yes" counts as a copy
     // off the device, and it is logged.
     expect(lastCopied('jewelry')).toBeNull();

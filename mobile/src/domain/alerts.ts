@@ -8,7 +8,8 @@
  * - a return taken minutes after its sale (`alertReturnMinutes`);
  * - repeated wrong PINs by one person in a day (`alertWrongPins`);
  * - a shift closed short (`alertShortage`);
- * - the device clock went back; the activity log was changed outside the app.
+ * - the device clock went back; the activity log was changed outside the app;
+ * - an employee opened an original invoice with the invoice code (every opening).
  *
  * The owner's own discounts, approvals and returns raise no alert. An alert the owner has seen
  * ("اطلعت") is hidden; the activity log keeps who saw it and when.
@@ -22,7 +23,14 @@ import { getPolicies } from './policies';
 import { getSetting, setSetting } from './settings';
 
 export type AlertKind =
-  'discounts' | 'approvals' | 'quickReturn' | 'wrongPins' | 'shortage' | 'clock' | 'log';
+  | 'discounts'
+  | 'approvals'
+  | 'quickReturn'
+  | 'wrongPins'
+  | 'shortage'
+  | 'clock'
+  | 'log'
+  | 'invoice';
 
 /** Where an alert leads: the shift's report, the return, or the activity log. */
 export type AlertTarget = { screen: 'shift' | 'return'; id: number } | { screen: 'log' };
@@ -168,6 +176,21 @@ export function allAlerts(ctx: Ctx): OwnerAlert[] {
       key: `${r.action}:${r.id}`,
       kind: r.action === 'clock.back' ? 'clock' : 'log',
       title: r.action === 'clock.back' ? 'ساعة الجهاز رجعت للخلف' : 'السجل تغيّر خارج التطبيق',
+      detail: r.summary,
+      at: r.at,
+      target: { screen: 'log' },
+    });
+
+  // Every opening of an original invoice by an employee (with the owner's invoice code).
+  for (const r of ctx.db.all<{ id: number; name: string; summary: string; at: string }>(
+    `SELECT id, actor_name name, summary, at FROM activity
+      WHERE action = 'invoice.open' AND actor <> 'owner' AND day >= ?`,
+    [since],
+  ))
+    out.push({
+      key: `invoice:${r.id}`,
+      kind: 'invoice',
+      title: `${r.name} فتح فاتورة أصلية`,
       detail: r.summary,
       at: r.at,
       target: { screen: 'log' },

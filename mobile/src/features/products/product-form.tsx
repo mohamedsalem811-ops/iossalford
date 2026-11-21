@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Pressable, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
@@ -318,6 +319,21 @@ export function ProductFormView({
           onPress={saveOnce}
           testID="product-save"
         />
+        {productId && ctx.system === 'jewelry' ? (
+          <Button
+            title="الفاتورة الأصلية"
+            icon="doc.text"
+            variant="secondary"
+            fullWidth
+            onPress={() =>
+              router.push({
+                pathname: '/[system]/invoices/[id]',
+                params: { system: ctx.system, id: String(productId) },
+              })
+            }
+            testID="product-invoices"
+          />
+        ) : null}
       </KeyboardAwareScrollView>
     </>
   );

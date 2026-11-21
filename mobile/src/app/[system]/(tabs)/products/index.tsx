@@ -17,6 +17,7 @@ import { useCtx } from '@/state/system-db';
 import type { SystemId } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
 import { useSearchShortcut, useShortcut } from '@/lib/key-commands';
+import { invoicesOf } from '@/domain/original-invoices';
 import { useCan } from '@/staff/use-can';
 
 /** Opens الراكدة, for the owner (who sees costs). */
@@ -167,6 +168,12 @@ function JewelryProducts({ ctx }: { ctx: Ctx }) {
             onStep: (p, delta) => stepStock(ctx, p, delta),
             onAdjust: (p) => adjustSheet(system, p.id),
             onDelete: (p) => confirmDelete(ctx, p),
+            onInvoice: (p) =>
+              router.push({
+                pathname: '/[system]/invoices/[id]',
+                params: { system, id: String(p.id) },
+              }),
+            hasInvoice: (p) => invoicesOf(ctx, p.id).length > 0,
           }}
         />
       </BelowHeader>
