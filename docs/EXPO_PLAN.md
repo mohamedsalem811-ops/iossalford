@@ -1054,6 +1054,28 @@ Each fix has a test written first, which failed before the change.
   - 15: a staff change is written in both systems' logs. The other system writes it when it next opens, under the person who made it.
   - 16: an employee who may not see phones is told «مسجل مسبقاً لزبون آخر», without the name.
   - 17: a damaged PIN record counts as a wrong PIN.
+- **K10: the owner's emergency password, chosen by the owner (owner's decision, 2026-11-21; not started).** It replaces the 12-digit random emergency code with a password the owner chooses, made of letters and digits.
+  - **Rules:**
+    - at least 10 characters, with at least one letter and one digit;
+    - English or Arabic letters; Arabic digits become 0-9;
+    - spaces at the ends are ignored;
+    - capital and small letters count as the same (Caps Lock can't lock the owner out).
+  - **Refused:** a password that is the same as either owner PIN, one character repeated, an easy run («abc123», «123456789a»), the shop's name or «password», or the shop's phone number.
+  - **Setting it:** typed twice in الموظفون → «كلمة سر الطوارئ». It is never shown again. Setting or changing it asks for the owner's PIN (or Face ID) first.
+  - **Storage:** only a slow hash in the Keychain (PBKDF2-SHA256, 100,000 rounds, its own salt), never the password itself.
+  - **Using it:** at sign-in, «نسيت الرمز؟» → the emergency password (full keyboard, hidden as typed) → a new owner PIN for that system. It has the same lockout as a PIN (5 tries, then a wait that doubles).
+  - **The old 12-digit code** keeps working until the owner sets the password; then it is removed. Until then, الموظفون shows a reminder to set it.
+  - **Log and alerts:** setting, changing, using, and every wrong try are logged. Every use shows an owner alert.
+  - **Steps:**
+    1. Tests first: the rules, then the vault (save, check, case, lockout, the old code until replaced).
+    2. `security/pin.ts`: `emergencyPasswordProblem`, `setEmergencyPassword`, and `checkEmergencyCode` accepting both kinds.
+    3. الموظفون: the new row and flow, with the PIN confirmation.
+    4. Sign-in: the emergency step takes letters and digits.
+    5. The log line and the owner alert.
+    6. The flow tests, the permission matrix, and the Maestro ids (not run).
+    7. Full checks, the speed test, expo-doctor.
+    8. Ships as an instant update after the phase K `.ipa`; no native change is needed.
+
 - Rule C (cash out): kept as it is (owner's decision).
 - **Still to do:** a new `.ipa`. No new native module is added, but database 16 always ships in a new `.ipa`, never as an instant update. The build is CI run 189. After it, install with Sideloadly and run `npm run update:record`. The simulator run waits for the owner's word.
 - **For the owner:** set the credit code, the invoice code and the backup password, and list the repair services. The backup password can't be recovered: a sealed backup can't be opened without it.
