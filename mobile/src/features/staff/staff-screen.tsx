@@ -7,10 +7,12 @@ import {
   LOCK_CHOICES,
   sortedStaff,
   WARN_CHOICES,
+  worksIn,
   type Employee,
   type LockSettings,
   type Staff,
 } from '@/staff/model';
+import type { SystemId } from '@/theme';
 
 export type StaffActions = {
   onAdd: () => void;
@@ -20,13 +22,18 @@ export type StaffActions = {
   /** Seeing customers' phone numbers in full (feature 26). */
   onTogglePhones?: (e: Employee) => void;
   onToggleSpend?: (e: Employee) => void;
+  /** Which systems the person signs in to (rule A). */
+  onToggleSystem?: (e: Employee, system: SystemId) => void;
   onLock: (lock: LockSettings) => void;
-  onEmergencyCode: () => void;
+  onEmergencyPassword: () => void;
   onSendList: () => void;
   onReceiveList: () => void;
   /** The employee's account: charges for returns and repayments (phase S4). */
   onAccount?: (e: Employee) => void;
 };
+
+const SYSTEMS: SystemId[] = ['jewelry', 'scarves'];
+const SYSTEM_NAMES: Record<SystemId, string> = { jewelry: 'المجوهرات', scarves: 'الأوشحة' };
 
 const seesPhones = (e: Employee) => (e.grants ?? []).includes('customers.phones');
 const seesSpend = (e: Employee) => (e.grants ?? []).includes('customers.spend');
@@ -46,12 +53,13 @@ function pick<T>(title: string, items: { label: string; value: T }[], onPick: (v
  */
 export function StaffScreen({
   staff,
-  hasEmergencyCode,
+  emergency,
   actions,
   balances,
 }: {
   staff: Staff;
-  hasEmergencyCode: boolean;
+  /** The owner's emergency password (K10), the old 12-digit code, or neither. */
+  emergency: 'password' | 'code' | null;
   actions: StaffActions;
   /** What each employee owes ("emp-<id>" → dirhams). */
   balances?: Map<string, number>;
@@ -85,6 +93,12 @@ export function StaffScreen({
               },
             ]
           : []),
+        ...(actions.onToggleSystem
+          ? SYSTEMS.map((system) => ({
+              label: `${worksIn(e, system) ? '✓ ' : ''}يعمل في ${SYSTEM_NAMES[system]}`,
+              value: () => actions.onToggleSystem!(e, system),
+            }))
+          : []),
         {
           label: e.active ? 'إيقاف الموظف' : 'تفعيل الموظف',
           value: () => actions.onToggleActive(e),
@@ -115,6 +129,9 @@ export function StaffScreen({
                 e.mustChangePin ? 'لم يختر رمزه بعد' : null,
                 seesPhones(e) ? 'يرى أرقام الزبائن' : null,
                 seesSpend(e) ? 'يرى مجموع المشتريات' : null,
+                SYSTEMS.every((x) => worksIn(e, x))
+                  ? null
+                  : `${SYSTEM_NAMES[SYSTEMS.find((x) => worksIn(e, x))!]} فقط`,
               ]
                 .filter(Boolean)
                 .join(' • ')}
@@ -170,13 +187,19 @@ export function StaffScreen({
       </ListGroup>
 
       <ListGroup
-        header="رمز الطوارئ للمالك"
-        footer="يفتح لك النظام ويختار رمزاً جديداً إن نسيت رمزك. يظهر مرة واحدة: احفظه خارج الجهاز.">
+        header="كلمة سر الطوارئ للمالك"
+        footer="تختارها أنت من حروف وأرقام. تفتح لك النظام لتختار رمزاً جديداً إن نسيت رمزك، وتفتح النسخ الاحتياطية إن نسيت كلمة سرها. احفظها خارج الجهاز.">
         <ListRow
           icon="key"
-          title={hasEmergencyCode ? 'إنشاء رمز طوارئ جديد' : 'إنشاء رمز الطوارئ'}
-          value={hasEmergencyCode ? 'محفوظ' : 'غير موجود'}
-          onPress={actions.onEmergencyCode}
+          title={emergency === 'password' ? 'تغيير كلمة سر الطوارئ' : 'اختيار كلمة سر الطوارئ'}
+          value={
+            emergency === 'password'
+              ? 'محفوظة'
+              : emergency === 'code'
+                ? 'الرمز القديم'
+                : 'غير موجودة'
+          }
+          onPress={actions.onEmergencyPassword}
           testID="staff-emergency"
         />
       </ListGroup>
@@ -197,10 +220,12 @@ export function StaffScreen({
           testID="staff-receive"
         />
       </ListGroup>
-      {!hasEmergencyCode ? (
+      {emergency !== 'password' ? (
         <Card>
           <Text variant="subhead" tone="warning">
-            أنشئ رمز الطوارئ واحفظه، حتى لا تُقفل خارج النظام إن نسيت رمزك.
+            {emergency === 'code'
+              ? 'اختر كلمة سر الطوارئ بدل الرمز القديم: تفتح النسخ الاحتياطية أيضاً.'
+              : 'اختر كلمة سر الطوارئ واحفظها، حتى لا تُقفل خارج النظام إن نسيت رمزك.'}
           </Text>
         </Card>
       ) : null}

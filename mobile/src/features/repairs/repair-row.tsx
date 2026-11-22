@@ -2,7 +2,7 @@ import { Pressable, View } from 'react-native';
 
 import { Badge, Text } from '@/components';
 import { shownName } from '@/domain/customers';
-import { WORK_LABELS, type Repair } from '@/domain/repairs';
+import { workText, type Repair } from '@/domain/repairs';
 import { radius, spacing, useTheme } from '@/theme';
 
 import { moneyLine, needsAttention, statusLine } from './model';
@@ -44,7 +44,7 @@ export function RepairRow({
         </Text>
       </View>
       <Text variant="subhead" tone="secondary" numberOfLines={1}>
-        {`${shownName(repair.customerName, phones)} • ${WORK_LABELS[repair.work]}`}
+        {`${shownName(repair.customerName, phones)} • ${workText(repair)}`}
       </Text>
       <Text variant="caption" tone="secondary">
         {moneyLine(repair)}

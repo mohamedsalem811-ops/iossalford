@@ -11,7 +11,16 @@ import { Alert } from 'react-native';
 
 import { haptic } from '@/lib/haptics';
 import { pinVault } from '@/security/device';
-import { EMPLOYEE_PIN_LENGTH, pinProblem } from '@/security/pin';
+import { setRecoveryPassword } from '@/backup/password';
+import { sealBackups } from '@/backup/store';
+import {
+  EMERGENCY_MIN,
+  emergencyPasswordProblem,
+  EMPLOYEE_PIN_LENGTH,
+  normalizeEmergency,
+  pinProblem,
+} from '@/security/pin';
+import { askOwner, takeApproval } from '@/staff/approvals';
 import {
   addEmployee,
   mergeTransfer,
@@ -20,12 +29,15 @@ import {
   setActive,
   setGrant,
   setMustChangePin,
+  setWorksIn,
   transferText,
+  worksIn,
   type Employee,
   type LockSettings,
 } from '@/staff/model';
 import { logStaffChange } from '@/staff/guards';
 import { getStaff, saveStaff } from '@/staff/store';
+import type { SystemId } from '@/theme';
 
 const refuse = (message: string) => {
   haptic.error();
@@ -164,29 +176,64 @@ export function saveLock(lock: LockSettings) {
   haptic.tap();
 }
 
-/** A new emergency code, shown once. */
-export function emergencyCodeFlow(hasOne: boolean, onMade: () => void) {
+const ask = (title: string, message: string, button: string): Promise<string | null> =>
+  new Promise((resolve) =>
+    Alert.prompt(
+      title,
+      message,
+      [
+        { text: 'إلغاء', style: 'cancel', onPress: () => resolve(null) },
+        { text: button, onPress: (v?: string) => resolve(v ?? '') },
+      ],
+      'secure-text',
+    ),
+  );
+
+/**
+ * The owner's emergency password (K10), chosen by the owner and typed twice, after the owner's
+ * PIN (or Face ID). It replaces the old 12-digit code, opens the system when the PIN is forgotten,
+ * and adds a second lock it opens to the backups of both systems. It is never shown or logged.
+ */
+export async function emergencyPasswordFlow(system: SystemId, hasOne: boolean, onMade: () => void) {
+  const what = hasOne ? 'تغيير كلمة سر الطوارئ' : 'وضع كلمة سر الطوارئ';
+  const token = await askOwner(system, 'emergency', what);
+  if (!token || !takeApproval(token, 'emergency')) return;
+  const first = await ask(
+    'كلمة سر الطوارئ',
+    `اختر كلمة سر من حروف وأرقام (${EMERGENCY_MIN} على الأقل) لا يعرفها غيرك، واحفظها خارج الجهاز. تفتح لك النظام إن نسيت رمزك، وتفتح النسخ الاحتياطية إن نسيت كلمة سرها.`,
+    'التالي',
+  );
+  if (first === null) return;
+  const problem = emergencyPasswordProblem(first);
+  if (problem) return refuse(problem);
+  const again = await ask('كلمة سر الطوارئ', 'اكتبها مرة أخرى للتأكد.', 'حفظ');
+  if (again === null) return;
+  if (normalizeEmergency(again) !== normalizeEmergency(first))
+    return refuse('كلمتا السر غير متطابقتين، لم يتغير شيء.');
+  try {
+    await pinVault.setEmergencyPassword(first);
+  } catch {
+    return refuse('تعذّر حفظ كلمة سر الطوارئ، لم يتغير شيء.');
+  }
+  // Saved: it opens the system now. The backups' second lock is a step of its own.
+  let locked = true;
+  try {
+    await setRecoveryPassword(first);
+    // The backups already on the device get the second lock (in the background).
+    void sealBackups('jewelry');
+    void sealBackups('scarves');
+  } catch {
+    locked = false;
+  }
+  logStaffChange(what);
+  haptic.success();
+  onMade();
   Alert.alert(
-    hasOne ? 'رمز طوارئ جديد؟' : 'رمز الطوارئ',
-    `${hasOne ? 'الرمز القديم يتوقف عن العمل. ' : ''}يظهر الرمز مرة واحدة فقط: اكتبه واحفظه خارج الجهاز (ورقة في مكان آمن). يفتح لك النظام إن نسيت رمزك.`,
-    [
-      { text: 'إلغاء', style: 'cancel' },
-      {
-        text: 'إنشاء الرمز',
-        onPress: async () => {
-          try {
-            const code = await pinVault.newEmergencyCode();
-            logStaffChange('رمز طوارئ جديد');
-            onMade();
-            Alert.alert('رمز الطوارئ', `${code}\n\nاكتبه الآن، لن يظهر مرة أخرى.`, [
-              { text: 'كتبته' },
-            ]);
-          } catch {
-            refuse('تعذّر إنشاء الرمز');
-          }
-        },
-      },
-    ],
+    'حُفظت كلمة سر الطوارئ',
+    locked
+      ? 'لن تظهر مرة أخرى. احفظها في مكان آمن خارج الجهاز. الحروف الكبيرة والصغيرة سواء.'
+      : 'تفتح لك النظام إن نسيت رمزك، لكن تعذّر إضافتها قفلاً ثانياً على النسخ الاحتياطية. اخترها مرة أخرى من هنا لاحقاً. احفظها خارج الجهاز.',
+    [{ text: 'حسناً' }],
   );
 }
 
@@ -211,17 +258,42 @@ export async function receiveStaffList() {
   if (r.canceled || !r.assets[0]) return;
   try {
     const text = await new File(r.assets[0].uri).text();
-    const { staff, added } = mergeTransfer(getStaff(), text, new Date());
+    const { staff, added, updated } = mergeTransfer(getStaff(), text, new Date());
     saveStaff(staff);
-    if (added) logStaffChange(`استلام قائمة الموظفين: أُضيف ${added}`);
+    const parts = [
+      ...(added ? [`أُضيف ${added}`] : []),
+      ...(updated ? [`تغيّرت أنظمة ${updated}`] : []),
+    ];
+    if (parts.length) logStaffChange(`استلام قائمة الموظفين: ${parts.join('، ')}`);
     haptic.success();
+    const lines = [
+      ...(added ? [`أُضيف ${added} موظف. يدخل كل واحد أول مرة بموافقتك، ثم يختار رمزه.`] : []),
+      ...(updated ? [`تغيّرت الأنظمة التي يدخلها ${updated} موظف كما في الجهاز الآخر.`] : []),
+    ];
     Alert.alert(
       'تم استلام القائمة',
-      added
-        ? `أُضيف ${added} موظف. يدخل كل واحد أول مرة بموافقتك، ثم يختار رمزه.`
-        : 'كل الموظفين في القائمة موجودون على هذا الجهاز.',
+      lines.length ? lines.join('\n') : 'كل الموظفين في القائمة موجودون على هذا الجهاز.',
     );
   } catch (error) {
     refuse(error instanceof Error ? error.message : 'تعذّر قراءة الملف');
   }
+}
+
+const SYSTEM_NAMES = { jewelry: 'المجوهرات', scarves: 'الأوشحة' } as const;
+
+/** Ticks or unticks a system for an employee (rule A). Logged; at least one stays ticked. */
+export function toggleSystemFlow(e: Employee, system: SystemId) {
+  const on = !worksIn(e, system);
+  try {
+    saveStaff(setWorksIn(getStaff(), e.id, system, on));
+  } catch (error) {
+    return refuse(error instanceof Error ? error.message : 'تعذّر الحفظ');
+  }
+  logStaffChange(
+    on
+      ? `${e.name} يعمل في نظام ${SYSTEM_NAMES[system]}`
+      : `${e.name} لا يعمل في نظام ${SYSTEM_NAMES[system]}`,
+    { id: e.id, system, on },
+  );
+  haptic.success();
 }

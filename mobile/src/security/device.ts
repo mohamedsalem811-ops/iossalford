@@ -8,7 +8,7 @@ import * as SecureStore from 'expo-secure-store';
 
 import type { SystemId } from '@/theme';
 
-import type { FaceIdResult, FaceIdStatus } from './face-id';
+import { faceIdFor, type FaceIdResult, type FaceIdStatus } from './face-id';
 import { PIN_ROUNDS, PinVault, type SecureKv } from './pin';
 
 /** Kept in the Keychain, readable only while the device is unlocked, never synced or backed up. */
@@ -34,12 +34,8 @@ export const pinVault = new PinVault(
     toHex(await pbkdf2Async(sha256, pin, `salford-pos:${salt}`, { c: PIN_ROUNDS, dkLen: 32 })),
 );
 
-/**
- * Face ID is offered for the jewelry system only, and only when it is set up on the device. In
- * Expo Go it cannot work on iOS, so the login says so instead.
- */
-export async function faceIdStatus(system: SystemId): Promise<FaceIdStatus> {
-  if (system !== 'jewelry') return 'none';
+/** Whether this device can use Face ID now, whatever the owner chose. */
+export async function deviceFaceId(): Promise<FaceIdStatus> {
   try {
     if (!(await LocalAuthentication.hasHardwareAsync())) return 'none';
     if (isRunningInExpoGo()) return 'expo-go';
@@ -47,6 +43,31 @@ export async function faceIdStatus(system: SystemId): Promise<FaceIdStatus> {
   } catch {
     return 'none';
   }
+}
+
+const FACE_ID_ON = 'faceid.on.jewelry';
+
+/** The owner's choice (Settings), kept in the Keychain; off until switched on (audit 1). */
+export async function faceIdSwitchedOn(): Promise<boolean> {
+  try {
+    return (await keychain.get(FACE_ID_ON)) === 'on';
+  } catch {
+    return false;
+  }
+}
+
+export async function setFaceIdSwitchedOn(on: boolean): Promise<void> {
+  if (on) await keychain.set(FACE_ID_ON, 'on');
+  else await keychain.remove(FACE_ID_ON);
+}
+
+/**
+ * Face ID is offered for the jewelry system only, once the owner switched it on, and only when
+ * it is set up on the device. In Expo Go it cannot work on iOS, so the login says so instead.
+ */
+export async function faceIdStatus(system: SystemId): Promise<FaceIdStatus> {
+  if (system !== 'jewelry') return 'none';
+  return faceIdFor(system, await faceIdSwitchedOn(), await deviceFaceId());
 }
 
 /** Asks for Face ID. Cancelling or failing falls back to the PIN; the error says why. */

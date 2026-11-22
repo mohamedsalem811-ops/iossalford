@@ -21,6 +21,7 @@ import { displayName, listProducts, type Product } from '@/domain/products';
 import { cartTotal } from '@/domain/cart';
 import {
   ApprovalNeeded,
+  CreditCodeNeeded,
   discountMessage,
   PAYMENT_LABELS,
   type PaymentMethod,
@@ -42,7 +43,7 @@ import {
 } from '@/domain/sales';
 import { PhotoPicker } from '@/features/products/photo-picker';
 import { putCart, useCart } from '@/state/cart';
-import { askOwner, chooseReason } from '@/staff/approvals';
+import { askCode, askOwner, chooseReason } from '@/staff/approvals';
 import { useActor } from '@/staff/use-can';
 import { showError } from '@/features/products/actions';
 import { applyQuery, DEFAULT_QUERY } from '@/features/products/model';
@@ -104,7 +105,7 @@ export function ReturnForm({
   /** Saves the return (or the exchange); on a refusal by the rules, asks the owner. */
   const commit = (
     override?: ReturnInput['override'],
-    discount?: { discountReason: string; approval: string },
+    extra: { discountReason?: string; approval?: string; creditApproval?: string } = {},
   ) => {
     const check = checkReturn(line ?? null, quantity, owner ? refund : '');
     if (!check.ok) {
@@ -127,7 +128,7 @@ export function ReturnForm({
         if (swap && cart.length) {
           const r = exchange(ctx, {
             ret: input,
-            sale: { cart, paymentMethod: swapMethod, ...discount },
+            sale: { cart, paymentMethod: swapMethod, ...extra },
           });
           putCart(ctx.system, []);
           Alert.alert('تم الاستبدال', differenceText(r.difference));
@@ -148,8 +149,16 @@ export function ReturnForm({
         return;
       }
       // The new piece of an exchange has a discount over the limits: the owner, on the spot.
-      if (error instanceof ApprovalNeeded && !discount) {
-        askForDiscount(error, override);
+      if (error instanceof ApprovalNeeded && !extra.approval) {
+        askForDiscount(error, override, extra);
+        return;
+      }
+      // The difference left on her account (آجل): the owner's credit code (rule B).
+      if (error instanceof CreditCodeNeeded && !extra.creditApproval) {
+        haptic.medium();
+        askCode(ctx, 'credit', 'استبدال بالآجل: الفرق على حساب الزبونة').then(
+          (token) => token && commit(override, { ...extra, creditApproval: token }),
+        );
         return;
       }
       showError(error);
@@ -185,7 +194,11 @@ export function ReturnForm({
       },
     ]);
 
-  const askForDiscount = async (e: ApprovalNeeded, override?: ReturnInput['override']) => {
+  const askForDiscount = async (
+    e: ApprovalNeeded,
+    override?: ReturnInput['override'],
+    extra: { creditApproval?: string } = {},
+  ) => {
     const why = await chooseReason(
       `سبب الخصم (${formatLyd(e.discount.total)})`,
       policies.discountReasons,
@@ -196,7 +209,7 @@ export function ReturnForm({
       'discount',
       `${discountMessage(e.discount, policies)}\nالسبب: ${why}`,
     );
-    if (approval) commit(override, { discountReason: why, approval });
+    if (approval) commit(override, { ...extra, discountReason: why, approval });
   };
 
   const save = () => {

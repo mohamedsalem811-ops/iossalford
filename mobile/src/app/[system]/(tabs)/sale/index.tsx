@@ -19,6 +19,7 @@ import { useCtx } from '@/state/system-db';
 import { errorBoundary } from '@/components/error-screen';
 import { useSearchShortcut } from '@/lib/key-commands';
 import { haptic } from '@/lib/haptics';
+import { typed } from '@/lib/typing';
 
 /**
  * Selling: search, brand and category, then the products as a grid. Tap adds one piece (a scarf
@@ -81,7 +82,7 @@ export default function SaleRoute() {
         }
         cancelButtonText="إلغاء"
         hideWhenScrolling={false}
-        onChangeText={(e) => setQuery((q) => ({ ...q, search: e.nativeEvent.text }))}
+        onChangeText={typed((e) => setQuery((q) => ({ ...q, search: e.nativeEvent.text })))}
         onCancelButtonPress={() => setQuery((q) => ({ ...q, search: '' }))}
       />
       <Stack.Toolbar placement="right">

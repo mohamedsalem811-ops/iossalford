@@ -31,9 +31,40 @@ export type Ctx = {
 
 /**
  * What the owner approves: a discount, a return past the rules, a birthday discount, a deposit
- * under the minimum, or cancelling a deposit order (I1).
+ * under the minimum, or cancelling a deposit order (I1); and, with the owner's code typed by the
+ * employee, credit (rule B).
  */
-export type ApprovalPurpose = 'discount' | 'return' | 'birthday' | 'deposit' | 'orderCancel';
+export type ApprovalPurpose =
+  | 'discount'
+  | 'return'
+  | 'birthday'
+  | 'deposit'
+  | 'orderCancel'
+  | 'credit'
+  | 'invoice'
+  /** The owner confirms setting the emergency password (K10), or an employee's PIN reset. */
+  | 'emergency'
+  | 'pinReset';
+
+/**
+ * Credit (آجل) by an employee needs the owner's credit code (rule B): the screen asks for it and
+ * tries again with the one-time token. Nothing was saved.
+ */
+export class CreditCodeNeeded extends Error {
+  constructor() {
+    super('البيع بالآجل يحتاج رمز الآجل من المالك.');
+    this.name = 'CreditCodeNeeded';
+  }
+}
+
+/**
+ * Whether credit may be given now: the owner always; an employee with a valid credit-code token,
+ * used up here. Called last, once the action is otherwise ready.
+ */
+export function creditAllowed(ctx: Ctx, token?: string): boolean {
+  if (ctx.actor?.kind === 'owner') return true;
+  return !!token && !!ctx.approvals?.take(token, 'credit');
+}
 
 /**
  * Who allows going past an employee rule: 'owner' when the owner is signed in, 'approved' when

@@ -45,7 +45,7 @@ it('replaces this system’s reminders and leaves the other system’s', async (
   expect(N.scheduleNotificationAsync).toHaveBeenCalledWith(
     expect.objectContaining({
       identifier: 'jewelry-repairs-2026-11-18',
-      content: expect.objectContaining({ title: 'الصيانة • المجوهرات', body: 'موعدها اليوم: منى' }),
+      content: expect.objectContaining({ title: 'الصيانة • المجوهرات', body: 'موعدها اليوم: 1' }),
       trigger: { type: 'date', date: new Date(2026, 10, 18, 9, 0) },
     }),
   );

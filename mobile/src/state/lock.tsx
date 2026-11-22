@@ -27,22 +27,35 @@ type LockState = {
 
 const LockContext = createContext<LockState | null>(null);
 
-/** How long SALFORD stays open after it opened WhatsApp (or a call) itself. */
-export const OUTSIDE_GRACE_MS = 2 * 60 * 1000;
+/** How long SALFORD stays open after it opened WhatsApp (or a call) itself (audit 6: 1 minute). */
+export const OUTSIDE_GRACE_MS = 60 * 1000;
+/** The app must leave this soon after SALFORD opened the other app, or the grace is not given. */
+export const LEAVE_WITHIN_MS = 5 * 1000;
+/** When the app must have left by, for the grace; 0 when none is waiting. */
+let leaveBy = 0;
 let graceUntil = 0;
 
 /**
- * Opens WhatsApp (or another app) from SALFORD: coming back within 2 minutes finds the same
- * screen, so the step-by-step sender keeps its place. Leaving any other way locks as before.
+ * Opens WhatsApp (or another app) from SALFORD: coming back within a minute finds the same
+ * screen, so the step-by-step sender keeps its place. Only the leaving that opening causes gets
+ * the grace, once: leaving any other way, or later, locks as before.
  */
 export function openOutside(url: string) {
-  graceUntil = Date.now() + OUTSIDE_GRACE_MS;
+  leaveBy = Date.now() + LEAVE_WITHIN_MS;
   return Linking.openURL(url).catch(() => {
-    graceUntil = 0;
+    leaveBy = 0;
   });
 }
 
-/** True while SALFORD itself sent the person to another app a moment ago. */
+/** Called as the app leaves: true when SALFORD itself sent the person away a moment ago. */
+export function takeGrace(now = Date.now()): boolean {
+  const ok = now < leaveBy;
+  leaveBy = 0;
+  graceUntil = ok ? now + OUTSIDE_GRACE_MS : 0;
+  return ok;
+}
+
+/** True while a person sent to another app by SALFORD may still come back to the same screen. */
 export const inGrace = (now = Date.now()) => now < graceUntil;
 
 /** Leaving the app locks it: the next open needs the PIN (or Face ID) again. */
@@ -72,7 +85,7 @@ export function LockProvider({ children }: { children: ReactNode }) {
       // 'inactive' (app switcher, Face ID prompt) only hides the screen; 'background' locks,
       // unless SALFORD opened WhatsApp itself and the person comes back within the grace.
       if (shouldLock(next)) {
-        if (inGrace()) {
+        if (takeGrace()) {
           away = true;
           return;
         }

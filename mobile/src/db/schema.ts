@@ -1076,6 +1076,69 @@ ALTER TABLE closings ADD COLUMN repair_income INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE closings ADD COLUMN repair_cost INTEGER NOT NULL DEFAULT 0;
 `,
   },
+  {
+    version: 16,
+    name: 'repair services and original invoices',
+    sql: `
+-- The owner's repair services (rule D): a name and a fixed price, or no price («السعر يحدده
+-- المالك», set by the owner on each repair). Staff tick them; they do not type a price. A service
+-- taken off the list is kept (active 0) for the repairs that used it.
+CREATE TABLE repair_services (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  name       TEXT NOT NULL CHECK (length(trim(name)) > 0),
+  price      INTEGER CHECK (price >= 0),
+  active     INTEGER NOT NULL DEFAULT 1 CHECK (active IN (0, 1)),
+  position   INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL,
+  updated_at TEXT
+);
+CREATE UNIQUE INDEX repair_services_name ON repair_services(lower(trim(name))) WHERE active = 1;
+-- The services ticked on a repair, with the name and price as they were then; price NULL: the
+-- owner has not set it yet (the repair cannot be delivered until then).
+CREATE TABLE repair_lines (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  repair_id  INTEGER NOT NULL REFERENCES repairs(id) ON DELETE CASCADE,
+  service_id INTEGER REFERENCES repair_services(id) ON DELETE SET NULL,
+  name       TEXT NOT NULL,
+  price      INTEGER CHECK (price >= 0),
+  priced_at  TEXT,
+  priced_by  TEXT
+);
+CREATE INDEX repair_lines_repair ON repair_lines(repair_id);
+CREATE INDEX repair_lines_service ON repair_lines(service_id);
+CREATE INDEX repair_lines_unpriced ON repair_lines(repair_id) WHERE price IS NULL;
+-- The original invoices (jewelry): the gift receipt the owner adds (a photo or a PDF in the
+-- private folder), linked to one or more products. Staff open it with the invoice code.
+CREATE TABLE original_invoices (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  file       TEXT NOT NULL,
+  kind       TEXT NOT NULL CHECK (kind IN ('image', 'pdf')),
+  title      TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT,
+  by         TEXT,
+  by_name    TEXT,
+  uid        TEXT,
+  device     TEXT
+);
+CREATE UNIQUE INDEX original_invoices_uid ON original_invoices(uid);
+CREATE TRIGGER original_invoices_new_uid AFTER INSERT ON original_invoices WHEN NEW.uid IS NULL BEGIN
+  UPDATE original_invoices SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+CREATE TABLE original_invoice_products (
+  invoice_id INTEGER NOT NULL REFERENCES original_invoices(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  PRIMARY KEY (invoice_id, product_id)
+);
+CREATE INDEX original_invoice_products_product ON original_invoice_products(product_id);
+-- Names leave the lock screen once (audit 3): the app before saved «show names» with every
+-- reminder setting, chosen or not. The owner can show them again in التنبيهات.
+UPDATE settings SET value = json_set(value, '$.hideNames', json('true'))
+  WHERE key = 'notify' AND json_valid(value);
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

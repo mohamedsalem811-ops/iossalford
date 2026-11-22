@@ -7,19 +7,31 @@
  *
  * Storage and hashing are passed in, so the rules are tested without the device.
  */
+import { latinDigits } from '@/lib/digits';
 import type { SystemId } from '@/theme';
 
 /**
  * Whose PIN: the owner's PIN of a system ("jewelry", "scarves", as since Phase 3) or an
  * employee's ("user.<id>"), one PIN for both systems.
  */
-export type PinAccount = SystemId | `user.${string}`;
+export type PinAccount = SystemId | `user.${string}` | `code.${OwnerCode}`;
+
+/**
+ * The owner's 4-digit codes, given to an employee when needed and changed by the owner at will:
+ * credit (rule B) and the original invoices. Kept like the PINs (hashed, with the lockout).
+ */
+export type OwnerCode = 'credit' | 'invoice';
+export const CODE_LENGTH = 4;
 
 /** An employee's PIN is shorter: quick at the counter. */
 export const EMPLOYEE_PIN_LENGTH = 6;
 
 export const pinLengthOf = (account: PinAccount) =>
-  account.startsWith('user.') ? EMPLOYEE_PIN_LENGTH : PIN_LENGTH;
+  account.startsWith('code.')
+    ? CODE_LENGTH
+    : account.startsWith('user.')
+      ? EMPLOYEE_PIN_LENGTH
+      : PIN_LENGTH;
 
 export const PIN_LENGTH = 8;
 export const FREE_ATTEMPTS = 5;
@@ -41,10 +53,27 @@ export type Derive = (pin: string, salt: string) => Promise<string>;
 export const PIN_ROUNDS = 10_000;
 
 /** v2: PBKDF2. No version: the first format (one salted SHA-256). */
-type PinRecord = { salt: string; hash: string; v?: 2 };
+type PinRecord = { salt: string; hash: string; v?: 2; kind?: 'password' };
 type LockRecord = { failures: number; lockedUntil: number };
 
 const EMERGENCY = 'emergency.owner';
+
+/** A saved PIN record, or null when it is missing or damaged (then no PIN can match it). */
+function parseRecord(raw: string | null): PinRecord | null {
+  if (!raw) return null;
+  try {
+    const r = JSON.parse(raw) as Partial<PinRecord> | null;
+    if (!r || typeof r.salt !== 'string' || typeof r.hash !== 'string') return null;
+    return {
+      salt: r.salt,
+      hash: r.hash,
+      ...(r.v === 2 ? { v: 2 as const } : {}),
+      ...(r.kind === 'password' ? { kind: 'password' as const } : {}),
+    };
+  } catch {
+    return null;
+  }
+}
 const pinKey = (a: PinAccount) => `pin.${a}`;
 const lockKey = (a: PinAccount) => `pin-lock.${a}`;
 
@@ -57,6 +86,46 @@ export function pinProblem(pin: string, length = PIN_LENGTH): string | null {
   if (Math.abs(step) === 1 && digits.every((d, i) => i === 0 || d - digits[i - 1] === step)) {
     return 'رمز سهل التخمين: لا تستخدم أرقاماً متتالية';
   }
+  return null;
+}
+
+/**
+ * The owner's emergency password as it is compared (K10): ends trimmed, Arabic digits as 0-9,
+ * capital and small letters the same (Caps Lock can't lock the owner out).
+ */
+export function normalizeEmergency(text: string): string {
+  return latinDigits(text).normalize('NFC').trim().toLowerCase();
+}
+
+export const EMERGENCY_MIN = 10;
+const EASY_WORDS = ['salford', 'password', 'qwerty', 'admin', 'سالفورد', 'سالفرد'];
+
+/** True for "abcd", "4321", "aaaa": each character one step (or none) from the last. */
+function isRun(text: string): boolean {
+  if (text.length < 2) return true;
+  const step = text.charCodeAt(1) - text.charCodeAt(0);
+  if (Math.abs(step) > 1) return false;
+  for (let i = 1; i < text.length; i++)
+    if (text.charCodeAt(i) - text.charCodeAt(i - 1) !== step) return false;
+  return true;
+}
+
+/** Why a new emergency password is refused, or null when it is acceptable. */
+export function emergencyPasswordProblem(password: string): string | null {
+  const p = normalizeEmergency(password);
+  if (p.length < EMERGENCY_MIN) return `كلمة سر الطوارئ ${EMERGENCY_MIN} حروف وأرقام على الأقل`;
+  if (p.length > 64) return 'كلمة سر الطوارئ طويلة (64 على الأكثر)';
+  if (!/^[\p{L}0-9]+$/u.test(p)) return 'كلمة سر الطوارئ حروف وأرقام فقط، بلا مسافات أو رموز';
+  if (!/\p{L}/u.test(p)) return 'كلمة سر الطوارئ تحتاج حرفاً واحداً على الأقل';
+  if (!/[0-9]/.test(p)) return 'كلمة سر الطوارئ تحتاج رقماً واحداً على الأقل';
+  const letters = p.replace(/[0-9]/g, '');
+  const digits = p.replace(/[^0-9]/g, '');
+  if (
+    new Set(p).size < 5 ||
+    (isRun(letters) && isRun(digits)) ||
+    EASY_WORDS.some((w) => p.includes(w))
+  )
+    return 'كلمة سر سهلة التخمين: اختر كلمات وأرقاماً لا يعرفها غيرك';
   return null;
 }
 
@@ -137,9 +206,9 @@ export class PinVault {
     const state = await this.lockState(system);
     if (state.lockedUntil > this.now())
       return { ok: false, locked: true, lockedUntil: state.lockedUntil };
-    const raw = await this.kv.get(pinKey(system));
-    if (raw) {
-      const record = JSON.parse(raw) as PinRecord;
+    // A damaged record counts as a wrong PIN (audit 17), never as an error or an opening.
+    const record = parseRecord(await this.kv.get(pinKey(system)));
+    if (record) {
       if (await this.matches(pin, record)) {
         // A PIN saved in the first format is saved again with PBKDF2, now that it is known.
         if (record.v !== 2 && this.derive)
@@ -174,18 +243,41 @@ export class PinVault {
     return (await this.kv.get(EMERGENCY)) !== null;
   }
 
+  /** The owner's own emergency password (K10), replacing any 12-digit code. Clears its lockout. */
+  async setEmergencyPassword(password: string): Promise<void> {
+    const problem = emergencyPasswordProblem(password);
+    if (problem) throw new Error(problem);
+    const record: PinRecord = {
+      ...(await this.record(normalizeEmergency(password))),
+      kind: 'password',
+    };
+    await this.kv.set(EMERGENCY, JSON.stringify(record));
+    await this.kv.remove(lockKey('user.emergency'));
+  }
+
+  /** Which the owner has: their own password, the old 12-digit code, or neither. */
+  async emergencyKind(): Promise<'password' | 'code' | null> {
+    const r = parseRecord(await this.kv.get(EMERGENCY));
+    return r ? (r.kind === 'password' ? 'password' : 'code') : null;
+  }
+
   /**
-   * Checks the emergency code (dashes and spaces ignored), with the same wrong-attempt lockout as
+   * Checks the emergency password (K10) or the old 12-digit code (dashes and spaces ignored), with the same wrong-attempt lockout as
    * a PIN. When it is right, the owner may set a new PIN for a system.
    */
   async checkEmergencyCode(code: string): Promise<VerifyResult> {
-    const digits = code.replace(/[^0-9]/g, '');
     const account = 'user.emergency' as const;
     const state = await this.lockState(account);
     if (state.lockedUntil > this.now())
       return { ok: false, locked: true, lockedUntil: state.lockedUntil };
-    const raw = await this.kv.get(EMERGENCY);
-    if (raw && digits.length === 12 && (await this.matches(digits, JSON.parse(raw) as PinRecord))) {
+    const record = parseRecord(await this.kv.get(EMERGENCY));
+    // The owner's password (K10), or the old code: its 12 digits, dashes and spaces ignored.
+    const typed =
+      record?.kind === 'password'
+        ? normalizeEmergency(code)
+        : latinDigits(code).replace(/[^0-9]/g, '');
+    const fits = record?.kind === 'password' ? typed.length >= EMERGENCY_MIN : typed.length === 12;
+    if (record && fits && (await this.matches(typed, record))) {
       await this.kv.remove(lockKey(account));
       return { ok: true };
     }

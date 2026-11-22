@@ -69,8 +69,9 @@ function ShiftReportScreen() {
       moves: cashMoves(ctx, shift.id),
       shop: SHOP[ctx.system],
       charged: !!shortageCharge(ctx, shift.id),
+      blind: !owner,
     };
-  }, [ctx, id]);
+  }, [ctx, id, owner]);
   const [report, setReport] = useState(read);
   const refresh = useCallback(() => setReport(read()), [read]);
   useFocusEffect(refresh);

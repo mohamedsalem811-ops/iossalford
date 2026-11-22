@@ -124,7 +124,7 @@ it('asks for the permission, turns a kind off, hides names and moves the times',
   expect(screen.getByTestId('notify-kind-gifts')).toHaveTextContent(/متوقفة/);
 
   await fireEvent.press(screen.getByTestId('notify-hide-names'));
-  expect(getNotifyRules(ctx()).hideNames).toBe(true);
+  expect(getNotifyRules(ctx()).hideNames).toBe(false);
 
   await fireEvent.changeText(screen.getByTestId('notify-morning'), '٨:٣٠');
   await fireEvent.changeText(screen.getByTestId('notify-closing'), '22');

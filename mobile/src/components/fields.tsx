@@ -1,5 +1,7 @@
 import { TextInput, View, type TextInputProps } from 'react-native';
 
+import { typed } from '@/lib/typing';
+
 import { sanitize, type NumberKind } from '@/lib/digits';
 import { fonts, radius, spacing, useTheme } from '@/theme';
 
@@ -84,7 +86,7 @@ export function TextField({
         testID={testID}
         accessibilityLabel={label}
         value={value}
-        onChangeText={onChangeText}
+        onChangeText={typed(onChangeText)}
         placeholder={placeholder}
         placeholderTextColor={colors.textSecondary}
         style={style}
@@ -120,7 +122,7 @@ export function NumberField({
           testID={testID}
           accessibilityLabel={label}
           value={value}
-          onChangeText={(t) => onChangeText(sanitize(t, kind))}
+          onChangeText={typed((t: string) => onChangeText(sanitize(t, kind)))}
           placeholder={placeholder}
           placeholderTextColor={colors.textSecondary}
           keyboardType={

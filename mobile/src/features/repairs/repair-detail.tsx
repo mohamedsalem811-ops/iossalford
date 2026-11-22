@@ -11,11 +11,13 @@ import {
   deliverRepair,
   moveRepair,
   OPEN_REPAIR_STATUSES,
+  repairLines,
+  setRepairLinePrice,
   REPAIR_METHOD_LABELS,
   repairReadyMessage,
   setRepairCost,
   setRepairDate,
-  WORK_LABELS,
+  workText,
   type Repair,
   type RepairCancelHow,
   type RepairDeliverMethod,
@@ -26,6 +28,7 @@ import { dayKey, formatDate, formatTime } from '@/lib/dates';
 import { parseThousandths } from '@/lib/digits';
 import { haptic } from '@/lib/haptics';
 import { formatLyd } from '@/lib/money';
+import { askCode } from '@/staff/approvals';
 import { useCan } from '@/staff/use-can';
 import { notifyDataChanged } from '@/state/data-events';
 import { openOutside } from '@/state/lock';
@@ -75,12 +78,28 @@ export function RepairDetail({
   const mayDeliver = useCan('repairs.deliver');
   const mayCost = useCan('repairs.cost');
   const mayCancel = useCan('repairs.cancel');
+  const mayPrice = useCan('repairs.price');
   const phones = useCan('customers.phones');
   if (!repair) return <EmptyState icon="wrench.and.screwdriver" title="الصيانة غير موجودة" />;
   const r = repair;
   const today = dayKey(ctx.now());
   const open = OPEN_REPAIR_STATUSES.includes(r.status);
   const customer = getCustomer(ctx, r.customerId);
+  const lines = repairLines(ctx, r.id);
+  // A service «السعر يحدده المالك»: the owner types its price (rule D).
+  const priceLine = (id: number, name: string, now: number | null) =>
+    Alert.prompt(
+      `سعر «${name}»`,
+      'بالدينار الليبي',
+      (text) => {
+        const price = parseThousandths(text ?? '');
+        if (price === null) return;
+        attempt('لم يُحفظ السعر', () => setRepairLinePrice(ctx, id, price));
+      },
+      'plain-text',
+      now === null ? '' : String(now / 1000),
+      'decimal-pad',
+    );
 
   const message =
     r.status === 'ready' ? repairReadyMessage(r, getMarketing(ctx).templates.repairReady) : null;
@@ -100,8 +119,15 @@ export function RepairDetail({
 
   const deliver = () => {
     haptic.medium();
-    const go = (method: RepairDeliverMethod) =>
-      attempt('لم تُسلّم', () => deliverRepair(ctx, r.id, { method }));
+    const go = async (method: RepairDeliverMethod) => {
+      // The rest left on her account (آجل): an employee needs the owner's credit code (rule B).
+      let creditApproval: string | undefined;
+      if (method === 'credit' && ctx.actor?.kind !== 'owner') {
+        creditApproval = (await askCode(ctx, 'credit', `تسليم ${r.ticketNo} بالآجل`)) ?? undefined;
+        if (!creditApproval) return;
+      }
+      attempt('لم تُسلّم', () => deliverRepair(ctx, r.id, { method, creditApproval }));
+    };
     if (r.remaining === 0)
       return Alert.alert(`تسليم ${r.ticketNo}؟`, 'لا باقي عليها.', [
         { text: 'رجوع', style: 'cancel' },
@@ -182,7 +208,7 @@ export function RepairDetail({
           {r.description}
         </Text>
         <Text variant="subhead" tone="secondary">
-          {`${WORK_LABELS[r.work]} • ${r.ticketNo}`}
+          {`${workText(r)} • ${r.ticketNo}`}
         </Text>
         <View style={{ flexDirection: 'row', gap: spacing.xs }}>
           <Badge
@@ -201,6 +227,24 @@ export function RepairDetail({
           testID="repair-customer"
         />
       </ListGroup>
+
+      {lines.length ? (
+        <ListGroup
+          header="الخدمات"
+          footer={r.unpriced ? 'تُسلّم القطعة بعد أن يحدد المالك سعر كل خدمة.' : undefined}>
+          {lines.map((l) => (
+            <ListRow
+              key={l.id}
+              icon={l.price === null ? 'tag' : 'checkmark.circle'}
+              title={l.name}
+              value={l.price === null ? 'السعر يحدده المالك' : formatLyd(l.price)}
+              tone={l.price === null ? 'warning' : undefined}
+              onPress={mayPrice && open ? () => priceLine(l.id, l.name, l.price) : undefined}
+              testID={`repair-line-${l.id}`}
+            />
+          ))}
+        </ListGroup>
+      ) : null}
 
       <Card>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

@@ -1,7 +1,15 @@
 import { useEffect } from 'react';
 import { AppState } from 'react-native';
 
-import { lastLine, recordLogBroken, recordStaff, walkLog, type LogCheck } from '@/domain/activity';
+import {
+  lastLine,
+  personOf,
+  recordLogBroken,
+  recordStaff,
+  recordStaffFrom,
+  walkLog,
+  type LogCheck,
+} from '@/domain/activity';
 import type { Ctx } from '@/domain/context';
 import { logError } from '@/lib/error-log';
 import type { SystemId } from '@/theme';
@@ -15,6 +23,8 @@ import {
   saveVerified,
   setOpenLog,
   showBreaks,
+  keepStaffLines,
+  takeStaffLines,
   takeWaiting,
 } from './guards';
 
@@ -35,8 +45,10 @@ export function LogGuard({ ctx }: { ctx: Ctx }) {
         logError('سجل النشاط', error);
       }
     }
+    writeStaffLines(ctx);
     setOpenLog({
       system: ctx.system,
+      person: () => (ctx.actor ? personOf(ctx.actor) : null),
       write: (summary, details) => {
         try {
           ctx.db.transaction(() => recordStaff(ctx, summary, details));
@@ -77,6 +89,21 @@ export function LogGuard({ ctx }: { ctx: Ctx }) {
     };
   }, [ctx]);
   return null;
+}
+
+/** Staff changes made in the other system, written here under the person who made them. */
+export function writeStaffLines(ctx: Ctx) {
+  const lines = takeStaffLines(ctx.system);
+  if (!lines.length) return;
+  try {
+    ctx.db.transaction(() => {
+      for (const l of lines) recordStaffFrom(ctx, l);
+    });
+  } catch (error) {
+    // Nothing was written (one transaction): the lines wait for the next opening.
+    keepStaffLines(ctx.system, lines);
+    logError('سجل النشاط', error);
+  }
 }
 
 /** The whole chain is walked again at least this often, even with nothing new. */

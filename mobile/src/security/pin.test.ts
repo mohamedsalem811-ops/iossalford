@@ -1,7 +1,15 @@
 /**
  * @jest-environment node
  */
-import { lockDelayMs, PinVault, pinProblem, type SecureKv } from './pin';
+import {
+  emergencyPasswordProblem,
+  FREE_ATTEMPTS,
+  lockDelayMs,
+  pinLengthOf,
+  PinVault,
+  pinProblem,
+  type SecureKv,
+} from './pin';
 
 // Node's crypto stands in for expo-crypto in tests (loaded with require: the app has no Node types).
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -151,6 +159,21 @@ describe('PinVault', () => {
     kv.data.set('pin-lock.jewelry', '{broken');
     expect(await v.lockedUntil('jewelry')).toBe(now.t + 30_000);
   });
+
+  it('treats a damaged PIN record as a wrong PIN (audit 17): counted, never opened', async () => {
+    const { kv, v } = vault();
+    for (const broken of ['{broken', 'null', '"text"', '{"salt":1}']) {
+      kv.data.set('pin.jewelry', broken);
+      kv.data.delete('pin-lock.jewelry');
+      await expect(v.verify('jewelry', '25801470')).resolves.toEqual({
+        ok: false,
+        attemptsLeft: FREE_ATTEMPTS - 1,
+        lockedUntil: 0,
+      });
+    }
+    kv.data.set('emergency.owner', '{broken');
+    await expect(v.checkEmergencyCode('1234-5678-9012')).resolves.toMatchObject({ ok: false });
+  });
 });
 
 describe('the slow PIN hash (PBKDF2)', () => {
@@ -212,5 +235,60 @@ describe('accounts and the emergency code', () => {
     // A new code replaces the old one.
     const next = await v.newEmergencyCode();
     if (next !== code) expect((await v.checkEmergencyCode(code)).ok).toBe(false);
+  });
+});
+
+describe("the owner's emergency password (K10)", () => {
+  it('takes letters and digits the owner chooses, and refuses easy ones', () => {
+    expect(emergencyPasswordProblem('Mona2026salem')).toBeNull();
+    expect(emergencyPasswordProblem('منى2026سالم')).toBeNull();
+    expect(emergencyPasswordProblem('mona2026')).toContain('10');
+    expect(emergencyPasswordProblem('monasalemxx')).toContain('رقم');
+    expect(emergencyPasswordProblem('0912345678123')).toContain('حرف');
+    expect(emergencyPasswordProblem('mona 2026 salem')).toContain('حروف وأرقام فقط');
+    expect(emergencyPasswordProblem('abcdef123456')).toContain('سهلة');
+    expect(emergencyPasswordProblem('aaaaaa111111')).toContain('سهلة');
+    expect(emergencyPasswordProblem('salford12345')).toContain('سهلة');
+    expect(emergencyPasswordProblem('Password2026')).toContain('سهلة');
+  });
+
+  it('opens with the password, whatever the case and the digits, and locks out like a PIN', async () => {
+    const { v, kv } = vault();
+    await expect(v.setEmergencyPassword('short1')).rejects.toThrow('10');
+    await v.setEmergencyPassword('  Mona2026Salem ');
+    expect(await v.hasEmergencyCode()).toBe(true);
+    expect(await v.emergencyKind()).toBe('password');
+    expect([...kv.data.values()].join()).not.toMatch(/mona/i);
+    expect(await v.checkEmergencyCode('mona٢٠٢٦SALEM')).toEqual({ ok: true });
+    expect((await v.checkEmergencyCode('mona2026salen')).ok).toBe(false);
+    for (let i = 0; i < FREE_ATTEMPTS; i++) await v.checkEmergencyCode('wrong12345x');
+    expect(await v.checkEmergencyCode('mona2026salem')).toMatchObject({ ok: false, locked: true });
+  });
+
+  it('keeps the old 12-digit code working until the password is set, then removes it', async () => {
+    const { v } = vault();
+    const code = await v.newEmergencyCode();
+    expect(await v.emergencyKind()).toBe('code');
+    expect(await v.checkEmergencyCode(code)).toEqual({ ok: true });
+    await v.setEmergencyPassword('Mona2026Salem');
+    expect((await v.checkEmergencyCode(code)).ok).toBe(false);
+    expect(await v.checkEmergencyCode('mona2026salem')).toEqual({ ok: true });
+  });
+});
+
+describe("the owner's 4-digit codes (rule B, invoices)", () => {
+  it('takes 4 digits, refuses easy ones, and locks out like a PIN', async () => {
+    const { v } = vault();
+    expect(pinLengthOf('code.credit')).toBe(4);
+    await expect(v.setPin('code.credit', '1234')).rejects.toThrow('متتالية');
+    await expect(v.setPin('code.credit', '12345')).rejects.toThrow('4 أرقام');
+    await v.setPin('code.credit', '4071');
+    expect(await v.verify('code.credit', '4071')).toEqual({ ok: true });
+    for (let i = 0; i < FREE_ATTEMPTS; i++) await v.verify('code.credit', '9999');
+    expect(await v.verify('code.credit', '4071')).toMatchObject({ ok: false, locked: true });
+    // A new code from the owner clears the lockout, and the old one stops working.
+    await v.setPin('code.credit', '5820');
+    expect((await v.verify('code.credit', '4071')).ok).toBe(false);
+    expect(await v.verify('code.credit', '5820')).toEqual({ ok: true });
   });
 });

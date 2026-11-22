@@ -902,7 +902,7 @@ The owner chose these on 2026-11-15, from the plan page and the seven card desig
 
 - **Wording:** a cap reads «بحد أقصى 250 د.ل للخصم» everywhere (the rewards card, the rules lines, «نفتقدك», the birthday message, the customer's page); a saved «نفتقدك» message the owner never changed follows the new wording.
 - **Every message is the owner's to word:** «رسائل» now also has the birthday wishes ({عزيزتنا}, {الهدية}) and the three deposit-order messages: the expected date ({القطعة}, {رقم}, {الموعد}), ready to collect and the reminder ({طلبك}, {الباقي}). A customer typed by phone only is greeted «أهلاً،» without the made-up name «زبون 09…».
-- **WhatsApp keeps your place:** when SALFORD itself opens WhatsApp (the sender, a reminder, a thank-you, an order message), coming back within 2 minutes finds the same screen; leaving any other way still locks at once.
+- **WhatsApp keeps your place:** when SALFORD itself opens WhatsApp (the sender, a reminder, a thank-you, an order message), coming back within 1 minute finds the same screen (2 minutes until phase K); leaving any other way still locks at once.
 - **Bring a friend:** the sender's points come with the friend's first purchase of any kind (a deposit order collected counts); on credit they wait until the friend has paid her debt (the customer's page says so); an exchange keeps them (the new piece becomes the purchase); «من أرسلك؟» is asked only for a typed phone that matches nobody (a name alone may be an existing customer).
 - **Checkout:** the «unused reward» question now includes the friend's gift and «نفتقدك», and is not asked once any reward is on.
 - **«نفتقدك»:** only customers who accept offers are suggested; the ticks clear after the offers are given; counts in correct Arabic («لـ5 زبائن», «3 زيارات»); dates as «1 ديسمبر 2026»; a cancelled offer shows «أُلغي». Customer care's old «لم يعودوا» tab opens Marketing → «نفتقدك».
@@ -1021,6 +1021,76 @@ Also: a speed-test line for planning the week's reminders. Not done in the check
 **The keyboard over a field (2026-11-18)**, found by the owner on التنبيهات: tapping a time put the keyboard over it. Five screens used the plain page scroll, which does not move a field clear of the keyboard: التنبيهات, الراكدة (the new price), الإغلاق الربعي (the note), تقرير الوردية (the counted cash) and the emergency code at sign-in. All five now scroll the field above the keyboard, as the forms do. A test reads every screen with a typing field and fails if one does not (the stock count's search, at the top of its page, is left as it is). The simulator run now taps a time on التنبيهات and takes a screenshot with the keyboard open.
 
 Before the simulator run, the tap-through tests were checked against the app: every id and every fixed text they tap or look for exists on its screen; nothing in the app's layout is fixed to the left or right (for Arabic) apart from the logo artwork; no list sits inside another scrolling page.
+
+### Phase K: fixes and owner rules from the full check (2026-11-19 to 2026-11-21, owner approved)
+
+Each fix has a test written first, which failed before the change.
+
+- **K1 (fix 11):** a sale's receipt keeps the sale's pieces, prices and customer for employees; only the design and «hide prices» can change.
+- **K2 (fixes 1, 12, 13):** Face ID stays off until the owner switches it on. It never opens a system during a PIN lockout, and an employee's first sign-in on this device never asks for it.
+- **K3 (fix 3):** reminders hide customer names on the lock screen until the owner shows them.
+- **K4 (rule A):** each employee signs in only to the systems the owner ticks.
+- **K5 (rule B):** credit (آجل) needs the owner's 4-digit credit code, for employees only. It covers sales, exchanges, delivering a repair and delivering a deposit order. The code is set and changed by hand in Settings (`code.credit`; hashed, with the PIN lockout). Every use is logged.
+- **K6 (rule D):** fixed repair prices, database 16 (`repair_services`, `repair_lines`).
+  - The owner lists the services with a price, or «السعر يحدده المالك».
+  - Employees tick services and cannot type a price once the list exists.
+  - The owner prices the open lines (`repairs.price`). A repair can't be delivered while a line has no price.
+  - New A4 repair ticket design (`receipts/templates/repair-ticket.ts`), approved by the owner on 2026-11-21 and now the only ticket. It has the services with their prices, the phone masked for staff, the first photo of the piece and the shop's note. It prints through AirPrint and shares as a PDF (`receipts/repair-ticket-output.ts`).
+- **K7:** original invoices, jewelry only (`original_invoices`, `original_invoice_products`).
+  - The owner adds a photo or PDF and links it to several pieces.
+  - Staff open it with the owner's 4-digit invoice code (`code.invoice`).
+  - It can be shown and printed only (an image is fitted on A4), never shared or saved.
+  - Every opening is logged and alerts the owner. The files are in the private folder and in backups.
+- **K8 (fix 2):** backups are sealed with the owner's backup password.
+  - The key is PBKDF2-SHA256 with 100,000 rounds, from a password of at least 8 characters, typed twice.
+  - Encryption is AES-256-GCM in 1 MB chunks, each tied to the header, its number and whether it is last. The device's own AES (expo-crypto) does the work, and it is already in the installed build.
+  - Files keep their `.db` name. Copies leave the device only sealed. Restore asks for the password.
+  - Changing the password seals the existing backups again.
+  - Measured: sealing and opening 40 MB takes about 2 s in the tests.
+- **K9 small fixes:**
+  - 6: the WhatsApp grace is now 1 minute. It is only given to leaving within 5 s of SALFORD opening the other app, and only once.
+  - 7: an employee's open shift report hides the expected cash, on the screen and in the PDF.
+  - 14: typing (an iPad keyboard) counts as activity for the idle lock (`lib/typing.ts`).
+  - 15: a staff change is written in both systems' logs. The other system writes it when it next opens, under the person who made it.
+  - 16: an employee who may not see phones is told «مسجل مسبقاً لزبون آخر», without the name.
+  - 17: a damaged PIN record counts as a wrong PIN.
+- **K10: the owner's emergency password and PIN resets (owner's decision, 2026-11-21; done).**
+  - **The emergency password:** the owner chooses it; it replaces the 12-digit random code.
+    - Rules: at least 10 characters, with at least one letter and one digit; letters and digits only. English or Arabic letters; Arabic digits are read as 0-9; ends trimmed. Capital and small letters count as the same.
+    - Refused: one character run or repeat for both letters and digits («abc123», «aaaa1111»), fewer than 5 different characters, «salford» or «password» and similar words. A PIN or a phone number can't be one, because it has no letter.
+    - Setting it: الموظفون → «كلمة سر الطوارئ». The owner's PIN (or Face ID) first, then typed twice. It is never shown or logged.
+    - Storage: a PBKDF2 hash in the Keychain, with the PIN lockout (5 tries, then a wait that doubles).
+    - The old 12-digit code keeps working until the password is set. Until then, الموظفون asks for it.
+    - Code: `security/pin.ts` (`emergencyPasswordProblem`, `setEmergencyPassword`, `emergencyKind`), `features/staff/actions.ts` (`emergencyPasswordFlow`).
+  - **Point 1:** after 3 wrong PINs (or during a lockout), «نسيت الرمز؟» stands out, with a line saying what to do. The owner is told to use the emergency password; an employee is told to ask the owner.
+  - **Point 3:** an employee who forgot their PIN taps «نسيت الرمز؟» on their own sign-in screen. The owner approves with the owner's PIN (or Face ID), then the employee chooses a new PIN at once. Their own PIN can't approve it.
+  - **Point 4:** every use of the emergency password, every wrong emergency password, and every employee PIN reset is logged (`pin.emergency`, `pin.emergency.wrong`, `pin.reset`). Each use and each reset is an owner alert («استُخدمت كلمة سر الطوارئ», «أعاد المالك رمز سارة»). Wrong emergency passwords count toward the wrong-PIN alert.
+  - **Point 5:** the emergency password also opens sealed backups.
+    - Backups sealed from now on carry a second lock: the file's key, sealed (AES-GCM) with a key made from the emergency password (PBKDF2, 100,000 rounds). This is the version 2 header in `backup/seal.ts`, and the lock is tied to the file's salt.
+    - Setting or changing the emergency password seals the backups already on the device again with the new lock, in both systems. The old emergency password no longer opens them.
+    - At restore, the password typed may be either the backup password or the emergency password. Version 1 files still open as before.
+  - **Tests:** the vault, the seal format, the store (another device, a new emergency password), the staff flow and screen, sign-in (password, point 1, point 3), and the alerts. The Maestro flow `e2e/emergency-password.yaml` is ready and not run.
+  - Ships in the phase K `.ipa`, with the rest of phase K (not as an instant update).
+- **Phase K check (owner's decision, 2026-11-21; done):** a read-only check of K1 to K10 found the points below; the owner asked for all of them.
+  - **Names on the lock screen:** the app before phase K saved «show names» with every reminder setting, even when only the time was changed. Database 16 hides names once on every device; the owner can show them again in التنبيهات.
+  - **Rule A on the other device:** the staff list sent by AirDrop now carries the systems ticked for each person, also for people already on the other device. A list from an older app changes no one's systems.
+  - **Both logs:** a use of the emergency password, a wrong emergency password and an employee's PIN reset are written in both systems' logs and alerts, like staff changes («... (في نظام المجوهرات)»).
+  - **Manual receipts are the owner's** (`receipts.manual`, not given to employees). An employee prints and restyles the receipts of sales and deposits, and can't make a receipt by hand or change the pieces, prices or customer of any receipt. «إيصال جديد» is hidden for employees.
+  - **The emergency password reminder:** «اختر كلمة سر الطوارئ» on the owner's dashboard until it is chosen on this device.
+  - **Small fixes:**
+    - Opening an original invoice is reading: it works while the device clock is behind. Adding or changing one is still refused then.
+    - The repair ticket lists the services in the order they were ticked, and reads the repair once, not on every redraw.
+    - A staff or emergency line waiting for the other system's log is kept if writing it fails, and written at the next opening.
+    - If the emergency password is saved but the backups' second lock can't be added, the owner is told the password works and to choose it again later.
+    - A deposit is taken while a service waits for the owner's price. The owner's price can't be under what was paid.
+- Rule C (cash out): kept as it is (owner's decision).
+- **Still to do:** a new `.ipa`. No new native module is added, but database 16 always ships in a new `.ipa`, never as an instant update. The build is a CI run after the phase K check (run 193 was before it). After it, install with Sideloadly on both devices and run `npm run update:record`. The simulator run waits for the owner's word.
+- **For the owner:**
+  - Install the new `.ipa` on both devices first: an older app can't open the new backups (version 2).
+  - The codes and passwords are kept on each device, never copied: set the credit code, the invoice code, the backup password and the emergency password on both devices. A device without the emergency password has no way back if the PIN is forgotten.
+  - List the repair services.
+  - After choosing the emergency password, copy a new backup off the device: backups made before it have no second lock and open only with the backup password.
+  - The backup password and the emergency password can't be recovered. A sealed backup opens with either one; without both, it can't be opened.
 
 ### Phase 10: switching over
 

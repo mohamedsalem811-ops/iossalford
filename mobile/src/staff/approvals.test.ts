@@ -53,9 +53,24 @@ it('expires after two minutes', async () => {
 
 it('uses Face ID first where it is set up', async () => {
   jest.spyOn(device, 'faceIdStatus').mockResolvedValue('ready');
+  jest.spyOn(device.pinVault, 'lockedUntil').mockResolvedValue(0);
   jest.spyOn(device, 'askFaceId').mockResolvedValue({ ok: true });
   const prompt = typePin('x');
   const token = await askOwner('jewelry', 'discount', 'خصم');
   expect(prompt).not.toHaveBeenCalled();
   expect(takeApproval(token!, 'discount')).toBe(true);
+});
+
+it('skips Face ID while the owner PIN is locked out (audit 12)', async () => {
+  jest.spyOn(device, 'faceIdStatus').mockResolvedValue('ready');
+  jest.spyOn(device.pinVault, 'lockedUntil').mockResolvedValue(Date.now() + 60_000);
+  const face = jest.spyOn(device, 'askFaceId').mockResolvedValue({ ok: true });
+  jest.spyOn(device.pinVault, 'verify').mockResolvedValue({
+    ok: false,
+    locked: true,
+    lockedUntil: Date.now() + 60_000,
+  });
+  typePin('19283746');
+  expect(await askOwner('jewelry', 'discount', 'خصم')).toBeNull();
+  expect(face).not.toHaveBeenCalled();
 });

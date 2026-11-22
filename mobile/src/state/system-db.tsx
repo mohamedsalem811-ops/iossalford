@@ -7,7 +7,7 @@ import type { SystemId } from '@/theme';
 import { withChangeSignal } from '@/db/change-signal';
 import { scheduleDataChanged } from '@/state/data-events';
 import { getActor } from '@/state/session';
-import type { Actor } from '@/staff/model';
+import { worksIn, type Actor } from '@/staff/model';
 import { getStaff } from '@/staff/store';
 import { clockChanged, clockGuard, stampDevice } from '@/staff/guards';
 import { takeApproval } from '@/staff/approvals';
@@ -46,12 +46,15 @@ export function useSystemDb(system: SystemId) {
   return { result, retry };
 }
 
-/** The person signed in, or null when nobody is or the employee has been suspended (fail closed). */
-function signedIn(): Actor | null {
+/**
+ * The person signed in, or null when nobody is, the employee has been suspended, or no longer
+ * works in this system (rule A): fail closed.
+ */
+function signedIn(system: SystemId): Actor | null {
   const actor = getActor();
   if (actor?.kind !== 'employee') return actor;
   const e = getStaff().employees.find((x) => x.id === actor.id);
-  return e?.active ? actor : null;
+  return e?.active && worksIn(e, system) ? actor : null;
 }
 
 const CtxContext = createContext<Ctx | null>(null);
@@ -74,7 +77,7 @@ export function CtxProvider({
       // Read when each action runs: after a lock or a switch of person, an action still open on
       // the screen is done as whoever is signed in now (nobody: refused).
       get actor() {
-        return signedIn();
+        return signedIn(system);
       },
       // The owner's approval on the spot: one-time tokens from staff/approvals.ts.
       approvals: { take: takeApproval },

@@ -6,6 +6,7 @@
  * off the device with its photos, checking a file, restoring with the safety copy saved first,
  * and old (.json) backups still restoring.
  */
+import { addOriginalInvoice } from '@/domain/original-invoices';
 import { openFileDb } from '@/db/testing/node-db';
 import { exportBackup } from '@/domain/backup';
 import { getProduct, listProducts, saveProduct } from '@/domain/products';
@@ -14,6 +15,16 @@ import { getCart, putCart } from '@/state/cart';
 
 import * as engine from './engine';
 import {
+  backupKey,
+  BackupPasswordNeeded,
+  setBackupPassword,
+  setRecoveryPassword,
+} from './password';
+import { isSealed, unseal } from './seal';
+import { nodeAes } from './testing/node-aes';
+import {
+  isSealedFile,
+  sealBackups,
   deleteBackup,
   firstBackup,
   lastCopied,
@@ -41,6 +52,13 @@ jest.mock('expo-secure-store', () => {
     setItem: (k: string, v: string) => store.set(k, v),
   };
 });
+// The device's AES and random bytes: Node's in tests.
+jest.mock('@/backup/device-aes', () => ({
+  /* eslint-disable @typescript-eslint/no-require-imports -- jest.mock factories cannot use imports */
+  deviceAes: require('@/backup/testing/node-aes').nodeAes,
+  randomBytes: (n: number) => new Uint8Array(require('node:crypto').randomBytes(n)),
+  /* eslint-enable @typescript-eslint/no-require-imports */
+}));
 jest.mock('expo-sharing', () => ({ shareAsync: jest.fn(() => Promise.resolve()) }));
 jest.mock('expo-document-picker', () => ({
   getDocumentAsync: jest.fn(() =>
@@ -80,7 +98,41 @@ beforeEach(() => {
 afterEach(() => {
   jest.restoreAllMocks();
   ctx.close();
+  // No backup password between tests.
+  jest.requireMock('expo-secure-store').setItem('backup.key', '');
+  jest.requireMock('expo-secure-store').setItem('backup.recovery', '');
 });
+
+const PASSWORD = 'salford-2026';
+
+/** A sealed file opened with this device's key, as a plain copy (to look inside it). */
+async function openSealed(uri: string): Promise<string> {
+  const bytes = new File(uri).bytesSync();
+  const parts: Uint8Array[] = [];
+  let at = 0;
+  await unseal(
+    nodeAes,
+    backupKey()!.key,
+    {
+      size: bytes.length,
+      read: (n) => {
+        const b = bytes.slice(at, at + n);
+        at += b.length;
+        return b;
+      },
+    },
+    { write: (b) => void parts.push(b) },
+  );
+  const out = new File(Paths.cache, `opened-${Date.now()}.db`);
+  const all = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
+  let o = 0;
+  for (const p of parts) {
+    all.set(p, o);
+    o += p.length;
+  }
+  out.writeSync(all);
+  return out.uri;
+}
 
 describe('saving on the device', () => {
   it('saves a copy that can be checked, and skips an automatic one when nothing changed', async () => {
@@ -160,7 +212,14 @@ describe('copying off the device', () => {
   it('shares one file with the data and the photos, and remembers when', async () => {
     saveProduct(ctx, { name: 'Ring', category: 'خواتم', price: 1, stock: 1, imageFile: 'r.jpg' });
     new File(photosDir(), 'r.jpg').writeSync(new Uint8Array([1, 2, 3]));
+    // The original invoices (jewelry) go with it.
+    const ring = ctx.db.get<{ id: number }>('SELECT id FROM products LIMIT 1')!.id;
+    addOriginalInvoice(ctx, { file: 'invoice-aaa111bbb222.pdf', kind: 'pdf', productIds: [ring] });
+    new File(photosDir(), 'invoice-aaa111bbb222.pdf').writeSync(new Uint8Array([4, 5]));
     expect(lastCopied('jewelry')).toBeNull();
+    // A copy leaves the device sealed: not before a backup password is set.
+    await expect(shareCopy(ctx)).rejects.toThrow('كلمة سر');
+    await setBackupPassword(ctx, PASSWORD);
     const sharing = jest.requireMock('expo-sharing');
     let shared = '';
     let photos: Record<string, number[]> = {};
@@ -168,13 +227,14 @@ describe('copying off the device', () => {
     sharing.shareAsync.mockImplementationOnce(async (uri: string) => {
       steps.push('share sheet');
       shared = uri;
-      engine.eachPhoto(openFileDb, uri, (n, b) => (photos[n] = [...b]));
+      expect(isSealedFile(uri)).toBe(true);
+      engine.eachPhoto(openFileDb, await openSealed(uri), (n, b) => (photos[n] = [...b]));
     });
     // The screen's "please wait" closes once the file is ready, before the share sheet opens.
     await shareCopy(ctx, () => steps.push('ready'));
     expect(steps).toEqual(['ready', 'share sheet']);
     expect(shared).toMatch(/\/jewelry_\d{4}-\d{2}-\d{2}_\d{2}\.\d{2}\.db$/);
-    expect(photos).toEqual({ 'r.jpg': [1, 2, 3] });
+    expect(photos).toEqual({ 'r.jpg': [1, 2, 3], 'invoice-aaa111bbb222.pdf': [4, 5] });
     // iOS reports a cancelled share sheet like a sent one: only the owner's "yes" counts as a copy
     // off the device, and it is logged.
     expect(lastCopied('jewelry')).toBeNull();
@@ -218,6 +278,7 @@ describe('restoring', () => {
     saveProduct(ctx, { name: 'Old', category: 'خواتم', price: 1, stock: 1, imageFile: 'o.jpg' });
     new File(photosDir(), 'o.jpg').writeSync(new Uint8Array([7, 7]));
     tick();
+    await setBackupPassword(ctx, PASSWORD);
     let copy = '';
     jest.requireMock('expo-sharing').shareAsync.mockImplementationOnce(async (uri: string) => {
       copy = new File(Paths.cache, 'kept.db').uri;
@@ -308,5 +369,107 @@ describe('who may', () => {
     // No safety copy, no shared copy, nothing deleted.
     expect(listBackups('jewelry').map((b) => b.name)).toEqual(before);
     expect(listProducts(ctx)).toHaveLength(1);
+  });
+});
+
+describe('the backup password (audit 2)', () => {
+  it('seals the backups already there and every new one; they still restore here', async () => {
+    ring();
+    const plain = saveBackup(ctx, 'manual')!;
+    expect(isSealedFile(savedBackupUri('jewelry', plain.name))).toBe(false);
+    await setBackupPassword(ctx, PASSWORD);
+    await sealBackups('jewelry');
+    expect(isSealedFile(savedBackupUri('jewelry', plain.name))).toBe(true);
+    tick();
+    const next = saveBackup(ctx, 'manual')!;
+    await sealBackups('jewelry');
+    expect(isSealedFile(savedBackupUri('jewelry', next.name))).toBe(true);
+    // Nothing of the data can be read in the file.
+    const bytes = new File(savedBackupUri('jewelry', next.name)).bytesSync();
+    expect(new TextDecoder('latin1').decode(bytes)).not.toContain('SQLite format');
+    // This device opens it without the password.
+    const picked = await readBackupFile(ctx, savedBackupUri('jewelry', next.name));
+    expect(picked.contents.products).toBe(1);
+    await restore(ctx, picked);
+  });
+
+  it('asks for the password on another device, and refuses a wrong one', async () => {
+    ring();
+    await setBackupPassword(ctx, PASSWORD);
+    const b = saveBackup(ctx, 'manual')!;
+    await sealBackups('jewelry');
+    const uri = savedBackupUri('jewelry', b.name);
+    // Another device: no key in its Keychain.
+    jest.requireMock('expo-secure-store').setItem('backup.key', '');
+    await expect(readBackupFile(ctx, uri)).rejects.toThrow(BackupPasswordNeeded);
+    await expect(readBackupFile(ctx, uri, 'not-the-one')).rejects.toThrow('غير صحيحة');
+    const picked = await readBackupFile(ctx, uri, PASSWORD);
+    expect(picked.contents.products).toBe(1);
+    // The file chosen is never changed by checking it.
+    expect(isSealedFile(uri)).toBe(true);
+  });
+
+  it('seals the backups again with a new password, so the old one no longer opens them', async () => {
+    ring();
+    await setBackupPassword(ctx, PASSWORD);
+    const b = saveBackup(ctx, 'manual')!;
+    await sealBackups('jewelry');
+    const old = await setBackupPassword(ctx, 'new-password-1');
+    await sealBackups('jewelry', old);
+    const uri = savedBackupUri('jewelry', b.name);
+    jest.requireMock('expo-secure-store').setItem('backup.key', '');
+    await expect(readBackupFile(ctx, uri, PASSWORD)).rejects.toThrow('غير صحيحة');
+    expect((await readBackupFile(ctx, uri, 'new-password-1')).contents.products).toBe(1);
+  });
+
+  it('opens with the owner’s emergency password when the backup password is forgotten (K10)', async () => {
+    ring();
+    await setBackupPassword(ctx, PASSWORD);
+    const b = saveBackup(ctx, 'manual')!;
+    await sealBackups('jewelry');
+    const uri = savedBackupUri('jewelry', b.name);
+    // Setting the emergency password adds the second lock to the backups already sealed.
+    await setRecoveryPassword('Mona2026Salem');
+    await sealBackups('jewelry');
+    tick();
+    const next = saveBackup(ctx, 'manual')!;
+    await sealBackups('jewelry');
+    // Another device, the backup password forgotten: the emergency password opens both.
+    const secure = jest.requireMock('expo-secure-store');
+    secure.setItem('backup.key', '');
+    secure.setItem('backup.recovery', '');
+    expect((await readBackupFile(ctx, uri, 'mona٢٠٢٦SALEM')).contents.products).toBe(1);
+    const second = savedBackupUri('jewelry', next.name);
+    expect((await readBackupFile(ctx, second, ' Mona2026Salem')).contents.products).toBe(1);
+    // The backup password still opens them; anything else doesn't.
+    expect((await readBackupFile(ctx, second, PASSWORD)).contents.products).toBe(1);
+    await expect(readBackupFile(ctx, second, 'Mona2026Salen')).rejects.toThrow('غير صحيحة');
+    // Each password typed is made into a key slowly (PBKDF2, on purpose).
+  }, 30_000);
+
+  it('a new emergency password replaces the old one on the backups (K10)', async () => {
+    ring();
+    await setBackupPassword(ctx, PASSWORD);
+    await setRecoveryPassword('Mona2026Salem');
+    const b = saveBackup(ctx, 'manual')!;
+    await sealBackups('jewelry');
+    await setRecoveryPassword('Huda1990Tripoli');
+    await sealBackups('jewelry');
+    const secure = jest.requireMock('expo-secure-store');
+    secure.setItem('backup.key', '');
+    secure.setItem('backup.recovery', '');
+    const uri = savedBackupUri('jewelry', b.name);
+    await expect(readBackupFile(ctx, uri, 'Mona2026Salem')).rejects.toThrow('غير صحيحة');
+    expect((await readBackupFile(ctx, uri, 'huda1990tripoli')).contents.products).toBe(1);
+    // Each password typed is made into a key slowly (PBKDF2, on purpose).
+  }, 30_000);
+
+  it('refuses an easy password, and is the owner’s', async () => {
+    await expect(setBackupPassword(ctx, '1234')).rejects.toThrow('8');
+    await expect(setBackupPassword(ctx, '11111111')).rejects.toThrow('مكررة');
+    ctx.setActor(EMPLOYEE);
+    await expect(setBackupPassword(ctx, PASSWORD)).rejects.toThrow();
+    expect(backupKey()).toBeNull();
+    expect(isSealed(new Uint8Array())).toBe(false);
   });
 });

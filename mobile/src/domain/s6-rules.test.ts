@@ -7,7 +7,15 @@
  */
 import { OWNER } from '@/staff/model';
 
-import { listActivity, recordClockBack, recordLogBroken, recordWrongPin } from './activity';
+import {
+  listActivity,
+  recordClockBack,
+  recordEmergency,
+  recordEmergencyWrong,
+  recordLogBroken,
+  recordPinReset,
+  recordWrongPin,
+} from './activity';
 import { acknowledgeAlert, allAlerts, ownerAlerts } from './alerts';
 import { addToCart, setUnitPrice, type CartLine } from './cart';
 import { checkout } from './checkout';
@@ -157,6 +165,20 @@ describe('the owner’s alerts', () => {
     // A larger limit: no shortage alert.
     setPolicies(ctx, { alertShortage: 10_000 });
     expect(kinds()).not.toContain('shortage');
+  });
+
+  it('warns of every PIN reset: the emergency password used, an employee’s PIN reset (point 4)', () => {
+    recordEmergency(ctx);
+    recordPinReset(ctx, EMPLOYEE);
+    const resets = ownerAlerts(ctx).filter((a) => a.kind === 'reset');
+    expect(resets.map((a) => a.title).sort()).toEqual([
+      'أعاد المالك رمز سارة',
+      'استُخدمت كلمة سر الطوارئ',
+    ]);
+    // Wrong emergency passwords count with the wrong PINs.
+    for (let i = 0; i < 3; i++) recordEmergencyWrong(ctx);
+    expect(kinds()).toContain('wrongPins');
+    expect(listActivity(ctx, {}, { limit: 1 })[0]).toMatchObject({ action: 'pin.emergency.wrong' });
   });
 
   it('hides an alert once seen, logs it, and keeps the window', () => {

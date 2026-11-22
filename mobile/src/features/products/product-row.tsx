@@ -22,6 +22,10 @@ export type ProductActions = {
   /** Opens the stock sheet: any amount, with a reason. */
   onAdjust: (p: Product) => void;
   onDelete: (p: Product) => void;
+  /** Jewelry: the piece's original invoices (shown when it has one, or to the owner to add). */
+  onInvoice?: (p: Product) => void;
+  /** Whether the piece has an original invoice (jewelry). */
+  hasInvoice?: (p: Product) => boolean;
 };
 
 /**
@@ -52,6 +56,7 @@ export function ProductRow({
   const mayEdit = useCan('products.edit');
   const mayStock = useCan('stock.adjust');
   const seesCost = useCan('costs.view');
+  const mayInvoices = useCan('invoices.manage');
   const swipe = useRef<SwipeableMethods>(null);
   const run = (fn: () => void) => {
     swipe.current?.close();
@@ -66,6 +71,9 @@ export function ProductRow({
     const items: { title: string; run: () => void; destructive?: boolean }[] = [
       ...(mayEdit ? [{ title: 'تعديل', run: () => router.push(editHref) }] : []),
       ...(showPhoto ? [{ title: 'عرض الصورة', run: showPhoto }] : []),
+      ...(actions.onInvoice && (mayInvoices || actions.hasInvoice?.(p))
+        ? [{ title: 'الفاتورة الأصلية', run: () => actions.onInvoice!(p) }]
+        : []),
       ...(mayStock
         ? [
             { title: '+1 مخزون', run: () => actions.onStep(p, 1) },

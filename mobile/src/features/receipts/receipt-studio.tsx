@@ -85,6 +85,9 @@ export function ReceiptStudio({
   const [search, setSearch] = useState('');
   const [products] = useState(() => listProducts(ctx));
 
+  // A sale's receipt is the sale's record (audit 11): an employee changes only how it looks.
+  const fixed = !!saved?.saleId && ctx.actor?.kind !== 'owner';
+
   if (receiptId && !saved) return <EmptyState icon="doc.text" title="الإيصال غير موجود" />;
 
   const change = (next: (f: StudioForm) => StudioForm) => {
@@ -251,183 +254,202 @@ export function ReceiptStudio({
             onPress={() => change((f) => ({ ...f, showSpecs: !f.showSpecs }))}
             testID="studio-specs"
           />
-          <TextField
-            label="الزبون"
-            value={form.customer}
-            onChangeText={(customer) => change((f) => ({ ...f, customer }))}
-            placeholder="Salford Libya"
-            hint="الاسم كما يظهر في الإيصال"
-            testID="studio-customer"
-          />
+          {fixed ? (
+            <Text variant="body" testID="studio-customer-fixed">{`الزبون: ${form.customer}`}</Text>
+          ) : (
+            <TextField
+              label="الزبون"
+              value={form.customer}
+              onChangeText={(customer) => change((f) => ({ ...f, customer }))}
+              placeholder="Salford Libya"
+              hint="الاسم كما يظهر في الإيصال"
+              testID="studio-customer"
+            />
+          )}
         </Card>
 
         <Text variant="subhead" tone="secondary" style={{ paddingHorizontal: spacing.xs }}>
           {`القطع (${form.items.length})${form.showPrices && total > 0 ? ` • ${formatLyd(total)}` : ''}`}
         </Text>
-        {form.items.length === 0 ? (
-          <Card>
-            <Text variant="subhead" tone="secondary">
-              لا توجد قطع في الإيصال. أضف قطعة من المخزون أو اكتبها.
+        {fixed ? (
+          <Card testID="studio-items-fixed">
+            {form.items.map((it, n) => (
+              <Text key={it.key} variant="body" testID={`studio-fixed-${n}`}>
+                {`${it.name} × ${it.quantity}${form.showPrices ? ` • ${it.price} د.ل` : ''}`}
+              </Text>
+            ))}
+            <Text variant="caption" tone="secondary">
+              قطع إيصال البيعة وأسعاره واسم الزبون من البيعة نفسها، ولا يغيّرها إلا المالك.
             </Text>
           </Card>
-        ) : null}
-        {form.items.map((it, n) => (
-          <Card key={it.key} testID={`studio-item-${n}`}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <Text variant="caption" tone="secondary" style={{ flex: 1 }}>
-                {`القطعة ${n + 1}`}
-              </Text>
-              <IconButton
-                icon="chevron.up"
-                label="نقل للأعلى"
-                disabled={n === 0}
-                onPress={() => change((f) => ({ ...f, items: moveItem(f.items, it.key, -1) }))}
-                testID={`studio-up-${n}`}
-              />
-              <IconButton
-                icon="chevron.down"
-                label="نقل للأسفل"
-                disabled={n === form.items.length - 1}
-                onPress={() => change((f) => ({ ...f, items: moveItem(f.items, it.key, 1) }))}
-                testID={`studio-down-${n}`}
-              />
-              <IconButton
-                icon="trash"
-                label="حذف القطعة من الإيصال"
-                danger
-                onPress={() =>
-                  change((f) => ({ ...f, items: f.items.filter((i) => i.key !== it.key) }))
-                }
-                testID={`studio-remove-${n}`}
-              />
-            </View>
-            <TextField
-              label="اسم القطعة"
-              value={it.name}
-              onChangeText={(name) => setItem(it.key, { name })}
-              testID={`studio-name-${n}`}
-            />
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <View style={{ flex: 1 }}>
+        ) : (
+          <>
+            {form.items.length === 0 ? (
+              <Card>
+                <Text variant="subhead" tone="secondary">
+                  لا توجد قطع في الإيصال. أضف قطعة من المخزون أو اكتبها.
+                </Text>
+              </Card>
+            ) : null}
+            {form.items.map((it, n) => (
+              <Card key={it.key} testID={`studio-item-${n}`}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                  <Text variant="caption" tone="secondary" style={{ flex: 1 }}>
+                    {`القطعة ${n + 1}`}
+                  </Text>
+                  <IconButton
+                    icon="chevron.up"
+                    label="نقل للأعلى"
+                    disabled={n === 0}
+                    onPress={() => change((f) => ({ ...f, items: moveItem(f.items, it.key, -1) }))}
+                    testID={`studio-up-${n}`}
+                  />
+                  <IconButton
+                    icon="chevron.down"
+                    label="نقل للأسفل"
+                    disabled={n === form.items.length - 1}
+                    onPress={() => change((f) => ({ ...f, items: moveItem(f.items, it.key, 1) }))}
+                    testID={`studio-down-${n}`}
+                  />
+                  <IconButton
+                    icon="trash"
+                    label="حذف القطعة من الإيصال"
+                    danger
+                    onPress={() =>
+                      change((f) => ({ ...f, items: f.items.filter((i) => i.key !== it.key) }))
+                    }
+                    testID={`studio-remove-${n}`}
+                  />
+                </View>
                 <TextField
-                  label="الماركة"
-                  value={it.brand}
-                  onChangeText={(brand) => setItem(it.key, { brand })}
-                  placeholder="اختياري"
+                  label="اسم القطعة"
+                  value={it.name}
+                  onChangeText={(name) => setItem(it.key, { name })}
+                  testID={`studio-name-${n}`}
                 />
-              </View>
-              <View style={{ flex: 1 }}>
-                <TextField
-                  label="اللون"
-                  value={it.color}
-                  onChangeText={(color) => setItem(it.key, { color })}
-                  placeholder="اختياري"
-                />
-              </View>
-            </View>
-            <TextField
-              label="الكود"
-              value={it.code}
-              onChangeText={(code) => setItem(it.key, { code })}
-              placeholder="اختياري"
-            />
-            <TextField
-              label="المواصفات والخامة"
-              value={it.specs}
-              onChangeText={(specs) => setItem(it.key, { specs })}
-              placeholder="اختياري"
-              multiline
-              maxLength={300}
-              testID={`studio-specs-${n}`}
-            />
-            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: spacing.md }}>
-              <View style={{ flex: 1 }}>
-                <NumberField
-                  label="السعر"
-                  value={it.price}
-                  onChangeText={(price) => setItem(it.key, { price })}
-                  suffix="د.ل"
-                  placeholder={form.showPrices ? '' : 'لا يظهر في الهدية'}
-                  testID={`studio-price-${n}`}
-                />
-              </View>
-              <View style={{ paddingBottom: spacing.xs }}>
-                <Stepper
-                  value={it.quantity}
-                  onChange={(quantity) => setItem(it.key, { quantity })}
-                  testID={`studio-qty-${n}`}
-                />
-              </View>
-            </View>
-          </Card>
-        ))}
-
-        <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-          <Button
-            title="من المخزون"
-            icon="shippingbox"
-            variant="secondary"
-            style={{ flex: 1 }}
-            onPress={() => setPicking((v) => !v)}
-            testID="studio-pick"
-          />
-          <Button
-            title="قطعة تكتبها"
-            icon="plus"
-            variant="secondary"
-            style={{ flex: 1 }}
-            onPress={() => change((f) => ({ ...f, items: [...f.items, blankItem()] }))}
-            testID="studio-add"
-          />
-        </View>
-        {picking ? (
-          <Card padded={false} style={{ gap: 0 }}>
-            <View style={{ padding: spacing.ms }}>
-              <TextField
-                value={search}
-                onChangeText={setSearch}
-                placeholder="ابحث بالاسم أو الكود أو الماركة"
-                testID="studio-search"
-              />
-            </View>
-            {matches.length === 0 ? (
-              <Text variant="subhead" tone="secondary" style={{ padding: spacing.md }}>
-                {products.length === 0 ? 'لا توجد منتجات بعد.' : 'لا توجد نتائج.'}
-              </Text>
-            ) : (
-              matches.map((p) => (
-                <Pressable
-                  key={p.id}
-                  onPress={() =>
-                    change((f) => ({ ...f, items: [...f.items, itemFromProduct(ctx, p)] }))
-                  }
-                  accessibilityRole="button"
-                  accessibilityLabel={`إضافة ${displayName(ctx, p)} للإيصال`}
-                  testID={`studio-pick-${displayName(ctx, p)}`}
-                  style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: spacing.ms,
-                    paddingHorizontal: spacing.md,
-                    paddingVertical: spacing.sm,
-                    borderTopWidth: 1,
-                    borderTopColor: colors.separator,
-                    opacity: pressed ? 0.6 : 1,
-                  })}>
+                <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                   <View style={{ flex: 1 }}>
-                    <Text variant="body" numberOfLines={1}>
-                      {displayName(ctx, p)}
-                    </Text>
-                    <Text variant="caption" tone="secondary">
-                      {`${p.sku} • ${formatLyd(p.price)}`}
-                    </Text>
+                    <TextField
+                      label="الماركة"
+                      value={it.brand}
+                      onChangeText={(brand) => setItem(it.key, { brand })}
+                      placeholder="اختياري"
+                    />
                   </View>
-                  <Icon name="plus.circle.fill" size={22} color={colors.accent} />
-                </Pressable>
-              ))
-            )}
-          </Card>
-        ) : null}
+                  <View style={{ flex: 1 }}>
+                    <TextField
+                      label="اللون"
+                      value={it.color}
+                      onChangeText={(color) => setItem(it.key, { color })}
+                      placeholder="اختياري"
+                    />
+                  </View>
+                </View>
+                <TextField
+                  label="الكود"
+                  value={it.code}
+                  onChangeText={(code) => setItem(it.key, { code })}
+                  placeholder="اختياري"
+                />
+                <TextField
+                  label="المواصفات والخامة"
+                  value={it.specs}
+                  onChangeText={(specs) => setItem(it.key, { specs })}
+                  placeholder="اختياري"
+                  multiline
+                  maxLength={300}
+                  testID={`studio-specs-${n}`}
+                />
+                <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: spacing.md }}>
+                  <View style={{ flex: 1 }}>
+                    <NumberField
+                      label="السعر"
+                      value={it.price}
+                      onChangeText={(price) => setItem(it.key, { price })}
+                      suffix="د.ل"
+                      placeholder={form.showPrices ? '' : 'لا يظهر في الهدية'}
+                      testID={`studio-price-${n}`}
+                    />
+                  </View>
+                  <View style={{ paddingBottom: spacing.xs }}>
+                    <Stepper
+                      value={it.quantity}
+                      onChange={(quantity) => setItem(it.key, { quantity })}
+                      testID={`studio-qty-${n}`}
+                    />
+                  </View>
+                </View>
+              </Card>
+            ))}
+
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <Button
+                title="من المخزون"
+                icon="shippingbox"
+                variant="secondary"
+                style={{ flex: 1 }}
+                onPress={() => setPicking((v) => !v)}
+                testID="studio-pick"
+              />
+              <Button
+                title="قطعة تكتبها"
+                icon="plus"
+                variant="secondary"
+                style={{ flex: 1 }}
+                onPress={() => change((f) => ({ ...f, items: [...f.items, blankItem()] }))}
+                testID="studio-add"
+              />
+            </View>
+            {picking ? (
+              <Card padded={false} style={{ gap: 0 }}>
+                <View style={{ padding: spacing.ms }}>
+                  <TextField
+                    value={search}
+                    onChangeText={setSearch}
+                    placeholder="ابحث بالاسم أو الكود أو الماركة"
+                    testID="studio-search"
+                  />
+                </View>
+                {matches.length === 0 ? (
+                  <Text variant="subhead" tone="secondary" style={{ padding: spacing.md }}>
+                    {products.length === 0 ? 'لا توجد منتجات بعد.' : 'لا توجد نتائج.'}
+                  </Text>
+                ) : (
+                  matches.map((p) => (
+                    <Pressable
+                      key={p.id}
+                      onPress={() =>
+                        change((f) => ({ ...f, items: [...f.items, itemFromProduct(ctx, p)] }))
+                      }
+                      accessibilityRole="button"
+                      accessibilityLabel={`إضافة ${displayName(ctx, p)} للإيصال`}
+                      testID={`studio-pick-${displayName(ctx, p)}`}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: spacing.ms,
+                        paddingHorizontal: spacing.md,
+                        paddingVertical: spacing.sm,
+                        borderTopWidth: 1,
+                        borderTopColor: colors.separator,
+                        opacity: pressed ? 0.6 : 1,
+                      })}>
+                      <View style={{ flex: 1 }}>
+                        <Text variant="body" numberOfLines={1}>
+                          {displayName(ctx, p)}
+                        </Text>
+                        <Text variant="caption" tone="secondary">
+                          {`${p.sku} • ${formatLyd(p.price)}`}
+                        </Text>
+                      </View>
+                      <Icon name="plus.circle.fill" size={22} color={colors.accent} />
+                    </Pressable>
+                  ))
+                )}
+              </Card>
+            ) : null}
+          </>
+        )}
 
         <Text variant="subhead" tone="secondary" style={{ paddingHorizontal: spacing.xs }}>
           المعاينة

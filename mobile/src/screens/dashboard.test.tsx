@@ -194,6 +194,23 @@ describe('the dashboard', () => {
     expect(a.onOpenBackup).toHaveBeenCalled();
   });
 
+  it('reminds the owner to choose the emergency password until it is set (K review)', async () => {
+    const a = { ...actions(), onOpenStaff: jest.fn() };
+    const data = readDashboard(ctx, '2026-11', noBackup);
+    const { rerender } = await renderScreen(
+      <DashboardScreen
+        system="jewelry"
+        data={{ ...data, attention: { ...data.attention, noEmergency: true } }}
+        actions={a}
+      />,
+    );
+    expect(screen.getByTestId('attention-emergency')).toHaveTextContent(/كلمة سر الطوارئ/);
+    await fireEvent.press(screen.getByTestId('attention-emergency'));
+    expect(a.onOpenStaff).toHaveBeenCalled();
+    await rerender(<DashboardScreen system="jewelry" data={data} actions={a} />);
+    expect(screen.queryByTestId('attention-emergency')).toBeNull();
+  });
+
   it('taps a day of the chart to see its total', async () => {
     await renderScreen(
       <DashboardScreen

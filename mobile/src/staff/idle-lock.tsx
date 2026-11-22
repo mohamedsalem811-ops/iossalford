@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { View } from 'react-native';
 
 import { Icon, Text } from '@/components';
+import { onTyping } from '@/lib/typing';
 import { countdown } from '@/screens/login';
 import { radius, spacing, useTheme } from '@/theme';
 
@@ -11,7 +12,7 @@ import { playLockWarning } from './warning-sound';
 /**
  * Locks after `lockMinutes` without a touch. `warnMinutes` before, a distinctive sound, a
  * vibration and a countdown banner (and the sound again with one minute left); one touch anywhere
- * resets it. Off for the owner unless chosen. Leaving the app still locks at once (state/lock).
+ * resets it, and so does typing (a hardware keyboard types with no touch). Off for the owner unless chosen. Leaving the app still locks at once (state/lock).
  */
 export function IdleLock({
   enabled,
@@ -36,6 +37,8 @@ export function IdleLock({
     warned.current = 'none';
     setLeft(null);
   }, [now]);
+
+  useEffect(() => (enabled ? onTyping(touched) : undefined), [enabled, touched]);
 
   useEffect(() => {
     if (!enabled) return;

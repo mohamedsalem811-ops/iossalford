@@ -115,7 +115,7 @@ jest.mock('@/domain/orders', () => ({
 // The home screen's repair reminders (J3): none.
 jest.mock('@/domain/repairs', () => ({
   ...jest.requireActual('@/domain/repairs'),
-  repairReminders: () => ({ dueToday: [], late: [], waiting: [] }),
+  repairReminders: () => ({ dueToday: [], late: [], waiting: [], needPrice: [] }),
 }));
 jest.mock('@/domain/marketing', () => ({
   ...jest.requireActual('@/domain/marketing'),

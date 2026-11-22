@@ -8,7 +8,9 @@
  * - a return taken minutes after its sale (`alertReturnMinutes`);
  * - repeated wrong PINs by one person in a day (`alertWrongPins`);
  * - a shift closed short (`alertShortage`);
- * - the device clock went back; the activity log was changed outside the app.
+ * - the device clock went back; the activity log was changed outside the app;
+ * - an employee opened an original invoice with the invoice code (every opening);
+ * - the emergency password was used, or the owner reset an employee's PIN (every one).
  *
  * The owner's own discounts, approvals and returns raise no alert. An alert the owner has seen
  * ("اطلعت") is hidden; the activity log keeps who saw it and when.
@@ -22,7 +24,16 @@ import { getPolicies } from './policies';
 import { getSetting, setSetting } from './settings';
 
 export type AlertKind =
-  'discounts' | 'approvals' | 'quickReturn' | 'wrongPins' | 'shortage' | 'clock' | 'log';
+  | 'discounts'
+  | 'approvals'
+  | 'quickReturn'
+  | 'wrongPins'
+  | 'shortage'
+  | 'clock'
+  | 'log'
+  | 'invoice'
+  /** The emergency password used, or an employee's PIN reset by the owner (point 4). */
+  | 'reset';
 
 /** Where an alert leads: the shift's report, the return, or the activity log. */
 export type AlertTarget = { screen: 'shift' | 'return'; id: number } | { screen: 'log' };
@@ -132,7 +143,7 @@ export function allAlerts(ctx: Ctx): OwnerAlert[] {
   if (p.alertWrongPins > 0)
     for (const r of ctx.db.all<{ actor: string; name: string; day: string; n: number }>(
       `SELECT actor, max(actor_name) name, day, count(*) n FROM activity
-        WHERE action IN ('pin.wrong', 'pin.locked') AND day >= ?
+        WHERE action IN ('pin.wrong', 'pin.locked', 'pin.emergency.wrong') AND day >= ?
         GROUP BY actor, day HAVING n >= ?`,
       [since, p.alertWrongPins],
     ))
@@ -169,6 +180,37 @@ export function allAlerts(ctx: Ctx): OwnerAlert[] {
       kind: r.action === 'clock.back' ? 'clock' : 'log',
       title: r.action === 'clock.back' ? 'ساعة الجهاز رجعت للخلف' : 'السجل تغيّر خارج التطبيق',
       detail: r.summary,
+      at: r.at,
+      target: { screen: 'log' },
+    });
+
+  // Every opening of an original invoice by an employee (with the owner's invoice code).
+  for (const r of ctx.db.all<{ id: number; name: string; summary: string; at: string }>(
+    `SELECT id, actor_name name, summary, at FROM activity
+      WHERE action = 'invoice.open' AND actor <> 'owner' AND day >= ?`,
+    [since],
+  ))
+    out.push({
+      key: `invoice:${r.id}`,
+      kind: 'invoice',
+      title: `${r.name} فتح فاتورة أصلية`,
+      detail: r.summary,
+      at: r.at,
+      target: { screen: 'log' },
+    });
+
+  // Every PIN reset (point 4): the emergency password, or an employee's PIN reset by the owner.
+  for (const r of ctx.db.all<{ id: number; action: string; name: string; at: string }>(
+    `SELECT id, action, actor_name name, at FROM activity
+      WHERE action IN ('pin.emergency', 'pin.reset') AND day >= ?`,
+    [since],
+  ))
+    out.push({
+      key: `reset:${r.id}`,
+      kind: 'reset',
+      title:
+        r.action === 'pin.emergency' ? 'استُخدمت كلمة سر الطوارئ' : `أعاد المالك رمز ${r.name}`,
+      detail: r.at.slice(0, 16).replace('T', ' '),
       at: r.at,
       target: { screen: 'log' },
     });

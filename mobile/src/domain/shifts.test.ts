@@ -26,7 +26,7 @@ import {
   shiftTotals,
 } from './shifts';
 import { employeeStatement } from './staff-ledger';
-import { EMPLOYEE, makeCtx, passing, type TestCtx } from './testing/ctx';
+import { CREDIT_OK, EMPLOYEE, makeCtx, passing, type TestCtx } from './testing/ctx';
 
 let ctx: TestCtx;
 let ring: number;
@@ -39,7 +39,7 @@ afterEach(() => ctx.close());
 function sell(method: PaymentMethod, qty = 1, customer?: { name: string; phone: string }) {
   const p = getProduct(ctx, ring)!;
   const cart = (addToCart([], p, p.name, qty) as { cart: CartLine[] }).cart;
-  return checkout(ctx, { cart, paymentMethod: method, customer }).saleId;
+  return checkout(ctx, { cart, paymentMethod: method, customer, creditApproval: CREDIT_OK }).saleId;
 }
 
 describe('opening', () => {

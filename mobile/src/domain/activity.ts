@@ -10,6 +10,7 @@ import { bytesToHex, utf8ToBytes } from '@noble/hashes/utils';
 
 import { dayKey } from '@/lib/dates';
 import { actorKey, actorName, type Actor } from '@/staff/model';
+import type { SystemId } from '@/theme';
 
 import { allowView, nowStamp, pageSql, PermissionError, type Ctx, type Page } from './context';
 
@@ -288,18 +289,48 @@ export const recordWrongPin = (ctx: Ctx, a: Actor, lockedFor?: number) =>
       : `رمز خاطئ لـ ${actorName(a)}`,
   );
 
-/** The emergency code was used to set a new owner PIN. */
+/** What the log says for the emergency password and PIN resets (also kept for the other system). */
+export const EMERGENCY_USED = 'استُخدمت كلمة سر الطوارئ لتعيين رمز جديد للمالك';
+export const EMERGENCY_WRONG = 'كلمة سر طوارئ خاطئة';
+export const pinResetText = (a: Actor) => `أعاد المالك رمز ${actorName(a)} بموافقته`;
+
+/** The emergency password (or the old code) was used to set a new owner PIN. */
 export const recordEmergency = (ctx: Ctx) =>
-  logAs(
-    ctx,
-    { key: 'owner', name: 'المالك' },
-    'pin.emergency',
-    'استُخدم رمز الطوارئ لتعيين رمز جديد',
-  );
+  logAs(ctx, { key: 'owner', name: 'المالك' }, 'pin.emergency', EMERGENCY_USED);
+
+/** A wrong emergency password at sign-in (K10, point 4). */
+export const recordEmergencyWrong = (ctx: Ctx) =>
+  logAs(ctx, { key: 'owner', name: 'المالك' }, 'pin.emergency.wrong', EMERGENCY_WRONG);
+
+/** The owner approved, at the counter, a new PIN for an employee who forgot theirs (point 3). */
+export const recordPinReset = (ctx: Ctx, a: Actor) =>
+  logAs(ctx, personOf(a), 'pin.reset', pinResetText(a));
 
 /** Staff changes (the list is shared by both systems; the line goes to the open one). */
 export const recordStaff = (ctx: Ctx, summary: string, details?: Record<string, unknown>) =>
   logAction(ctx, 'staff.change', summary, details);
+
+/**
+ * A staff change made while the other system was open (audit 15), written here under the person
+ * who made it, with when and where.
+ */
+export const recordStaffFrom = (
+  ctx: Ctx,
+  line: {
+    /** A staff change when absent; or the emergency password or a PIN reset (K10). */
+    event?: 'staff.change' | 'pin.emergency' | 'pin.emergency.wrong' | 'pin.reset';
+    person: { key: string; name: string };
+    summary: string;
+    details?: Record<string, unknown>;
+    at: string;
+    from: SystemId;
+  },
+) =>
+  logAs(ctx, line.person, line.event ?? 'staff.change', line.summary, {
+    ...line.details,
+    at: line.at,
+    from: line.from,
+  });
 
 /** The device clock went back before the latest time seen (S3.4). */
 export const recordClockBack = (ctx: Ctx, latest: Date, now: Date) =>
@@ -330,3 +361,20 @@ export const recordLogBroken = (ctx: Ctx, brokenAt: number) =>
 
 /** The newest line (to remember outside the database), without walking the chain. */
 export const lastLine = (ctx: Ctx) => lastHash(ctx);
+
+const CODE_NAMES = { credit: 'رمز الآجل', invoice: 'رمز الفواتير' } as const;
+
+/** An employee typed one of the owner's codes (rule B, invoices): right or wrong, and for what. */
+export const recordCodeUse = (
+  ctx: Ctx,
+  a: Actor,
+  code: keyof typeof CODE_NAMES,
+  ok: boolean,
+  what: string,
+) =>
+  logAs(
+    ctx,
+    personOf(a),
+    ok ? `code.${code}` : `code.${code}.wrong`,
+    `${ok ? '' : 'خطأ في '}${CODE_NAMES[code]} من ${actorName(a)}: ${what}`,
+  );

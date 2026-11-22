@@ -1,31 +1,65 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
+import { WebView } from 'react-native-webview';
 
 import { Button, EmptyState, Text } from '@/components';
-import { getRepair, getRepairRules } from '@/domain/repairs';
-import { repairTicketDoc } from '@/features/repairs/model';
-import { ReceiptPreview } from '@/features/receipts/receipt-preview';
-import { logError } from '@/lib/error-log';
-import { printReceipt, shareReceipt } from '@/receipts/output';
-import { useCtx } from '@/state/system-db';
-import { spacing, useTheme } from '@/theme';
 import { errorBoundary } from '@/components/error-screen';
+import { getRepair, getRepairRules, repairLines } from '@/domain/repairs';
+import { repairTicketData } from '@/features/repairs/model';
+import { logError } from '@/lib/error-log';
+import { cardFontCss } from '@/receipts/fonts';
+import { printTicket, shareTicket, ticketPhoto } from '@/receipts/repair-ticket-output';
+import { PAGE } from '@/receipts/templates/html';
+import { repairTicketHtml } from '@/receipts/templates/repair-ticket';
+import { useCtx } from '@/state/system-db';
+import { useCan } from '@/staff/use-can';
+import { radius, spacing, useTheme } from '@/theme';
 
 /** /jewelry/repair-ticket/3: the repair ticket she shows to collect her piece, to print or share. */
 export default function RepairTicketRoute() {
   const ctx = useCtx();
   const { colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
-  const repair = getRepair(ctx, Number(id));
+  const phones = useCan('customers.phones');
+  // Read once for this ticket (not on every redraw: the photo and the font arrive later).
+  const repair = useMemo(() => getRepair(ctx, Number(id)), [ctx, id]);
   const [busy, setBusy] = useState(false);
-  if (!repair) return <EmptyState icon="wrench.and.screwdriver" title="الصيانة غير موجودة" />;
-  const doc = repairTicketDoc(repair, ctx.system, getRepairRules(ctx).note);
+  const [width, setWidth] = useState(0);
+  const [fontCss, setFontCss] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
+  const firstPhoto = repair?.photos[0];
+  useEffect(() => {
+    let live = true;
+    cardFontCss(ctx.system).then((css) => live && setFontCss(css));
+    ticketPhoto(ctx.system, firstPhoto).then((p) => live && setPhoto(p));
+    return () => {
+      live = false;
+    };
+  }, [ctx.system, firstPhoto]);
+  const ticket = useMemo(
+    () =>
+      repair
+        ? {
+            ...repairTicketData(
+              repair,
+              repairLines(ctx, repair.id),
+              ctx.system,
+              getRepairRules(ctx).note,
+              phones,
+            ),
+            photo,
+          }
+        : null,
+    [ctx, repair, phones, photo],
+  );
+  if (!repair || !ticket)
+    return <EmptyState icon="wrench.and.screwdriver" title="الصيانة غير موجودة" />;
   const output = async (kind: 'print' | 'share') => {
     setBusy(true);
     try {
-      if (kind === 'print') await printReceipt(doc);
-      else await shareReceipt(doc);
+      if (kind === 'print') await printTicket(ticket);
+      else await shareTicket(ticket);
     } catch (error) {
       logError('إيصال الصيانة', error);
       Alert.alert('لم يُطبع الإيصال', 'حدث خطأ أثناء تجهيز الملف. حاول مرة أخرى.');
@@ -65,7 +99,36 @@ export default function RepairTicketRoute() {
             testID="repair-ticket-share"
           />
         </View>
-        <ReceiptPreview doc={doc} />
+        <View
+          onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
+          accessibilityLabel="معاينة الإيصال كما سيُطبع"
+          style={{
+            height: width ? (width * PAGE.height) / PAGE.width : 400,
+            borderRadius: radius.md,
+            borderCurve: 'continuous',
+            overflow: 'hidden',
+            borderWidth: 1,
+            borderColor: colors.separator,
+            backgroundColor: '#fff',
+          }}>
+          {width ? (
+            <WebView
+              testID="receipt-preview"
+              originWhitelist={['*']}
+              // Plain HTML: no scripts run, and it never opens anything else.
+              javaScriptEnabled={false}
+              onShouldStartLoadWithRequest={(r) =>
+                r.url === 'about:blank' || r.url.startsWith('data:')
+              }
+              source={{ html: repairTicketHtml(ticket, { previewWidth: width, fontCss }) }}
+              style={{ backgroundColor: '#fff' }}
+              scrollEnabled
+              bounces={false}
+              automaticallyAdjustContentInsets={false}
+              contentInsetAdjustmentBehavior="never"
+            />
+          ) : null}
+        </View>
       </ScrollView>
     </>
   );

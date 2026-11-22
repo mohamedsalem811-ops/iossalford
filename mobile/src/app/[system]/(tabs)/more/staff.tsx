@@ -7,7 +7,7 @@ import { useCallback, useState } from 'react';
 import { errorBoundary } from '@/components/error-screen';
 import {
   addEmployeeFlow,
-  emergencyCodeFlow,
+  emergencyPasswordFlow,
   receiveStaffList,
   renameFlow,
   resetPinFlow,
@@ -16,6 +16,7 @@ import {
   toggleActiveFlow,
   togglePhonesFlow,
   toggleSpendFlow,
+  toggleSystemFlow,
 } from '@/features/staff/actions';
 import { StaffScreen } from '@/features/staff/staff-screen';
 import { pinVault } from '@/security/device';
@@ -33,9 +34,9 @@ export default function StaffRoute() {
 
 function StaffRouteScreen() {
   const staff = useStaff();
-  const [hasCode, setHasCode] = useState(false);
+  const [emergency, setEmergency] = useState<'password' | 'code' | null>(null);
   const readCode = useCallback(() => {
-    pinVault.hasEmergencyCode().then(setHasCode);
+    pinVault.emergencyKind().then(setEmergency);
   }, []);
   useFocusEffect(readCode);
   const ctx = useCtx();
@@ -46,7 +47,7 @@ function StaffRouteScreen() {
       <Stack.Title>الموظفون</Stack.Title>
       <StaffScreen
         staff={staff}
-        hasEmergencyCode={hasCode}
+        emergency={emergency}
         balances={balances}
         actions={{
           onAdd: addEmployeeFlow,
@@ -55,8 +56,10 @@ function StaffRouteScreen() {
           onToggleActive: toggleActiveFlow,
           onTogglePhones: togglePhonesFlow,
           onToggleSpend: toggleSpendFlow,
+          onToggleSystem: toggleSystemFlow,
           onLock: saveLock,
-          onEmergencyCode: () => emergencyCodeFlow(hasCode, readCode),
+          onEmergencyPassword: () =>
+            emergencyPasswordFlow(ctx.system, emergency === 'password', readCode),
           onSendList: sendStaffList,
           onReceiveList: receiveStaffList,
           onAccount: (e) =>

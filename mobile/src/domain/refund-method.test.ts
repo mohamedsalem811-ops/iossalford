@@ -18,7 +18,7 @@ import {
   returnsSummary,
 } from './sales';
 import { getShift, openShift, shiftTotals } from './shifts';
-import { EMPLOYEE, makeCtx, passing, type TestCtx } from './testing/ctx';
+import { CREDIT_OK, EMPLOYEE, makeCtx, passing, type TestCtx } from './testing/ctx';
 import { dayKey } from '@/lib/dates';
 import { OWNER } from '@/staff/model';
 
@@ -34,7 +34,8 @@ afterEach(() => ctx.close());
 const cart = (): CartLine[] =>
   (addToCart([], getProduct(ctx, ring)!, 'خاتم', 1) as { cart: CartLine[] }).cart;
 const sell = (method: PaymentMethod, customer?: typeof HUDA) =>
-  checkout(ctx, { cart: cart(), paymentMethod: method, customer }).saleId;
+  checkout(ctx, { cart: cart(), paymentMethod: method, customer, creditApproval: CREDIT_OK })
+    .saleId;
 const lineOf = (saleId: number) => getSale(ctx, saleId)!.lines[0].id;
 const giveBack = (saleId: number, refundMethod?: Parameters<typeof addReturn>[1]['refundMethod']) =>
   addReturn(ctx, { ...passing(ctx), saleLineId: lineOf(saleId), quantity: 1, refundMethod });
@@ -164,7 +165,7 @@ describe('the refund method', () => {
     const two = (addToCart([], getProduct(ctx, ring)!, 'خاتم', 2) as { cart: CartLine[] }).cart;
     const r = exchange(ctx, {
       ret: { ...passing(ctx), saleLineId: lineOf(sale), quantity: 1 },
-      sale: { cart: two, paymentMethod: 'cash' },
+      sale: { cart: two, paymentMethod: 'cash', creditApproval: CREDIT_OK },
     });
     expect(getReturn(ctx, r.returnId)!.refundMethod).toBe('debt');
     expect(getSale(ctx, r.saleId)).toMatchObject({ paymentMethod: 'credit', customerId });

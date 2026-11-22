@@ -13,7 +13,18 @@ import {
 } from './cart';
 import { getPolicies, type Policies } from './policies';
 import { shiftFor } from './shifts';
-import { allow, clean, nowMonth, nowStamp, ownerSays, RuleError, type Ctx } from './context';
+import {
+  allow,
+  clean,
+  creditAllowed,
+  CreditCodeNeeded,
+  nowMonth,
+  nowStamp,
+  ownerSays,
+  RuleError,
+  type Ctx,
+} from './context';
+
 import { ensureCustomer, hasIdentity, type SaleCustomerDetails } from './customers';
 import { earnOnSale, getLoyalty, pointsBalance, redeemOnSale } from './loyalty';
 import { getRewards, type RewardRules } from './rewards';
@@ -39,6 +50,8 @@ import { getRate } from './settings';
 import { actorKey, actorName } from '@/staff/model';
 import { logAction } from './activity';
 import { formatLyd } from '@/lib/money';
+
+export { CreditCodeNeeded };
 
 export const PAYMENT_METHODS = ['cash', 'card', 'transfer', 'credit'] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
@@ -101,6 +114,8 @@ export type CheckoutInput = {
   discountReason?: string;
   /** The owner's one-time approval for a discount over the limits. */
   approval?: string;
+  /** An employee's sale on credit: the token from the owner's credit code (rule B). */
+  creditApproval?: string;
   /** Loyalty points the customer pays part of the sale with (F3; cash or card only). */
   points?: number;
   /** Use the customer's visit reward on this sale (G2). */
@@ -177,6 +192,10 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       if (discount.total > 0)
         throw new RuleError('لا تُجمع المكافآت مع أي خصم آخر: أرجع الأسعار الأصلية أولاً');
     }
+    // Credit by an employee needs the owner's code (rule B): asked first, so that no other
+    // approval is used up by a sale still waiting for it; the code itself is used up last.
+    const needsCredit = input.paymentMethod === 'credit' && seller.kind !== 'owner';
+    if (needsCredit && !input.creditApproval) throw new CreditCodeNeeded();
     let approvedBy: string | null = null;
     if (seller.kind !== 'owner' && needsApproval(discount)) {
       if (!reason) throw new ApprovalNeeded(discount, 'اختر سبب الخصم أو اكتبه.');
@@ -275,6 +294,8 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
       throw new RuleError(
         `العربون المدفوع ${formatLyd(depositUsed)} أكبر من مبلغ البيعة ${formatLyd(total)}: لا تُستخدم المكافأة في هذا التسليم`,
       );
+
+    if (needsCredit && !creditAllowed(ctx, input.creditApproval)) throw new CreditCodeNeeded();
 
     const saleId = ctx.db.run(
       `INSERT INTO sales (created_at, month, payment_method, customer_id, customer_name, note, rate, total, total_cost, seller, seller_name,

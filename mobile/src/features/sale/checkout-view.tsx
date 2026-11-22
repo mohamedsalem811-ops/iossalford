@@ -20,6 +20,7 @@ import {
   BirthdayApprovalNeeded,
   checkout,
   CheckoutError,
+  CreditCodeNeeded,
   discountMessage,
   PAYMENT_LABELS,
   PAYMENT_METHODS,
@@ -37,7 +38,7 @@ import { getSet, setForCart } from '@/domain/sets';
 import { getPolicies } from '@/domain/policies';
 import { getProduct } from '@/domain/products';
 import { orderCart, type Order } from '@/domain/orders';
-import { askOwner, chooseReason } from '@/staff/approvals';
+import { askCode, askOwner, chooseReason } from '@/staff/approvals';
 import { useActor, useCan } from '@/staff/use-can';
 import { RuleError, type Ctx } from '@/domain/context';
 import {
@@ -248,7 +249,12 @@ export function CheckoutView({
 
   /** Sells; on a discount over the limits, asks the owner on the spot and sells again. */
   const sell = (
-    extra: { discountReason?: string; approval?: string; birthdayApproval?: string } = {},
+    extra: {
+      discountReason?: string;
+      approval?: string;
+      birthdayApproval?: string;
+      creditApproval?: string;
+    } = {},
   ) => {
     const checked = detailsFromForm(details);
     if (!checked.ok) {
@@ -298,6 +304,18 @@ export function CheckoutView({
       return true;
     } catch (error) {
       setBusy(false);
+      if (error instanceof CreditCodeNeeded && !asking.current) {
+        asking.current = true;
+        haptic.medium();
+        askCode(ctx, 'credit', `بيع بالآجل لـ ${form.name.trim() || 'الزبونة'}`)
+          .then((token) => {
+            if (token) sell({ ...extra, creditApproval: token });
+          })
+          .finally(() => {
+            asking.current = false;
+          });
+        return;
+      }
       if (error instanceof BirthdayApprovalNeeded && !asking.current) {
         asking.current = true;
         haptic.medium();
@@ -312,7 +330,7 @@ export function CheckoutView({
       }
       if (error instanceof ApprovalNeeded && !asking.current) {
         asking.current = true;
-        askForDiscount(error).finally(() => {
+        askForDiscount(error, extra).finally(() => {
           asking.current = false;
         });
         return;
@@ -348,7 +366,7 @@ export function CheckoutView({
     }
   };
 
-  const askForDiscount = async (e: ApprovalNeeded) => {
+  const askForDiscount = async (e: ApprovalNeeded, extra: Parameters<typeof sell>[0] = {}) => {
     haptic.medium();
     const reason = await chooseReason(
       `سبب الخصم (${formatLyd(e.discount.total)})`,
@@ -361,7 +379,7 @@ export function CheckoutView({
       `${discountMessage(e.discount, policies)}\nالسبب: ${reason}`,
     );
     if (!approval) return;
-    sell({ discountReason: reason, approval });
+    sell({ ...extra, discountReason: reason, approval });
   };
 
   const confirm = () => {

@@ -30,6 +30,8 @@ export type DashboardActions = {
   onOpenBirthdays?: () => void;
   /** The owner's settings still to do (H2). */
   onOpenSetup?: () => void;
+  /** الموظفون, where the emergency password is chosen (K review). */
+  onOpenStaff?: () => void;
   /** Today's card: the end-of-day summary. */
   onOpenDay?: () => void;
   /** An alert (phase S6): what happened, open it, or mark it seen. */
@@ -110,6 +112,8 @@ const ALERT_ICONS: Record<AlertKind, SymbolViewProps['name']> = {
   shortage: 'banknote',
   clock: 'clock.badge.exclamationmark',
   log: 'list.bullet.clipboard',
+  invoice: 'doc.text.magnifyingglass',
+  reset: 'key.horizontal',
 };
 
 export function AttentionCard({
@@ -130,6 +134,7 @@ export function AttentionCard({
     !a.dataProblem &&
     !a.birthdays?.length &&
     !a.setup &&
+    !a.noEmergency &&
     alerts.length === 0;
   return (
     <Card style={{ flex: 1 }} testID="attention">
@@ -213,6 +218,16 @@ export function AttentionCard({
               tone="warning"
               onPress={actions.onOpenDebts}
               testID="attention-debts"
+            />
+          ) : null}
+          {a.noEmergency ? (
+            <ListRow
+              icon="key"
+              tone="warning"
+              title="اختر كلمة سر الطوارئ"
+              subtitle="حتى لا تُقفل خارج النظام إن نسيت رمزك"
+              onPress={actions.onOpenStaff}
+              testID="attention-emergency"
             />
           ) : null}
           {a.setup ? (

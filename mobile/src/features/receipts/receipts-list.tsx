@@ -34,7 +34,8 @@ export function ReceiptsList({
   /** A search or filter is on (the empty state says so). */
   filtered: boolean;
   actions: ReceiptActions;
-  onNew: () => void;
+  /** Absent for someone who may not make a receipt by hand. */
+  onNew?: () => void;
 }) {
   const { colors } = useTheme();
   const readable = useReadable();
@@ -93,9 +94,12 @@ export function ReceiptsList({
           <EmptyState
             icon="doc.text"
             title="لا توجد إيصالات بعد"
-            message="يُصدر إيصال تلقائياً مع كل بيع، ويمكنك إنشاء إيصال يدوي."
-            action="إيصال جديد"
-            onAction={onNew}
+            message={
+              onNew
+                ? 'يُصدر إيصال تلقائياً مع كل بيع، ويمكنك إنشاء إيصال يدوي.'
+                : 'يُصدر إيصال تلقائياً مع كل بيع.'
+            }
+            {...(onNew ? { action: 'إيصال جديد', onAction: onNew } : {})}
           />
         )
       }
