@@ -38,9 +38,11 @@ appId: com.salford.pos
     timeout: 200000
 - takeScreenshot: ${DEVICE}-auto-lock-warning
 # Run 77: one long wait here gave up after about 10 seconds while the countdown was still running
-# (0:48 left), so wait in short steps until the lock screen shows (at most about 2.5 minutes).
+# (0:48 left). Run 78: with the countdown on screen each wait below ends after about 3 seconds
+# whatever its timeout, so 15 of them covered under a minute. Try up to 80 times: at least 3
+# minutes at 2 to 3 seconds each (the lock is due 1 minute after the warning).
 - repeat:
-    times: 15
+    times: 80
     while:
       notVisible:
         id: 'person-owner'
