@@ -19,12 +19,15 @@ appId: com.salford.pos
 - tapOn:
     id: 'staff-warn-minutes'
 - tapOn: 'دقيقة'
-- assertVisible: '3 دقائق'
+# The row reads «يُقفل بعد عدم الاستخدام، 3 دقائق» as one label.
+- assertVisible: '.*3 دقائق.*'
+- assertVisible: '.*قبل القفل، دقيقة'
 - takeScreenshot: ${DEVICE}-auto-lock-settings
-# Back to the top, where «إضافة موظف» is (on iPad the section stays where it was scrolled).
+# Back to the top, where «إضافة موظف» is (on iPad the section stays where it was scrolled;
+# with no employees yet it is the empty page's button, not the staff-add row).
 - scrollUntilVisible:
     element:
-      id: 'staff-add'
+      text: 'إضافة موظف'
     direction: UP
     timeout: 30000
 - runFlow: subflows/add-employee.yaml

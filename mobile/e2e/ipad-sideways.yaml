@@ -50,9 +50,9 @@ onFlowComplete:
       - runFlow: subflows/management-menu.yaml
       - tapOn:
           id: 'manage-sales'
+      # Nothing has been sold in this flow (the ring is only in the cart): the empty history.
       - extendedWaitUntil:
-          visible:
-            id: 'sales-summary'
+          visible: 'لا توجد مبيعات بعد'
           timeout: 30000
       - takeScreenshot: ${DEVICE}-sideways-management
       - setOrientation: PORTRAIT

@@ -13,6 +13,11 @@ name: Expo app simulator tests
 
 on:
   workflow_dispatch:
+    inputs:
+      flows:
+        description: 'Only these flows, by name and separated by spaces (e.g. "receipts sale"); empty runs them all'
+        required: false
+        default: ''
 
 concurrency:
   group: mobile-simulator-${{ github.ref }}
@@ -190,13 +195,28 @@ jobs:
           # start-up timeout was too short for the iPad run (5 minutes was not always enough
           # either). A hung driver is retried once below.
           MAESTRO_DRIVER_STARTUP_TIMEOUT: '420000'
+          ONLY_FLOWS: ${{ inputs.flows }}
         run: |
           set -e
           APP=build_output/Build/Products/Release-iphonesimulator/SALFORDPOS.app
           mkdir -p screenshots
           KIND='${{ matrix.device }}'
-          # This machine's half of the flows (scripts/flow-parts.mjs, tested in Jest).
-          FLOWS=$(node scripts/flow-parts.mjs '${{ matrix.part }}' 2)
+          # This machine's half of the flows (scripts/flow-parts.mjs, tested in Jest), or, when
+          # the run names some flows (to rerun the ones fixed after a run), all of them on part 1.
+          if [ -n "$ONLY_FLOWS" ]; then
+            if [ '${{ matrix.part }}' != '1' ]; then
+              echo "== Only $ONLY_FLOWS: all on part 1, nothing for this part"
+              exit 0
+            fi
+            FLOWS=""
+            for NAME in $ONLY_FLOWS; do
+              case "$NAME" in *[!a-z0-9-]*) echo "Not a flow name: $NAME"; exit 2 ;; esac
+              [ -f "e2e/$NAME.yaml" ] || { echo "No flow e2e/$NAME.yaml"; exit 2; }
+              FLOWS="$FLOWS e2e/$NAME.yaml"
+            done
+          else
+            FLOWS=$(node scripts/flow-parts.mjs '${{ matrix.part }}' 2)
+          fi
           echo "== Part ${{ matrix.part }} on $KIND: $FLOWS"
           {
             UDID="$SIM_UDID"

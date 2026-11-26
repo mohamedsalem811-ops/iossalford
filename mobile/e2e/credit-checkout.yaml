@@ -120,4 +120,10 @@ appId: com.salford.pos
       ID: 'manage-customers'
 - tapOn:
     id: 'customer-Sara'
+# On iPhone the balance is below the card, the details, wanted pieces and orders.
+- scrollUntilVisible:
+    element:
+      text: 'لا ديون'
+    direction: DOWN
+    timeout: 30000
 - assertVisible: 'لا ديون'

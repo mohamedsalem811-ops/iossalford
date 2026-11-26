@@ -109,6 +109,8 @@ appId: com.salford.pos
     timeout: 30000
 - tapOn:
     id: 'order-pay-amount'
+# The amount starts as what is left (500); a part payment replaces it.
+- eraseText
 - inputText: '100'
 - tapOn:
     id: 'keyboard.toolbar.done'
