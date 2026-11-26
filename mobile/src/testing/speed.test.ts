@@ -39,6 +39,7 @@ import {
 } from '@/domain/marketing';
 import { listOrders } from '@/domain/orders';
 import { slowStock } from '@/domain/slow-stock';
+import { bonusesToCredit, myGoal, staffReport } from '@/domain/staff-goals';
 import { planReminders } from '@/domain/notify';
 import { reservedCounts } from '@/domain/reserved';
 import { allBalances, creditBalances, debtors } from '@/domain/debts';
@@ -283,6 +284,14 @@ function measure(sales: number, people = 1_500) {
     if (cat) profitRows(ctx, year, { brand: top.key, category: cat.key });
   });
   check('Slow stock: pieces unsold 90 days, by brand (J5)', () => slowStock(ctx, 90));
+  // Phase L: some of the sales are an employee's.
+  db.run("UPDATE sales SET seller = 'emp-e1', seller_name = 'سارة' WHERE id % 3 = 0");
+  const staffList = [{ key: 'emp-e1', name: 'سارة' }];
+  check('Staff: the employee’s target and ranking (L1)', () =>
+    myGoal({ ...ctx, actor: { kind: 'employee', id: 'e1', name: 'سارة' } }, staffList),
+  );
+  check('Staff: the monthly report (L3)', () => staffReport(ctx, months[0], staffList));
+  check('Staff: last month’s bonuses to add (dashboard)', () => bonusesToCredit(ctx));
   check('Reminders: the coming week planned (J6)', () =>
     planReminders(ctx, { lastCopied: null, firstBackup: null }),
   );

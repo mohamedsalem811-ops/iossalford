@@ -7,6 +7,8 @@ import { setupCount } from '@/domain/setup';
 import { copyOverdueDays, copyReminder } from '@/backup/model';
 import { PAYMENT_LABELS, type PaymentMethod } from '@/domain/checkout';
 import { ownerAlerts, type OwnerAlert } from '@/domain/alerts';
+import { bonusesToCredit } from '@/domain/staff-goals';
+import { can } from '@/staff/permissions';
 import type { Ctx } from '@/domain/context';
 import { allBalances } from '@/domain/debts';
 import {
@@ -102,6 +104,11 @@ export type DashboardData = {
      * PIN can't be reset. Read from the Keychain by the screen, not from the database.
      */
     noEmergency?: boolean;
+    /**
+     * Bonuses on slow pieces of ended months not in the accounts yet (phase L): how many people's
+     * months, and the oldest month, which the report opens on.
+     */
+    bonuses?: { count: number; month: MonthKey | null };
   };
   byCategory: RankedRow[];
   byBrand: RankedRow[];
@@ -150,6 +157,7 @@ export function readDashboard(
       alerts: ownerAlerts(ctx),
       birthdays: birthdaysThisWeek(ctx).map((b) => b.customer.name),
       setup: setupCount(ctx),
+      bonuses: can(ctx.actor, 'staff.manage') ? bonusesToCredit(ctx) : undefined,
     },
     byCategory: ranked(breakdown(ctx, [month], 'category')),
     byBrand: ranked(breakdown(ctx, [month], 'brand')),

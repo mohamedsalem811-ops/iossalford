@@ -6,11 +6,14 @@ import { Button, Card, EmptyState, ListGroup, ListRow, Page, Text } from '@/comp
 import { errorBoundary } from '@/components/error-screen';
 import {
   employeeStatement,
+  isBonus,
   KIND_LABELS,
   recordRepayment,
+  signed,
   type LedgerLine,
 } from '@/domain/staff-ledger';
 import { showError } from '@/features/products/actions';
+import { payEmployeeFlow } from '@/features/staff/goal-actions';
 import { formatDate } from '@/lib/dates';
 import { parseThousandths } from '@/lib/digits';
 import { haptic } from '@/lib/haptics';
@@ -21,12 +24,23 @@ import { actorKey } from '@/staff/model';
 import { useStaff } from '@/staff/store';
 import { useActor, useCan } from '@/staff/use-can';
 
+/**
+ * A line's amount in words, never +/− (phase L check): what it did to what they owe («عليه»)
+ * or to their bonuses («له»).
+ */
+function lineValue(l: LedgerLine): string {
+  const amount = formatLyd(l.amount);
+  if (isBonus(l.kind)) return signed(l) > 0 ? `له ${amount}` : `خُصم من له ${amount}`;
+  return signed(l) > 0 ? `عليه ${amount}` : `خُصم من عليه ${amount}`;
+}
+
 const lineTitle = (l: LedgerLine) =>
   `${KIND_LABELS[l.kind]}${l.returnId ? ` • مرتجع رقم ${l.returnId}` : ''}`;
 
 /**
  * An employee's account (phase S4): returns put on their account, waived, and what they paid
- * back, with the balance after each line. The owner reads anyone's and records repayments; an
+ * back; and (phase L) the bonuses the shop owes them and what was paid out. + adds to what they
+ * owe, − takes from it. The owner reads anyone's and records repayments; an
  * employee reads only their own.
  */
 function AccountScreen() {
@@ -49,6 +63,8 @@ function AccountScreen() {
 
   if (!employee || !statement)
     return <EmptyState icon="lock" title={employee ? 'للمالك فقط' : 'الموظف غير موجود'} />;
+
+  const hasBonus = statement.lines.some((l) => isBonus(l.kind));
 
   const repay = () =>
     Alert.prompt(
@@ -87,7 +103,7 @@ function AccountScreen() {
       <Page>
         <Card>
           <Text variant="subhead" tone="secondary">
-            {statement.balance > 0 ? 'عليه' : 'الحساب'}
+            عليه
           </Text>
           <Text
             variant="title"
@@ -95,10 +111,39 @@ function AccountScreen() {
             testID="account-balance">
             {statement.balance > 0 ? formatLyd(statement.balance) : 'لا شيء عليه'}
           </Text>
-          {owner ? (
+          {owner && statement.balance > 0 ? (
             <Button title="تسجيل سداد" icon="banknote" onPress={repay} testID="account-repay" />
           ) : null}
         </Card>
+        {hasBonus ? (
+          <Card>
+            <Text variant="subhead" tone="secondary">
+              له من المكافآت
+            </Text>
+            <Text variant="title" testID="account-bonus">
+              {statement.bonus > 0 ? formatLyd(statement.bonus) : 'لا شيء'}
+            </Text>
+            {statement.bonus < 0 ? (
+              <Text variant="caption" tone="secondary" testID="account-bonus-back">
+                {`أُرجعت مكافآت أكثر مما دُفع: ${formatLyd(-statement.bonus)} تُخصم من المكافآت القادمة`}
+              </Text>
+            ) : (
+              <Text variant="caption" tone="secondary">
+                منفصلة عما عليه: لا تُخصم منه
+              </Text>
+            )}
+            {owner && statement.bonus > 0 ? (
+              <Button
+                title="دفع المكافآت للموظف"
+                icon="banknote"
+                onPress={() =>
+                  payEmployeeFlow(ctx, { key, name: employee.name }, statement.bonus, refresh)
+                }
+                testID="account-pay"
+              />
+            ) : null}
+          </Card>
+        ) : null}
         {statement.lines.length === 0 ? (
           <EmptyState icon="list.bullet" title="لا توجد حركات" />
         ) : (
@@ -108,7 +153,7 @@ function AccountScreen() {
                 key={l.id}
                 title={lineTitle(l)}
                 subtitle={[formatDate(new Date(l.createdAt)), l.note].filter(Boolean).join(' • ')}
-                value={`${l.kind === 'charge' ? '+' : '−'}${formatLyd(l.amount)}`}
+                value={lineValue(l)}
                 chevron={false}
                 testID={`account-line-${l.id}`}
               />

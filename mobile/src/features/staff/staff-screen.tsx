@@ -12,6 +12,7 @@ import {
   type LockSettings,
   type Staff,
 } from '@/staff/model';
+import { SLOW_BONUS_DAYS, type Goals } from '@/domain/staff-goals';
 import type { SystemId } from '@/theme';
 
 export type StaffActions = {
@@ -30,6 +31,10 @@ export type StaffActions = {
   onReceiveList: () => void;
   /** The employee's account: charges for returns and repayments (phase S4). */
   onAccount?: (e: Employee) => void;
+  /** Phase L: the monthly target, the suggested bonus, and the monthly report. */
+  onTarget?: () => void;
+  onBonusDefault?: () => void;
+  onReport?: () => void;
 };
 
 const SYSTEMS: SystemId[] = ['jewelry', 'scarves'];
@@ -37,6 +42,12 @@ const SYSTEM_NAMES: Record<SystemId, string> = { jewelry: 'المجوهرات', 
 
 const seesPhones = (e: Employee) => (e.grants ?? []).includes('customers.phones');
 const seesSpend = (e: Employee) => (e.grants ?? []).includes('customers.spend');
+
+/** What an account shows: what they owe, and apart, their bonuses not paid yet (phase L). */
+const balanceText = (owed: number, bonus: number) =>
+  [owed > 0 ? `عليه ${formatLyd(owed)}` : null, bonus > 0 ? `له ${formatLyd(bonus)}` : null]
+    .filter(Boolean)
+    .join(' • ') || undefined;
 
 const minutes = (n: number) => (n === 1 ? 'دقيقة' : n === 2 ? 'دقيقتان' : `${n} دقائق`);
 
@@ -56,6 +67,8 @@ export function StaffScreen({
   emergency,
   actions,
   balances,
+  bonuses,
+  goals,
 }: {
   staff: Staff;
   /** The owner's emergency password (K10), the old 12-digit code, or neither. */
@@ -63,6 +76,10 @@ export function StaffScreen({
   actions: StaffActions;
   /** What each employee owes ("emp-<id>" → dirhams). */
   balances?: Map<string, number>;
+  /** Their bonuses not paid yet, apart (phase L). */
+  bonuses?: Map<string, number>;
+  /** The monthly target and the suggested bonus on slow pieces (phase L). */
+  goals?: Goals;
 }) {
   const people = sortedStaff(staff);
   const lock = staff.lock;
@@ -135,11 +152,10 @@ export function StaffScreen({
               ]
                 .filter(Boolean)
                 .join(' • ')}
-              value={
-                (balances?.get(`emp-${e.id}`) ?? 0) > 0
-                  ? `عليه ${formatLyd(balances!.get(`emp-${e.id}`)!)}`
-                  : undefined
-              }
+              value={balanceText(
+                balances?.get(`emp-${e.id}`) ?? 0,
+                bonuses?.get(`emp-${e.id}`) ?? 0,
+              )}
               onPress={() => menu(e)}
               testID={`staff-${e.name}`}
             />
@@ -147,6 +163,35 @@ export function StaffScreen({
           <ListRow icon="plus" title="إضافة موظف" onPress={actions.onAdd} testID="staff-add" />
         </ListGroup>
       )}
+
+      {goals && actions.onTarget ? (
+        <ListGroup
+          header="الأهداف والمكافآت"
+          footer={`الهدف مبلغ واحد لكل موظف في الشهر، ويرى كل موظف ترتيبه بالنسبة فقط بدون مبالغ غيره. المكافأة على القطع الراكدة (بلا بيع ${SLOW_BONUS_DAYS} يوماً) تضعها من «القطع الراكدة» في المنتجات.`}>
+          <ListRow
+            icon="target"
+            title="هدف الشهر لكل موظف"
+            value={goals.target ? formatLyd(goals.target) : 'بدون هدف'}
+            onPress={actions.onTarget}
+            testID="staff-target"
+          />
+          <ListRow
+            icon="gift"
+            title="المكافأة المقترحة للقطعة"
+            value={formatLyd(goals.bonusDefault)}
+            onPress={actions.onBonusDefault}
+            testID="staff-bonus-default"
+          />
+          {actions.onReport ? (
+            <ListRow
+              icon="chart.bar"
+              title="تقرير الموظفين الشهري"
+              onPress={actions.onReport}
+              testID="staff-report"
+            />
+          ) : null}
+        </ListGroup>
+      ) : null}
 
       <ListGroup
         header="القفل التلقائي للموظف"

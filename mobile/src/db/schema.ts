@@ -1139,6 +1139,58 @@ UPDATE settings SET value = json_set(value, '$.hideNames', json('true'))
   WHERE key = 'notify' AND json_valid(value);
 `,
   },
+  {
+    version: 17,
+    name: 'staff bonus on slow pieces',
+    sql: `
+-- The owner's bonus on a slow piece (phase L), per piece sold by an employee; NULL: none.
+ALTER TABLE products ADD COLUMN bonus INTEGER CHECK (bonus > 0);
+-- The bonus a sale line earned, per piece, as it was at checkout (0: none).
+ALTER TABLE sale_lines ADD COLUMN bonus INTEGER NOT NULL DEFAULT 0 CHECK (bonus >= 0);
+-- The employee's account takes the bonus: a month's bonus ('bonus', the shop owes it), the bonus
+-- taken back when that month's returns were more ('bonus_back'), and what the owner paid the
+-- employee ('payout'). SQLite changes a CHECK by rebuilding the table: same columns in the same
+-- order, and bonus_month (the month a bonus line is for, once per person) at the end.
+CREATE TEMP TABLE staff_ledger_seq AS SELECT seq FROM sqlite_sequence WHERE name = 'staff_ledger';
+CREATE TABLE staff_ledger_new (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  employee      TEXT NOT NULL,
+  employee_name TEXT NOT NULL,
+  kind          TEXT NOT NULL
+                CHECK (kind IN ('charge', 'repay', 'waive', 'bonus', 'bonus_back', 'payout')),
+  amount        INTEGER NOT NULL CHECK (amount > 0),
+  return_id     INTEGER REFERENCES returns(id) ON DELETE SET NULL,
+  note          TEXT,
+  created_at    TEXT NOT NULL,
+  month         TEXT NOT NULL,
+  by            TEXT,
+  by_name       TEXT,
+  uid           TEXT,
+  device        TEXT,
+  shift_id      INTEGER REFERENCES shifts(id) ON DELETE SET NULL,
+  bonus_month   TEXT
+);
+INSERT INTO staff_ledger_new SELECT *, NULL FROM staff_ledger;
+DROP TABLE staff_ledger;
+ALTER TABLE staff_ledger_new RENAME TO staff_ledger;
+DELETE FROM sqlite_sequence WHERE name IN ('staff_ledger', 'staff_ledger_new');
+INSERT INTO sqlite_sequence (name, seq)
+  SELECT 'staff_ledger', max(coalesce((SELECT seq FROM temp.staff_ledger_seq), 0),
+                             coalesce((SELECT max(id) FROM staff_ledger), 0));
+DROP TABLE temp.staff_ledger_seq;
+CREATE INDEX staff_ledger_employee ON staff_ledger(employee, id);
+CREATE INDEX staff_ledger_return ON staff_ledger(return_id);
+CREATE UNIQUE INDEX staff_ledger_uid ON staff_ledger(uid);
+CREATE INDEX staff_ledger_shift ON staff_ledger(shift_id);
+CREATE UNIQUE INDEX staff_ledger_bonus_month ON staff_ledger(employee, bonus_month)
+  WHERE bonus_month IS NOT NULL;
+CREATE TRIGGER staff_ledger_new_uid AFTER INSERT ON staff_ledger WHEN NEW.uid IS NULL BEGIN
+  UPDATE staff_ledger SET uid = lower(hex(randomblob(16))),
+    device = (SELECT value FROM settings WHERE key = 'device_id')
+  WHERE rowid = NEW.rowid;
+END;
+`,
+  },
 ];
 
 export const LATEST_VERSION = migrations[migrations.length - 1].version;

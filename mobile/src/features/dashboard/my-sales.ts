@@ -8,6 +8,7 @@ import { getRate } from '@/domain/settings';
 import { getPolicies } from '@/domain/policies';
 import { openShiftOf, shiftTotals } from '@/domain/shifts';
 import { employeeStatement } from '@/domain/staff-ledger';
+import { myGoal, type MyGoal, type Person } from '@/domain/staff-goals';
 import { actorKey } from '@/staff/model';
 import { dayKey, monthKey } from '@/lib/dates';
 
@@ -19,10 +20,14 @@ export type MySales = {
   latest: Sale[];
   /** What they owe on their account (returns charged to them, less repayments). */
   owed: number;
+  /** Their bonuses the shop hasn't paid yet (phase L), kept apart from what they owe. */
+  bonus: number;
   /** Selling needs an open shift (phase S5). */
   shiftOpen: boolean;
   /** The open shift, for the shift bar (I3). */
   shift: ShiftBar | null;
+  /** Their target, the ranking and the bonus on slow pieces (phase L). */
+  goal: MyGoal | null;
 };
 
 export type ShiftBar = {
@@ -51,7 +56,14 @@ function shiftBar(ctx: Ctx): ShiftBar | null {
   };
 }
 
-export function readMySales(ctx: Ctx): MySales {
+/** `people`: the employees of this system, for the ranking. */
+function account(ctx: Ctx): { owed: number; bonus: number } {
+  if (!ctx.actor) return { owed: 0, bonus: 0 };
+  const s = employeeStatement(ctx, actorKey(ctx.actor));
+  return { owed: s.balance, bonus: s.bonus };
+}
+
+export function readMySales(ctx: Ctx, people: Person[] = []): MySales {
   const now = ctx.now();
   return {
     date: now,
@@ -59,8 +71,9 @@ export function readMySales(ctx: Ctx): MySales {
     today: salesSummary(ctx, { day: dayKey(now) }),
     month: salesSummary(ctx, { month: monthKey(now) }),
     latest: listSales(ctx, {}, { limit: 5 }),
-    owed: ctx.actor ? employeeStatement(ctx, actorKey(ctx.actor)).balance : 0,
+    ...account(ctx),
     shiftOpen: ctx.actor ? !!openShiftOf(ctx, actorKey(ctx.actor)) : false,
     shift: shiftBar(ctx),
+    goal: myGoal(ctx, people),
   };
 }

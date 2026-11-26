@@ -46,7 +46,7 @@ describe('the upgrade from database 7', () => {
     migrate(db, migrations.slice(0, 7));
     const old = { ...ctx, db } as TestCtx;
     expect(schemaVersion(db)).toBe(7);
-    // This test writes through today's code, which also fills database 9's to 12's columns: they
+    // This test writes through today's code, which also fills database 9's to 17's columns: they
     // are added here (database 8 doesn't touch these tables; database-9/10.test cover them).
     db.exec(`ALTER TABLE products ADD COLUMN specs TEXT;
       ALTER TABLE receipt_items ADD COLUMN specs TEXT;
@@ -68,6 +68,8 @@ describe('the upgrade from database 7', () => {
       ALTER TABLE receipts ADD COLUMN friend_off INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE receipts ADD COLUMN offer_off INTEGER NOT NULL DEFAULT 0;
       ALTER TABLE returns ADD COLUMN refund_method TEXT NOT NULL DEFAULT 'cash';
+      ALTER TABLE products ADD COLUMN bonus INTEGER;
+      ALTER TABLE sale_lines ADD COLUMN bonus INTEGER NOT NULL DEFAULT 0;
       CREATE TABLE orders (id INTEGER PRIMARY KEY, kind TEXT, status TEXT, customer_id INTEGER,
         product_id INTEGER, quantity INTEGER);
       CREATE TABLE referrals (id INTEGER PRIMARY KEY, friend_id INTEGER UNIQUE, referrer_id INTEGER,

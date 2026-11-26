@@ -1092,6 +1092,36 @@ Each fix has a test written first, which failed before the change.
   - After choosing the emergency password, copy a new backup off the device: backups made before it have no second lock and open only with the backup password.
   - The backup password and the emergency password can't be recovered. A sealed backup opens with either one; without both, it can't be opened.
 
+### Phase L: staff motivation (2026-11-26, owner approved)
+
+The owner chose: one monthly target for everyone, a ranking the staff can see, a bonus on slow pieces added to the employee's account, and a monthly staff report. No commission percentage.
+
+- [x] **L0 Database 17:**
+  - pieces get a `bonus` (none until the owner sets one; 0 is refused);
+  - sale lines keep the `bonus` each piece earned at checkout (0 for the owner, and for old sales);
+  - the employee account takes three new kinds of line: `bonus` (a month's bonus, owed by the shop), `bonus_back` (a month whose returns took back more than was earned) and `payout` (the owner paid the employee). Each month's bonus goes in once per person (a unique index). Every old line, its id and the id counter are kept.
+- [x] **L1 The monthly target and the ranking:**
+  - the owner sets one amount for every employee in الموظفون → «الأهداف والمكافآت» (empty or 0: no target);
+  - what counts is the employee's sales in the month less the returns of their sales in that month;
+  - the employee's home shows: % of the target with a bar, what is left, days left, and what a day needs. Reaching it shows «تحقق الهدف! عمل رائع» with a haptic, once a month on each device;
+  - the ranking: every employee of the system, best first, by % of the target only, never anyone else's amounts; the best seller is marked «الأفضل». The owner's own sales are not in it. (Planned for the sign-in screen; it is on the employee's home instead, which only signed-in staff see.)
+- [x] **L2 The bonus on slow pieces:**
+  - slow means no sale for 90 days (the bonus stops by itself when the last piece goes). In Products → الراكدة, the owner taps a piece unsold 90 days or more and chooses «مكافأة للموظف على كل قطعة تُباع» (the suggested amount first, 20 د.ل unless changed in «الأهداف والمكافآت»). A list at the top shows every piece with a bonus, to change or stop it;
+  - the sale screen shows «مكافأة +X» on those pieces;
+  - an employee earns the bonus on each piece sold, as it was at that moment: changing or stopping it later never changes what was earned. The owner never earns it;
+  - a return takes the piece's bonus back, in the month of the return (like the target);
+  - the employee's home shows this month's bonus so far (earned, taken back, net);
+  - after the month ends, the owner adds it to the accounts from «تقرير الموظفين» (once per person). The account then shows «له من المكافآت», and the owner records «دفع المكافآت للموظف» when paid (see the check below);
+  - the dashboard reminds the owner while an ended month's bonuses aren't added.
+- [x] **L3 The monthly staff report** (Management → المال → «تقرير الموظفين», the owner only): any month back; each person's net sales, % of the target, sales and pieces, average sale, returns, discounts, new customers and bonus (in the account or not yet), best first; the button to add an ended month's bonuses; print or share as a PDF.
+- [x] Tests: database 17, the rules (target, ranking, bonus earned and returned, adding once, paying out, who may do what), the employee's home, the owner's screens, and the speed test (under 30 ms with 30,000 sales).
+- [x] **Phase L check (2026-11-26), owner's answers:** staff sell only on the iPad, so one device holds their sales, targets and accounts (no change); the ranking keeps the %; the bonus is kept apart from what an employee owes; paying a bonus asks whether the cash came from the drawer.
+  - **The bonus kept apart:** the account has two parts, «عليه» (returns charged, shift shortages, less repayments and waives) and «له من المكافآت» (bonuses added, less bonuses taken back and payouts). Neither pays the other. If returns took back more than was paid, the bonus part shows it as taken from the next bonuses. The staff list and the employee's home show both apart.
+  - **Paying:** never more than the shop owes in bonuses. The owner is asked «من الدرج؟»: yes takes the cash out of the open shift on the device (the owner's own, else the employee's), so the count stays right; no shift open, it is refused and nothing is paid.
+  - **Fixes:** the celebration is marked by the employee's id, not the name (two names of the same length shared one mark); 0 as a bonus is refused with a message; days are counted in Arabic («21 يوماً», «يومين», «آخر يوم من الشهر»); each account line says «عليه / له / خُصم من …» instead of +/−; the dashboard reminds the owner of every ended month not added, not only last month, and opens the report on the oldest; a piece's bonus stops by itself when its last piece goes (the sale that took it still earns it), so new stock doesn't carry it.
+  - **Simulator flow:** `e2e/staff-goals.yaml` (the target, the report) is written and not run.
+- **Still to do:** a new `.ipa` (database 17 ships only in a new `.ipa`, never as an instant update), then `npm run update:record`. The simulator run waits for the owner's word.
+
 ### Phase 10: switching over
 
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):

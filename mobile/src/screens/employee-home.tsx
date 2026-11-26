@@ -6,10 +6,12 @@ import { Grid } from '@/features/dashboard/layout';
 import type { MySales } from '@/features/dashboard/my-sales';
 import { QuickActions } from '@/features/dashboard/quick-actions';
 import { ShiftBar } from '@/features/dashboard/shift-bar';
+import { GoalCard } from '@/features/staff/goal-card';
 import { GiftRemindersCard, type GiftRemindersProps } from '@/features/marketing/gift-reminders';
 import { OrderRemindersCard, type OrderRemindersProps } from '@/features/orders/reminders-card';
 import { RepairRemindersCard, type RepairRemindersProps } from '@/features/repairs/reminders-card';
 import { useLayout } from '@/hooks/use-layout';
+import { monthKey } from '@/lib/dates';
 import { formatLyd } from '@/lib/money';
 import { spacing, type SystemId } from '@/theme';
 
@@ -95,12 +97,28 @@ export function EmployeeHomeScreen({
           <Stat value={String(data.month.count)} label="فواتير" />
         </Card>
       </Grid>
+      {data.goal ? (
+        <GoalCard goal={data.goal} who={`${system}-${data.goal.me}`} month={monthKey(data.date)} />
+      ) : null}
       {data.owed > 0 ? (
         <Pressable onPress={actions.onOpenAccount} accessibilityRole="button" testID="my-account">
           <Card>
             <Text variant="bodyStrong" tone="warning">
               {`على حسابي ${formatLyd(data.owed)}`}
             </Text>
+            <Text variant="caption" tone="accent">
+              عرض الحساب
+            </Text>
+          </Card>
+        </Pressable>
+      ) : null}
+      {data.bonus > 0 ? (
+        <Pressable
+          onPress={actions.onOpenAccount}
+          accessibilityRole="button"
+          testID="my-bonus-owed">
+          <Card>
+            <Text variant="bodyStrong">{`مكافآت لي لم تُدفع ${formatLyd(data.bonus)}`}</Text>
             <Text variant="caption" tone="accent">
               عرض الحساب
             </Text>

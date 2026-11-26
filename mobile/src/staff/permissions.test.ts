@@ -37,7 +37,8 @@ import { dismissSetup, restoreSetup } from '@/domain/setup';
 import { addWanted, deleteWanted, mergeCustomers, setWantedDone } from '@/domain/customer-care';
 import { acknowledgeAlert } from '@/domain/alerts';
 import { applyCount, cancelCount, countPiece, startCount, submitCount } from '@/domain/stock-count';
-import { chargeReturn, recordRepayment, waiveCharge } from '@/domain/staff-ledger';
+import { chargeReturn, payEmployee, recordRepayment, waiveCharge } from '@/domain/staff-ledger';
+import { creditBonuses, setGoals, setProductBonus } from '@/domain/staff-goals';
 import {
   addOrderPayment,
   cancelOrder,
@@ -266,6 +267,11 @@ function seed(ctx: TestCtx): Seed {
     kind: 'image',
     productIds: [ring],
   });
+  // A September bonus the shop owes Sara (phase L), for paying it out.
+  ctx.db.run(
+    `INSERT INTO staff_ledger (employee, employee_name, kind, amount, created_at, month, bonus_month)
+     VALUES ('emp-e1', 'سارة', 'bonus', 5000, '2026-10-01T09:00:00', '2026-10', '2026-09')`,
+  );
   return {
     invoice,
     service,
@@ -546,6 +552,20 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     recordRepayment: {
       permission: 'staff.ledger',
       run: (ctx) => recordRepayment(ctx, { key: 'emp-e1', name: 'سارة' }, 5_000),
+    },
+    payEmployee: {
+      permission: 'staff.ledger',
+      // The seed gives her a bonus the shop owes (a payout never goes over it).
+      run: (ctx) => payEmployee(ctx, { key: 'emp-e1', name: 'سارة' }, 5_000),
+    },
+    creditBonuses: {
+      permission: 'staff.ledger',
+      run: (ctx) => creditBonuses(ctx, '2026-10', [{ key: 'emp-e1', name: 'سارة' }]),
+    },
+    setGoals: { permission: 'settings.edit', run: (ctx) => setGoals(ctx, { target: 500_000 }) },
+    setProductBonus: {
+      permission: 'products.edit',
+      run: (ctx, s) => setProductBonus(ctx, s.ring, 20_000),
     },
     takeOrder: {
       permission: 'orders.take',

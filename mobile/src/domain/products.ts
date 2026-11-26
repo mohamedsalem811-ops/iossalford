@@ -30,6 +30,8 @@ export type Product = {
   /** "المواصفات والخامة": what the piece is made of, typed freely (feature 16). */
   specs: string | null;
   archived: boolean;
+  /** The owner's bonus for an employee who sells one (phase L), per piece; null: none. */
+  bonus?: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -53,6 +55,7 @@ type ProductRow = {
   image_file: string | null;
   specs: string | null;
   archived: number;
+  bonus?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -79,6 +82,7 @@ function toProduct(r: ProductRow): Product {
     imageFile: r.image_file,
     specs: r.specs ?? null,
     archived: r.archived === 1,
+    bonus: r.bonus ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };
@@ -340,6 +344,7 @@ export function adjustStock(ctx: Ctx, productId: number, delta: number, reason: 
       productId,
     ]);
     recordMove(ctx, productId, delta, 'adjust', clean(reason));
+    stopBonusIfSoldOut(ctx, productId);
     logAction(
       ctx,
       'stock.adjust',
@@ -361,8 +366,30 @@ export function moveStock(
     'UPDATE products SET stock = stock + ?, updated_at = ? WHERE id = ? AND stock + ? >= 0',
     [delta, nowStamp(ctx), productId, delta],
   );
-  if (r.changes === 1) recordMove(ctx, productId, delta, kind, null, refId);
+  if (r.changes === 1) {
+    recordMove(ctx, productId, delta, kind, null, refId);
+    stopBonusIfSoldOut(ctx, productId);
+  }
   return r.changes === 1;
+}
+
+/**
+ * The owner's bonus on a slow piece (phase L) stops by itself when the last piece goes: new stock
+ * isn't slow. The sale that took the last piece still earned it (kept on its sale line).
+ */
+function stopBonusIfSoldOut(ctx: Ctx, productId: number) {
+  const p = ctx.db.get<{ name: string; size: string | null; bonus: number }>(
+    'SELECT name, size, bonus FROM products WHERE id = ? AND stock <= 0 AND bonus IS NOT NULL',
+    [productId],
+  );
+  if (!p) return;
+  ctx.db.run('UPDATE products SET bonus = NULL WHERE id = ?', [productId]);
+  logAction(ctx, 'product.bonus', `توقفت مكافأة «${label(p.name, p.size)}»: نفدت القطع`, {
+    productId,
+    amount: null,
+    was: p.bonus,
+    soldOut: true,
+  });
 }
 
 export type StockMove = {
