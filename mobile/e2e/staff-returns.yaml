@@ -100,7 +100,24 @@ appId: com.salford.pos
     id: 'return-method'
 - runFlow: subflows/return-photo.yaml
 - takeScreenshot: ${DEVICE}-return-form
+# 10.0: a return refused by the rules and allowed by the owner. The second condition is answered
+# «لا», so saving is refused; she asks the owner, gives a reason and the owner types his PIN.
+- scrollUntilVisible:
+    element:
+      id: 'cond-no-1'
+    direction: UP
+    timeout: 30000
+- tapOn:
+    id: 'cond-no-1'
 - runFlow: subflows/save-return.yaml
+- extendedWaitUntil:
+    visible: 'المرتجع مرفوض'
+    timeout: 15000
+- takeScreenshot: ${DEVICE}-return-refused
+- tapOn: 'موافقة المالك'
+- tapOn: 'زبون دائم'
+- inputText: '19283746'
+- tapOn: 'موافقة'
 - extendedWaitUntil:
     notVisible:
       id: 'return-save'

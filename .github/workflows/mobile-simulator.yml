@@ -53,6 +53,9 @@ jobs:
         run: npx expo prebuild --platform ios --clean
 
       - name: Build for the simulator (Release, JavaScript embedded)
+        env:
+          # The design gallery is in test builds only (1.9); the .ipa leaves it out.
+          EXPO_PUBLIC_TEST_SCREENS: '1'
         run: |
           set -o pipefail
           xcodebuild build \

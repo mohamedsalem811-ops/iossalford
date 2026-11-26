@@ -1,0 +1,43 @@
+# 10.0: the employee's auto-lock. The owner sets the shortest times (lock after 3 minutes, the
+# warning 1 minute before) and adds سارة; she signs in and leaves the screen untouched: the
+# countdown banner shows after 2 minutes, then the app locks to «من يستخدم النظام؟».
+# iPhone and iPad (screens: lock settings, warning, locked).
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-staff'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'staff-lock-minutes'
+- tapOn:
+    id: 'staff-lock-minutes'
+- tapOn: '3 دقائق'
+- tapOn:
+    id: 'staff-warn-minutes'
+- tapOn: 'دقيقة'
+- assertVisible: '3 دقائق'
+- takeScreenshot: ${DEVICE}-auto-lock-settings
+# Back to the top, where «إضافة موظف» is (on iPad the section stays where it was scrolled).
+- scrollUntilVisible:
+    element:
+      id: 'staff-add'
+    direction: UP
+    timeout: 30000
+- runFlow: subflows/add-employee.yaml
+# Nothing touched from here: the warning after 2 minutes, the lock after 3.
+- extendedWaitUntil:
+    visible:
+      id: 'idle-warning'
+    timeout: 200000
+- takeScreenshot: ${DEVICE}-auto-lock-warning
+- extendedWaitUntil:
+    visible:
+      id: 'person-owner'
+    timeout: 120000
+- assertVisible:
+    id: 'person-سارة'
+- takeScreenshot: ${DEVICE}-auto-lock-locked
