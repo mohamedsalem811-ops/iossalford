@@ -1122,6 +1122,18 @@ The owner chose: one monthly target for everyone, a ranking the staff can see, a
   - **Simulator flow:** `e2e/staff-goals.yaml` (the target, the report) is written and not run.
 - **Still to do:** a new `.ipa` (database 17 ships only in a new `.ipa`, never as an instant update), then `npm run update:record`. The simulator run waits for the owner's word.
 
+### Full check before phase 10 (2026-11-26, owner approved "do all")
+
+After phase L was merged, the whole app was checked again: every test, the speed test, a heavier load, every screen against the simulator flows, and the time the simulator run takes. Nothing was changed before the owner's word.
+
+- **Tests:** all 1,352 pass; the speed test's 108 timings are all inside their targets (slowest: restoring a backup, 2.2 of 3 seconds at 30,000 sales).
+- **Heavy load (not kept in the repo):** 5,000 pieces, 100,000 sales, 20,000 customers. Every screen stays fast except restoring a backup, 8.9 seconds (the screen says «جارٍ الاستعادة… قد يستغرق ذلك دقيقة» while it works), and the customer list with VIP and spending, 353 ms (target 333) at 20,000 customers. Both are kept as they are.
+- **Fixed, the supplier purchase screen:** «تم الشراء من المورد» (`order-buy`) is now refused to an employee opening it by a link («للمالك فقط»), like the other owner screens; saving was already refused.
+- **Fixed, screens no simulator flow opened:** eight screens had Jest tests only. Steps were added to the flows that already reach them: the employee's account with a repayment (staff-shift), the stock sheet with a reason, the original invoices and the photo viewer (products), adding with quantity and price by a long press (sale), a second payment on a deposit order (deposit-order), a return's details (management), and the message sender page, opened by its link (marketing; its sending is covered by Jest).
+- **Fixed, the simulator run's time:** run 75 took 242 of the iPad's 275 minutes for 40 flows; there are 42 now, with more steps. The app is built once (`build` job) and shared; each device runs in two halves on machines side by side (`scripts/flow-parts.mjs` splits the flows by length, every flow in exactly one half, tested in Jest). The simulator is given 5 minutes to settle after booting, since it no longer boots during the build.
+- **Duplicate builds stopped:** .ipa runs 201 and 202 (the same code as 203, built from main after the merge) were cancelled.
+- **Checked, no change:** every screen has the retry screen; the new «تقرير الموظفين» row keeps the menu's last rows reachable on iPad and iPhone; staff-shift, the staff sign-up steps, sign-in names and the two flows never run yet (emergency-password, staff-goals) match the app step by step.
+
 ### Phase 10: switching over
 
 - **10.0** **NEW** Full test of the whole app, before switching over and before the Apple Developer steps (owner's decision, 2026-11-12):

@@ -121,3 +121,26 @@ appId: com.salford.pos
 - assertVisible:
     id: 'sold-thanks'
 - takeScreenshot: ${DEVICE}-sold-thanks
+# The full check before 10.0: the sender page. The flow's customers have not accepted offers
+# (the sending itself, one WhatsApp message after another, is covered by Jest), so it is opened
+# by its link and shows it has nothing to send, then closes.
+- openLink: salfordpos://jewelry/send
+# iOS may ask before opening the app's own link (as in gallery.yaml), and has taken up to 90
+# seconds to hand a link over.
+- extendedWaitUntil:
+    visible: 'Open in .*|لا رسائل للإرسال'
+    timeout: 60000
+    optional: true
+- runFlow:
+    when:
+      visible: 'Open in .*'
+    commands:
+      - tapOn: 'Open'
+- extendedWaitUntil:
+    visible: 'لا رسائل للإرسال'
+    timeout: 180000
+- takeScreenshot: ${DEVICE}-marketing-sender
+- runFlow:
+    file: subflows/toolbar-button.yaml
+    env:
+      LABEL: 'إغلاق'

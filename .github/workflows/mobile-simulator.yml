@@ -1,7 +1,9 @@
 name: Expo app simulator tests
 
-# Builds the app for the iOS simulator, runs the Maestro tap-through tests on an
-# iPhone and an iPad simulator, and uploads the screenshots.
+# Builds the app for the iOS simulator once, then runs the Maestro tap-through tests on an
+# iPhone and an iPad simulator, each device in two halves on machines side by side, and uploads
+# the screenshots. The full check before 10.0: one machine per device took 242 of its 275 minutes
+# for 40 flows (run 75), too close to the limit; a half takes about 130.
 #
 # Started by hand only (Actions -> "Expo app simulator tests" -> Run workflow): at the end of
 # the project, or for a critical change. Every push runs the fast checks and the .ipa build, and
@@ -17,18 +19,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  simulator:
-    # One job per device, side by side: a second simulator in the same job often could not start
-    # Maestro's driver while the first device's driver was still holding the host side.
-    name: Maestro on ${{ matrix.device }} simulator
-    strategy:
-      fail-fast: false
-      matrix:
-        device: [iPhone, iPad]
+  build:
+    name: Build the app for the simulator
     runs-on: macos-26
-    # Run 60: the iPhone job (a 52-minute build, then 28 flows) ran out of 240 minutes. GitHub
-    # allows a job up to 360.
-    timeout-minutes: 355
+    # A build has taken up to about 65 minutes.
+    timeout-minutes: 120
     defaults:
       run:
         working-directory: mobile
@@ -50,35 +45,6 @@ jobs:
           # Expo SDK 58 needs Xcode 26.4 or newer.
           VER=$(xcodebuild -version | awk 'NR==1{print $2}')
           python3 -c "import sys; v=tuple(int(x) for x in '$VER'.split('.')); sys.exit(0 if v >= (26,4) else 'Xcode $VER is older than 26.4, which Expo SDK 58 needs')"
-
-      - name: Boot the ${{ matrix.device }} simulator in the background
-        # A freshly booted simulator keeps doing first-boot work for minutes after it reports
-        # "booted"; Maestro's driver then sometimes never started. It now boots and settles while
-        # the app builds (about 25 minutes), at no extra time. Maestro is not started here.
-        run: |
-          set -e
-          UDID=$(xcrun simctl list devices available -j | python3 -c "
-          import json, sys
-          kind = sys.argv[1]
-          devs = [d for rt, ds in json.load(sys.stdin)['devices'].items() if 'iOS' in rt for d in ds]
-          names = [d for d in devs if d['name'].startswith(kind)]
-          pro = [d for d in names if 'Pro' in d['name']] or names
-          print(pro[-1]['udid'])" '${{ matrix.device }}')
-          echo "== ${{ matrix.device }}: $UDID"
-          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
-          cat > "$RUNNER_TEMP/warm-up.sh" <<'EOF'
-          UDID=$1
-          say() { echo "== $(date +%T) $*"; }
-          say "booting"
-          xcrun simctl boot "$UDID" || true
-          xcrun simctl bootstatus "$UDID" -b
-          # Open and close a system app once, so the first app launch is done before the tests.
-          xcrun simctl launch "$UDID" com.apple.Preferences && sleep 15
-          xcrun simctl terminate "$UDID" com.apple.Preferences || true
-          say "simulator is ready"
-          EOF
-          nohup bash "$RUNNER_TEMP/warm-up.sh" "$UDID" > "$RUNNER_TEMP/warm-up.log" 2>&1 < /dev/null &
-          echo "Warm-up started in the background"
 
       - name: Install
         run: npm ci
@@ -109,6 +75,93 @@ jobs:
           codesign --verify --verbose=2 "$APP"
           codesign -d --entitlements - "$APP" 2>&1 || true
 
+      # ditto keeps the app's signature and links; a plain zip of a .app can break both.
+      - name: Pack the app for the test machines
+        run: ditto -c -k --keepParent build_output/Build/Products/Release-iphonesimulator/SALFORDPOS.app SALFORDPOS.app.zip
+
+      - name: Upload the app
+        uses: actions/upload-artifact@v7
+        with:
+          name: simulator-app
+          path: mobile/SALFORDPOS.app.zip
+          retention-days: 3
+
+  simulator:
+    # One job per device and half, side by side: a second simulator in the same job often could not
+    # start Maestro's driver while the first device's driver was still holding the host side.
+    name: Maestro on ${{ matrix.device }} simulator, part ${{ matrix.part }}
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        device: [iPhone, iPad]
+        part: [1, 2]
+    runs-on: macos-26
+    timeout-minutes: 300
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+
+      - name: Select newest stable Xcode
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          # Expo SDK 58 needs Xcode 26.4 or newer.
+          VER=$(xcodebuild -version | awk 'NR==1{print $2}')
+          python3 -c "import sys; v=tuple(int(x) for x in '$VER'.split('.')); sys.exit(0 if v >= (26,4) else 'Xcode $VER is older than 26.4, which Expo SDK 58 needs')"
+
+      - name: Boot the ${{ matrix.device }} simulator in the background
+        # A freshly booted simulator keeps doing first-boot work for minutes after it reports
+        # "booted"; Maestro's driver then sometimes never started. It now boots and settles while
+        # the app is fetched and Maestro installed. Maestro is not started here.
+        run: |
+          set -e
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json, sys
+          kind = sys.argv[1]
+          devs = [d for rt, ds in json.load(sys.stdin)['devices'].items() if 'iOS' in rt for d in ds]
+          names = [d for d in devs if d['name'].startswith(kind)]
+          pro = [d for d in names if 'Pro' in d['name']] or names
+          print(pro[-1]['udid'])" '${{ matrix.device }}')
+          echo "== ${{ matrix.device }}: $UDID"
+          echo "SIM_UDID=$UDID" >> "$GITHUB_ENV"
+          cat > "$RUNNER_TEMP/warm-up.sh" <<'EOF'
+          UDID=$1
+          say() { echo "== $(date +%T) $*"; }
+          say "booting"
+          xcrun simctl boot "$UDID" || true
+          xcrun simctl bootstatus "$UDID" -b
+          # Open and close a system app once, so the first app launch is done before the tests.
+          xcrun simctl launch "$UDID" com.apple.Preferences && sleep 15
+          xcrun simctl terminate "$UDID" com.apple.Preferences || true
+          # It used to settle while the app built (about 25 minutes); the app now comes built, so
+          # it is given 5 minutes of its first-boot work before Maestro's driver starts.
+          sleep 300
+          say "simulator is ready"
+          EOF
+          nohup bash "$RUNNER_TEMP/warm-up.sh" "$UDID" > "$RUNNER_TEMP/warm-up.log" 2>&1 < /dev/null &
+          echo "Warm-up started in the background"
+
+      - name: Fetch the app built once for every test machine
+        uses: actions/download-artifact@v7
+        with:
+          name: simulator-app
+          path: mobile
+
+      - name: Unpack the app
+        run: |
+          mkdir -p build_output/Build/Products/Release-iphonesimulator
+          ditto -x -k SALFORDPOS.app.zip build_output/Build/Products/Release-iphonesimulator
+          codesign --verify --verbose=2 build_output/Build/Products/Release-iphonesimulator/SALFORDPOS.app
+
       - name: Install Maestro
         working-directory: .
         run: |
@@ -124,11 +177,11 @@ jobs:
           done
           echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
 
-      - name: Run tests on the ${{ matrix.device }} simulator
+      - name: Run part ${{ matrix.part }} of the tests on the ${{ matrix.device }} simulator
         # Run 68 (iPad): the tests ran into the job's limit, GitHub stopped the machine and the
-        # upload below never ran, so nothing was kept. The tests stop first (a build takes up to
-        # about 65 minutes), leaving time to upload what they produced.
-        timeout-minutes: 275
+        # upload below never ran, so nothing was kept. The tests stop first, leaving time to upload
+        # what they produced. A half has taken about 130 minutes.
+        timeout-minutes: 240
         env:
           # A freshly booted simulator is slow on its first launch; the default driver
           # start-up timeout was too short for the iPad run (5 minutes was not always enough
@@ -139,10 +192,13 @@ jobs:
           APP=build_output/Build/Products/Release-iphonesimulator/SALFORDPOS.app
           mkdir -p screenshots
           KIND='${{ matrix.device }}'
+          # This machine's half of the flows (scripts/flow-parts.mjs, tested in Jest).
+          FLOWS=$(node scripts/flow-parts.mjs '${{ matrix.part }}' 2)
+          echo "== Part ${{ matrix.part }} on $KIND: $FLOWS"
           {
             UDID="$SIM_UDID"
             # The warm-up started at the beginning of the job; wait for it if it is still going.
-            for _ in $(seq 1 60); do
+            for _ in $(seq 1 90); do
               grep -q "simulator is ready" "$RUNNER_TEMP/warm-up.log" && break
               sleep 10
             done
@@ -154,7 +210,8 @@ jobs:
             # restart the simulator and try once more. Any other failure fails the job at once.
             for ATTEMPT in 1 2; do
               set +e
-              maestro --device "$UDID" test -e DEVICE="$KIND" --test-output-dir "maestro-output/$KIND" e2e 2>&1 | tee "maestro-$KIND.log"
+              # shellcheck disable=SC2086 # one flow file per word
+              maestro --device "$UDID" test -e DEVICE="$KIND" --test-output-dir "maestro-output/$KIND" $FLOWS 2>&1 | tee "maestro-$KIND.log"
               STATUS=${PIPESTATUS[0]}
               set -e
               [ "$STATUS" -eq 0 ] && break
@@ -212,7 +269,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: simulator-screenshots-${{ matrix.device }}
+          name: simulator-screenshots-${{ matrix.device }}-part-${{ matrix.part }}
           path: |
             mobile/screenshots
             mobile/maestro-output

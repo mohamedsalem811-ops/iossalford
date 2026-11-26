@@ -39,3 +39,13 @@ appId: com.salford.pos
     visible: '1 مرتجع • 350 د.ل'
     timeout: 30000
 - takeScreenshot: ${DEVICE}-returns
+# The full check before 10.0: a return's details and photo, from its menu.
+- tapOn:
+    id: 'return-[0-9]+'
+    index: 0
+- tapOn: 'التفاصيل والصورة'
+- extendedWaitUntil:
+    visible:
+      id: 'return-detail-method'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-return-detail
