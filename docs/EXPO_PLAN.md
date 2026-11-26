@@ -1155,6 +1155,7 @@ After phase L was merged, the whole app was checked again: every test, the speed
   - version 1.0.0, a new build number, the test-only screens (component gallery, test data) confirmed absent;
   - speed test and the full checks once more; the `.ipa` installed on both devices and recorded for instant updates;
   - the Expo Go preview retired (the installed app is the only way to test from here).
+  - **Started 2026-11-26:** build number 3 (the `.ipa` installed before was build 2; the version was already 1.0.0), held by `release-build.test.ts`, which also checks that the `.ipa` build never sets the switch for the component gallery (only the simulator build does; without it the gallery's link opens the home screen, and the test data is not in the app at all). The full checks (1,361 tests), the speed test (3 of 3) and expo-doctor (only the 2 known network checks) pass. The `.ipa` is built from this branch for the owner to install on both devices; once installed, `npm run update:record` records it so instant updates reach it.
 - **10.2** You set up both PINs and enter your products and brands (the new app starts empty, as decided). Then the first backup, copied to the other device.
 - **10.3** A few days of real use with the current app still installed. What you find is fixed and sent as instant updates (or a new `.ipa` when native).
 - **10.4** Delete the old app, only after a fresh backup has been copied off the device.
