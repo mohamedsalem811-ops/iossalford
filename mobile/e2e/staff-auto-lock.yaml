@@ -37,10 +37,21 @@ appId: com.salford.pos
       id: 'idle-warning'
     timeout: 200000
 - takeScreenshot: ${DEVICE}-auto-lock-warning
-- extendedWaitUntil:
-    visible:
-      id: 'person-owner'
-    timeout: 120000
+# Run 77: one long wait here gave up after about 10 seconds while the countdown was still running
+# (0:48 left), so wait in short steps until the lock screen shows (at most about 2.5 minutes).
+- repeat:
+    times: 15
+    while:
+      notVisible:
+        id: 'person-owner'
+    commands:
+      - extendedWaitUntil:
+          visible:
+            id: 'person-owner'
+          timeout: 10000
+          optional: true
+- assertVisible:
+    id: 'person-owner'
 - assertVisible:
     id: 'person-سارة'
 - takeScreenshot: ${DEVICE}-auto-lock-locked
