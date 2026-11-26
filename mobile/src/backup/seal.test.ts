@@ -136,5 +136,7 @@ describe('sealed backups', () => {
     expect(back.length).toBe(big.length);
     expect(s.length - big.length).toBe(H1 + 40 * 32);
     expect(ms).toBeLessThan(20_000);
-  });
+    // Jest's default 5 seconds cut this off on a slow CI machine (10.1) before the 20-second limit
+    // above could decide; the test's own limit is the one that counts.
+  }, 30_000);
 });
