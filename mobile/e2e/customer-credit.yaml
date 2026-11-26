@@ -75,6 +75,13 @@ appId: com.salford.pos
       ID: 'manage-customers'
 - tapOn:
     id: 'customer-Sara'
+# On iPhone the balance is below the card, the details, wanted pieces and orders.
+- scrollUntilVisible:
+    element:
+      id: 'customer-payout'
+    direction: DOWN
+    centerElement: true
+    timeout: 30000
 - assertVisible: '.*له رصيد.*'
 - takeScreenshot: ${DEVICE}-customer-credit
 - tapOn:

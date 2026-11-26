@@ -92,3 +92,80 @@ appId: com.salford.pos
     timeout: 30000
 - assertVisible: 'الماركات \(1\)'
 - takeScreenshot: ${DEVICE}-brands
+# The full check before 10.0: the piece's long-press menu. The stock sheet with a reason (1 → 2).
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'المنتجات'
+- longPressOn: '.*Ring Zircon.*'
+- tapOn: 'تعديل المخزون مع السبب'
+- extendedWaitUntil:
+    visible:
+      id: 'stock-quantity'
+    timeout: 30000
+- tapOn: 'توريد جديد'
+- assertVisible: 'سيصبح المخزون: 2 قطعة'
+- takeScreenshot: ${DEVICE}-stock-sheet
+- tapOn:
+    id: 'stock-save'
+- extendedWaitUntil:
+    notVisible:
+      id: 'stock-quantity'
+    timeout: 30000
+# The original invoices (jewelry, the owner): none yet, the button to add one.
+- longPressOn: '.*Ring Zircon.*'
+- tapOn: 'الفاتورة الأصلية'
+- extendedWaitUntil:
+    visible:
+      id: 'invoice-add'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-invoices
+- runFlow:
+    file: subflows/toolbar-button.yaml
+    env:
+      LABEL: 'إغلاق'
+# A photo from the library, then the photo viewer from the menu.
+- tapOn: '.*Ring Zircon.*'
+- extendedWaitUntil:
+    visible:
+      id: 'product-name'
+    timeout: 30000
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'photo-library'
+- runFlow: subflows/pick-photo.yaml
+- extendedWaitUntil:
+    visible: 'حذف الصورة'
+    timeout: 30000
+    optional: true
+- repeat:
+    while:
+      notVisible: 'حذف الصورة'
+    times: 2
+    commands:
+      - runFlow: subflows/pick-photo.yaml
+      - extendedWaitUntil:
+          visible: 'حذف الصورة'
+          timeout: 30000
+          optional: true
+- assertVisible: 'حذف الصورة'
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'product-save'
+- tapOn:
+    id: 'product-save'
+- extendedWaitUntil:
+    visible: '.*Ring Zircon.*'
+    timeout: 30000
+- longPressOn: '.*Ring Zircon.*'
+- tapOn: 'عرض الصورة'
+- extendedWaitUntil:
+    visible: 'تغيير الصورة أو تعديل بيانات القطعة'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-product-photo
+- runFlow:
+    file: subflows/toolbar-button.yaml
+    env:
+      LABEL: 'إغلاق'

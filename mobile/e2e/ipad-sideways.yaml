@@ -1,0 +1,58 @@
+# 10.0: screenshots upright and sideways. The iPhone app is upright only (app.json), so on iPhone
+# this flow does nothing. On iPad the main screens are shot sideways, with a piece in the cart.
+# The iPad is turned upright again at the end, even when a step fails, so the flows after it
+# start upright.
+appId: com.salford.pos
+onFlowComplete:
+  - setOrientation: PORTRAIT
+---
+- runFlow:
+    when:
+      true: ${DEVICE == 'iPad'}
+    commands:
+      - runFlow: subflows/open-jewelry.yaml
+      - runFlow: subflows/add-ring.yaml
+      - setOrientation: LANDSCAPE_LEFT
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - runFlow:
+          file: subflows/open-tab.yaml
+          env:
+            TAB: 'الرئيسية'
+      - extendedWaitUntil:
+          visible: 'مبيعات اليوم'
+          timeout: 30000
+      - takeScreenshot: ${DEVICE}-sideways-home
+      - runFlow:
+          file: subflows/open-tab.yaml
+          env:
+            TAB: 'بيع'
+      - tapOn:
+          id: 'sale-tile-Ring Zircon'
+      - extendedWaitUntil:
+          visible:
+            id: 'cart-checkout'
+          timeout: 30000
+      - takeScreenshot: ${DEVICE}-sideways-sale-cart
+      - runFlow:
+          file: subflows/open-tab.yaml
+          env:
+            TAB: 'المنتجات'
+      - extendedWaitUntil:
+          visible: '.*Ring Zircon.*'
+          timeout: 30000
+      - takeScreenshot: ${DEVICE}-sideways-products
+      - runFlow:
+          file: subflows/open-tab.yaml
+          env:
+            TAB: 'الإيصالات'
+      - takeScreenshot: ${DEVICE}-sideways-receipts
+      - runFlow: subflows/management-menu.yaml
+      - tapOn:
+          id: 'manage-sales'
+      # Nothing has been sold in this flow (the ring is only in the cart): the empty history.
+      - extendedWaitUntil:
+          visible: 'لا توجد مبيعات بعد'
+          timeout: 30000
+      - takeScreenshot: ${DEVICE}-sideways-management
+      - setOrientation: PORTRAIT

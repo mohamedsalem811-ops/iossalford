@@ -86,3 +86,25 @@ appId: com.salford.pos
 - tapOn: 'تحميل'
 - assertVisible:
     id: 'report-charged'
+# The full check before 10.0: the owner opens her account from الموظفون (عليه with the shortage)
+# and records part of it repaid.
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-staff'
+- tapOn:
+    id: 'staff-سارة'
+- tapOn: 'حساب الموظف'
+- extendedWaitUntil:
+    visible:
+      id: 'account-balance'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-staff-account
+- tapOn:
+    id: 'account-repay'
+- inputText: '20'
+- tapOn: 'حفظ'
+- extendedWaitUntil:
+    visible: '.*خُصم من عليه 20 د.ل.*'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-staff-account-repaid

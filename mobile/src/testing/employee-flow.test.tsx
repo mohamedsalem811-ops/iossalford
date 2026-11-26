@@ -31,6 +31,7 @@ import ProductsStack from '@/app/[system]/(tabs)/products/_layout';
 import Products from '@/app/[system]/(tabs)/products/index';
 import SaleStack from '@/app/[system]/(tabs)/sale/_layout';
 import SaleTab from '@/app/[system]/(tabs)/sale/index';
+import OrderBuyRoute from '@/app/[system]/order-buy/[id]';
 import ProductRoute from '@/app/[system]/product/[id]';
 import ReceiptRoute from '@/app/[system]/receipt/[id]';
 import { listActivity, recordWrongPin } from '@/domain/activity';
@@ -182,6 +183,7 @@ const routes = {
   '[system]/(tabs)/products/_layout': ProductsStack,
   '[system]/(tabs)/products/index': Products,
   '[system]/product/[id]': ProductRoute,
+  '[system]/order-buy/[id]': OrderBuyRoute,
   '[system]/receipt/[id]': ReceiptRoute,
   '[system]/(tabs)/sale/_layout': SaleStack,
   '[system]/(tabs)/sale/index': SaleTab,
@@ -266,6 +268,8 @@ describe('as an employee', () => {
     ['/jewelry/more/device-guide'],
     ['/jewelry/more/count/1'],
     ['/jewelry/product/new'],
+    // The full check before 10.0: the supplier purchase (its cost) is the owner's.
+    ['/jewelry/order-buy/1'],
   ])('refuses %s even when opened by link', async (url) => {
     await renderRouter(routes, { initialUrl: url });
     expect(await screen.findByTestId('owner-only')).toBeOnTheScreen();

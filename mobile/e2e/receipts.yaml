@@ -23,6 +23,11 @@ appId: com.salford.pos
       visible:
         id: 'receipt-pane'
     commands:
+      # 10.0: run 76 showed the preview still white at this moment; wait for the page itself
+      # (the A4 receipt's own words, drawn inside the preview) before the picture.
+      - extendedWaitUntil:
+          visible: 'Receipt No:'
+          timeout: 30000
       - takeScreenshot: ${DEVICE}-receipt-beside-list
 - runFlow:
     when:

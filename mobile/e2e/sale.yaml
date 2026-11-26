@@ -96,3 +96,25 @@ appId: com.salford.pos
 - assertVisible:
     id: 'stock-summary'
 - takeScreenshot: ${DEVICE}-dashboard-bottom
+# The full check before 10.0: a long press on a piece asks the quantity and price first.
+- runFlow:
+    file: subflows/open-tab.yaml
+    env:
+      TAB: 'بيع'
+- longPressOn:
+    id: 'sale-tile-Ring Zircon'
+- extendedWaitUntil:
+    visible:
+      id: 'add-total'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-sale-add-sheet
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'add-confirm'
+- tapOn:
+    id: 'add-confirm'
+- extendedWaitUntil:
+    notVisible:
+      id: 'add-total'
+    timeout: 30000

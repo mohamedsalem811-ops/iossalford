@@ -96,6 +96,36 @@ appId: com.salford.pos
       id: 'order-deliver'
     timeout: 30000
 - takeScreenshot: ${DEVICE}-order-arrived
+# The full check before 10.0: a second payment (100 of the 500 left); its receipt opens, then back.
+- runFlow:
+    file: subflows/scroll-form.yaml
+    env:
+      ID: 'order-pay'
+- tapOn:
+    id: 'order-pay'
+- extendedWaitUntil:
+    visible:
+      id: 'order-pay-amount'
+    timeout: 30000
+- tapOn:
+    id: 'order-pay-amount'
+# The amount starts as what is left (500); a part payment replaces it.
+- eraseText
+- inputText: '100'
+- tapOn:
+    id: 'keyboard.toolbar.done'
+- takeScreenshot: ${DEVICE}-order-pay
+- tapOn: 'حفظ'
+- extendedWaitUntil:
+    visible: 'إغلاق'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-order-pay-receipt
+- tapOn: 'إغلاق'
+- scrollUntilVisible:
+    element:
+      id: 'order-deliver'
+    direction: UP
+    timeout: 30000
 - tapOn:
     id: 'order-deliver'
 - extendedWaitUntil:
