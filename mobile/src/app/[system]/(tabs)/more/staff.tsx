@@ -18,7 +18,10 @@ import {
   toggleSpendFlow,
   toggleSystemFlow,
 } from '@/features/staff/actions';
+import { editBonusDefaultFlow, editTargetFlow } from '@/features/staff/goal-actions';
 import { StaffScreen } from '@/features/staff/staff-screen';
+import { sectionHref } from '@/features/management/management-menu';
+import { getGoals } from '@/domain/staff-goals';
 import { pinVault } from '@/security/device';
 import { Allowed } from '@/staff/allowed';
 import { useStaff } from '@/staff/store';
@@ -41,7 +44,12 @@ function StaffRouteScreen() {
   useFocusEffect(readCode);
   const ctx = useCtx();
   const [balances, setBalances] = useState(() => ledgerBalances(ctx));
-  useFocusEffect(useCallback(() => setBalances(ledgerBalances(ctx)), [ctx]));
+  const [goals, setGoalsShown] = useState(() => getGoals(ctx));
+  const reread = useCallback(() => {
+    setBalances(ledgerBalances(ctx));
+    setGoalsShown(getGoals(ctx));
+  }, [ctx]);
+  useFocusEffect(reread);
   return (
     <>
       <Stack.Title>الموظفون</Stack.Title>
@@ -49,7 +57,11 @@ function StaffRouteScreen() {
         staff={staff}
         emergency={emergency}
         balances={balances}
+        goals={goals}
         actions={{
+          onTarget: () => editTargetFlow(ctx, reread),
+          onBonusDefault: () => editBonusDefaultFlow(ctx, reread),
+          onReport: () => router.push(sectionHref('staffReport', ctx.system)),
           onAdd: addEmployeeFlow,
           onResetPin: resetPinFlow,
           onRename: renameFlow,

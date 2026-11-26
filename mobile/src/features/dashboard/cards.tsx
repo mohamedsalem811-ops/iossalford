@@ -32,6 +32,8 @@ export type DashboardActions = {
   onOpenSetup?: () => void;
   /** الموظفون, where the emergency password is chosen (K review). */
   onOpenStaff?: () => void;
+  /** تقرير الموظفين, to add last month's bonuses to the accounts (phase L). */
+  onOpenStaffReport?: () => void;
   /** Today's card: the end-of-day summary. */
   onOpenDay?: () => void;
   /** An alert (phase S6): what happened, open it, or mark it seen. */
@@ -135,6 +137,7 @@ export function AttentionCard({
     !a.birthdays?.length &&
     !a.setup &&
     !a.noEmergency &&
+    !a.bonuses &&
     alerts.length === 0;
   return (
     <Card style={{ flex: 1 }} testID="attention">
@@ -228,6 +231,16 @@ export function AttentionCard({
               subtitle="حتى لا تُقفل خارج النظام إن نسيت رمزك"
               onPress={actions.onOpenStaff}
               testID="attention-emergency"
+            />
+          ) : null}
+          {a.bonuses ? (
+            <ListRow
+              icon="gift"
+              tone="warning"
+              title={`مكافآت الشهر الماضي لم تُضف بعد (${a.bonuses})`}
+              subtitle="أضفها إلى حسابات الموظفين من تقرير الموظفين"
+              onPress={actions.onOpenStaffReport}
+              testID="attention-bonuses"
             />
           ) : null}
           {a.setup ? (

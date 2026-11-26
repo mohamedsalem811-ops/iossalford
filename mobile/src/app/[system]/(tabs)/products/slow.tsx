@@ -16,7 +16,9 @@ import {
 import { errorBoundary } from '@/components/error-screen';
 import { RuleError } from '@/domain/context';
 import { setProductPrice, SLOW_DAYS, slowStock, type SlowDays } from '@/domain/slow-stock';
+import { bonusPieces, SLOW_BONUS_DAYS } from '@/domain/staff-goals';
 import { idleText, slowRowLine } from '@/features/slow-stock/model';
+import { productBonusFlow } from '@/features/staff/goal-actions';
 import { parseThousandths } from '@/lib/digits';
 import { haptic } from '@/lib/haptics';
 import { editableDinars, formatLyd } from '@/lib/money';
@@ -40,6 +42,11 @@ function SlowStockScreen() {
   const [version, bump] = useReducer((n: number) => n + 1, 0);
   // eslint-disable-next-line react-hooks/exhaustive-deps -- version asks for a fresh read
   const data = useMemo(() => slowStock(ctx, days), [ctx, days, version]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- version asks for a fresh read
+  const bonuses = useMemo(() => bonusPieces(ctx), [ctx, version]);
+  const bonusOf = new Map(bonuses.map((b) => [b.productId, b.bonus]));
+  const bonusFor = (id: number, name: string) =>
+    productBonusFlow(ctx, { id, name, bonus: bonusOf.get(id) ?? null }, bump);
   useFocusEffect(useCallback(() => bump(), []));
   useOnDataChanged(bump);
   const [editing, setEditing] = useState<number | null>(null);
@@ -89,6 +96,24 @@ function SlowStockScreen() {
           </Text>
         </Card>
 
+        {bonuses.length ? (
+          <ListGroup
+            header="قطع عليها مكافأة للموظف"
+            footer="يكسبها الموظف عن كل قطعة يبيعها، وتُخصم إن أُرجعت. اضغط القطعة لتغيير المبلغ أو إيقافها.">
+            {bonuses.map((b) => (
+              <ListRow
+                key={b.productId}
+                icon="gift"
+                title={b.size ? `${b.name} (${b.size})` : b.name}
+                subtitle={`${b.stock} قطعة في المخزون`}
+                value={formatLyd(b.bonus)}
+                onPress={mayPrice ? () => bonusFor(b.productId, b.name) : undefined}
+                testID={`bonus-row-${b.productId}`}
+              />
+            ))}
+          </ListGroup>
+        ) : null}
+
         {data.rows.length ? (
           <>
             <Text variant="subhead" tone="secondary">
@@ -113,7 +138,15 @@ function SlowStockScreen() {
                 <View key={r.productId}>
                   <ListRow
                     title={r.size ? `${r.name} (${r.size})` : r.name}
-                    subtitle={`${idleText(r)} • ${slowRowLine(r)}`}
+                    subtitle={[
+                      idleText(r),
+                      slowRowLine(r),
+                      bonusOf.has(r.productId)
+                        ? `مكافأة ${formatLyd(bonusOf.get(r.productId)!)}`
+                        : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' • ')}
                     value={formatLyd(r.tiedUp)}
                     onPress={mayPrice ? () => open(r.productId, r.price) : undefined}
                     testID={`slow-row-${r.productId}`}
@@ -134,6 +167,20 @@ function SlowStockScreen() {
                         onPress={() => save(r.productId)}
                         testID="slow-price-save"
                       />
+                      {r.days >= SLOW_BONUS_DAYS ? (
+                        <Button
+                          title={
+                            bonusOf.has(r.productId)
+                              ? 'تغيير مكافأة الموظف'
+                              : 'مكافأة للموظف على كل قطعة تُباع'
+                          }
+                          icon="gift"
+                          variant="secondary"
+                          fullWidth
+                          onPress={() => bonusFor(r.productId, r.name)}
+                          testID="slow-bonus"
+                        />
+                      ) : null}
                     </View>
                   ) : null}
                 </View>

@@ -30,6 +30,8 @@ export type Product = {
   /** "المواصفات والخامة": what the piece is made of, typed freely (feature 16). */
   specs: string | null;
   archived: boolean;
+  /** The owner's bonus for an employee who sells one (phase L), per piece; null: none. */
+  bonus?: number | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -53,6 +55,7 @@ type ProductRow = {
   image_file: string | null;
   specs: string | null;
   archived: number;
+  bonus?: number | null;
   created_at: string;
   updated_at: string;
 };
@@ -79,6 +82,7 @@ function toProduct(r: ProductRow): Product {
     imageFile: r.image_file,
     specs: r.specs ?? null,
     archived: r.archived === 1,
+    bonus: r.bonus ?? null,
     createdAt: r.created_at,
     updatedAt: r.updated_at,
   };

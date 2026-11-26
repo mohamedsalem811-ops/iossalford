@@ -37,7 +37,8 @@ import { dismissSetup, restoreSetup } from '@/domain/setup';
 import { addWanted, deleteWanted, mergeCustomers, setWantedDone } from '@/domain/customer-care';
 import { acknowledgeAlert } from '@/domain/alerts';
 import { applyCount, cancelCount, countPiece, startCount, submitCount } from '@/domain/stock-count';
-import { chargeReturn, recordRepayment, waiveCharge } from '@/domain/staff-ledger';
+import { chargeReturn, payEmployee, recordRepayment, waiveCharge } from '@/domain/staff-ledger';
+import { creditBonuses, setGoals, setProductBonus } from '@/domain/staff-goals';
 import {
   addOrderPayment,
   cancelOrder,
@@ -546,6 +547,19 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     recordRepayment: {
       permission: 'staff.ledger',
       run: (ctx) => recordRepayment(ctx, { key: 'emp-e1', name: 'سارة' }, 5_000),
+    },
+    payEmployee: {
+      permission: 'staff.ledger',
+      run: (ctx) => payEmployee(ctx, { key: 'emp-e1', name: 'سارة' }, 5_000),
+    },
+    creditBonuses: {
+      permission: 'staff.ledger',
+      run: (ctx) => creditBonuses(ctx, '2026-10', [{ key: 'emp-e1', name: 'سارة' }]),
+    },
+    setGoals: { permission: 'settings.edit', run: (ctx) => setGoals(ctx, { target: 500_000 }) },
+    setProductBonus: {
+      permission: 'products.edit',
+      run: (ctx, s) => setProductBonus(ctx, s.ring, 20_000),
     },
     takeOrder: {
       permission: 'orders.take',

@@ -1,5 +1,5 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { ActionSheetIOS, Alert } from 'react-native';
 
 import { firstBackup, lastCopied, saveBackup } from '@/backup/store';
@@ -34,7 +34,8 @@ import { useCtx } from '@/state/system-db';
 import { readMySales } from '@/features/dashboard/my-sales';
 import { EmployeeHomeScreen } from '@/screens/employee-home';
 import { pinVault } from '@/security/device';
-import { actorName } from '@/staff/model';
+import { actorName, employeesOf } from '@/staff/model';
+import { useStaff } from '@/staff/store';
 import { useActor, useCan } from '@/staff/use-can';
 
 const OTHER = { jewelry: 'الأوشحة', scarves: 'المجوهرات' } as const;
@@ -252,7 +253,12 @@ function EmployeeHome() {
   const ctx = useCtx();
   const system = ctx.system;
   const actor = useActor();
-  const read = useCallback(() => readMySales(ctx), [ctx]);
+  const staff = useStaff();
+  const people = useMemo(
+    () => employeesOf(staff, system).map((e) => ({ key: `emp-${e.id}`, name: e.name })),
+    [staff, system],
+  );
+  const read = useCallback(() => readMySales(ctx, people), [ctx, people]);
   const [data, setData] = useState(read);
   const refresh = useCallback(() => setData(read()), [read]);
   useFocusEffect(refresh);
@@ -335,6 +341,7 @@ function Dashboard() {
         onOpenDebts: () => router.push(sectionHref('debts', system)),
         onOpenBirthdays: () =>
           router.push({ pathname: '/[system]/more/customer-care', params: { system } }),
+        onOpenStaffReport: () => router.push(sectionHref('staffReport', system)),
         onOpenSetup: () => router.push({ pathname: '/[system]/more/loyalty', params: { system } }),
         onOpenStaff: () => router.push({ pathname: '/[system]/more/staff', params: { system } }),
         onOpenBackup: () => router.push(sectionHref('backup', system)),

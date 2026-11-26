@@ -20,7 +20,11 @@ import {
 } from './context';
 import { getReturn } from './sales';
 
-export type LedgerKind = 'charge' | 'repay' | 'waive';
+/**
+ * A line of the account. The balance is what the employee owes: a charge, a bonus taken back and a
+ * payout add; a repayment, a waive and a bonus (phase L) take off. Below 0, the shop owes them.
+ */
+export type LedgerKind = 'charge' | 'repay' | 'waive' | 'bonus' | 'bonus_back' | 'payout';
 
 export type LedgerLine = {
   id: number;
@@ -58,14 +62,19 @@ const toLine = (r: Row): LedgerLine => ({
   byName: r.by_name ?? 'المالك',
 });
 
-/** What a line does to the balance: a charge adds, a repayment or a waive takes off. */
+const ADDS: readonly LedgerKind[] = ['charge', 'bonus_back', 'payout'];
+
+/** What a line does to the balance (what the employee owes): see LedgerKind. */
 export const signed = (l: Pick<LedgerLine, 'kind' | 'amount'>) =>
-  l.kind === 'charge' ? l.amount : -l.amount;
+  ADDS.includes(l.kind) ? l.amount : -l.amount;
 
 export const KIND_LABELS: Record<LedgerKind, string> = {
   charge: 'على حساب الموظف',
   repay: 'سداد',
   waive: 'إعفاء',
+  bonus: 'مكافآت',
+  bonus_back: 'إرجاع مكافآت',
+  payout: 'دُفع للموظف',
 };
 
 function insert(
@@ -191,6 +200,34 @@ export function recordRepayment(
   });
 }
 
+/** The owner records paying an employee what the shop owes them (their bonus, phase L). */
+export function payEmployee(
+  ctx: Ctx,
+  employee: { key: string; name: string },
+  amount: number,
+  note?: string,
+): number {
+  allow(ctx, 'staff.ledger');
+  if (!Number.isInteger(amount) || amount <= 0)
+    throw new RuleError('المبلغ يجب أن يكون أكبر من صفر');
+  if (!employee.key.startsWith('emp-')) throw new RuleError('اختر الموظف');
+  return ctx.db.transaction(() => {
+    const id = insert(ctx, {
+      employee: employee.key,
+      employeeName: employee.name,
+      kind: 'payout',
+      amount,
+      note,
+    });
+    logAction(ctx, 'ledger.payout', `دُفع لـ ${employee.name}: ${formatLyd(amount)}`, {
+      ledgerId: id,
+      employee: employee.key,
+      amount,
+    });
+    return id;
+  });
+}
+
 /** The owner reads anyone's account; an employee reads only their own. */
 function mayRead(ctx: Ctx, employee: string) {
   const actor = ctx.actor;
@@ -220,7 +257,7 @@ export function employeeStatement(
 export function ledgerBalances(ctx: Ctx): Map<string, number> {
   mayRead(ctx, '');
   const rows = ctx.db.all<{ employee: string; balance: number }>(
-    `SELECT employee, sum(CASE kind WHEN 'charge' THEN amount ELSE -amount END) AS balance
+    `SELECT employee, sum(CASE WHEN kind IN ('charge', 'bonus_back', 'payout') THEN amount ELSE -amount END) AS balance
        FROM staff_ledger GROUP BY employee`,
   );
   return new Map(rows.map((r) => [r.employee, r.balance]));

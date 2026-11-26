@@ -10,6 +10,7 @@ export type ManageTarget =
   | 'shift'
   | 'shifts'
   | 'daySummary'
+  | 'staffReport'
   | 'sales'
   | 'orders'
   | 'repairs'
@@ -65,6 +66,7 @@ export const GROUPS: { title: string; rows: Row[] }[] = [
       { target: 'profits', icon: 'chart.pie', title: 'الأرباح' },
       { target: 'closing', icon: 'checkmark.seal', title: 'الإقفال الربع سنوي' },
       { target: 'comparison', icon: 'chart.bar', title: 'مقارنة الأشهر' },
+      { target: 'staffReport', icon: 'person.3', title: 'تقرير الموظفين' },
     ],
   },
   {

@@ -8,9 +8,11 @@ import {
   employeeStatement,
   KIND_LABELS,
   recordRepayment,
+  signed,
   type LedgerLine,
 } from '@/domain/staff-ledger';
 import { showError } from '@/features/products/actions';
+import { payEmployeeFlow } from '@/features/staff/goal-actions';
 import { formatDate } from '@/lib/dates';
 import { parseThousandths } from '@/lib/digits';
 import { haptic } from '@/lib/haptics';
@@ -26,7 +28,8 @@ const lineTitle = (l: LedgerLine) =>
 
 /**
  * An employee's account (phase S4): returns put on their account, waived, and what they paid
- * back, with the balance after each line. The owner reads anyone's and records repayments; an
+ * back; and (phase L) the bonuses the shop owes them and what was paid out. + adds to what they
+ * owe, − takes from it. The owner reads anyone's and records repayments; an
  * employee reads only their own.
  */
 function AccountScreen() {
@@ -87,16 +90,33 @@ function AccountScreen() {
       <Page>
         <Card>
           <Text variant="subhead" tone="secondary">
-            {statement.balance > 0 ? 'عليه' : 'الحساب'}
+            {statement.balance > 0 ? 'عليه' : statement.balance < 0 ? 'له' : 'الحساب'}
           </Text>
           <Text
             variant="title"
             tone={statement.balance > 0 ? 'warning' : 'primary'}
             testID="account-balance">
-            {statement.balance > 0 ? formatLyd(statement.balance) : 'لا شيء عليه'}
+            {statement.balance === 0
+              ? 'لا شيء عليه ولا له'
+              : formatLyd(Math.abs(statement.balance))}
           </Text>
-          {owner ? (
+          {statement.balance < 0 ? (
+            <Text variant="caption" tone="secondary">
+              مكافآت لم تُدفع بعد
+            </Text>
+          ) : null}
+          {owner && statement.balance > 0 ? (
             <Button title="تسجيل سداد" icon="banknote" onPress={repay} testID="account-repay" />
+          ) : null}
+          {owner && statement.balance < 0 ? (
+            <Button
+              title="دفع للموظف"
+              icon="banknote"
+              onPress={() =>
+                payEmployeeFlow(ctx, { key, name: employee.name }, -statement.balance, refresh)
+              }
+              testID="account-pay"
+            />
           ) : null}
         </Card>
         {statement.lines.length === 0 ? (
@@ -108,7 +128,7 @@ function AccountScreen() {
                 key={l.id}
                 title={lineTitle(l)}
                 subtitle={[formatDate(new Date(l.createdAt)), l.note].filter(Boolean).join(' • ')}
-                value={`${l.kind === 'charge' ? '+' : '−'}${formatLyd(l.amount)}`}
+                value={`${signed(l) > 0 ? '+' : '−'}${formatLyd(l.amount)}`}
                 chevron={false}
                 testID={`account-line-${l.id}`}
               />

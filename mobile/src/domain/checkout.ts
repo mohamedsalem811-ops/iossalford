@@ -363,8 +363,8 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
     for (const { l, p, total: lt, cost } of lines) {
       const lineId = ctx.db.run(
         `INSERT INTO sale_lines (sale_id, product_id, name, sku, brand, category, size, color, quantity, unit_cost,
-           list_price, unit_price, line_total, line_cost, set_id, set_name, bundle_group)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           list_price, unit_price, line_total, line_cost, set_id, set_name, bundle_group, bonus)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           saleId,
           p.id,
@@ -384,6 +384,8 @@ export function checkout(ctx: Ctx, input: CheckoutInput): CheckoutResult {
           l.setId,
           l.setName,
           l.bundleGroup,
+          // The owner's bonus on a slow piece, as it is now, for an employee (phase L).
+          seller.kind === 'employee' ? (p.bonus ?? 0) : 0,
         ],
       ).lastInsertRowId;
       // Checked above inside the same transaction, so this cannot fail; guard anyway.

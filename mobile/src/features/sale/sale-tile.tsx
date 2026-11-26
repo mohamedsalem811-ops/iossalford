@@ -37,6 +37,11 @@ export function SaleTile({
   const price = item.kind === 'piece' ? formatLyd(item.product.price) : priceRange(item.design);
   const sizes = item.kind === 'design' ? item.design.sizes.length : 0;
   const out = free <= 0;
+  // A slow piece the owner put a bonus on (phase L2): the employee earns it on each piece sold.
+  const bonus =
+    item.kind === 'piece'
+      ? (item.product.bonus ?? 0)
+      : Math.max(0, ...item.design.sizes.map((x) => x.bonus ?? 0));
   const stockText = out
     ? inCart > 0
       ? 'كل المتوفر في السلة'
@@ -49,7 +54,7 @@ export function SaleTile({
       onLongPress={onLongPress}
       delayLongPress={350}
       accessibilityRole="button"
-      accessibilityLabel={`${name}، ${price}، ${stockText}`}
+      accessibilityLabel={`${name}، ${price}، ${stockText}${bonus ? `، مكافأة ${formatLyd(bonus)}` : ''}`}
       accessibilityHint={
         item.kind === 'design' ? 'اختر المقاس' : 'إضافة للسلة، اضغط مطولاً لاختيار الكمية والسعر'
       }
@@ -70,6 +75,11 @@ export function SaleTile({
         {inCart > 0 ? (
           <View style={{ position: 'absolute', top: spacing.xs, end: spacing.xs }}>
             <Badge label={`في السلة ${inCart}`} tone="accent" />
+          </View>
+        ) : null}
+        {bonus > 0 ? (
+          <View style={{ position: 'absolute', top: spacing.xs, start: spacing.xs }}>
+            <Badge label={`مكافأة +${formatLyd(bonus)}`} tone="warning" />
           </View>
         ) : null}
       </View>
