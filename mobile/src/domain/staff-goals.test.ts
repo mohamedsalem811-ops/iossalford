@@ -10,7 +10,14 @@ import { checkout } from './checkout';
 import { PermissionError } from './context';
 import { getProduct, saveProduct } from './products';
 import { addReturn, getSale } from './sales';
-import { employeeStatement, payEmployee } from './staff-ledger';
+import {
+  bonusBalances,
+  chargeReturn,
+  employeeStatement,
+  ledgerBalances,
+  payEmployee,
+  recordRepayment,
+} from './staff-ledger';
 import {
   bonusesToCredit,
   bonusPieces,
@@ -62,6 +69,13 @@ function sell(as: Actor, id: number, qty = 1, customer?: { name: string; phone: 
   return saleId;
 }
 
+function myGoalOf(as: Actor) {
+  ctx.setActor(as);
+  const g = myGoal(ctx, people)!;
+  ctx.setActor(OWNER);
+  return g;
+}
+
 function returnOne(saleId: number) {
   ctx.setActor(OWNER);
   const line = getSale(ctx, saleId)!.lines[0];
@@ -85,6 +99,8 @@ describe('the monthly target and the ranking', () => {
     // 600 + 200 sold, 300 returned: 500 of 1000.
     expect(g).toMatchObject({ target: 1_000_000, net: 500_000, percent: 50, left: 500_000 });
     expect(g).toMatchObject({ daysLeft: 21, perDay: Math.ceil(500_000 / 21), reached: false });
+    // Its key, not the name, marks the celebration on the device (fix 1).
+    expect(g.me).toBe('emp-e1');
   });
 
   it('ranks by % of the target, with no one else’s amounts, best seller first', () => {
@@ -163,23 +179,80 @@ describe('the bonus on slow pieces', () => {
     // December: Ali's November piece comes back, more than he earned in December.
     ctx.setNow(new Date(2026, 11, 2, 10));
     // The dashboard reminds the owner until last month's bonuses are added.
-    expect(bonusesToCredit(ctx)).toBe(2);
+    expect(bonusesToCredit(ctx)).toEqual({ count: 2, month: '2026-11' });
     expect(creditBonuses(ctx, '2026-11', people)).toBe(2);
-    expect(bonusesToCredit(ctx)).toBe(0);
+    expect(bonusesToCredit(ctx)).toEqual({ count: 0, month: null });
     expect(creditBonuses(ctx, '2026-11', people)).toBe(0);
     returnOne(ali);
     ctx.setNow(new Date(2027, 0, 2, 10));
     expect(creditBonuses(ctx, '2026-12', people)).toBe(1);
-    // Sara: the shop owes her 60 (a balance under 0); paid, nothing is left.
-    expect(employeeStatement(ctx, 'emp-e1').balance).toBe(-60_000);
+    // Sara: the shop owes her 60 in bonuses, kept apart from what she owes (owner's choice C).
+    expect(employeeStatement(ctx, 'emp-e1')).toMatchObject({ balance: 0, bonus: 60_000 });
+    // Never more than the shop owes her (fix 5).
+    expect(() => payEmployee(ctx, { key: 'emp-e1', name: 'سارة' }, 70_000)).toThrow('60');
     payEmployee(ctx, { key: 'emp-e1', name: 'سارة' }, 60_000);
-    expect(employeeStatement(ctx, 'emp-e1').balance).toBe(0);
+    expect(employeeStatement(ctx, 'emp-e1')).toMatchObject({ balance: 0, bonus: 0 });
     // Ali: 20 in November, 20 taken back in December.
     expect(employeeStatement(ctx, 'emp-e2').lines.map((l) => [l.kind, l.amount])).toEqual([
       ['bonus', 20_000],
       ['bonus_back', 20_000],
     ]);
-    expect(employeeStatement(ctx, 'emp-e2').balance).toBe(0);
+    expect(employeeStatement(ctx, 'emp-e2')).toMatchObject({ balance: 0, bonus: 0 });
+  });
+
+  it('keeps the bonus apart from a return charged to her', () => {
+    setProductBonus(ctx, ring, 20_000);
+    const sale = sell(EMPLOYEE, ring, 3);
+    const ret = returnOne(sale);
+    chargeReturn(ctx, ret, { key: 'emp-e1', name: 'سارة' });
+    ctx.setNow(new Date(2026, 11, 2, 10));
+    creditBonuses(ctx, '2026-11', people);
+    // She owes the returned ring (300) and is owed two bonuses (40): neither pays the other.
+    expect(employeeStatement(ctx, 'emp-e1')).toMatchObject({ balance: 300_000, bonus: 40_000 });
+    expect(ledgerBalances(ctx).get('emp-e1')).toBe(300_000);
+    expect(bonusBalances(ctx).get('emp-e1')).toBe(40_000);
+    expect(() => recordRepayment(ctx, { key: 'emp-e1', name: 'سارة' }, 1_000)).not.toThrow();
+    expect(employeeStatement(ctx, 'emp-e1')).toMatchObject({ balance: 299_000, bonus: 40_000 });
+  });
+
+  it('pays from the drawer when asked: the cash leaves the open shift', () => {
+    setProductBonus(ctx, ring, 20_000);
+    sell(EMPLOYEE, ring, 2);
+    ctx.setNow(new Date(2026, 11, 2, 10));
+    creditBonuses(ctx, '2026-11', people);
+    const sara = { key: 'emp-e1', name: 'سارة' };
+    // Sara's shift (from her sales) is the open drawer on the iPad.
+    payEmployee(ctx, sara, 10_000, { fromDrawer: true });
+    expect(ctx.db.all('SELECT kind, amount, reason FROM cash_moves')).toEqual([
+      { kind: 'out', amount: 10_000, reason: 'مكافآت سارة' },
+    ]);
+    // With no drawer open, it is refused and nothing is paid.
+    ctx.db.run("UPDATE shifts SET closed_at = '2026-12-02T09:00:00'");
+    expect(() => payEmployee(ctx, sara, 10_000, { fromDrawer: true })).toThrow('الوردية');
+    expect(employeeStatement(ctx, 'emp-e1').bonus).toBe(30_000);
+    // Not from the drawer: no cash move.
+    payEmployee(ctx, sara, 10_000);
+    expect(ctx.db.get('SELECT count(*) n FROM cash_moves')).toEqual({ n: 1 });
+  });
+
+  it('stops by itself when the piece sells out (fix 8)', () => {
+    const one = saveProduct(ctx, {
+      name: 'سوار',
+      category: 'أساور',
+      price: 100_000,
+      cost: 1,
+      stock: 2,
+    });
+    setProductBonus(ctx, one, 20_000);
+    sell(EMPLOYEE, one, 1);
+    expect(getProduct(ctx, one)!.bonus).toBe(20_000);
+    sell(EMPLOYEE, one, 1);
+    expect(getProduct(ctx, one)!.bonus).toBeNull();
+    // The last piece still earned it, and the stop is in the log.
+    expect(myGoalOf(EMPLOYEE).bonus.earned).toBe(40_000);
+    expect(ctx.db.get("SELECT count(*) n FROM activity WHERE action = 'product.bonus'")).toEqual({
+      n: 2,
+    });
   });
 
   it('lists the pieces with a bonus, for the owner to see and turn off', () => {
@@ -195,6 +268,20 @@ describe('the bonus on slow pieces', () => {
     expect(() => bonusPieces(ctx)).toThrow(PermissionError);
   });
 
+  it('reminds the owner of every ended month not added, the oldest first (fix 7)', () => {
+    setProductBonus(ctx, ring, 20_000);
+    sell(EMPLOYEE, ring);
+    ctx.setNow(new Date(2026, 11, 5, 10));
+    sell(ALI, ring);
+    ctx.setNow(new Date(2027, 0, 5, 10));
+    // November was never added: still there in January, with December.
+    expect(bonusesToCredit(ctx)).toEqual({ count: 2, month: '2026-11' });
+    creditBonuses(ctx, '2026-11', people);
+    expect(bonusesToCredit(ctx)).toEqual({ count: 1, month: '2026-12' });
+    creditBonuses(ctx, '2026-12', people);
+    expect(bonusesToCredit(ctx)).toEqual({ count: 0, month: null });
+  });
+
   it('is the owner’s to put on a piece, and to add to the accounts', () => {
     ctx.setActor(EMPLOYEE);
     expect(() => setProductBonus(ctx, ring, 20_000)).toThrow(PermissionError);
@@ -202,6 +289,7 @@ describe('the bonus on slow pieces', () => {
     expect(() => creditBonuses(ctx, '2026-11', people)).toThrow(PermissionError);
     ctx.setActor(OWNER);
     expect(() => setProductBonus(ctx, ring, 0)).toThrow('المكافأة');
+    expect(() => setGoals(ctx, { bonusDefault: 0 })).toThrow('المكافأة');
   });
 });
 

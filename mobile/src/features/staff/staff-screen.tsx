@@ -43,9 +43,11 @@ const SYSTEM_NAMES: Record<SystemId, string> = { jewelry: 'المجوهرات', 
 const seesPhones = (e: Employee) => (e.grants ?? []).includes('customers.phones');
 const seesSpend = (e: Employee) => (e.grants ?? []).includes('customers.spend');
 
-/** What an account shows: what they owe, or what the shop owes them (a bonus not paid yet). */
-const balanceText = (b: number) =>
-  b > 0 ? `عليه ${formatLyd(b)}` : b < 0 ? `له ${formatLyd(-b)}` : undefined;
+/** What an account shows: what they owe, and apart, their bonuses not paid yet (phase L). */
+const balanceText = (owed: number, bonus: number) =>
+  [owed > 0 ? `عليه ${formatLyd(owed)}` : null, bonus > 0 ? `له ${formatLyd(bonus)}` : null]
+    .filter(Boolean)
+    .join(' • ') || undefined;
 
 const minutes = (n: number) => (n === 1 ? 'دقيقة' : n === 2 ? 'دقيقتان' : `${n} دقائق`);
 
@@ -65,6 +67,7 @@ export function StaffScreen({
   emergency,
   actions,
   balances,
+  bonuses,
   goals,
 }: {
   staff: Staff;
@@ -73,6 +76,8 @@ export function StaffScreen({
   actions: StaffActions;
   /** What each employee owes ("emp-<id>" → dirhams). */
   balances?: Map<string, number>;
+  /** Their bonuses not paid yet, apart (phase L). */
+  bonuses?: Map<string, number>;
   /** The monthly target and the suggested bonus on slow pieces (phase L). */
   goals?: Goals;
 }) {
@@ -147,7 +152,10 @@ export function StaffScreen({
               ]
                 .filter(Boolean)
                 .join(' • ')}
-              value={balanceText(balances?.get(`emp-${e.id}`) ?? 0)}
+              value={balanceText(
+                balances?.get(`emp-${e.id}`) ?? 0,
+                bonuses?.get(`emp-${e.id}`) ?? 0,
+              )}
               onPress={() => menu(e)}
               testID={`staff-${e.name}`}
             />

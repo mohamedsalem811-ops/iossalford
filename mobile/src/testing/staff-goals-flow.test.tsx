@@ -21,7 +21,7 @@ import { getProduct, saveProduct } from '@/domain/products';
 import { openShift } from '@/domain/shifts';
 import { employeeStatement } from '@/domain/staff-ledger';
 import { setGoals } from '@/domain/staff-goals';
-import { addMonths, monthKey } from '@/lib/dates';
+import { addMonths, monthKey, monthTitle } from '@/lib/dates';
 import { OWNER, type Actor } from '@/staff/model';
 import { useStaffStore } from '@/staff/store';
 import { setActor } from '@/state/session';
@@ -179,22 +179,38 @@ it('reports last month, adds its bonuses to the accounts once, and pays her', as
   // As if she sold them last month.
   ctxAs(OWNER).db.run('UPDATE sales SET month = ?', [lastMonth]);
 
-  await renderRouter(routes, { initialUrl: '/jewelry/more/staff-report' });
+  // The dashboard's reminder opens the report on the month waiting (fix 7).
+  await renderRouter(routes, { initialUrl: `/jewelry/more/staff-report?month=${lastMonth}` });
+  expect(await screen.findByTestId('report-title')).toHaveTextContent(monthTitle(lastMonth));
   expect(await screen.findByTestId('report-emp-s1-0')).toHaveTextContent(/100 د.ل/);
   expect(screen.getByTestId('report-emp-s1-1')).toHaveTextContent(/50%/);
   expect(screen.getByTestId('report-emp-s1-7')).toHaveTextContent(/50 د.ل • لم تُضف بعد/);
   press('إضافة');
   press('حسناً');
   await fireEvent.press(screen.getByTestId('report-credit'));
-  expect(employeeStatement(ctxAs(OWNER), 'emp-s1').balance).toBe(-50_000);
+  expect(employeeStatement(ctxAs(OWNER), 'emp-s1')).toMatchObject({ balance: 0, bonus: 50_000 });
   await waitFor(() => expect(screen.queryByTestId('report-credit')).toBeNull());
   expect(screen.getByTestId('report-emp-s1-7')).toHaveTextContent(/في الحساب/);
 
   await renderRouter(routes, { initialUrl: '/jewelry/more/account/s1' });
-  expect(await screen.findByTestId('account-balance')).toHaveTextContent(/50 د.ل/);
-  expect(screen.getByText('له')).toBeOnTheScreen();
-  answer('تسجيل الدفع', '50');
+  // Two parts: nothing owed, 50 in bonuses (owner's choice C).
+  expect(await screen.findByTestId('account-balance')).toHaveTextContent('لا شيء عليه');
+  expect(screen.getByTestId('account-bonus')).toHaveTextContent('50 د.ل');
+  // Each line says what it did, in words (fix 4).
+  expect(screen.getByText('له 50 د.ل')).toBeOnTheScreen();
+  // Paying asks first whether the cash is from the drawer (owner's choice D).
+  answer('التالي', '20');
+  press('نعم، من الدرج');
   await fireEvent.press(screen.getByTestId('account-pay'));
-  expect(employeeStatement(ctxAs(OWNER), 'emp-s1').balance).toBe(0);
-  expect(await screen.findByTestId('account-balance')).toHaveTextContent('لا شيء عليه ولا له');
+  expect(employeeStatement(ctxAs(OWNER), 'emp-s1').bonus).toBe(30_000);
+  expect(ctxAs(OWNER).db.all('SELECT kind, amount FROM cash_moves')).toEqual([
+    { kind: 'out', amount: 20_000 },
+  ]);
+  expect(await screen.findByText('خُصم من له 20 د.ل')).toBeOnTheScreen();
+  answer('التالي', '30');
+  press('لا، من خارج الدرج');
+  await fireEvent.press(screen.getByTestId('account-pay'));
+  expect(employeeStatement(ctxAs(OWNER), 'emp-s1').bonus).toBe(0);
+  expect(ctxAs(OWNER).db.get('SELECT count(*) n FROM cash_moves')).toEqual({ n: 1 });
+  expect(await screen.findByTestId('account-bonus')).toHaveTextContent('لا شيء');
 });

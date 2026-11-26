@@ -19,10 +19,14 @@ import {
   type Ctx,
 } from './context';
 import { getReturn } from './sales';
+import { NO_SHIFT, openShiftOf } from './shifts';
 
 /**
- * A line of the account. The balance is what the employee owes: a charge, a bonus taken back and a
- * payout add; a repayment, a waive and a bonus (phase L) take off. Below 0, the shop owes them.
+ * A line of the account, in one of two parts kept apart (owner's choice, phase L check):
+ * - what the employee owes (`balance`): a charge adds, a repayment or a waive takes off;
+ * - their bonuses (`bonus`, what the shop owes them): a month's bonus adds, a bonus taken back
+ *   by returns and a payout take off.
+ * Neither pays the other.
  */
 export type LedgerKind = 'charge' | 'repay' | 'waive' | 'bonus' | 'bonus_back' | 'payout';
 
@@ -62,9 +66,13 @@ const toLine = (r: Row): LedgerLine => ({
   byName: r.by_name ?? 'المالك',
 });
 
-const ADDS: readonly LedgerKind[] = ['charge', 'bonus_back', 'payout'];
+/** The bonus part of the account (phase L); the rest is what the employee owes. */
+export const BONUS_KINDS: readonly LedgerKind[] = ['bonus', 'bonus_back', 'payout'];
+export const isBonus = (kind: LedgerKind) => BONUS_KINDS.includes(kind);
 
-/** What a line does to the balance (what the employee owes): see LedgerKind. */
+const ADDS: readonly LedgerKind[] = ['charge', 'bonus'];
+
+/** What a line does to its part: what they owe, or (a bonus line) what the shop owes them. */
 export const signed = (l: Pick<LedgerLine, 'kind' | 'amount'>) =>
   ADDS.includes(l.kind) ? l.amount : -l.amount;
 
@@ -200,32 +208,65 @@ export function recordRepayment(
   });
 }
 
-/** The owner records paying an employee what the shop owes them (their bonus, phase L). */
+/**
+ * The owner records paying an employee their bonuses, never more than the shop owes them. From the
+ * drawer (the owner says so), the cash leaves the open shift on the device: the owner's own, or
+ * else the employee's.
+ */
 export function payEmployee(
   ctx: Ctx,
   employee: { key: string; name: string },
   amount: number,
-  note?: string,
+  opts: { fromDrawer?: boolean; note?: string } = {},
 ): number {
   allow(ctx, 'staff.ledger');
   if (!Number.isInteger(amount) || amount <= 0)
     throw new RuleError('المبلغ يجب أن يكون أكبر من صفر');
   if (!employee.key.startsWith('emp-')) throw new RuleError('اختر الموظف');
   return ctx.db.transaction(() => {
+    const owed = bonusOf(ctx, employee.key);
+    if (amount > owed)
+      throw new RuleError(
+        owed > 0 ? `للموظف من المكافآت ${formatLyd(owed)} فقط` : 'لا مكافآت للموظف لم تُدفع',
+      );
+    let moveId: number | null = null;
+    if (opts.fromDrawer) {
+      const shift = openShiftOf(ctx, actorKey(ctx.actor!)) ?? openShiftOf(ctx, employee.key);
+      if (!shift) throw new RuleError(NO_SHIFT);
+      moveId = ctx.db.run(
+        `INSERT INTO cash_moves (shift_id, kind, amount, reason, created_at, by, by_name) VALUES (?, 'out', ?, ?, ?, ?, ?)`,
+        [shift.id, amount, `مكافآت ${employee.name}`, nowStamp(ctx), ...who(ctx)],
+      ).lastInsertRowId;
+    }
     const id = insert(ctx, {
       employee: employee.key,
       employeeName: employee.name,
       kind: 'payout',
       amount,
-      note,
+      note: opts.note ?? (opts.fromDrawer ? 'من الدرج' : undefined),
     });
-    logAction(ctx, 'ledger.payout', `دُفع لـ ${employee.name}: ${formatLyd(amount)}`, {
-      ledgerId: id,
-      employee: employee.key,
-      amount,
-    });
+    logAction(
+      ctx,
+      'ledger.payout',
+      `دُفع لـ ${employee.name} من مكافآته: ${formatLyd(amount)}${opts.fromDrawer ? ' (من الدرج)' : ''}`,
+      { ledgerId: id, employee: employee.key, amount, cashMoveId: moveId },
+    );
     return id;
   });
+}
+
+const BONUS_SQL = `CASE WHEN kind = 'bonus' THEN amount ELSE -amount END`;
+const DEBT_SQL = `CASE WHEN kind = 'charge' THEN amount ELSE -amount END`;
+const IN_BONUS = `kind IN ('bonus', 'bonus_back', 'payout')`;
+
+/** What the shop owes an employee in bonuses (below 0: returns took back more than was paid). */
+function bonusOf(ctx: Ctx, employee: string): number {
+  return (
+    ctx.db.get<{ b: number | null }>(
+      `SELECT sum(${BONUS_SQL}) b FROM staff_ledger WHERE employee = ? AND ${IN_BONUS}`,
+      [employee],
+    )?.b ?? 0
+  );
 }
 
 /** The owner reads anyone's account; an employee reads only their own. */
@@ -236,29 +277,43 @@ function mayRead(ctx: Ctx, employee: string) {
   throw new PermissionError(actor ? 'حساب الموظف: للمالك فقط.' : 'سجّل الدخول أولاً.');
 }
 
-/** An employee's statement, oldest first, with the balance after each line. */
+/**
+ * An employee's statement, oldest first, each line with its own part's total after it (`balance`):
+ * what they owe (`balance`), and their bonuses (`bonus`, what the shop owes them), kept apart.
+ */
 export function employeeStatement(
   ctx: Ctx,
   employee: string,
-): { lines: (LedgerLine & { balance: number })[]; balance: number } {
+): { lines: (LedgerLine & { balance: number })[]; balance: number; bonus: number } {
   mayRead(ctx, employee);
   let balance = 0;
+  let bonus = 0;
   const lines = ctx.db
     .all<Row>('SELECT * FROM staff_ledger WHERE employee = ? ORDER BY id', [employee])
     .map((r) => {
       const l = toLine(r);
-      balance += signed(l);
-      return { ...l, balance };
+      if (isBonus(l.kind)) bonus += signed(l);
+      else balance += signed(l);
+      return { ...l, balance: isBonus(l.kind) ? bonus : balance };
     });
-  return { lines, balance };
+  return { lines, balance, bonus };
 }
 
-/** What each employee owes (the owner's list). */
+/** What each employee owes (the owner's list), bonuses left out. */
 export function ledgerBalances(ctx: Ctx): Map<string, number> {
   mayRead(ctx, '');
   const rows = ctx.db.all<{ employee: string; balance: number }>(
-    `SELECT employee, sum(CASE WHEN kind IN ('charge', 'bonus_back', 'payout') THEN amount ELSE -amount END) AS balance
-       FROM staff_ledger GROUP BY employee`,
+    `SELECT employee, sum(${DEBT_SQL}) AS balance FROM staff_ledger
+      WHERE NOT ${IN_BONUS} GROUP BY employee`,
   );
   return new Map(rows.map((r) => [r.employee, r.balance]));
+}
+
+/** What the shop owes each employee in bonuses (the owner's list). */
+export function bonusBalances(ctx: Ctx): Map<string, number> {
+  mayRead(ctx, '');
+  const rows = ctx.db.all<{ employee: string; bonus: number }>(
+    `SELECT employee, sum(${BONUS_SQL}) AS bonus FROM staff_ledger WHERE ${IN_BONUS} GROUP BY employee`,
+  );
+  return new Map(rows.map((r) => [r.employee, r.bonus]));
 }

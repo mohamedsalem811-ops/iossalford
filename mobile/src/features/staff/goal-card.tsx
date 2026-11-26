@@ -4,11 +4,15 @@ import { View } from 'react-native';
 
 import { Appear, Badge, Card, Meter, Text } from '@/components';
 import type { MyGoal } from '@/domain/staff-goals';
+import { countText, DAYS } from '@/lib/arabic-count';
 import { haptic } from '@/lib/haptics';
 import { formatLyd } from '@/lib/money';
 import { spacing, useTheme } from '@/theme';
 
-/** Whether this month's «you reached it» was already shown to this person on this device. */
+/**
+ * Whether this month's «you reached it» was already shown to this person on this device. `who` is
+ * the system and the employee's key (Latin letters and digits), never the name.
+ */
 const celebratedKey = (who: string) => `goal-celebrated-${who.replace(/[^A-Za-z0-9._-]/g, '_')}`;
 function celebratedOnce(who: string, month: string): boolean {
   try {
@@ -51,7 +55,9 @@ export function GoalCard({ goal, who, month }: { goal: MyGoal; who: string; mont
             </Appear>
           ) : (
             <Text variant="body" testID="my-goal-left">
-              {`باقي ${formatLyd(goal.left)} · ${goal.daysLeft} يوم · ${formatLyd(goal.perDay)} في اليوم`}
+              {goal.daysLeft === 1
+                ? `باقي ${formatLyd(goal.left)} في آخر يوم من الشهر`
+                : `باقي ${formatLyd(goal.left)} في ${countText(goal.daysLeft, DAYS)} · ${formatLyd(goal.perDay)} في اليوم`}
             </Text>
           )}
         </Card>

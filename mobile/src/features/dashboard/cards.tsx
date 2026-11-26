@@ -32,8 +32,8 @@ export type DashboardActions = {
   onOpenSetup?: () => void;
   /** الموظفون, where the emergency password is chosen (K review). */
   onOpenStaff?: () => void;
-  /** تقرير الموظفين, to add last month's bonuses to the accounts (phase L). */
-  onOpenStaffReport?: () => void;
+  /** تقرير الموظفين on a month, to add its bonuses to the accounts (phase L). */
+  onOpenStaffReport?: (month: MonthKey) => void;
   /** Today's card: the end-of-day summary. */
   onOpenDay?: () => void;
   /** An alert (phase S6): what happened, open it, or mark it seen. */
@@ -137,7 +137,7 @@ export function AttentionCard({
     !a.birthdays?.length &&
     !a.setup &&
     !a.noEmergency &&
-    !a.bonuses &&
+    !a.bonuses?.count &&
     alerts.length === 0;
   return (
     <Card style={{ flex: 1 }} testID="attention">
@@ -233,13 +233,13 @@ export function AttentionCard({
               testID="attention-emergency"
             />
           ) : null}
-          {a.bonuses ? (
+          {a.bonuses?.count && a.bonuses.month ? (
             <ListRow
               icon="gift"
               tone="warning"
-              title={`مكافآت الشهر الماضي لم تُضف بعد (${a.bonuses})`}
-              subtitle="أضفها إلى حسابات الموظفين من تقرير الموظفين"
-              onPress={actions.onOpenStaffReport}
+              title={`مكافآت لم تُضف إلى حسابات الموظفين (${a.bonuses.count})`}
+              subtitle={`منذ ${monthTitle(a.bonuses.month)}: أضفها من تقرير الموظفين`}
+              onPress={() => actions.onOpenStaffReport?.(a.bonuses!.month!)}
               testID="attention-bonuses"
             />
           ) : null}

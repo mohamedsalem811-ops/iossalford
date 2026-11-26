@@ -33,9 +33,11 @@ jest.mock('@/hooks/use-layout', () => ({
 }));
 
 const ALI: Actor = { kind: 'employee', id: 'e2', name: 'علي' };
+const ALIA: Actor = { kind: 'employee', id: 'e4', name: 'علية' };
 const people = [
   { key: 'emp-e1', name: 'سارة' },
   { key: 'emp-e2', name: 'علي' },
+  { key: 'emp-e4', name: 'علية' },
 ];
 
 let ctx: TestCtx;
@@ -55,13 +57,13 @@ function sell(as: Actor, qty: number) {
   ctx.setActor(OWNER);
 }
 
-async function show() {
-  ctx.setActor(EMPLOYEE);
+async function show(as: Actor = EMPLOYEE) {
+  ctx.setActor(as);
   const data = readMySales(ctx, people);
   await renderScreen(
     <EmployeeHomeScreen
       system="jewelry"
-      name="سارة"
+      name={as.kind === 'employee' ? as.name : ''}
       data={data}
       actions={{
         onSystemMenu: jest.fn(),
@@ -80,8 +82,10 @@ it('shows the target, what is left a day, and the ranking without amounts', asyn
   sell(ALI, 3);
   await show();
   expect(screen.getByTestId('my-goal')).toHaveTextContent(/30%/);
-  expect(screen.getByTestId('my-goal-left')).toHaveTextContent(/باقي 700/);
-  expect(screen.getByTestId('my-ranking')).toHaveTextContent(/أنا 2 من 2/);
+  expect(screen.getByTestId('my-goal-left')).toHaveTextContent(
+    'باقي 700 د.ل في 21 يوماً · 33.334 د.ل في اليوم',
+  );
+  expect(screen.getByTestId('my-ranking')).toHaveTextContent(/أنا 2 من 3/);
   expect(screen.getByTestId('rank-emp-e2')).toHaveTextContent(/علي.*الأفضل.*90%/);
   // Ali's 900 is never on her screen.
   expect(screen.getByTestId('my-ranking')).not.toHaveTextContent(/900/);
@@ -96,6 +100,11 @@ it('celebrates the target once a month, with a haptic', async () => {
   await screen.unmount();
   await show();
   expect(Haptics.notificationAsync).toHaveBeenCalledTimes(1);
+  await screen.unmount();
+  // Another name of the same length reaches it too: her own celebration (fix 1).
+  sell(ALIA, 1);
+  await show(ALIA);
+  expect(Haptics.notificationAsync).toHaveBeenCalledTimes(2);
 });
 
 it('shows no target card with no target, and the bonus and what the shop owes her', async () => {
@@ -109,5 +118,7 @@ it('shows no target card with no target, and the bonus and what the shop owes he
   ctx.setActor(OWNER);
   creditBonuses(ctx, '2026-11', people);
   await show();
-  expect(screen.getByTestId('my-account')).toHaveTextContent(/لي في حسابي 40/);
+  // Kept apart from what she owes (owner's choice C).
+  expect(screen.getByTestId('my-bonus-owed')).toHaveTextContent(/^مكافآت لي لم تُدفع 40 د.ل/);
+  expect(screen.queryByTestId('my-account')).toBeNull();
 });

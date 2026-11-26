@@ -1,6 +1,6 @@
 import { router, Stack, useFocusEffect } from 'expo-router';
 
-import { ledgerBalances } from '@/domain/staff-ledger';
+import { bonusBalances, ledgerBalances } from '@/domain/staff-ledger';
 import { useCtx } from '@/state/system-db';
 import { useCallback, useState } from 'react';
 
@@ -44,9 +44,11 @@ function StaffRouteScreen() {
   useFocusEffect(readCode);
   const ctx = useCtx();
   const [balances, setBalances] = useState(() => ledgerBalances(ctx));
+  const [bonuses, setBonuses] = useState(() => bonusBalances(ctx));
   const [goals, setGoalsShown] = useState(() => getGoals(ctx));
   const reread = useCallback(() => {
     setBalances(ledgerBalances(ctx));
+    setBonuses(bonusBalances(ctx));
     setGoalsShown(getGoals(ctx));
   }, [ctx]);
   useFocusEffect(reread);
@@ -57,6 +59,7 @@ function StaffRouteScreen() {
         staff={staff}
         emergency={emergency}
         balances={balances}
+        bonuses={bonuses}
         goals={goals}
         actions={{
           onTarget: () => editTargetFlow(ctx, reread),

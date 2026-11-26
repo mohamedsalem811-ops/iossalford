@@ -98,7 +98,7 @@ export function EmployeeHomeScreen({
         </Card>
       </Grid>
       {data.goal ? (
-        <GoalCard goal={data.goal} who={`${system}-${name}`} month={monthKey(data.date)} />
+        <GoalCard goal={data.goal} who={`${system}-${data.goal.me}`} month={monthKey(data.date)} />
       ) : null}
       {data.owed > 0 ? (
         <Pressable onPress={actions.onOpenAccount} accessibilityRole="button" testID="my-account">
@@ -111,10 +111,14 @@ export function EmployeeHomeScreen({
             </Text>
           </Card>
         </Pressable>
-      ) : data.owed < 0 ? (
-        <Pressable onPress={actions.onOpenAccount} accessibilityRole="button" testID="my-account">
+      ) : null}
+      {data.bonus > 0 ? (
+        <Pressable
+          onPress={actions.onOpenAccount}
+          accessibilityRole="button"
+          testID="my-bonus-owed">
           <Card>
-            <Text variant="bodyStrong">{`لي في حسابي ${formatLyd(-data.owed)}`}</Text>
+            <Text variant="bodyStrong">{`مكافآت لي لم تُدفع ${formatLyd(data.bonus)}`}</Text>
             <Text variant="caption" tone="accent">
               عرض الحساب
             </Text>

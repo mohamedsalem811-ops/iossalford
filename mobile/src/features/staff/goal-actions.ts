@@ -58,6 +58,11 @@ function askAmount(
             Alert.alert('لم يُحفظ', 'اكتب المبلغ بالدينار، مثل 20 أو 12.5.');
             return;
           }
+          if (amount === 0 && !emptyOk) {
+            haptic.error();
+            Alert.alert('لم يُحفظ', 'اكتب مبلغاً أكبر من صفر.');
+            return;
+          }
           onAmount(amount);
         },
       },
@@ -83,7 +88,7 @@ export function editBonusDefaultFlow(ctx: Ctx, done: () => void) {
     'المكافأة المقترحة',
     'المبلغ الذي يُقترح عند وضع مكافأة على قطعة راكدة. يمكنك تغييره لكل قطعة.',
     getGoals(ctx).bonusDefault,
-    (amount) => amount && run(() => setGoals(ctx, { bonusDefault: amount }), done),
+    (amount) => run(() => setGoals(ctx, { bonusDefault: amount ?? 0 }), done),
   );
 }
 
@@ -98,7 +103,7 @@ export function productBonusFlow(
       `مكافأة على ${product.name}`,
       'يكسبها الموظف عن كل قطعة يبيعها، وتُخصم إن أُرجعت. لا تُحسب للمالك.',
       product.bonus ?? getGoals(ctx).bonusDefault,
-      (amount) => amount && run(() => setProductBonus(ctx, product.id, amount), done),
+      (amount) => run(() => setProductBonus(ctx, product.id, amount ?? 0), done),
     );
   if (!product.bonus) return ask();
   Alert.alert(product.name, `عليها مكافأة ${formatLyd(product.bonus)} للقطعة.`, [
@@ -112,14 +117,30 @@ export function productBonusFlow(
   ]);
 }
 
-/** Pays an employee what the shop owes them (a balance under 0). */
+/**
+ * Pays an employee their bonuses (never more than the shop owes them). The owner says whether the
+ * cash comes from the drawer: then it is taken out of the open shift, so the count stays right.
+ */
 export function payEmployeeFlow(ctx: Ctx, person: Person, owed: number, done: () => void) {
   askAmount(
-    `دفع لـ ${person.name}`,
-    `للموظف في حسابه ${formatLyd(owed)}. كم دفعت له الآن؟`,
+    `دفع مكافآت ${person.name}`,
+    `له من المكافآت ${formatLyd(owed)}. كم دفعت له الآن؟`,
     owed,
-    (amount) => amount && run(() => payEmployee(ctx, person, amount), done),
-    { button: 'تسجيل الدفع' },
+    (amount) => {
+      if (!amount) return;
+      Alert.alert('من الدرج؟', `هل دفعت ${formatLyd(amount)} من نقد الدرج؟`, [
+        {
+          text: 'نعم، من الدرج',
+          onPress: () => run(() => payEmployee(ctx, person, amount, { fromDrawer: true }), done),
+        },
+        {
+          text: 'لا، من خارج الدرج',
+          onPress: () => run(() => payEmployee(ctx, person, amount), done),
+        },
+        { text: 'إلغاء', style: 'cancel' },
+      ]);
+    },
+    { button: 'التالي' },
   );
 }
 

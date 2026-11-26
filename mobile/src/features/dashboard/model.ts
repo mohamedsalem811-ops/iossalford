@@ -104,8 +104,11 @@ export type DashboardData = {
      * PIN can't be reset. Read from the Keychain by the screen, not from the database.
      */
     noEmergency?: boolean;
-    /** People with last month's bonus on slow pieces not in their account yet (phase L). */
-    bonuses?: number;
+    /**
+     * Bonuses on slow pieces of ended months not in the accounts yet (phase L): how many people's
+     * months, and the oldest month, which the report opens on.
+     */
+    bonuses?: { count: number; month: MonthKey | null };
   };
   byCategory: RankedRow[];
   byBrand: RankedRow[];
@@ -154,7 +157,7 @@ export function readDashboard(
       alerts: ownerAlerts(ctx),
       birthdays: birthdaysThisWeek(ctx).map((b) => b.customer.name),
       setup: setupCount(ctx),
-      bonuses: can(ctx.actor, 'staff.manage') ? bonusesToCredit(ctx) : 0,
+      bonuses: can(ctx.actor, 'staff.manage') ? bonusesToCredit(ctx) : undefined,
     },
     byCategory: ranked(breakdown(ctx, [month], 'category')),
     byBrand: ranked(breakdown(ctx, [month], 'brand')),

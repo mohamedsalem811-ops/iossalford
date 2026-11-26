@@ -1,4 +1,4 @@
-import { Stack, useFocusEffect } from 'expo-router';
+import { Stack, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
 import { View } from 'react-native';
 
@@ -8,7 +8,7 @@ import { staffReport } from '@/domain/staff-goals';
 import { showError } from '@/features/products/actions';
 import { creditBonusesFlow } from '@/features/staff/goal-actions';
 import { personRows, personTitle, printStaffReport } from '@/features/staff/staff-report';
-import { addMonths, monthKey, monthTitle, type MonthKey } from '@/lib/dates';
+import { addMonths, monthKey, monthTitle, parseMonthKey, type MonthKey } from '@/lib/dates';
 import { logError } from '@/lib/error-log';
 import { formatLyd } from '@/lib/money';
 import { useOnDataChanged } from '@/state/data-events';
@@ -35,8 +35,11 @@ function StaffReportScreen() {
     [staff, ctx.system],
   );
   const thisMonth = monthKey(ctx.now());
-  // The month that just ended first: the one whose bonus goes into the accounts.
-  const [month, setMonth] = useState<MonthKey>(() => addMonths(thisMonth, -1));
+  // The dashboard opens the oldest month waiting; otherwise the month that just ended first.
+  const asked = useLocalSearchParams<{ month?: string }>().month;
+  const [month, setMonth] = useState<MonthKey>(() =>
+    asked && parseMonthKey(asked) && asked <= thisMonth ? asked : addMonths(thisMonth, -1),
+  );
   const read = useCallback(() => staffReport(ctx, month, people), [ctx, month, people]);
   const [report, setReport] = useState(read);
   const refresh = useCallback(() => setReport(read()), [read]);

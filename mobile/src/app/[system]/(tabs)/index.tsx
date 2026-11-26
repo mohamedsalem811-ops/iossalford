@@ -341,7 +341,8 @@ function Dashboard() {
         onOpenDebts: () => router.push(sectionHref('debts', system)),
         onOpenBirthdays: () =>
           router.push({ pathname: '/[system]/more/customer-care', params: { system } }),
-        onOpenStaffReport: () => router.push(sectionHref('staffReport', system)),
+        onOpenStaffReport: (month) =>
+          router.push({ pathname: '/[system]/more/staff-report', params: { system, month } }),
         onOpenSetup: () => router.push({ pathname: '/[system]/more/loyalty', params: { system } }),
         onOpenStaff: () => router.push({ pathname: '/[system]/more/staff', params: { system } }),
         onOpenBackup: () => router.push(sectionHref('backup', system)),

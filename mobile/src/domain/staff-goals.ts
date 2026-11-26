@@ -191,6 +191,8 @@ function rank(months: Map<string, StaffMonth>, people: Person[], target: number)
 }
 
 export type MyGoal = {
+  /** The employee's key ("emp-…"): marks the celebration on the device, never the name. */
+  me: string;
   target: number;
   net: number;
   percent: number;
@@ -227,6 +229,7 @@ export function myGoal(ctx: Ctx, people: Person[]): MyGoal | null {
   const left = Math.max(0, target - mine.net);
   const daysLeft = daysIn(month) - ctx.now().getDate() + 1;
   return {
+    me,
     target,
     net: mine.net,
     percent: percentOf(mine.net, target),
@@ -399,11 +402,32 @@ export function bonusPieces(ctx: Ctx): BonusPiece[] {
   );
 }
 
-/** How many people have last month's bonus still to add to their account (the dashboard). */
-export function bonusesToCredit(ctx: Ctx): number {
+/**
+ * The ended months with bonuses still to add to the accounts (the dashboard): how many people's
+ * months in all, and the oldest month, which the report opens on. A month skipped stays here.
+ */
+export function bonusesToCredit(ctx: Ctx): { count: number; month: MonthKey | null } {
   allowView(ctx, 'staff.manage');
-  const month = lastMonth(ctx);
-  const done = creditedKeys(ctx, month);
-  return [...staffMonths(ctx, month).values()].filter((m) => m.bonus !== 0 && !done.has(m.key))
-    .length;
+  const months = ctx.db
+    .all<{ month: MonthKey }>(
+      `SELECT s.month FROM sale_lines l JOIN sales s ON s.id = l.sale_id
+        WHERE l.bonus > 0 AND s.seller LIKE 'emp-%' AND s.month < ?1
+       UNION
+       SELECT r.month FROM returns r JOIN sale_lines l ON l.id = r.sale_line_id
+        WHERE l.bonus > 0 AND r.month < ?1
+       ORDER BY 1`,
+      [nowMonth(ctx)],
+    )
+    .map((r) => r.month);
+  let count = 0;
+  let first: MonthKey | null = null;
+  for (const month of months) {
+    const done = creditedKeys(ctx, month);
+    const n = [...staffMonths(ctx, month).values()].filter(
+      (m) => m.bonus !== 0 && !done.has(m.key),
+    ).length;
+    if (n && !first) first = month;
+    count += n;
+  }
+  return { count, month: first };
 }

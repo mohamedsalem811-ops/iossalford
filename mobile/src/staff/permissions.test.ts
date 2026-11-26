@@ -267,6 +267,11 @@ function seed(ctx: TestCtx): Seed {
     kind: 'image',
     productIds: [ring],
   });
+  // A September bonus the shop owes Sara (phase L), for paying it out.
+  ctx.db.run(
+    `INSERT INTO staff_ledger (employee, employee_name, kind, amount, created_at, month, bonus_month)
+     VALUES ('emp-e1', 'سارة', 'bonus', 5000, '2026-10-01T09:00:00', '2026-10', '2026-09')`,
+  );
   return {
     invoice,
     service,
@@ -550,6 +555,7 @@ const MATRIX: Record<string, { permission: Permission; run: (ctx: TestCtx, s: Se
     },
     payEmployee: {
       permission: 'staff.ledger',
+      // The seed gives her a bonus the shop owes (a payout never goes over it).
       run: (ctx) => payEmployee(ctx, { key: 'emp-e1', name: 'سارة' }, 5_000),
     },
     creditBonuses: {

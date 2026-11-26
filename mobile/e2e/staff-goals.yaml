@@ -1,0 +1,39 @@
+# Phase L, the owner: the monthly target set in الموظفون → «الأهداف والمكافآت» (one amount for
+# everyone), then the monthly staff report under المال. Written with the phase and not run yet
+# (the simulator run waits for the owner's word). iPhone and iPad (screens: goals, report).
+appId: com.salford.pos
+---
+- runFlow: subflows/open-jewelry.yaml
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-staff'
+- scrollUntilVisible:
+    element:
+      id: 'staff-target'
+    direction: DOWN
+    timeout: 20000
+- takeScreenshot: ${DEVICE}-staff-goals
+- tapOn:
+    id: 'staff-target'
+- extendedWaitUntil:
+    visible: 'هدف الشهر'
+    timeout: 10000
+- inputText: '1000'
+- tapOn: 'حفظ'
+- extendedWaitUntil:
+    visible: '.*1,000 د.ل.*'
+    timeout: 10000
+- takeScreenshot: ${DEVICE}-staff-target-set
+- runFlow:
+    file: subflows/open-section.yaml
+    env:
+      ID: 'manage-staffReport'
+- extendedWaitUntil:
+    visible:
+      id: 'report-title'
+    timeout: 30000
+- takeScreenshot: ${DEVICE}-staff-report
+- tapOn:
+    id: 'report-next'
+- takeScreenshot: ${DEVICE}-staff-report-this-month
